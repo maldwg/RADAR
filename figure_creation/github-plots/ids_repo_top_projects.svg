@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="570" viewBox="0 0 1100 570" role="img">
+<title>Most Starred IDS-Related Repositories</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 22px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #6f7782; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 7px; fill: #43505c; }
+.tiny-strong { font-size: 8px; font-weight: 700; fill: #263238; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+</style>
+<rect width="1100" height="570" fill="white"/>
+<text class="title" x="550.0" y="34" text-anchor="middle">Most Starred IDS-Related Repositories</text>
+<text class="subtitle" x="550.0" y="54" text-anchor="middle">Top 15 entries from ids_repos.csv</text>
+<text class="label" x="348" y="96" text-anchor="end">cilium/cilium<title>cilium/cilium</title></text>
+<rect x="360" y="82" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="82" width="656.0" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="1024.0" y="96">24528</text>
+<text class="label" x="348" y="126" text-anchor="end">osquery/osquery<title>osquery/osquery</title></text>
+<rect x="360" y="112" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="112" width="623.6" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="991.6" y="126">23318</text>
+<text class="label" x="348" y="156" text-anchor="end">fail2ban/fail2ban<title>fail2ban/fail2ban</title></text>
+<rect x="360" y="142" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="142" width="481.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="849.4" y="156">18001</text>
+<text class="label" x="348" y="186" text-anchor="end">wazuh/wazuh<title>wazuh/wazuh</title></text>
+<rect x="360" y="172" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="172" width="425.0" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="793.0" y="186">15891</text>
+<text class="label" x="348" y="216" text-anchor="end">crowdsecurity/crowdsec<title>crowdsecurity/crowdsec</title></text>
+<rect x="360" y="202" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="202" width="372.3" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="740.3" y="216">13919</text>
+<text class="label" x="348" y="246" text-anchor="end">owasp-modsecurity/ModSecurity<title>owasp-modsecurity/ModSecurity</title></text>
+<rect x="360" y="232" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="232" width="258.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="626.7" y="246">9673</text>
+<text class="label" x="348" y="276" text-anchor="end">stamparm/maltrail<title>stamparm/maltrail</title></text>
+<rect x="360" y="262" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="262" width="227.3" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="595.3" y="276">8497</text>
+<text class="label" x="348" y="306" text-anchor="end">zeek/zeek<title>zeek/zeek</title></text>
+<rect x="360" y="292" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="292" width="206.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="574.7" y="306">7730</text>
+<text class="label" x="348" y="336" text-anchor="end">OISF/suricata<title>OISF/suricata</title></text>
+<rect x="360" y="322" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="322" width="171.2" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="539.2" y="336">6400</text>
+<text class="label" x="348" y="366" text-anchor="end">ossec/ossec-hids<title>ossec/ossec-hids</title></text>
+<rect x="360" y="352" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="352" width="134.3" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="502.3" y="366">5020</text>
+<text class="label" x="348" y="396" text-anchor="end">Security-Onion-Solutions/securityonion<title>Security-Onion-Solutions/securityonion</title></text>
+<rect x="360" y="382" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="382" width="124.5" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="492.5" y="396">4656</text>
+<text class="label" x="348" y="426" text-anchor="end">opnsense/core<title>opnsense/core</title></text>
+<rect x="360" y="412" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="412" width="120.0" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="488.0" y="426">4487</text>
+<text class="label" x="348" y="456" text-anchor="end">firehol/blocklist-ipsets<title>firehol/blocklist-ipsets</title></text>
+<rect x="360" y="442" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="442" width="102.9" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="470.9" y="456">3847</text>
+<text class="label" x="348" y="486" text-anchor="end">WithSecureLabs/chainsaw<title>WithSecureLabs/chainsaw</title></text>
+<rect x="360" y="472" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="472" width="95.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="463.4" y="486">3567</text>
+<text class="label" x="348" y="516" text-anchor="end">diafygi/webrtc-ips<title>diafygi/webrtc-ips</title></text>
+<rect x="360" y="502" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="360" y="502" width="92.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="460.4" y="516">3454</text>
+</svg>

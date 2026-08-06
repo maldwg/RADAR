@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#17212b}
+.title{font-size:22px;font-weight:700}
+.subtitle{font-size:12px;fill:#53616f}
+.axis{stroke:#9aa5b1;stroke-width:1}
+.grid{stroke:#d7dde5;stroke-width:1;stroke-dasharray:4 4}
+.label{font-size:11px}
+.small{font-size:10px;fill:#53616f}
+.tiny{font-size:9px;fill:#53616f}
+.tick{font-size:10px;fill:#53616f}
+.number{font-size:11px;font-weight:700;fill:#17212b}
+</style>
+<text x="28.00" y="34.00" class="title" text-anchor="start">Heuristic Scaling Against Citation Count</text>
+<text x="28.00" y="54.00" class="subtitle" text-anchor="start">30 entities from ids_datasets_openalex.csv</text>
+<line x1="90.00" y1="528.00" x2="1068.00" y2="528.00" class="grid"/>
+<text x="80.00" y="532.00" class="tick" text-anchor="end">3.6</text>
+<line x1="90.00" y1="438.80" x2="1068.00" y2="438.80" class="grid"/>
+<text x="80.00" y="442.80" class="tick" text-anchor="end">5.7</text>
+<line x1="90.00" y1="349.60" x2="1068.00" y2="349.60" class="grid"/>
+<text x="80.00" y="353.60" class="tick" text-anchor="end">7.9</text>
+<line x1="90.00" y1="260.40" x2="1068.00" y2="260.40" class="grid"/>
+<text x="80.00" y="264.40" class="tick" text-anchor="end">10.1</text>
+<line x1="90.00" y1="171.20" x2="1068.00" y2="171.20" class="grid"/>
+<text x="80.00" y="175.20" class="tick" text-anchor="end">12.3</text>
+<line x1="90.00" y1="82.00" x2="1068.00" y2="82.00" class="grid"/>
+<text x="80.00" y="86.00" class="tick" text-anchor="end">14.4</text>
+<line x1="171.50" y1="82.00" x2="171.50" y2="528.00" class="axis" stroke="#6C7A89" stroke-width="1.20"/>
+<rect x="135.50" y="248.06" width="72.00" height="158.14" rx="3.00" fill="#DDE7F0" stroke="#2F6B9A" opacity="0.950"/>
+<line x1="135.50" y1="252.81" x2="207.50" y2="252.81" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<text x="171.50" y="550.00" class="tick" text-anchor="middle" transform="rotate(-25.0 171.50 550.00)">10-49</text>
+<text x="171.50" y="572.00" class="tiny" text-anchor="middle">n=11</text>
+<line x1="334.50" y1="188.86" x2="334.50" y2="521.87" class="axis" stroke="#6C7A89" stroke-width="1.20"/>
+<rect x="298.50" y="191.93" width="72.00" height="111.31" rx="3.00" fill="#DDE7F0" stroke="#2F6B9A" opacity="0.950"/>
+<line x1="298.50" y1="211.65" x2="370.50" y2="211.65" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<text x="334.50" y="550.00" class="tick" text-anchor="middle" transform="rotate(-25.0 334.50 550.00)">50-99</text>
+<text x="334.50" y="572.00" class="tiny" text-anchor="middle">n=4</text>
+<line x1="497.50" y1="229.24" x2="497.50" y2="229.24" class="axis" stroke="#6C7A89" stroke-width="1.20"/>
+<rect x="461.50" y="229.24" width="72.00" height="0.00" rx="3.00" fill="#DDE7F0" stroke="#2F6B9A" opacity="0.950"/>
+<line x1="461.50" y1="229.24" x2="533.50" y2="229.24" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<text x="497.50" y="550.00" class="tick" text-anchor="middle" transform="rotate(-25.0 497.50 550.00)">100-249</text>
+<text x="497.50" y="572.00" class="tiny" text-anchor="middle">n=1</text>
+<line x1="660.50" y1="188.17" x2="660.50" y2="229.24" class="axis" stroke="#6C7A89" stroke-width="1.20"/>
+<rect x="624.50" y="198.44" width="72.00" height="20.53" rx="3.00" fill="#DDE7F0" stroke="#2F6B9A" opacity="0.950"/>
+<line x1="624.50" y1="208.71" x2="696.50" y2="208.71" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<text x="660.50" y="550.00" class="tick" text-anchor="middle" transform="rotate(-25.0 660.50 550.00)">250-499</text>
+<text x="660.50" y="572.00" class="tiny" text-anchor="middle">n=2</text>
+<line x1="823.50" y1="147.11" x2="823.50" y2="229.24" class="axis" stroke="#6C7A89" stroke-width="1.20"/>
+<rect x="787.50" y="167.64" width="72.00" height="41.07" rx="3.00" fill="#DDE7F0" stroke="#2F6B9A" opacity="0.950"/>
+<line x1="787.50" y1="188.17" x2="859.50" y2="188.17" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<text x="823.50" y="550.00" class="tick" text-anchor="middle" transform="rotate(-25.0 823.50 550.00)">500-999</text>
+<text x="823.50" y="572.00" class="tiny" text-anchor="middle">n=3</text>
+<line x1="986.50" y1="188.17" x2="986.50" y2="188.17" class="axis" stroke="#6C7A89" stroke-width="1.20"/>
+<rect x="950.50" y="188.17" width="72.00" height="0.00" rx="3.00" fill="#DDE7F0" stroke="#2F6B9A" opacity="0.950"/>
+<line x1="950.50" y1="188.17" x2="1022.50" y2="188.17" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<text x="986.50" y="550.00" class="tick" text-anchor="middle" transform="rotate(-25.0 986.50 550.00)">1000+</text>
+<text x="986.50" y="572.00" class="tiny" text-anchor="middle">n=1</text>
+<polyline points="171.50,252.81 334.50,211.65 497.50,229.24 660.50,208.71 823.50,188.17 986.50,188.17" fill="none" stroke="#C94F4F" stroke-width="2.40" opacity="0.950"/>
+<circle cx="171.50" cy="252.81" r="4.50" fill="#C94F4F" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<circle cx="334.50" cy="211.65" r="4.50" fill="#C94F4F" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<circle cx="497.50" cy="229.24" r="4.50" fill="#C94F4F" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<circle cx="660.50" cy="208.71" r="4.50" fill="#C94F4F" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<circle cx="823.50" cy="188.17" r="4.50" fill="#C94F4F" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<circle cx="986.50" cy="188.17" r="4.50" fill="#C94F4F" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<line x1="90.00" y1="82.00" x2="90.00" y2="528.00" class="axis"/>
+<line x1="90.00" y1="528.00" x2="1068.00" y2="528.00" class="axis"/>
+<text x="579.00" y="594.00" class="label" text-anchor="middle">Citation-count bins</text>
+<text x="20.00" y="305.00" class="label" text-anchor="middle" transform="rotate(-90.0 20.00 305.00)">Heuristic/canonical score</text>
+<text x="718.00" y="104.00" class="small" text-anchor="start">Boxes show IQR, red line shows median score.</text>
+<text x="28.00" y="602.00" class="small" text-anchor="start">Data acquired from input CSV</text>
+</svg>

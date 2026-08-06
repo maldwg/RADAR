@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="650" viewBox="0 0 1120 650">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#17212b}
+.title{font-size:22px;font-weight:700}
+.subtitle{font-size:12px;fill:#53616f}
+.axis{stroke:#9aa5b1;stroke-width:1}
+.grid{stroke:#d7dde5;stroke-width:1;stroke-dasharray:4 4}
+.label{font-size:11px}
+.small{font-size:10px;fill:#53616f}
+.tiny{font-size:9px;fill:#53616f}
+.tick{font-size:10px;fill:#53616f}
+.number{font-size:11px;font-weight:700;fill:#17212b}
+</style>
+<text x="28.00" y="34.00" class="title" text-anchor="start">Score Distribution By Discovery Method</text>
+<text x="28.00" y="54.00" class="subtitle" text-anchor="start">30 entities from ids_datasets_openalex.csv</text>
+<line x1="86.00" y1="500.00" x2="1064.00" y2="500.00" class="grid"/>
+<text x="76.00" y="504.00" class="tick" text-anchor="end">3.6</text>
+<line x1="86.00" y1="416.40" x2="1064.00" y2="416.40" class="grid"/>
+<text x="76.00" y="420.40" class="tick" text-anchor="end">5.7</text>
+<line x1="86.00" y1="332.80" x2="1064.00" y2="332.80" class="grid"/>
+<text x="76.00" y="336.80" class="tick" text-anchor="end">7.9</text>
+<line x1="86.00" y1="249.20" x2="1064.00" y2="249.20" class="grid"/>
+<text x="76.00" y="253.20" class="tick" text-anchor="end">10.1</text>
+<line x1="86.00" y1="165.60" x2="1064.00" y2="165.60" class="grid"/>
+<text x="76.00" y="169.60" class="tick" text-anchor="end">12.3</text>
+<line x1="86.00" y1="82.00" x2="1064.00" y2="82.00" class="grid"/>
+<text x="76.00" y="86.00" class="tick" text-anchor="end">14.4</text>
+<line x1="183.80" y1="82.00" x2="183.80" y2="389.05" class="axis" stroke="#6C7A89" stroke-width="1.10"/>
+<rect x="154.80" y="181.67" width="58.00" height="59.49" rx="3.00" fill="#2F6B9A" stroke="#ffffff" opacity="0.550"/>
+<line x1="154.80" y1="220.00" x2="212.80" y2="220.00" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<circle cx="174.80" cy="389.05" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="177.80" cy="382.64" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="180.80" cy="359.25" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="183.80" cy="242.08" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="186.80" cy="241.49" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="189.80" cy="240.17" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="192.80" cy="235.09" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="174.80" cy="221.04" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="177.80" cy="220.00" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="180.80" cy="220.00" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="183.80" cy="220.00" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="186.80" cy="185.98" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="189.80" cy="182.15" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="192.80" cy="181.51" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="174.80" cy="181.51" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="177.80" cy="143.02" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="180.80" cy="117.69" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="183.80" cy="82.00" r="2.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<text x="183.80" y="528.00" class="tiny" text-anchor="middle">
+<tspan x="183.80" dy="0.00">Dataset</tspan>
+<tspan x="183.80" dy="10.00">query</tspan>
+</text>
+<text x="183.80" y="578.00" class="tiny" text-anchor="middle">n=18</text>
+<line x1="379.40" y1="181.51" x2="379.40" y2="500.00" class="axis" stroke="#6C7A89" stroke-width="1.10"/>
+<rect x="350.40" y="181.51" width="58.00" height="301.83" rx="3.00" fill="#7A5FA8" stroke="#ffffff" opacity="0.550"/>
+<line x1="350.40" y1="182.15" x2="408.40" y2="182.15" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<circle cx="370.40" cy="500.00" r="2.50" fill="#7A5FA8" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="373.40" cy="494.25" r="2.50" fill="#7A5FA8" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="376.40" cy="472.43" r="2.50" fill="#7A5FA8" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="379.40" cy="182.15" r="2.50" fill="#7A5FA8" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="382.40" cy="181.51" r="2.50" fill="#7A5FA8" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="385.40" cy="181.51" r="2.50" fill="#7A5FA8" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="388.40" cy="181.51" r="2.50" fill="#7A5FA8" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<text x="379.40" y="528.00" class="tiny" text-anchor="middle">
+<tspan x="379.40" dy="0.00">Survey PDF</tspan>
+<tspan x="379.40" dy="10.00">table</tspan>
+</text>
+<text x="379.40" y="578.00" class="tiny" text-anchor="middle">n=7</text>
+<line x1="575.00" y1="181.51" x2="575.00" y2="500.00" class="axis" stroke="#6C7A89" stroke-width="1.10"/>
+<rect x="546.00" y="365.10" width="58.00" height="123.70" rx="3.00" fill="#D9902F" stroke="#ffffff" opacity="0.550"/>
+<line x1="546.00" y1="427.54" x2="604.00" y2="427.54" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<circle cx="566.00" cy="500.00" r="2.50" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="569.00" cy="494.25" r="2.50" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="572.00" cy="472.43" r="2.50" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="575.00" cy="382.64" r="2.50" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="578.00" cy="359.25" r="2.50" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<circle cx="581.00" cy="181.51" r="2.50" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<text x="575.00" y="528.00" class="tiny" text-anchor="middle">
+<tspan x="575.00" dy="0.00">Alias query</tspan>
+</text>
+<text x="575.00" y="578.00" class="tiny" text-anchor="middle">n=6</text>
+<line x1="770.60" y1="359.25" x2="770.60" y2="359.25" class="axis" stroke="#6C7A89" stroke-width="1.10"/>
+<rect x="741.60" y="359.25" width="58.00" height="0.00" rx="3.00" fill="#C94F4F" stroke="#ffffff" opacity="0.550"/>
+<line x1="741.60" y1="359.25" x2="799.60" y2="359.25" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<circle cx="761.60" cy="359.25" r="2.50" fill="#C94F4F" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<text x="770.60" y="528.00" class="tiny" text-anchor="middle">
+<tspan x="770.60" dy="0.00">Survey</tspan>
+<tspan x="770.60" dy="10.00">metadata</tspan>
+</text>
+<text x="770.60" y="578.00" class="tiny" text-anchor="middle">n=1</text>
+<line x1="966.20" y1="182.15" x2="966.20" y2="182.15" class="axis" stroke="#6C7A89" stroke-width="1.10"/>
+<rect x="937.20" y="182.15" width="58.00" height="0.00" rx="3.00" fill="#4E9A62" stroke="#ffffff" opacity="0.550"/>
+<line x1="937.20" y1="182.15" x2="995.20" y2="182.15" class="axis" stroke="#17212b" stroke-width="2.00"/>
+<circle cx="957.20" cy="182.15" r="2.50" fill="#4E9A62" stroke="#ffffff" stroke-width="1" opacity="0.500"></circle>
+<text x="966.20" y="528.00" class="tiny" text-anchor="middle">
+<tspan x="966.20" dy="0.00">Trusted</tspan>
+<tspan x="966.20" dy="10.00">references</tspan>
+</text>
+<text x="966.20" y="578.00" class="tiny" text-anchor="middle">n=1</text>
+<line x1="86.00" y1="82.00" x2="86.00" y2="500.00" class="axis"/>
+<line x1="86.00" y1="500.00" x2="1064.00" y2="500.00" class="axis"/>
+<text x="20.00" y="291.00" class="label" text-anchor="middle" transform="rotate(-90.0 20.00 291.00)">Heuristic/canonical score</text>
+<text x="704.00" y="104.00" class="small" text-anchor="start">Rows may appear in multiple method buckets.</text>
+<text x="28.00" y="632.00" class="small" text-anchor="start">Data acquired from input CSV</text>
+</svg>

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="514" height="658" viewBox="0 0 514 658" role="img">
+<title>Family x Role Heatmap</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 23px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #64707d; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 8px; fill: #43505c; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+.tile-value { font-size: 24px; font-weight: 700; }
+.tile-label { font-size: 11px; fill: #59636f; }
+</style>
+<rect width="514" height="658" fill="white"/>
+<text class="title" x="257.0" y="34" text-anchor="middle">Family x Role Heatmap</text>
+<text class="subtitle" x="257.0" y="55" text-anchor="middle">Where accepted repositories concentrate by detector family and public-facing role</text>
+<text class="tiny" x="236.0" y="84" text-anchor="middle">Deployable</text>
+<text class="tiny" x="236.0" y="94" text-anchor="middle">IDS</text>
+<text class="tiny" x="328.0" y="84" text-anchor="middle">Platform/</text>
+<text class="tiny" x="328.0" y="94" text-anchor="middle">framework</text>
+<text class="tiny" x="420.0" y="84" text-anchor="middle">Support</text>
+<text class="tiny" x="420.0" y="94" text-anchor="middle">tooling</text>
+<text class="label" x="178" y="148.0" text-anchor="end">NIDS</text>
+<rect x="190" y="120" width="88" height="44" rx="5" fill="#2f6b9a"/>
+<text class="value" x="234.0" y="148.0" text-anchor="middle">31</text>
+<rect x="282" y="120" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="120" width="88" height="44" rx="5" fill="#adc4d7"/>
+<text class="value" x="418.0" y="148.0" text-anchor="middle">11</text>
+<text class="label" x="178" y="196.0" text-anchor="end">IDS</text>
+<rect x="190" y="168" width="88" height="44" rx="5" fill="#4e81a9"/>
+<text class="value" x="234.0" y="196.0" text-anchor="middle">26</text>
+<rect x="282" y="168" width="88" height="44" rx="5" fill="#ecf1f5"/>
+<text class="value" x="326.0" y="196.0" text-anchor="middle">1</text>
+<rect x="374" y="168" width="88" height="44" rx="5" fill="#c6d6e3"/>
+<text class="value" x="418.0" y="196.0" text-anchor="middle">7</text>
+<text class="label" x="178" y="244.0" text-anchor="end">HIDS</text>
+<rect x="190" y="216" width="88" height="44" rx="5" fill="#9ab7ce"/>
+<text class="value" x="234.0" y="244.0" text-anchor="middle">14</text>
+<rect x="282" y="216" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="216" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<text class="label" x="178" y="292.0" text-anchor="end">HIPS</text>
+<rect x="190" y="264" width="88" height="44" rx="5" fill="#adc4d7"/>
+<text class="value" x="234.0" y="292.0" text-anchor="middle">11</text>
+<rect x="282" y="264" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="264" width="88" height="44" rx="5" fill="#ecf1f5"/>
+<text class="value" x="418.0" y="292.0" text-anchor="middle">1</text>
+<text class="label" x="178" y="340.0" text-anchor="end">IPS</text>
+<rect x="190" y="312" width="88" height="44" rx="5" fill="#adc4d7"/>
+<text class="value" x="234.0" y="340.0" text-anchor="middle">11</text>
+<rect x="282" y="312" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="312" width="88" height="44" rx="5" fill="#ecf1f5"/>
+<text class="value" x="418.0" y="340.0" text-anchor="middle">1</text>
+<text class="label" x="178" y="388.0" text-anchor="end">NIPS</text>
+<rect x="190" y="360" width="88" height="44" rx="5" fill="#ccdae6"/>
+<text class="value" x="234.0" y="388.0" text-anchor="middle">6</text>
+<rect x="282" y="360" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="360" width="88" height="44" rx="5" fill="#e5ecf2"/>
+<text class="value" x="418.0" y="388.0" text-anchor="middle">2</text>
+<text class="label" x="178" y="436.0" text-anchor="end">DBIDS</text>
+<rect x="190" y="408" width="88" height="44" rx="5" fill="#e5ecf2"/>
+<text class="value" x="234.0" y="436.0" text-anchor="middle">2</text>
+<rect x="282" y="408" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="408" width="88" height="44" rx="5" fill="#ecf1f5"/>
+<text class="value" x="418.0" y="436.0" text-anchor="middle">1</text>
+<text class="label" x="178" y="484.0" text-anchor="end">DBIPS</text>
+<rect x="190" y="456" width="88" height="44" rx="5" fill="#e5ecf2"/>
+<text class="value" x="234.0" y="484.0" text-anchor="middle">2</text>
+<rect x="282" y="456" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="456" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<text class="label" x="178" y="532.0" text-anchor="end">WIDS</text>
+<rect x="190" y="504" width="88" height="44" rx="5" fill="#ecf1f5"/>
+<text class="value" x="234.0" y="532.0" text-anchor="middle">1</text>
+<rect x="282" y="504" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="504" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<text class="label" x="178" y="580.0" text-anchor="end">WIPS</text>
+<rect x="190" y="552" width="88" height="44" rx="5" fill="#ecf1f5"/>
+<text class="value" x="234.0" y="580.0" text-anchor="middle">1</text>
+<rect x="282" y="552" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="552" width="88" height="44" rx="5" fill="#f2f5f8"/>
+</svg>

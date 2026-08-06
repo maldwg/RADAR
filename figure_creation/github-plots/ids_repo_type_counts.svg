@@ -1,0 +1,273 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1050" height="1976" viewBox="0 0 1050 1976" role="img">
+<title>Inferred IDS Type Labels</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 22px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #6f7782; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 7px; fill: #43505c; }
+.tiny-strong { font-size: 8px; font-weight: 700; fill: #263238; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+</style>
+<rect width="1050" height="1976" fill="white"/>
+<text class="title" x="525.0" y="34" text-anchor="middle">Inferred IDS Type Labels</text>
+<text class="subtitle" x="525.0" y="54" text-anchor="middle">Counts by the inferred `type` column in ids_repos.csv</text>
+<text class="label" x="298" y="96" text-anchor="end">UNKNOWN<title>UNKNOWN</title></text>
+<rect x="310" y="82" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="82" width="656.0" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="974.0" y="96">56</text>
+<text class="label" x="298" y="125" text-anchor="end">query-based<title>query-based</title></text>
+<rect x="310" y="111" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="111" width="199.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="517.1" y="125">17</text>
+<text class="label" x="298" y="154" text-anchor="end">signature-based<title>signature-based</title></text>
+<rect x="310" y="140" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="140" width="164.0" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="482.0" y="154">14</text>
+<text class="label" x="298" y="183" text-anchor="end">ML-based<title>ML-based</title></text>
+<rect x="310" y="169" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="169" width="152.3" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="470.3" y="183">13</text>
+<text class="label" x="298" y="212" text-anchor="end">packet-analysis<title>packet-analysis</title></text>
+<rect x="310" y="198" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="198" width="152.3" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="470.3" y="212">13</text>
+<text class="label" x="298" y="241" text-anchor="end">anomaly-based;DNN-based<title>anomaly-based;DNN-based</title></text>
+<rect x="310" y="227" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="227" width="128.9" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="446.9" y="241">11</text>
+<text class="label" x="298" y="270" text-anchor="end">DNN-based<title>DNN-based</title></text>
+<rect x="310" y="256" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="256" width="128.9" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="446.9" y="270">11</text>
+<text class="label" x="298" y="299" text-anchor="end">anomaly-based;ML-based<title>anomaly-based;ML-based</title></text>
+<rect x="310" y="285" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="285" width="117.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="435.1" y="299">10</text>
+<text class="label" x="298" y="328" text-anchor="end">log-based<title>log-based</title></text>
+<rect x="310" y="314" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="314" width="117.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="435.1" y="328">10</text>
+<text class="label" x="298" y="357" text-anchor="end">threat-intel-based<title>threat-intel-based</title></text>
+<rect x="310" y="343" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="343" width="105.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="423.4" y="357">9</text>
+<text class="label" x="298" y="386" text-anchor="end">rule-based<title>rule-based</title></text>
+<rect x="310" y="372" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="372" width="93.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="411.7" y="386">8</text>
+<text class="label" x="298" y="415" text-anchor="end">signature-based;packet-analysis<title>signature-based;packet-analysis</title></text>
+<rect x="310" y="401" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="401" width="82.0" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="400.0" y="415">7</text>
+<text class="label" x="298" y="444" text-anchor="end">signature-based;log-based<title>signature-based;log-based</title></text>
+<rect x="310" y="430" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="430" width="70.3" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="388.3" y="444">6</text>
+<text class="label" x="298" y="473" text-anchor="end">anomaly-based;ML-based;log-based<title>anomaly-based;ML-based;log-based</title></text>
+<rect x="310" y="459" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="459" width="46.9" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="364.9" y="473">4</text>
+<text class="label" x="298" y="502" text-anchor="end">rule-based;log-based<title>rule-based;log-based</title></text>
+<rect x="310" y="488" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="488" width="46.9" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="364.9" y="502">4</text>
+<text class="label" x="298" y="531" text-anchor="end">signature-based;rule-based<title>signature-based;rule-based</title></text>
+<rect x="310" y="517" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="517" width="46.9" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="364.9" y="531">4</text>
+<text class="label" x="298" y="560" text-anchor="end">anomaly-based<title>anomaly-based</title></text>
+<rect x="310" y="546" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="546" width="35.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="353.1" y="560">3</text>
+<text class="label" x="298" y="589" text-anchor="end">DNN-based;anomaly-based<title>DNN-based;anomaly-based</title></text>
+<rect x="310" y="575" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="575" width="35.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="353.1" y="589">3</text>
+<text class="label" x="298" y="618" text-anchor="end">DNN-based;ML-based<title>DNN-based;ML-based</title></text>
+<rect x="310" y="604" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="604" width="35.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="353.1" y="618">3</text>
+<text class="label" x="298" y="647" text-anchor="end">log-based;rule-based<title>log-based;rule-based</title></text>
+<rect x="310" y="633" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="633" width="35.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="353.1" y="647">3</text>
+<text class="label" x="298" y="676" text-anchor="end">ML-based;anomaly-based<title>ML-based;anomaly-based</title></text>
+<rect x="310" y="662" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="662" width="35.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="353.1" y="676">3</text>
+<text class="label" x="298" y="705" text-anchor="end">signature-based;threat-intel-based<title>signature-based;threat-intel-based</title></text>
+<rect x="310" y="691" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="691" width="35.1" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="353.1" y="705">3</text>
+<text class="label" x="298" y="734" text-anchor="end">anomaly-based;DNN-based;log-based<title>anomaly-based;DNN-based;log-based</title></text>
+<rect x="310" y="720" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="720" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="734">2</text>
+<text class="label" x="298" y="763" text-anchor="end">anomaly-based;log-based<title>anomaly-based;log-based</title></text>
+<rect x="310" y="749" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="749" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="763">2</text>
+<text class="label" x="298" y="792" text-anchor="end">anomaly-based;packet-analysis<title>anomaly-based;packet-analysis</title></text>
+<rect x="310" y="778" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="778" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="792">2</text>
+<text class="label" x="298" y="821" text-anchor="end">integrity-based<title>integrity-based</title></text>
+<rect x="310" y="807" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="807" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="821">2</text>
+<text class="label" x="298" y="850" text-anchor="end">log-based;signature-based<title>log-based;signature-based</title></text>
+<rect x="310" y="836" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="836" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="850">2</text>
+<text class="label" x="298" y="879" text-anchor="end">ML-based;DNN-based<title>ML-based;DNN-based</title></text>
+<rect x="310" y="865" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="865" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="879">2</text>
+<text class="label" x="298" y="908" text-anchor="end">ML-based;packet-analysis<title>ML-based;packet-analysis</title></text>
+<rect x="310" y="894" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="894" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="908">2</text>
+<text class="label" x="298" y="937" text-anchor="end">signature-based;log-based;integrity-…<title>signature-based;log-based;integrity-based;rule-based</title></text>
+<rect x="310" y="923" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="923" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="937">2</text>
+<text class="label" x="298" y="966" text-anchor="end">signature-based;packet-analysis;rule…<title>signature-based;packet-analysis;rule-based</title></text>
+<rect x="310" y="952" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="952" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="966">2</text>
+<text class="label" x="298" y="995" text-anchor="end">threat-intel-based;log-based<title>threat-intel-based;log-based</title></text>
+<rect x="310" y="981" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="981" width="23.4" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="341.4" y="995">2</text>
+<text class="label" x="298" y="1024" text-anchor="end">anomaly-based;ML-based;DNN-based<title>anomaly-based;ML-based;DNN-based</title></text>
+<rect x="310" y="1010" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1010" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1024">1</text>
+<text class="label" x="298" y="1053" text-anchor="end">anomaly-based;rule-based;threat-inte…<title>anomaly-based;rule-based;threat-intel-based</title></text>
+<rect x="310" y="1039" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1039" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1053">1</text>
+<text class="label" x="298" y="1082" text-anchor="end">anomaly-based;signature-based<title>anomaly-based;signature-based</title></text>
+<rect x="310" y="1068" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1068" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1082">1</text>
+<text class="label" x="298" y="1111" text-anchor="end">DNN-based;log-based<title>DNN-based;log-based</title></text>
+<rect x="310" y="1097" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1097" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1111">1</text>
+<text class="label" x="298" y="1140" text-anchor="end">log-based;anomaly-based<title>log-based;anomaly-based</title></text>
+<rect x="310" y="1126" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1126" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1140">1</text>
+<text class="label" x="298" y="1169" text-anchor="end">log-based;integrity-based;signature-…<title>log-based;integrity-based;signature-based</title></text>
+<rect x="310" y="1155" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1155" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1169">1</text>
+<text class="label" x="298" y="1198" text-anchor="end">log-based;integrity-based;signature-…<title>log-based;integrity-based;signature-based;rule-based</title></text>
+<rect x="310" y="1184" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1184" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1198">1</text>
+<text class="label" x="298" y="1227" text-anchor="end">log-based;query-based<title>log-based;query-based</title></text>
+<rect x="310" y="1213" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1213" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1227">1</text>
+<text class="label" x="298" y="1256" text-anchor="end">log-based;threat-intel-based;anomaly…<title>log-based;threat-intel-based;anomaly-based</title></text>
+<rect x="310" y="1242" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1242" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1256">1</text>
+<text class="label" x="298" y="1285" text-anchor="end">ML-based;ANN-based<title>ML-based;ANN-based</title></text>
+<rect x="310" y="1271" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1271" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1285">1</text>
+<text class="label" x="298" y="1314" text-anchor="end">ML-based;anomaly-based;log-based<title>ML-based;anomaly-based;log-based</title></text>
+<rect x="310" y="1300" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1300" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1314">1</text>
+<text class="label" x="298" y="1343" text-anchor="end">ML-based;DNN-based;ANN-based<title>ML-based;DNN-based;ANN-based</title></text>
+<rect x="310" y="1329" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1329" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1343">1</text>
+<text class="label" x="298" y="1372" text-anchor="end">ML-based;DNN-based;anomaly-based<title>ML-based;DNN-based;anomaly-based</title></text>
+<rect x="310" y="1358" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1358" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1372">1</text>
+<text class="label" x="298" y="1401" text-anchor="end">ML-based;packet-analysis;threat-inte…<title>ML-based;packet-analysis;threat-intel-based;anomaly-based</title></text>
+<rect x="310" y="1387" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1387" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1401">1</text>
+<text class="label" x="298" y="1430" text-anchor="end">packet-analysis;signature-based;thre…<title>packet-analysis;signature-based;threat-intel-based;anomaly-based</title></text>
+<rect x="310" y="1416" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1416" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1430">1</text>
+<text class="label" x="298" y="1459" text-anchor="end">packet-analysis;threat-intel-based<title>packet-analysis;threat-intel-based</title></text>
+<rect x="310" y="1445" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1445" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1459">1</text>
+<text class="label" x="298" y="1488" text-anchor="end">query-based;anomaly-based<title>query-based;anomaly-based</title></text>
+<rect x="310" y="1474" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1474" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1488">1</text>
+<text class="label" x="298" y="1517" text-anchor="end">rule-based;anomaly-based;threat-inte…<title>rule-based;anomaly-based;threat-intel-based</title></text>
+<rect x="310" y="1503" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1503" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1517">1</text>
+<text class="label" x="298" y="1546" text-anchor="end">rule-based;packet-analysis<title>rule-based;packet-analysis</title></text>
+<rect x="310" y="1532" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1532" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1546">1</text>
+<text class="label" x="298" y="1575" text-anchor="end">rule-based;signature-based<title>rule-based;signature-based</title></text>
+<rect x="310" y="1561" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1561" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1575">1</text>
+<text class="label" x="298" y="1604" text-anchor="end">signature-based;anomaly-based<title>signature-based;anomaly-based</title></text>
+<rect x="310" y="1590" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1590" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1604">1</text>
+<text class="label" x="298" y="1633" text-anchor="end">signature-based;integrity-based<title>signature-based;integrity-based</title></text>
+<rect x="310" y="1619" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1619" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1633">1</text>
+<text class="label" x="298" y="1662" text-anchor="end">signature-based;log-based;packet-ana…<title>signature-based;log-based;packet-analysis</title></text>
+<rect x="310" y="1648" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1648" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1662">1</text>
+<text class="label" x="298" y="1691" text-anchor="end">signature-based;log-based;rule-based<title>signature-based;log-based;rule-based</title></text>
+<rect x="310" y="1677" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1677" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1691">1</text>
+<text class="label" x="298" y="1720" text-anchor="end">signature-based;packet-analysis;anom…<title>signature-based;packet-analysis;anomaly-based</title></text>
+<rect x="310" y="1706" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1706" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1720">1</text>
+<text class="label" x="298" y="1749" text-anchor="end">signature-based;query-based<title>signature-based;query-based</title></text>
+<rect x="310" y="1735" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1735" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1749">1</text>
+<text class="label" x="298" y="1778" text-anchor="end">signature-based;rule-based;packet-an…<title>signature-based;rule-based;packet-analysis</title></text>
+<rect x="310" y="1764" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1764" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1778">1</text>
+<text class="label" x="298" y="1807" text-anchor="end">signature-based;threat-intel-based;i…<title>signature-based;threat-intel-based;integrity-based</title></text>
+<rect x="310" y="1793" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1793" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1807">1</text>
+<text class="label" x="298" y="1836" text-anchor="end">signature-based;threat-intel-based;p…<title>signature-based;threat-intel-based;packet-analysis</title></text>
+<rect x="310" y="1822" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1822" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1836">1</text>
+<text class="label" x="298" y="1865" text-anchor="end">signature-based;threat-intel-based;r…<title>signature-based;threat-intel-based;rule-based</title></text>
+<rect x="310" y="1851" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1851" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1865">1</text>
+<text class="label" x="298" y="1894" text-anchor="end">threat-intel-based;log-based;rule-ba…<title>threat-intel-based;log-based;rule-based</title></text>
+<rect x="310" y="1880" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1880" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1894">1</text>
+<text class="label" x="298" y="1923" text-anchor="end">threat-intel-based;signature-based<title>threat-intel-based;signature-based</title></text>
+<rect x="310" y="1909" width="656" height="18" rx="3" fill="#eef2f5"/>
+<rect x="310" y="1909" width="11.7" height="18" rx="3" fill="#2f6f9f"/>
+<text class="value" x="329.7" y="1923">1</text>
+</svg>

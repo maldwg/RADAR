@@ -1,0 +1,877 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="640" viewBox="0 0 1180 640" role="img">
+<title>Popularity vs. Activity</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 22px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #6f7782; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 7px; fill: #43505c; }
+.tiny-strong { font-size: 8px; font-weight: 700; fill: #263238; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+</style>
+<rect width="1180" height="640" fill="white"/>
+<text class="title" x="590.0" y="34" text-anchor="middle">Popularity vs. Recent Activity</text>
+<text class="subtitle" x="590.0" y="54" text-anchor="middle">Color shows primary family; point size shows inferred repository role; both axes are log-scaled</text>
+<rect x="96.0" y="82" width="557.1" height="466" fill="#f2faf8"/>
+<rect x="653.1" y="82" width="171.9" height="466" fill="#f6faf1"/>
+<rect x="825.0" y="82" width="135.5" height="466" fill="#fff8ed"/>
+<rect x="960.5" y="82" width="173.5" height="466" fill="#fbf0f2"/>
+<line x1="96" y1="548" x2="1134" y2="548" stroke="#263238"/>
+<line x1="96" y1="82" x2="96" y2="548" stroke="#263238"/>
+<line x1="96.0" y1="82" x2="96.0" y2="548" stroke="#d8dee6"/>
+<text class="axis" x="96.0" y="570" text-anchor="middle">0d</text>
+<line x1="352.8" y1="82" x2="352.8" y2="548" stroke="#d8dee6"/>
+<text class="axis" x="352.8" y="570" text-anchor="middle">7d</text>
+<line x1="520.1" y1="82" x2="520.1" y2="548" stroke="#d8dee6"/>
+<text class="axis" x="520.1" y="570" text-anchor="middle">30d</text>
+<line x1="653.1" y1="82" x2="653.1" y2="548" stroke="#d8dee6"/>
+<text class="axis" x="653.1" y="570" text-anchor="middle">90d</text>
+<line x1="825.0" y1="82" x2="825.0" y2="548" stroke="#d8dee6"/>
+<text class="axis" x="825.0" y="570" text-anchor="middle">1y</text>
+<line x1="960.5" y1="82" x2="960.5" y2="548" stroke="#d8dee6"/>
+<text class="axis" x="960.5" y="570" text-anchor="middle">3y</text>
+<line x1="1023.5" y1="82" x2="1023.5" y2="548" stroke="#d8dee6"/>
+<text class="axis" x="1023.5" y="570" text-anchor="middle">5y</text>
+<line x1="1134.0" y1="82" x2="1134.0" y2="548" stroke="#d8dee6"/>
+<text class="axis" x="1134.0" y="570" text-anchor="middle">12.2y</text>
+<line x1="96" y1="532.9" x2="1134" y2="532.9" stroke="#d8dee6"/>
+<text class="axis" x="84" y="536.9" text-anchor="end">100</text>
+<line x1="96" y1="477.2" x2="1134" y2="477.2" stroke="#d8dee6"/>
+<text class="axis" x="84" y="481.2" text-anchor="end">200</text>
+<line x1="96" y1="403.7" x2="1134" y2="403.7" stroke="#d8dee6"/>
+<text class="axis" x="84" y="407.7" text-anchor="end">500</text>
+<line x1="96" y1="348.0" x2="1134" y2="348.0" stroke="#d8dee6"/>
+<text class="axis" x="84" y="352.0" text-anchor="end">1,000</text>
+<line x1="96" y1="259.8" x2="1134" y2="259.8" stroke="#d8dee6"/>
+<text class="axis" x="84" y="263.8" text-anchor="end">3,000</text>
+<line x1="96" y1="163.1" x2="1134" y2="163.1" stroke="#d8dee6"/>
+<text class="axis" x="84" y="167.1" text-anchor="end">10,000</text>
+<line x1="96" y1="107.5" x2="1134" y2="107.5" stroke="#d8dee6"/>
+<text class="axis" x="84" y="111.5" text-anchor="end">20,000</text>
+<text class="axis" x="615.0" y="612" text-anchor="middle">days since last push (log scale; recent projects on the left)</text>
+<text class="axis" x="24" y="315.0" text-anchor="middle" transform="rotate(-90 24 315.0)">GitHub stars (log scale, fitted range)</text>
+<circle cx="983.2" cy="537.8" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>blacktop/docker-zeek: 101 stars, Support tooling, 1262 days since push</title></circle>
+<circle cx="1017.6" cy="532.9" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>CSIRT-MU/Stream4Flow: 102 stars, Platform/framework, 1737 days since push</title></circle>
+<circle cx="1088.1" cy="528.2" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>dimtics/Network-Intrusion-Detection-Using-Machine-Learning-Techniques: 102 stars, Research/demo, 3157 days since push</title></circle>
+<circle cx="1048.1" cy="530.4" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>hosom/file-extraction: 102 stars, Support tooling, 2255 days since push</title></circle>
+<circle cx="1001.1" cy="531.1" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>salesforce/bro-sysmon: 102 stars, Support tooling, 1558 days since push</title></circle>
+<circle cx="1093.3" cy="533.1" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>xtarx/Unsupervised-Anomaly-Detection-with-Generative-Adversarial-Networks: 102 stars, Research/demo, 3218 days since push</title></circle>
+<circle cx="100.0" cy="533.1" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>nailo2c/deeplog: 103 stars, Research/demo, 0 days since push</title></circle>
+<circle cx="436.1" cy="535.6" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>Mister-iks/pcybox-orbis: 103 stars, Deployable IDS, 14 days since push</title></circle>
+<circle cx="1023.3" cy="529.5" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>TrustAGI-Lab/CoLA: 105 stars, Research/demo, 1834 days since push</title></circle>
+<circle cx="1084.4" cy="530.8" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>hashtagcyber/bropy: 105 stars, Deployable IDS, 3004 days since push</title></circle>
+<circle cx="868.6" cy="530.2" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>osintmatter/RequestShield: 106 stars, Support tooling, 534 days since push</title></circle>
+<circle cx="1090.7" cy="521.9" r="2.9" fill="#5b8f3a" opacity="0.35" stroke="white" stroke-width="0.8"><title>grayddq/HIDS: 107 stars, Rules/content, 3064 days since push</title></circle>
+<circle cx="1053.0" cy="529.3" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>antoinedelplace/Cyberattack-Detection: 108 stars, Research/demo, 2312 days since push</title></circle>
+<circle cx="1020.7" cy="525.1" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>mangushev/mtad-gat: 108 stars, Research/demo, 1852 days since push</title></circle>
+<circle cx="809.3" cy="532.6" r="2.5" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>wazuh/wazuh-agent: 108 stars, Support tooling, 316 days since push</title></circle>
+<circle cx="980.2" cy="529.5" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>mudgalabhay/Intrusion-Detection-System: 109 stars, Research/demo, 1327 days since push</title></circle>
+<circle cx="994.8" cy="529.4" r="3.3" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>waimorris/E-GraphSAGE: 109 stars, Classifier/model, 1420 days since push</title></circle>
+<circle cx="100.0" cy="528.2" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>benscha/KQLAdvancedHunting: 111 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="792.9" cy="528.1" r="2.2" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>CN-TU/machine-learning-in-ebpf: 112 stars, Research/demo, 282 days since push</title></circle>
+<circle cx="1071.8" cy="523.9" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>iiiiiii1/Block-IPs-from-countries: 112 stars, Support tooling, 2719 days since push</title></circle>
+<circle cx="994.0" cy="528.4" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>Vatshayan/Network-Intrusion-Detection-Project: 112 stars, Research/demo, 1377 days since push</title></circle>
+<circle cx="100.0" cy="517.1" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>joeavanzato/LogBoost: 113 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="635.9" cy="526.7" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>HackingLZ/gibson: 113 stars, Deployable IDS, 83 days since push</title></circle>
+<circle cx="100.1" cy="523.0" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>ubc-provenance/PIDSMaker: 115 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="871.9" cy="526.9" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wazuh/wazuh-packages: 115 stars, Support tooling, 541 days since push</title></circle>
+<circle cx="904.7" cy="519.6" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>redcanaryco/redcanary-response-utils: 116 stars, Support tooling, 684 days since push</title></circle>
+<circle cx="102.9" cy="521.6" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>antoinevastel/avastel-bot-ips-lists: 117 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="100.0" cy="524.7" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>ninedter/pcap-hunter: 117 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="766.4" cy="513.8" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>0x0v1/Audix: 118 stars, Support tooling, 218 days since push</title></circle>
+<circle cx="912.4" cy="514.2" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>AlienVault-OTX/OTX-Suricata: 118 stars, Support tooling, 754 days since push</title></circle>
+<circle cx="1027.3" cy="513.5" r="2.9" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>401trg/detections: 119 stars, Rules/content, 1862 days since push</title></circle>
+<circle cx="100.0" cy="522.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>OISF/suricata-verify: 121 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="609.3" cy="513.2" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>NethermindEth/Forta-Agents: 122 stars, Research/demo, 61 days since push</title></circle>
+<circle cx="1015.5" cy="522.3" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>tylabs/dovehawk: 122 stars, Support tooling, 1773 days since push</title></circle>
+<circle cx="1032.8" cy="511.2" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>zeek/zeek-agent: 122 stars, Support tooling, 2008 days since push</title></circle>
+<circle cx="957.2" cy="520.6" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>ine-labs/ThreatSeeker: 123 stars, Research/demo, 1100 days since push</title></circle>
+<circle cx="583.7" cy="511.0" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>trailofbits/ebpfpub: 124 stars, Platform/framework, 51 days since push</title></circle>
+<circle cx="976.4" cy="513.5" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>jayxsinha/Efficient-CNN-BiLSTM-for-Network-IDS: 125 stars, Research/demo, 1303 days since push</title></circle>
+<circle cx="520.7" cy="514.9" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>eshaa7/Multi-modal-AI-for-cyber-physical-threat-detection-in-smart-cities: 126 stars, Research/demo, 29 days since push</title></circle>
+<circle cx="101.3" cy="515.4" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>gen0sec/synapse: 128 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="1059.2" cy="506.6" r="2.5" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>blacktop/docker-bro: 129 stars, Support tooling, 2440 days since push</title></circle>
+<circle cx="100.0" cy="509.5" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>stintel/vallumd: 129 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="659.7" cy="513.0" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>lawndoc/AdvancedHuntingQueries: 133 stars, Rules/content, 99 days since push</title></circle>
+<circle cx="599.3" cy="512.6" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>NeffIsBack/EVENmonitor: 133 stars, Support tooling, 55 days since push</title></circle>
+<circle cx="937.8" cy="511.8" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>noushinpervez/Intrusion-Detection-CICIDS2017: 133 stars, Research/demo, 944 days since push</title></circle>
+<circle cx="990.5" cy="509.9" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>BlcaKHat/yolov3-Helmet-Detection: 135 stars, Research/demo, 1424 days since push</title></circle>
+<circle cx="1012.0" cy="510.1" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>kaize0409/GCN_AnomalyDetection: 135 stars, Research/demo, 1710 days since push</title></circle>
+<circle cx="838.0" cy="514.0" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>infosecB/Rulehound: 136 stars, Rules/content, 398 days since push</title></circle>
+<circle cx="1054.7" cy="499.9" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>al0ne/suricata_optimize: 142 stars, Support tooling, 2410 days since push</title></circle>
+<circle cx="906.6" cy="506.2" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>BinaryDefense/auto-ossec: 142 stars, Support tooling, 726 days since push</title></circle>
+<circle cx="935.9" cy="506.5" r="2.2" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>fuchuanpu/Whisper: 144 stars, Research/demo, 933 days since push</title></circle>
+<circle cx="958.8" cy="500.9" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>LogIntelligence/NeuralLog: 145 stars, Research/demo, 1065 days since push</title></circle>
+<circle cx="1065.9" cy="498.0" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>tamimmirza/Intrusion-Detection-System-using-Deep-Learning: 145 stars, Research/demo, 2692 days since push</title></circle>
+<circle cx="1056.4" cy="498.0" r="2.9" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>michalpurzynski/bro-gramming: 146 stars, Rules/content, 2408 days since push</title></circle>
+<circle cx="100.0" cy="506.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Cisco-Talos/EvidenceForge: 147 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="968.2" cy="505.7" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>whyisyoung/CADE: 147 stars, Research/demo, 1152 days since push</title></circle>
+<circle cx="1065.1" cy="504.0" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>LiDan456/GAN-AD: 149 stars, Research/demo, 2682 days since push</title></circle>
+<circle cx="1028.0" cy="498.2" r="4.4" fill="#2f6f9f" opacity="0.35" stroke="white" stroke-width="0.8"><title>iotsecty/malicious_traffic_detection_platform: 149 stars, Deployable IDS, 1830 days since push</title></circle>
+<circle cx="967.0" cy="499.0" r="2.2" fill="#2f6f9f" opacity="0.35" stroke="white" stroke-width="0.8"><title>AltarIbnL/Network-anomaly-detection-with-deep-learning-along-with-UI: 150 stars, Research/demo, 1147 days since push</title></circle>
+<circle cx="1033.9" cy="496.1" r="2.9" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>digitalbond/Quickdraw-Snort: 151 stars, Rules/content, 2056 days since push</title></circle>
+<circle cx="1038.1" cy="505.1" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>KlausMichael0/Taffic_Anomaly_Detection_based_on_Neural_Network: 151 stars, Research/demo, 2122 days since push</title></circle>
+<circle cx="996.2" cy="494.2" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>mandiant/thiri-notebook: 154 stars, Research/demo, 1486 days since push</title></circle>
+<circle cx="100.0" cy="499.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>ethack/tht: 155 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="1015.0" cy="491.5" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>GuansongPang/deviation-network: 156 stars, Research/demo, 1749 days since push</title></circle>
+<circle cx="999.2" cy="502.9" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>PositiveTechnologies/seq2seq-web-attack-detection: 156 stars, Research/demo, 1521 days since push</title></circle>
+<circle cx="585.5" cy="499.3" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Bert-JanP/KustoHawk: 157 stars, Support tooling, 49 days since push</title></circle>
+<circle cx="982.1" cy="499.3" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>GAR-Project/project: 157 stars, Research/demo, 1295 days since push</title></circle>
+<circle cx="769.3" cy="498.0" r="4.4" fill="#c96c2f" opacity="0.78" stroke="white" stroke-width="0.8"><title>0vm/NetDeflect: 159 stars, Deployable IDS, 236 days since push</title></circle>
+<circle cx="931.8" cy="499.3" r="2.2" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>doriguzzi/lucid-ddos: 159 stars, Research/demo, 897 days since push</title></circle>
+<circle cx="828.4" cy="497.2" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>mthcht/ThreatHunting-Keywords-yara-rules: 163 stars, Rules/content, 374 days since push</title></circle>
+<circle cx="834.2" cy="498.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>securityjoes/ForensicMiner: 163 stars, Support tooling, 409 days since push</title></circle>
+<circle cx="797.5" cy="495.8" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>yas-sim/object-tracking-line-crossing-area-intrusion: 164 stars, Research/demo, 296 days since push</title></circle>
+<circle cx="957.1" cy="496.9" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>DamonMohammadbagher/Meterpreter_Payload_Detection: 164 stars, Deployable IDS, 1080 days since push</title></circle>
+<circle cx="493.5" cy="492.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>angolo40/mikrocata2selks: 166 stars, Support tooling, 23 days since push</title></circle>
+<circle cx="600.1" cy="486.1" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>certego/PcapMonkey: 167 stars, Support tooling, 56 days since push</title></circle>
+<circle cx="937.4" cy="486.2" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>CIA-Oceanix/GeoTrackNet: 167 stars, Research/demo, 880 days since push</title></circle>
+<circle cx="478.2" cy="496.2" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Prateep07/PEFL-Cache-Attack-Detection: 169 stars, Research/demo, 20 days since push</title></circle>
+<circle cx="487.5" cy="485.6" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>mcp-shark/mcp-shark: 170 stars, Support tooling, 24 days since push</title></circle>
+<circle cx="974.3" cy="487.8" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>dolongbien/HumanBehaviorBKU: 171 stars, Research/demo, 1259 days since push</title></circle>
+<circle cx="749.2" cy="492.3" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>slrbl/Intrusion-and-anomaly-detection-with-machine-learning: 172 stars, Deployable IDS, 195 days since push</title></circle>
+<circle cx="971.0" cy="491.5" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>AFAgarap/gru-svm: 173 stars, Research/demo, 1153 days since push</title></circle>
+<circle cx="1058.5" cy="487.9" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>Colorado-Mesa-University-Cybersecurity/DeepLearning-IDS: 176 stars, Research/demo, 2348 days since push</title></circle>
+<circle cx="1017.6" cy="488.8" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>arunppsg/TadGAN: 178 stars, Research/demo, 1693 days since push</title></circle>
+<circle cx="1094.0" cy="485.9" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>aurotripathy/lstm-anomaly-detect: 180 stars, Research/demo, 3267 days since push</title></circle>
+<circle cx="747.8" cy="490.9" r="3.8" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>sonertari/UTMFW: 180 stars, Platform/framework, 188 days since push</title></circle>
+<circle cx="100.0" cy="486.7" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Yamato-Security/suzaku: 180 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="956.2" cy="487.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>JustinAzoff/zeek-pdns: 181 stars, Support tooling, 1083 days since push</title></circle>
+<circle cx="1047.8" cy="488.3" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>CCob/SylantStrike: 182 stars, Research/demo, 2184 days since push</title></circle>
+<circle cx="417.1" cy="480.1" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>travisbgreen/hunting-rules: 182 stars, Rules/content, 13 days since push</title></circle>
+<circle cx="536.7" cy="481.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>cgosec/Blauhaunt: 184 stars, Support tooling, 33 days since push</title></circle>
+<circle cx="982.7" cy="487.9" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>StamusNetworks/Amsterdam: 184 stars, Support tooling, 1345 days since push</title></circle>
+<circle cx="726.6" cy="482.2" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>guanwei49/LogLLM: 191 stars, Research/demo, 162 days since push</title></circle>
+<circle cx="733.6" cy="476.1" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>socprime/Uncoder_IO: 191 stars, Support tooling, 169 days since push</title></circle>
+<circle cx="698.0" cy="483.1" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>GoogleCloudPlatform/df-ml-anomaly-detection: 192 stars, Research/demo, 135 days since push</title></circle>
+<circle cx="912.8" cy="482.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>hackertarget/pcap-did-what: 194 stars, Support tooling, 726 days since push</title></circle>
+<circle cx="810.9" cy="474.1" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>msdirtbag/MDEAutomator: 195 stars, Support tooling, 321 days since push</title></circle>
+<circle cx="100.0" cy="483.6" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>google/gonids: 196 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="432.7" cy="480.5" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>stanford-esrg/retina: 197 stars, Platform/framework, 15 days since push</title></circle>
+<circle cx="767.8" cy="473.5" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>quadrantsec/sagan: 198 stars, Deployable IDS, 226 days since push</title></circle>
+<circle cx="1069.2" cy="480.9" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>huashishaojie/IDS-CNN: 199 stars, Research/demo, 2544 days since push</title></circle>
+<circle cx="829.3" cy="472.7" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>chamanthmvs/Phishing-Website-Detection: 199 stars, Research/demo, 396 days since push</title></circle>
+<circle cx="912.9" cy="482.9" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>fuchuanpu/HyperVision: 199 stars, Deployable IDS, 744 days since push</title></circle>
+<circle cx="100.0" cy="476.2" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>ShadowWhisperer/IPs: 201 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="1003.6" cy="479.9" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>nccgroup/DetectWindowsCopyOnWriteForAPI: 203 stars, Support tooling, 1588 days since push</title></circle>
+<circle cx="583.6" cy="473.9" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>thomasxm/CrowdSentinels-AI-MCP: 204 stars, Support tooling, 50 days since push</title></circle>
+<circle cx="1012.5" cy="470.3" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>abhinav-bhardwaj/IoT-Network-Intrusion-Detection-System-UNSW-NB15: 205 stars, Research/demo, 1715 days since push</title></circle>
+<circle cx="908.3" cy="471.5" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>squareRoot3/Rethinking-Anomaly-Detection: 206 stars, Research/demo, 694 days since push</title></circle>
+<circle cx="1031.8" cy="474.4" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>Mrzhouqifei/DBA: 207 stars, Research/demo, 1922 days since push</title></circle>
+<circle cx="516.8" cy="468.8" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Western-OC2-Lab/Intrusion-Detection-System-Using-CNN-and-Transfer-Learning: 207 stars, Research/demo, 30 days since push</title></circle>
+<circle cx="1032.4" cy="472.2" r="2.9" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>advanced-threat-research/CVE-2020-16898: 209 stars, Rules/content, 2032 days since push</title></circle>
+<circle cx="1055.4" cy="473.0" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>GitiHubi/deepAI: 209 stars, Research/demo, 2478 days since push</title></circle>
+<circle cx="659.1" cy="472.5" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>krdmnbrk/AttackRuleMap: 211 stars, Support tooling, 93 days since push</title></circle>
+<circle cx="1075.8" cy="466.3" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>fox-it/quantuminsert: 214 stars, Research/demo, 2695 days since push</title></circle>
+<circle cx="1046.8" cy="475.0" r="2.9" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>pe3zx/crowdstrike-falcon-queries: 218 stars, Rules/content, 2188 days since push</title></circle>
+<circle cx="1075.2" cy="467.0" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>Viralmaniar/Remote-Desktop-Caching-: 219 stars, Support tooling, 2846 days since push</title></circle>
+<circle cx="890.4" cy="470.0" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>LogIntelligence/LogADEmpirical: 223 stars, Research/demo, 600 days since push</title></circle>
+<circle cx="1021.8" cy="468.0" r="2.2" fill="#bc4b51" opacity="0.35" stroke="white" stroke-width="0.8"><title>ion-storm/sysmon-edr: 227 stars, Research/demo, 1845 days since push</title></circle>
+<circle cx="915.8" cy="470.1" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>alik604/cyber-security: 228 stars, Research/demo, 755 days since push</title></circle>
+<circle cx="840.6" cy="463.4" r="2.2" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>chiragbiradar/DDoS-Attack-Detection-and-Mitigation: 228 stars, Research/demo, 424 days since push</title></circle>
+<circle cx="1048.1" cy="462.9" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>BLarzalere/LSTM-Autoencoder-for-Anomaly-Detection: 230 stars, Research/demo, 2129 days since push</title></circle>
+<circle cx="1058.4" cy="469.4" r="4.4" fill="#5b8f3a" opacity="0.35" stroke="white" stroke-width="0.8"><title>yarox24/attack_monitor: 232 stars, Deployable IDS, 2343 days since push</title></circle>
+<circle cx="749.5" cy="464.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>SecAegis/SecAutoBan: 233 stars, Support tooling, 198 days since push</title></circle>
+<circle cx="1047.6" cy="469.4" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>ntop/bro-pf_ring: 236 stars, Support tooling, 2221 days since push</title></circle>
+<circle cx="978.2" cy="460.0" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>kahramankostas/Anomaly-Detection-in-Networks-Using-Machine-Learning: 239 stars, Research/demo, 1281 days since push</title></circle>
+<circle cx="1048.5" cy="467.3" r="4.4" fill="#2a9d8f" opacity="0.35" stroke="white" stroke-width="0.8"><title>WiPi-Hunter/PiSavar: 240 stars, Deployable IDS, 2172 days since push</title></circle>
+<circle cx="1018.2" cy="462.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>robcowart/synesis_lite_suricata: 241 stars, Support tooling, 1757 days since push</title></circle>
+<circle cx="100.0" cy="463.2" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>EBWi11/AgentSmith-HUB: 244 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="689.6" cy="459.1" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Securonix/AutonomousThreatSweeper: 246 stars, Rules/content, 124 days since push</title></circle>
+<circle cx="999.2" cy="457.5" r="4.4" fill="#5b8f3a" opacity="0.35" stroke="white" stroke-width="0.8"><title>sourque/louis: 247 stars, Deployable IDS, 1457 days since push</title></circle>
+<circle cx="100.0" cy="461.2" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Agent-Threat-Rule/agent-threat-rules: 259 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="100.0" cy="455.3" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>duggytuxy/syswarden: 260 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="1041.2" cy="453.0" r="3.8" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>enygma/expose: 266 stars, Platform/framework, 2102 days since push</title></circle>
+<circle cx="947.6" cy="456.1" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>logpai/deep-loglizer: 267 stars, Platform/framework, 989 days since push</title></circle>
+<circle cx="741.5" cy="454.3" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Permiso-io-tools/CloudGrappler: 267 stars, Support tooling, 180 days since push</title></circle>
+<circle cx="846.7" cy="455.3" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>redcanaryco/surveyor: 270 stars, Support tooling, 415 days since push</title></circle>
+<circle cx="970.6" cy="451.7" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>trailofbits/osquery-extensions: 272 stars, Support tooling, 1134 days since push</title></circle>
+<circle cx="1053.4" cy="447.0" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>CynthiaKoopman/Network-Intrusion-Detection: 273 stars, Research/demo, 2236 days since push</title></circle>
+<circle cx="1059.5" cy="451.6" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>lazywinadmin/Monitor-ADGroupMembership: 275 stars, Support tooling, 2365 days since push</title></circle>
+<circle cx="1130.0" cy="446.8" r="4.4" fill="#2a9d8f" opacity="0.35" stroke="white" stroke-width="0.8"><title>SYWorks/wireless-ids: 276 stars, Deployable IDS, 4466 days since push</title></circle>
+<circle cx="898.7" cy="454.8" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Thijsvanede/DeepLog: 282 stars, Research/demo, 639 days since push</title></circle>
+<circle cx="100.0" cy="452.0" r="4.4" fill="#bc4b51" opacity="0.78" stroke="white" stroke-width="0.8"><title>backbay-labs/clawdstrike: 283 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="720.2" cy="452.9" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>SecurityAura/DE-TH-Aura: 284 stars, Rules/content, 151 days since push</title></circle>
+<circle cx="801.8" cy="443.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>jasonish/py-idstools: 286 stars, Support tooling, 314 days since push</title></circle>
+<circle cx="1099.6" cy="446.8" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Infocyte/PSHunt: 291 stars, Support tooling, 3528 days since push</title></circle>
+<circle cx="927.9" cy="451.0" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>inodee/threathunting-spl: 293 stars, Rules/content, 856 days since push</title></circle>
+<circle cx="103.3" cy="441.0" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Nebulock-Inc/agentic-threat-hunting-framework: 296 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="753.0" cy="442.3" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>OISF/suricata-update: 296 stars, Support tooling, 201 days since push</title></circle>
+<circle cx="101.9" cy="442.3" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>zeek/spicy: 296 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="933.2" cy="449.2" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>rahulvigneswaran/Intrusion-Detection-Systems: 297 stars, Research/demo, 880 days since push</title></circle>
+<circle cx="100.0" cy="443.2" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>swissmakers/fail2ban-ui: 298 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="1023.5" cy="449.6" r="2.2" fill="#5b8f3a" opacity="0.35" stroke="white" stroke-width="0.8"><title>xuanxuan0/TiEtwAgent: 298 stars, Research/demo, 1866 days since push</title></circle>
+<circle cx="910.4" cy="448.2" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>jatrost/awesome-detection-rules: 300 stars, Rules/content, 745 days since push</title></circle>
+<circle cx="1116.0" cy="439.0" r="4.4" fill="#2f6f9f" opacity="0.35" stroke="white" stroke-width="0.8"><title>ironbee/ironbee: 302 stars, Deployable IDS, 3786 days since push</title></circle>
+<circle cx="101.5" cy="447.3" r="2.2" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>chriskaliX/Hades: 304 stars, Research/demo, 0 days since push</title></circle>
+<circle cx="100.0" cy="438.5" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>theSecHunter/Hades-Windows: 311 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="493.2" cy="439.6" r="4.4" fill="#bc4b51" opacity="0.78" stroke="white" stroke-width="0.8"><title>wecooperate/iDefender: 311 stars, Deployable IDS, 24 days since push</title></circle>
+<circle cx="884.2" cy="439.6" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>opencybersecurityalliance/kestrel-lang: 327 stars, Platform/framework, 600 days since push</title></circle>
+<circle cx="776.6" cy="431.7" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>sqall01/LSMS: 329 stars, Support tooling, 235 days since push</title></circle>
+<circle cx="801.9" cy="434.3" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>3CORESec/testmynids.org: 336 stars, Support tooling, 313 days since push</title></circle>
+<circle cx="100.0" cy="435.5" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>bitwire-it/ipblocklist: 340 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="958.7" cy="436.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>lucky-luk3/Grafiki: 340 stars, Support tooling, 1088 days since push</title></circle>
+<circle cx="104.5" cy="434.7" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>DataDog/threatest: 342 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="829.9" cy="426.8" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>gojue/ebpfmanager: 351 stars, Platform/framework, 367 days since push</title></circle>
+<circle cx="899.8" cy="431.5" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>HelenGuohx/logbert: 351 stars, Research/demo, 698 days since push</title></circle>
+<circle cx="100.0" cy="431.0" r="2.5" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>FenkoHQ/dnsmonster: 354 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="919.8" cy="430.1" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>secureworks/family-of-client-ids-research: 360 stars, Research/demo, 817 days since push</title></circle>
+<circle cx="105.2" cy="425.1" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>sublime-security/sublime-rules: 364 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="853.6" cy="430.4" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wecooperate/iMonitorSDK: 379 stars, Platform/framework, 455 days since push</title></circle>
+<circle cx="887.9" cy="423.4" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>nianticlabs/venator: 382 stars, Platform/framework, 596 days since push</title></circle>
+<circle cx="100.0" cy="422.8" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wazuh/wazuh-kubernetes: 386 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="605.0" cy="427.9" r="2.2" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>ymirsky/Kitsune-py: 390 stars, Research/demo, 57 days since push</title></circle>
+<circle cx="928.4" cy="425.5" r="3.3" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>ML4ITS/mtad-gat-pytorch: 394 stars, Classifier/model, 855 days since push</title></circle>
+<circle cx="100.0" cy="424.9" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>CriticalPathSecurity/Zeek-Intelligence-Feeds: 401 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="847.6" cy="419.0" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>teler-sh/teler-waf: 401 stars, Platform/framework, 428 days since push</title></circle>
+<circle cx="573.0" cy="422.9" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>theNetworkChuck/axios-attack-guide: 407 stars, Support tooling, 50 days since push</title></circle>
+<circle cx="100.0" cy="416.9" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wazuh/wazuh-ansible: 411 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="958.0" cy="419.1" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>mrash/psad: 421 stars, Deployable IDS, 1074 days since push</title></circle>
+<circle cx="850.2" cy="413.5" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>cnulab/RealNet: 423 stars, Research/demo, 462 days since push</title></circle>
+<circle cx="896.0" cy="421.4" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>SitinCloud/Owlyshield: 427 stars, Platform/framework, 674 days since push</title></circle>
+<circle cx="1014.6" cy="419.2" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>shirkdog/pulledpork: 442 stars, Support tooling, 1778 days since push</title></circle>
+<circle cx="930.0" cy="413.8" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>gojue/ehids-agent: 456 stars, Deployable IDS, 882 days since push</title></circle>
+<circle cx="100.0" cy="416.8" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>SuperCowPowers/zat: 456 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="875.3" cy="404.9" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>LearningKijo/KQL: 491 stars, Rules/content, 544 days since push</title></circle>
+<circle cx="100.0" cy="410.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>jasonish/evebox: 494 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="939.4" cy="398.6" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>objective-see/ProcessMonitor: 500 stars, Platform/framework, 943 days since push</title></circle>
+<circle cx="811.2" cy="397.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>0xKoda/WireMCP: 509 stars, Support tooling, 315 days since push</title></circle>
+<circle cx="100.0" cy="405.1" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wazuh/wazuh-dashboard-plugins: 513 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="105.0" cy="398.2" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wiresock/ndisapi: 513 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="689.6" cy="403.1" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>alex-ilgayev/MCPSpy: 513 stars, Deployable IDS, 124 days since push</title></circle>
+<circle cx="1084.5" cy="402.6" r="4.4" fill="#2a9d8f" opacity="0.35" stroke="white" stroke-width="0.8"><title>SYWorks/waidps: 517 stars, Deployable IDS, 3132 days since push</title></circle>
+<circle cx="100.0" cy="397.2" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>secureworks/dalton: 521 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="891.4" cy="400.6" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wazuh/wazuh-ruleset: 522 stars, Rules/content, 608 days since push</title></circle>
+<circle cx="1018.8" cy="398.8" r="3.8" fill="#2f6f9f" opacity="0.35" stroke="white" stroke-width="0.8"><title>iqiyi/qnsm: 528 stars, Platform/framework, 1696 days since push</title></circle>
+<circle cx="587.6" cy="396.1" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>0xflux/Sanctum: 550 stars, Research/demo, 57 days since push</title></circle>
+<circle cx="921.9" cy="390.1" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Helixo32/CrimsonEDR: 567 stars, Research/demo, 825 days since push</title></circle>
+<circle cx="1064.1" cy="387.9" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>LiDan456/MAD-GANs: 582 stars, Research/demo, 2471 days since push</title></circle>
+<circle cx="100.0" cy="393.4" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>activecm/rita: 584 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="576.1" cy="388.1" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Western-OC2-Lab/Intrusion-Detection-System-Using-Machine-Learning: 593 stars, Research/demo, 49 days since push</title></circle>
+<circle cx="742.0" cy="390.6" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>hidviz/hidviz: 600 stars, Support tooling, 183 days since push</title></circle>
+<circle cx="1032.6" cy="389.2" r="2.5" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>EBWi11/AgentSmith-HIDS: 601 stars, Support tooling, 1875 days since push</title></circle>
+<circle cx="948.9" cy="385.5" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>d-ailin/GDN: 606 stars, Research/demo, 1027 days since push</title></circle>
+<circle cx="573.3" cy="385.6" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>FourCoreLabs/EDRHunt: 607 stars, Support tooling, 50 days since push</title></circle>
+<circle cx="901.6" cy="381.0" r="2.9" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>mitre-attack/bzar: 624 stars, Rules/content, 693 days since push</title></circle>
+<circle cx="100.0" cy="381.5" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>GrapheneOS/Auditor: 666 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="102.2" cy="376.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>StamusNetworks/scirius: 677 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="893.3" cy="380.3" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>crossroadsfpga/pigasus: 698 stars, Deployable IDS, 644 days since push</title></circle>
+<circle cx="768.0" cy="370.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Yamato-Security/EnableWindowsLogSettings: 706 stars, Support tooling, 229 days since push</title></circle>
+<circle cx="887.6" cy="371.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Paul-Reed/cloudflare-ufw: 709 stars, Support tooling, 595 days since push</title></circle>
+<circle cx="1027.0" cy="374.4" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>evilsocket/ditto: 737 stars, Support tooling, 1934 days since push</title></circle>
+<circle cx="1064.9" cy="370.6" r="2.2" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>vinayakumarr/Network-Intrusion-Detection: 772 stars, Research/demo, 2569 days since push</title></circle>
+<circle cx="967.9" cy="368.1" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>Yamato-Security/WELA-deprecated: 774 stars, Support tooling, 1202 days since push</title></circle>
+<circle cx="931.0" cy="368.0" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Stream-AD/MIDAS: 776 stars, Research/demo, 861 days since push</title></circle>
+<circle cx="100.0" cy="368.5" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>cyb3rmik3/KQL-threat-hunting-queries: 780 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="987.1" cy="369.3" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>darkquasar/AzureHunter: 790 stars, Support tooling, 1299 days since push</title></circle>
+<circle cx="1083.9" cy="364.7" r="2.5" fill="#6f7782" opacity="0.35" stroke="white" stroke-width="0.8"><title>TravisFSmith/SweetSecurity: 794 stars, Support tooling, 3022 days since push</title></circle>
+<circle cx="693.2" cy="367.4" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Cyb3r-Monk/Threat-Hunting-and-Detection: 813 stars, Rules/content, 126 days since push</title></circle>
+<circle cx="101.2" cy="354.9" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>stratosphereips/StratosphereLinuxIPS: 873 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="911.9" cy="361.3" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>shubhomoydas/ad_examples: 874 stars, Research/demo, 728 days since push</title></circle>
+<circle cx="926.8" cy="354.0" r="3.3" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>NetManAIOps/OmniAnomaly: 932 stars, Classifier/model, 808 days since push</title></circle>
+<circle cx="102.9" cy="352.4" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>elesiuta/picosnitch: 962 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="655.8" cy="348.4" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wang-rui/phishguard-scaffold: 1,007 stars, Research/demo, 94 days since push</title></circle>
+<circle cx="961.3" cy="349.1" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Snorby/snorby: 1,010 stars, Support tooling, 1079 days since push</title></circle>
+<circle cx="1044.9" cy="341.3" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>nsacyber/GRASSMARLIN: 1,059 stars, Support tooling, 2277 days since push</title></circle>
+<circle cx="867.1" cy="342.4" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>edoardogerosa/sentinel-attack: 1,077 stars, Support tooling, 538 days since push</title></circle>
+<circle cx="103.1" cy="340.5" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>wazuh/wazuh-docker: 1,122 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="100.0" cy="334.1" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>1andrevich/Re-filter-lists: 1,240 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="951.1" cy="331.9" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>al0ne/suricata-rules: 1,274 stars, Rules/content, 1047 days since push</title></circle>
+<circle cx="975.0" cy="327.5" r="4.4" fill="#5b8f3a" opacity="0.35" stroke="white" stroke-width="0.8"><title>0xrawsec/whids: 1,307 stars, Deployable IDS, 1180 days since push</title></circle>
+<circle cx="627.7" cy="327.8" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>socfortress/Wazuh-Rules: 1,332 stars, Rules/content, 70 days since push</title></circle>
+<circle cx="899.6" cy="323.0" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>emalderson/ThePhish: 1,350 stars, Support tooling, 657 days since push</title></circle>
+<circle cx="569.3" cy="327.1" r="2.5" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>Brandon7CC/mac-monitor: 1,352 stars, Support tooling, 43 days since push</title></circle>
+<circle cx="916.6" cy="319.2" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>cisco/joy: 1,358 stars, Support tooling, 779 days since push</title></circle>
+<circle cx="988.3" cy="325.3" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>ptresearch/AttackDetection: 1,360 stars, Rules/content, 1358 days since push</title></circle>
+<circle cx="883.5" cy="317.4" r="2.5" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>ahmedkhlief/APT-Hunter: 1,408 stars, Support tooling, 559 days since push</title></circle>
+<circle cx="911.7" cy="314.3" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>logpai/loglizer: 1,416 stars, Platform/framework, 756 days since push</title></circle>
+<circle cx="562.5" cy="322.1" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>tirrenotechnologies/tirreno: 1,418 stars, Platform/framework, 43 days since push</title></circle>
+<circle cx="100.0" cy="312.8" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>Xacone/BestEdrOfTheMarket: 1,454 stars, Research/demo, 0 days since push</title></circle>
+<circle cx="100.0" cy="308.3" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>nzymedefense/nzyme: 1,569 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="777.6" cy="312.7" r="3.8" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>StamusNetworks/Clear-NDR-ISO: 1,590 stars, Platform/framework, 249 days since push</title></circle>
+<circle cx="100.0" cy="304.5" r="4.4" fill="#c96c2f" opacity="0.78" stroke="white" stroke-width="0.8"><title>C0nw0nk/Nginx-Lua-Anti-DDoS: 1,602 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="799.7" cy="305.9" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>metlo-labs/metlo: 1,777 stars, Deployable IDS, 299 days since push</title></circle>
+<circle cx="105.2" cy="303.7" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>dreadl0ck/netcap: 1,800 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="905.7" cy="294.5" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>deepfence/PacketStreamer: 1,931 stars, Support tooling, 688 days since push</title></circle>
+<circle cx="100.0" cy="295.4" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>WenjieDu/PyPOTS: 2,021 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="1037.9" cy="282.3" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>ysrc/yulong-hids-archived: 2,188 stars, Deployable IDS, 2151 days since push</title></circle>
+<circle cx="100.0" cy="270.4" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>rabbitstack/fibratus: 2,493 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="700.4" cy="277.9" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>activecm/rita-legacy: 2,507 stars, Deployable IDS, 128 days since push</title></circle>
+<circle cx="926.8" cy="276.2" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>pucherot/Pi.Alert: 2,522 stars, Deployable IDS, 832 days since push</title></circle>
+<circle cx="388.2" cy="263.9" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>bytedance/Elkeid: 2,648 stars, Deployable IDS, 9 days since push</title></circle>
+<circle cx="927.0" cy="252.5" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>teler-sh/teler: 3,081 stars, Deployable IDS, 827 days since push</title></circle>
+<circle cx="104.6" cy="257.0" r="2.5" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>Yamato-Security/hayabusa: 3,205 stars, Support tooling, 0 days since push</title></circle>
+<circle cx="507.8" cy="250.0" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>snort3/snort3: 3,361 stars, Deployable IDS, 27 days since push</title></circle>
+<circle cx="932.9" cy="251.6" r="2.2" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>diafygi/webrtc-ips: 3,454 stars, Research/demo, 875 days since push</title></circle>
+<circle cx="409.6" cy="241.3" r="2.5" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>WithSecureLabs/chainsaw: 3,567 stars, Support tooling, 11 days since push</title></circle>
+<circle cx="100.0" cy="235.1" r="2.9" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>firehol/blocklist-ipsets: 3,847 stars, Rules/content, 0 days since push</title></circle>
+<circle cx="100.0" cy="222.9" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>opnsense/core: 4,487 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="103.6" cy="227.4" r="3.8" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>Security-Onion-Solutions/securityonion: 4,656 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="100.0" cy="219.3" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>ossec/ossec-hids: 5,020 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="100.0" cy="201.0" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>OISF/suricata: 6,400 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="100.0" cy="189.3" r="3.8" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>zeek/zeek: 7,730 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="100.0" cy="181.3" r="4.4" fill="#2f6f9f" opacity="0.78" stroke="white" stroke-width="0.8"><title>stamparm/maltrail: 8,497 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="100.0" cy="161.4" r="3.8" fill="#c96c2f" opacity="0.78" stroke="white" stroke-width="0.8"><title>owasp-modsecurity/ModSecurity: 9,673 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="100.0" cy="134.7" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>crowdsecurity/crowdsec: 13,919 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="100.0" cy="129.3" r="3.8" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>wazuh/wazuh: 15,891 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="105.0" cy="110.9" r="4.4" fill="#5b8f3a" opacity="0.78" stroke="white" stroke-width="0.8"><title>fail2ban/fail2ban: 18,001 stars, Deployable IDS, 0 days since push</title></circle>
+<circle cx="105.5" cy="98.9" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>osquery/osquery: 23,318 stars, Platform/framework, 0 days since push</title></circle>
+<circle cx="100.0" cy="86.0" r="3.8" fill="#6f7782" opacity="0.78" stroke="white" stroke-width="0.8"><title>cilium/cilium: 24,528 stars, Platform/framework, 0 days since push</title></circle>
+<line x1="983.2" y1="537.8" x2="977.4" y2="541.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="975.4" y="544.0" text-anchor="end">docker-zeek</text>
+<line x1="1017.6" y1="532.9" x2="1031.6" y2="528.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1033.6" y="531.8" text-anchor="start">Stream4Flow</text>
+<line x1="1088.1" y1="528.2" x2="1079.1" y2="515.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1077.1" y="518.0" text-anchor="end">Network-Intrusion…</text>
+<line x1="1048.1" y1="530.4" x2="1037.5" y2="514.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1035.5" y="517.4" text-anchor="end">file-extraction</text>
+<line x1="1001.1" y1="531.1" x2="993.3" y2="529.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="991.3" y="532.9" text-anchor="end">bro-sysmon</text>
+<line x1="1093.3" y1="533.1" x2="1085.0" y2="534.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1083.0" y="537.0" text-anchor="end">Unsupervised-Anom…</text>
+<line x1="100.0" y1="533.1" x2="100.0" y2="521.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="524.1" text-anchor="start">deeplog</text>
+<line x1="436.1" y1="535.6" x2="435.2" y2="521.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="433.2" y="524.0" text-anchor="end">pcybox-orbis</text>
+<line x1="1023.3" y1="529.5" x2="1013.0" y2="530.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1011.0" y="533.7" text-anchor="end">CoLA</text>
+<line x1="1084.4" y1="530.8" x2="1085.2" y2="541.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1083.2" y="544.0" text-anchor="end">bropy</text>
+<line x1="868.6" y1="530.2" x2="868.0" y2="517.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="870.0" y="520.3" text-anchor="start">RequestShield</text>
+<line x1="1090.7" y1="521.9" x2="1087.7" y2="536.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1085.7" y="539.2" text-anchor="end">HIDS</text>
+<line x1="1053.0" y1="529.3" x2="1063.5" y2="530.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1065.5" y="533.1" text-anchor="start">Cyberattack-Detec…</text>
+<line x1="1020.7" y1="525.1" x2="1019.8" y2="513.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1021.8" y="516.2" text-anchor="start">mtad-gat</text>
+<line x1="809.3" y1="532.6" x2="805.6" y2="516.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="803.6" y="519.8" text-anchor="end">wazuh-agent</text>
+<line x1="980.2" y1="529.5" x2="963.5" y2="522.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="961.5" y="525.9" text-anchor="end">Intrusion-Detecti…</text>
+<line x1="994.8" y1="529.4" x2="990.6" y2="533.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="988.6" y="536.0" text-anchor="end">E-GraphSAGE</text>
+<line x1="100.0" y1="528.2" x2="104.0" y2="508.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="511.9" text-anchor="end">KQLAdvancedHunting</text>
+<line x1="792.9" y1="528.1" x2="793.7" y2="540.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="795.7" y="543.9" text-anchor="start">machine-learning-…</text>
+<line x1="1071.8" y1="523.9" x2="1064.9" y2="507.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1062.9" y="510.6" text-anchor="end">Block-IPs-from-co…</text>
+<line x1="994.0" y1="528.4" x2="987.4" y2="533.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="985.4" y="536.7" text-anchor="end">Network-Intrusion…</text>
+<line x1="100.0" y1="517.1" x2="110.9" y2="512.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="112.9" y="515.5" text-anchor="start">LogBoost</text>
+<line x1="635.9" y1="526.7" x2="649.0" y2="516.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="651.0" y="519.0" text-anchor="start">gibson</text>
+<line x1="100.1" y1="523.0" x2="104.6" y2="524.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="106.6" y="527.7" text-anchor="start">PIDSMaker</text>
+<line x1="871.9" y1="526.9" x2="878.5" y2="536.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="880.5" y="539.2" text-anchor="start">wazuh-packages</text>
+<line x1="904.7" y1="519.6" x2="907.9" y2="527.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="909.9" y="530.4" text-anchor="start">redcanary-respons…</text>
+<line x1="102.9" y1="521.6" x2="104.0" y2="511.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="514.7" text-anchor="end">avastel-bot-ips-l…</text>
+<line x1="100.0" y1="524.7" x2="104.0" y2="511.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="514.4" text-anchor="end">pcap-hunter</text>
+<line x1="766.4" y1="513.8" x2="767.3" y2="522.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="769.3" y="525.5" text-anchor="start">Audix</text>
+<line x1="912.4" y1="514.2" x2="898.0" y2="515.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="896.0" y="518.6" text-anchor="end">OTX-Suricata</text>
+<line x1="1027.3" y1="513.5" x2="1029.2" y2="495.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1031.2" y="498.0" text-anchor="start">detections</text>
+<line x1="100.0" y1="522.0" x2="104.0" y2="514.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="517.7" text-anchor="end">suricata-verify</text>
+<line x1="609.3" y1="513.2" x2="615.2" y2="516.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="617.2" y="519.4" text-anchor="start">Forta-Agents</text>
+<line x1="1015.5" y1="522.3" x2="1012.5" y2="536.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1010.5" y="539.6" text-anchor="end">dovehawk</text>
+<line x1="1032.8" y1="511.2" x2="1040.6" y2="495.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1042.6" y="498.6" text-anchor="start">zeek-agent</text>
+<line x1="957.2" y1="520.6" x2="953.2" y2="526.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="951.2" y="529.9" text-anchor="end">ThreatSeeker</text>
+<line x1="583.7" y1="511.0" x2="591.5" y2="506.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="593.5" y="509.3" text-anchor="start">ebpfpub</text>
+<line x1="976.4" y1="513.5" x2="975.6" y2="500.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="973.6" y="503.9" text-anchor="end">Efficient-CNN-BiL…</text>
+<line x1="520.7" y1="514.9" x2="519.5" y2="519.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="521.5" y="522.9" text-anchor="start">Multi-modal-AI-fo…</text>
+<line x1="101.3" y1="515.4" x2="104.0" y2="496.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="499.6" text-anchor="end">synapse</text>
+<line x1="1059.2" y1="506.6" x2="1049.9" y2="513.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1047.9" y="516.4" text-anchor="end">docker-bro</text>
+<line x1="100.0" y1="509.5" x2="104.0" y2="516.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="519.8" text-anchor="end">vallumd</text>
+<line x1="659.7" y1="513.0" x2="655.0" y2="520.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="653.0" y="523.0" text-anchor="end">AdvancedHuntingQu…</text>
+<line x1="599.3" y1="512.6" x2="599.0" y2="490.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="597.0" y="493.7" text-anchor="end">EVENmonitor</text>
+<line x1="937.8" y1="511.8" x2="951.8" y2="507.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="953.8" y="510.7" text-anchor="start">Intrusion-Detecti…</text>
+<line x1="990.5" y1="509.9" x2="975.7" y2="504.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="973.7" y="507.3" text-anchor="end">yolov3-Helmet-Det…</text>
+<line x1="1012.0" y1="510.1" x2="1017.4" y2="516.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1019.4" y="519.5" text-anchor="start">GCN_AnomalyDetect…</text>
+<line x1="838.0" y1="514.0" x2="850.2" y2="499.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="852.2" y="502.9" text-anchor="start">Rulehound</text>
+<line x1="1054.7" y1="499.9" x2="1064.2" y2="508.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1066.2" y="511.0" text-anchor="start">suricata_optimize</text>
+<line x1="906.6" y1="506.2" x2="918.1" y2="511.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="920.1" y="514.7" text-anchor="start">auto-ossec</text>
+<line x1="935.9" y1="506.5" x2="932.0" y2="496.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="930.0" y="499.7" text-anchor="end">Whisper</text>
+<line x1="958.8" y1="500.9" x2="957.2" y2="509.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="959.2" y="512.9" text-anchor="start">NeuralLog</text>
+<line x1="1065.9" y1="498.0" x2="1058.1" y2="490.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1056.1" y="493.0" text-anchor="end">Intrusion-Detecti…</text>
+<line x1="1056.4" y1="498.0" x2="1041.4" y2="495.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1039.4" y="498.9" text-anchor="end">bro-gramming</text>
+<line x1="100.0" y1="506.4" x2="112.3" y2="512.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="114.3" y="515.7" text-anchor="start">EvidenceForge</text>
+<line x1="968.2" y1="505.7" x2="968.1" y2="514.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="966.1" y="517.5" text-anchor="end">CADE</text>
+<line x1="1065.1" y1="504.0" x2="1063.1" y2="515.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1065.1" y="518.0" text-anchor="start">GAN-AD</text>
+<line x1="1028.0" y1="498.2" x2="1040.2" y2="500.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1042.2" y="503.0" text-anchor="start">malicious_traffic…</text>
+<line x1="967.0" y1="499.0" x2="950.3" y2="492.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="948.3" y="495.4" text-anchor="end">Network-anomaly-d…</text>
+<line x1="1033.9" y1="496.1" x2="1035.3" y2="478.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1037.3" y="481.5" text-anchor="start">Quickdraw-Snort</text>
+<line x1="1038.1" y1="505.1" x2="1032.8" y2="507.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1030.8" y="510.2" text-anchor="end">Taffic_Anomaly_De…</text>
+<line x1="996.2" y1="494.2" x2="1002.5" y2="487.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1004.5" y="490.7" text-anchor="start">thiri-notebook</text>
+<line x1="100.0" y1="499.4" x2="105.4" y2="491.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="107.4" y="494.2" text-anchor="start">tht</text>
+<line x1="1015.0" y1="491.5" x2="1023.3" y2="484.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1025.3" y="487.6" text-anchor="start">deviation-network</text>
+<line x1="999.2" y1="502.9" x2="1004.5" y2="496.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1006.5" y="499.6" text-anchor="start">seq2seq-web-attac…</text>
+<line x1="585.5" y1="499.3" x2="586.4" y2="482.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="588.4" y="485.7" text-anchor="start">KustoHawk</text>
+<line x1="982.1" y1="499.3" x2="992.6" y2="500.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="994.6" y="503.1" text-anchor="start">project</text>
+<line x1="769.3" y1="498.0" x2="762.8" y2="510.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="760.8" y="513.9" text-anchor="end">NetDeflect</text>
+<line x1="931.8" y1="499.3" x2="941.3" y2="507.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="943.3" y="510.4" text-anchor="start">lucid-ddos</text>
+<line x1="828.4" y1="497.2" x2="831.0" y2="486.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="833.0" y="489.5" text-anchor="start">ThreatHunting-Key…</text>
+<line x1="834.2" y1="498.4" x2="837.9" y2="508.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="839.9" y="511.2" text-anchor="start">ForensicMiner</text>
+<line x1="797.5" y1="495.8" x2="783.3" y2="500.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="781.3" y="503.7" text-anchor="end">object-tracking-l…</text>
+<line x1="957.1" y1="496.9" x2="971.7" y2="500.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="973.7" y="503.6" text-anchor="start">Meterpreter_Paylo…</text>
+<line x1="493.5" y1="492.0" x2="502.1" y2="494.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="504.1" y="497.6" text-anchor="start">mikrocata2selks</text>
+<line x1="600.1" y1="486.1" x2="601.0" y2="469.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="603.0" y="472.4" text-anchor="start">PcapMonkey</text>
+<line x1="937.4" y1="486.2" x2="933.7" y2="470.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="931.7" y="473.4" text-anchor="end">GeoTrackNet</text>
+<line x1="478.2" y1="496.2" x2="477.0" y2="485.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="479.0" y="488.2" text-anchor="start">PEFL-Cache-Attack…</text>
+<line x1="487.5" y1="485.6" x2="487.8" y2="501.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="485.8" y="504.5" text-anchor="end">mcp-shark</text>
+<line x1="974.3" y1="487.8" x2="975.1" y2="494.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="977.1" y="497.4" text-anchor="start">HumanBehaviorBKU</text>
+<line x1="749.2" y1="492.3" x2="749.9" y2="506.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="751.9" y="509.1" text-anchor="start">Intrusion-and-ano…</text>
+<line x1="971.0" y1="491.5" x2="980.3" y2="484.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="982.3" y="487.4" text-anchor="start">gru-svm</text>
+<line x1="1058.5" y1="487.9" x2="1059.1" y2="493.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1061.1" y="496.5" text-anchor="start">DeepLearning-IDS</text>
+<line x1="1017.6" y1="488.8" x2="1005.4" y2="493.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1003.4" y="496.3" text-anchor="end">TadGAN</text>
+<line x1="1094.0" y1="485.9" x2="1092.6" y2="466.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1094.6" y="469.9" text-anchor="start">lstm-anomaly-dete…</text>
+<line x1="747.8" y1="490.9" x2="760.0" y2="480.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="762.0" y="483.4" text-anchor="start">UTMFW</text>
+<line x1="100.0" y1="486.7" x2="103.7" y2="496.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="105.7" y="499.5" text-anchor="start">suzaku</text>
+<line x1="956.2" y1="487.0" x2="964.5" y2="480.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="966.5" y="483.0" text-anchor="start">zeek-pdns</text>
+<line x1="1047.8" y1="488.3" x2="1063.3" y2="480.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1065.3" y="483.9" text-anchor="start">SylantStrike</text>
+<line x1="417.1" y1="480.1" x2="403.1" y2="478.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="401.1" y="481.2" text-anchor="end">hunting-rules</text>
+<line x1="536.7" y1="481.0" x2="535.8" y2="465.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="533.8" y="468.3" text-anchor="end">Blauhaunt</text>
+<line x1="982.7" y1="487.9" x2="979.4" y2="493.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="977.4" y="496.4" text-anchor="end">Amsterdam</text>
+<line x1="726.6" y1="482.2" x2="726.0" y2="462.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="724.0" y="465.4" text-anchor="end">LogLLM</text>
+<line x1="733.6" y1="476.1" x2="732.8" y2="457.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="730.8" y="460.3" text-anchor="end">Uncoder_IO</text>
+<line x1="698.0" y1="483.1" x2="704.3" y2="474.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="706.3" y="477.5" text-anchor="start">df-ml-anomaly-det…</text>
+<line x1="912.8" y1="482.0" x2="912.5" y2="468.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="914.5" y="471.1" text-anchor="start">pcap-did-what</text>
+<line x1="810.9" y1="474.1" x2="807.0" y2="457.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="805.0" y="460.3" text-anchor="end">MDEAutomator</text>
+<line x1="100.0" y1="483.6" x2="104.0" y2="480.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="483.2" text-anchor="end">gonids</text>
+<line x1="432.7" y1="480.5" x2="433.6" y2="489.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="435.6" y="492.2" text-anchor="start">retina</text>
+<line x1="767.8" y1="473.5" x2="765.9" y2="486.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="763.9" y="489.0" text-anchor="end">sagan</text>
+<line x1="1069.2" y1="480.9" x2="1063.0" y2="466.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1061.0" y="469.6" text-anchor="end">IDS-CNN</text>
+<line x1="829.3" y1="472.7" x2="836.1" y2="468.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="838.1" y="471.0" text-anchor="start">Phishing-Website-…</text>
+<line x1="912.9" y1="482.9" x2="920.4" y2="495.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="922.4" y="498.2" text-anchor="start">HyperVision</text>
+<line x1="100.0" y1="476.2" x2="104.0" y2="459.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="462.0" text-anchor="end">IPs</text>
+<line x1="1003.6" y1="479.9" x2="995.2" y2="467.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="993.2" y="470.5" text-anchor="end">DetectWindowsCopy…</text>
+<line x1="583.6" y1="473.9" x2="576.6" y2="482.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="574.6" y="485.9" text-anchor="end">CrowdSentinels-AI…</text>
+<line x1="1012.5" y1="470.3" x2="1005.5" y2="479.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1003.5" y="482.3" text-anchor="end">IoT-Network-Intru…</text>
+<line x1="908.3" y1="471.5" x2="907.1" y2="460.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="909.1" y="463.6" text-anchor="start">Rethinking-Anomal…</text>
+<line x1="1031.8" y1="474.4" x2="1026.4" y2="461.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1024.4" y="464.9" text-anchor="end">DBA</text>
+<line x1="516.8" y1="468.8" x2="507.2" y2="462.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="505.2" y="465.5" text-anchor="end">Intrusion-Detecti…</text>
+<line x1="1032.4" y1="472.2" x2="1039.9" y2="460.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1041.9" y="463.4" text-anchor="start">CVE-2020-16898</text>
+<line x1="1055.4" y1="473.0" x2="1061.6" y2="458.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1063.6" y="461.6" text-anchor="start">deepAI</text>
+<line x1="659.1" y1="472.5" x2="653.2" y2="471.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="651.2" y="474.1" text-anchor="end">AttackRuleMap</text>
+<line x1="1075.8" y1="466.3" x2="1063.6" y2="470.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1061.6" y="473.8" text-anchor="end">quantuminsert</text>
+<line x1="1046.8" y1="475.0" x2="1047.3" y2="479.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1049.3" y="482.6" text-anchor="start">crowdstrike-falco…</text>
+<line x1="1075.2" y1="467.0" x2="1065.6" y2="477.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1063.6" y="480.8" text-anchor="end">Remote-Desktop-Ca…</text>
+<line x1="890.4" y1="470.0" x2="882.5" y2="468.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="880.5" y="471.7" text-anchor="end">LogADEmpirical</text>
+<line x1="1021.8" y1="468.0" x2="1022.3" y2="482.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1024.3" y="485.9" text-anchor="start">sysmon-edr</text>
+<line x1="915.8" y1="470.1" x2="911.4" y2="462.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="909.4" y="465.4" text-anchor="end">cyber-security</text>
+<line x1="840.6" y1="463.4" x2="836.5" y2="444.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="834.5" y="447.5" text-anchor="end">DDoS-Attack-Detec…</text>
+<line x1="1048.1" y1="462.9" x2="1036.1" y2="458.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1034.1" y="461.4" text-anchor="end">LSTM-Autoencoder-…</text>
+<line x1="1058.4" y1="469.4" x2="1054.3" y2="450.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1052.3" y="453.6" text-anchor="end">attack_monitor</text>
+<line x1="749.5" y1="464.4" x2="741.1" y2="452.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="739.1" y="455.1" text-anchor="end">SecAutoBan</text>
+<line x1="1047.6" y1="469.4" x2="1043.6" y2="475.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1041.6" y="478.6" text-anchor="end">bro-pf_ring</text>
+<line x1="978.2" y1="460.0" x2="968.6" y2="453.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="966.6" y="456.7" text-anchor="end">Anomaly-Detection…</text>
+<line x1="1048.5" y1="467.3" x2="1049.9" y2="454.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1051.9" y="457.9" text-anchor="start">PiSavar</text>
+<line x1="1018.2" y1="462.0" x2="1009.9" y2="462.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1007.9" y="465.9" text-anchor="end">synesis_lite_suri…</text>
+<line x1="100.0" y1="463.2" x2="104.0" y2="446.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="449.3" text-anchor="end">AgentSmith-HUB</text>
+<line x1="689.6" y1="459.1" x2="702.5" y2="457.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="704.5" y="460.9" text-anchor="start">AutonomousThreatS…</text>
+<line x1="999.2" y1="457.5" x2="992.8" y2="470.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="990.8" y="473.3" text-anchor="end">louis</text>
+<line x1="100.0" y1="461.2" x2="104.0" y2="450.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="453.4" text-anchor="end">agent-threat-rules</text>
+<line x1="100.0" y1="455.3" x2="110.4" y2="456.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="112.4" y="459.1" text-anchor="start">syswarden</text>
+<line x1="1041.2" y1="453.0" x2="1040.1" y2="433.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1042.1" y="436.0" text-anchor="start">expose</text>
+<line x1="947.6" y1="456.1" x2="936.7" y2="454.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="934.7" y="457.7" text-anchor="end">deep-loglizer</text>
+<line x1="741.5" y1="454.3" x2="754.7" y2="443.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="756.7" y="446.6" text-anchor="start">CloudGrappler</text>
+<line x1="846.7" y1="455.3" x2="850.8" y2="468.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="852.8" y="471.2" text-anchor="start">surveyor</text>
+<line x1="970.6" y1="451.7" x2="964.8" y2="447.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="962.8" y="450.1" text-anchor="end">osquery-extensions</text>
+<line x1="1053.4" y1="447.0" x2="1051.4" y2="451.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1049.4" y="454.0" text-anchor="end">Network-Intrusion…</text>
+<line x1="1059.5" y1="451.6" x2="1066.5" y2="461.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1068.5" y="464.9" text-anchor="start">Monitor-ADGroupMe…</text>
+<line x1="1130.0" y1="446.8" x2="1126.0" y2="453.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1128.0" y="456.4" text-anchor="start">wireless-ids</text>
+<line x1="898.7" y1="454.8" x2="901.2" y2="440.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="903.2" y="443.7" text-anchor="start">DeepLog</text>
+<line x1="100.0" y1="452.0" x2="104.0" y2="437.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="440.6" text-anchor="end">clawdstrike</text>
+<line x1="720.2" y1="452.9" x2="734.1" y2="456.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="736.1" y="459.0" text-anchor="start">DE-TH-Aura</text>
+<line x1="801.8" y1="443.4" x2="788.6" y2="448.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="786.6" y="451.1" text-anchor="end">py-idstools</text>
+<line x1="1099.6" y1="446.8" x2="1091.7" y2="456.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1089.7" y="459.4" text-anchor="end">PSHunt</text>
+<line x1="927.9" y1="451.0" x2="938.7" y2="455.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="940.7" y="458.7" text-anchor="start">threathunting-spl</text>
+<line x1="103.3" y1="441.0" x2="104.0" y2="424.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="427.8" text-anchor="end">agentic-threat-hu…</text>
+<line x1="753.0" y1="442.3" x2="753.7" y2="448.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="755.7" y="451.9" text-anchor="start">suricata-update</text>
+<line x1="101.9" y1="442.3" x2="104.0" y2="444.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="447.0" text-anchor="end">spicy</text>
+<line x1="933.2" y1="449.2" x2="932.1" y2="438.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="934.1" y="441.3" text-anchor="start">Intrusion-Detecti…</text>
+<line x1="100.0" y1="443.2" x2="110.9" y2="438.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="112.9" y="441.6" text-anchor="start">fail2ban-ui</text>
+<line x1="1023.5" y1="449.6" x2="1034.0" y2="432.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1036.0" y="435.2" text-anchor="start">TiEtwAgent</text>
+<line x1="910.4" y1="448.2" x2="912.3" y2="434.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="914.3" y="437.9" text-anchor="start">awesome-detection…</text>
+<line x1="1116.0" y1="439.0" x2="1114.6" y2="446.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1116.6" y="449.0" text-anchor="start">ironbee</text>
+<line x1="101.5" y1="447.3" x2="104.0" y2="446.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="449.0" text-anchor="end">Hades</text>
+<line x1="100.0" y1="438.5" x2="104.0" y2="424.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="427.5" text-anchor="end">Hades-Windows</text>
+<line x1="493.2" y1="439.6" x2="495.2" y2="422.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="493.2" y="425.6" text-anchor="end">iDefender</text>
+<line x1="884.2" y1="439.6" x2="873.3" y2="428.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="871.3" y="431.9" text-anchor="end">kestrel-lang</text>
+<line x1="776.6" y1="431.7" x2="780.7" y2="422.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="782.7" y="425.1" text-anchor="start">LSMS</text>
+<line x1="801.9" y1="434.3" x2="808.5" y2="438.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="810.5" y="441.2" text-anchor="start">testmynids.org</text>
+<line x1="100.0" y1="435.5" x2="104.0" y2="449.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="452.0" text-anchor="end">ipblocklist</text>
+<line x1="958.7" y1="436.0" x2="960.1" y2="422.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="958.1" y="425.0" text-anchor="end">Grafiki</text>
+<line x1="104.5" y1="434.7" x2="104.0" y2="444.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="447.3" text-anchor="end">threatest</text>
+<line x1="829.9" y1="426.8" x2="822.4" y2="432.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="820.4" y="435.6" text-anchor="end">ebpfmanager</text>
+<line x1="899.8" y1="431.5" x2="904.7" y2="421.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="906.7" y="424.3" text-anchor="start">logbert</text>
+<line x1="100.0" y1="431.0" x2="104.0" y2="429.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="432.4" text-anchor="end">dnsmonster</text>
+<line x1="919.8" y1="430.1" x2="930.8" y2="441.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="932.8" y="444.0" text-anchor="start">family-of-client-…</text>
+<line x1="105.2" y1="425.1" x2="110.6" y2="411.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="112.6" y="414.4" text-anchor="start">sublime-rules</text>
+<line x1="853.6" y1="430.4" x2="868.1" y2="423.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="870.1" y="426.0" text-anchor="start">iMonitorSDK</text>
+<line x1="887.9" y1="423.4" x2="895.5" y2="435.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="897.5" y="438.7" text-anchor="start">venator</text>
+<line x1="100.0" y1="422.8" x2="100.0" y2="429.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="432.8" text-anchor="start">wazuh-kubernetes</text>
+<line x1="605.0" y1="427.9" x2="608.0" y2="434.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="610.0" y="437.7" text-anchor="start">Kitsune-py</text>
+<line x1="928.4" y1="425.5" x2="939.9" y2="431.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="941.9" y="434.0" text-anchor="start">mtad-gat-pytorch</text>
+<line x1="100.0" y1="424.9" x2="104.0" y2="438.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="441.9" text-anchor="end">Zeek-Intelligence…</text>
+<line x1="847.6" y1="419.0" x2="863.1" y2="423.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="865.1" y="426.4" text-anchor="start">teler-waf</text>
+<line x1="573.0" y1="422.9" x2="577.2" y2="437.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="579.2" y="440.8" text-anchor="start">axios-attack-guide</text>
+<line x1="100.0" y1="416.9" x2="109.5" y2="417.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="111.5" y="420.2" text-anchor="start">wazuh-ansible</text>
+<line x1="958.0" y1="419.1" x2="941.1" y2="416.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="939.1" y="419.4" text-anchor="end">psad</text>
+<line x1="850.2" y1="413.5" x2="844.7" y2="421.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="842.7" y="424.2" text-anchor="end">RealNet</text>
+<line x1="896.0" y1="421.4" x2="903.8" y2="405.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="905.8" y="408.8" text-anchor="start">Owlyshield</text>
+<line x1="1014.6" y1="419.2" x2="1013.4" y2="425.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1015.4" y="428.2" text-anchor="start">pulledpork</text>
+<line x1="930.0" y1="413.8" x2="928.8" y2="419.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="930.8" y="422.8" text-anchor="start">ehids-agent</text>
+<line x1="100.0" y1="416.8" x2="114.0" y2="412.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="116.0" y="415.7" text-anchor="start">zat</text>
+<line x1="875.3" y1="404.9" x2="880.6" y2="398.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="882.6" y="401.6" text-anchor="start">KQL</text>
+<line x1="100.0" y1="410.4" x2="101.9" y2="391.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="103.9" y="394.9" text-anchor="start">evebox</text>
+<line x1="939.4" y1="398.6" x2="931.5" y2="397.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="929.5" y="400.4" text-anchor="end">ProcessMonitor</text>
+<line x1="811.2" y1="397.0" x2="818.2" y2="407.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="820.2" y="410.3" text-anchor="start">WireMCP</text>
+<line x1="100.0" y1="405.1" x2="104.0" y2="401.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="404.9" text-anchor="end">wazuh-dashboard-p…</text>
+<line x1="105.0" y1="398.2" x2="104.0" y2="396.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="399.8" text-anchor="end">ndisapi</text>
+<line x1="689.6" y1="403.1" x2="696.6" y2="400.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="698.6" y="403.3" text-anchor="start">MCPSpy</text>
+<line x1="1084.5" y1="402.6" x2="1095.8" y2="404.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1097.8" y="407.0" text-anchor="start">waidps</text>
+<line x1="100.0" y1="397.2" x2="104.0" y2="405.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="408.7" text-anchor="end">dalton</text>
+<line x1="891.4" y1="400.6" x2="890.8" y2="387.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="892.8" y="390.7" text-anchor="start">wazuh-ruleset</text>
+<line x1="1018.8" y1="398.8" x2="1017.0" y2="408.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1019.0" y="411.8" text-anchor="start">qnsm</text>
+<line x1="587.6" y1="396.1" x2="579.2" y2="402.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="577.2" y="405.4" text-anchor="end">Sanctum</text>
+<line x1="921.9" y1="390.1" x2="917.8" y2="393.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="915.8" y="396.7" text-anchor="end">CrimsonEDR</text>
+<line x1="1064.1" y1="387.9" x2="1055.1" y2="384.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1053.1" y="387.4" text-anchor="end">MAD-GANs</text>
+<line x1="100.0" y1="393.4" x2="104.0" y2="400.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="403.3" text-anchor="end">rita</text>
+<line x1="576.1" y1="388.1" x2="561.1" y2="386.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="559.1" y="389.0" text-anchor="end">Intrusion-Detecti…</text>
+<line x1="742.0" y1="390.6" x2="754.2" y2="392.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="756.2" y="395.4" text-anchor="start">hidviz</text>
+<line x1="1032.6" y1="389.2" x2="1026.8" y2="387.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1024.8" y="390.9" text-anchor="end">AgentSmith-HIDS</text>
+<line x1="948.9" y1="385.5" x2="959.0" y2="375.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="961.0" y="378.5" text-anchor="start">GDN</text>
+<line x1="573.3" y1="385.6" x2="567.4" y2="380.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="565.4" y="383.9" text-anchor="end">EDRHunt</text>
+<line x1="901.6" y1="381.0" x2="910.3" y2="364.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="912.3" y="367.8" text-anchor="start">bzar</text>
+<line x1="100.0" y1="381.5" x2="104.4" y2="386.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="106.4" y="389.1" text-anchor="start">Auditor</text>
+<line x1="102.2" y1="376.0" x2="104.0" y2="385.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="388.8" text-anchor="end">scirius</text>
+<line x1="893.3" y1="380.3" x2="895.3" y2="384.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="897.3" y="387.2" text-anchor="start">pigasus</text>
+<line x1="768.0" y1="370.4" x2="754.2" y2="365.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="752.2" y="368.1" text-anchor="end">EnableWindowsLogS…</text>
+<line x1="887.6" y1="371.4" x2="880.4" y2="354.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="878.4" y="357.2" text-anchor="end">cloudflare-ufw</text>
+<line x1="1027.0" y1="374.4" x2="1021.5" y2="382.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1019.5" y="385.0" text-anchor="end">ditto</text>
+<line x1="1064.9" y1="370.6" x2="1077.0" y2="360.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1079.0" y="363.1" text-anchor="start">Network-Intrusion…</text>
+<line x1="967.9" y1="368.1" x2="969.3" y2="350.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="971.3" y="353.5" text-anchor="start">WELA-deprecated</text>
+<line x1="931.0" y1="368.0" x2="932.4" y2="355.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="934.4" y="358.6" text-anchor="start">MIDAS</text>
+<line x1="100.0" y1="368.5" x2="100.0" y2="375.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="378.5" text-anchor="start">KQL-threat-huntin…</text>
+<line x1="987.1" y1="369.3" x2="988.7" y2="354.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="986.7" y="357.3" text-anchor="end">AzureHunter</text>
+<line x1="1083.9" y1="364.7" x2="1072.0" y2="360.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1070.0" y="363.2" text-anchor="end">SweetSecurity</text>
+<line x1="693.2" y1="367.4" x2="691.8" y2="373.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="689.8" y="376.8" text-anchor="end">Threat-Hunting-an…</text>
+<line x1="101.2" y1="354.9" x2="104.0" y2="360.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="363.2" text-anchor="end">StratosphereLinux…</text>
+<line x1="911.9" y1="361.3" x2="902.4" y2="347.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="900.4" y="350.2" text-anchor="end">ad_examples</text>
+<line x1="926.8" y1="354.0" x2="911.5" y2="359.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="909.5" y="362.1" text-anchor="end">OmniAnomaly</text>
+<line x1="102.9" y1="352.4" x2="103.8" y2="340.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="105.8" y="343.9" text-anchor="start">picosnitch</text>
+<line x1="655.8" y1="348.4" x2="653.9" y2="355.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="651.9" y="358.7" text-anchor="end">phishguard-scaffo…</text>
+<line x1="961.3" y1="349.1" x2="951.9" y2="339.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="949.9" y="342.8" text-anchor="end">snorby</text>
+<line x1="1044.9" y1="341.3" x2="1045.4" y2="325.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1047.4" y="328.6" text-anchor="start">GRASSMARLIN</text>
+<line x1="867.1" y1="342.4" x2="860.8" y2="342.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="858.8" y="345.9" text-anchor="end">sentinel-attack</text>
+<line x1="103.1" y1="340.5" x2="104.0" y2="324.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="327.5" text-anchor="end">wazuh-docker</text>
+<line x1="100.0" y1="334.1" x2="108.4" y2="340.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="110.4" y="343.5" text-anchor="start">Re-filter-lists</text>
+<line x1="951.1" y1="331.9" x2="952.1" y2="341.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="954.1" y="344.6" text-anchor="start">suricata-rules</text>
+<line x1="975.0" y1="327.5" x2="974.2" y2="308.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="972.2" y="311.7" text-anchor="end">whids</text>
+<line x1="627.7" y1="327.8" x2="611.0" y2="321.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="609.0" y="324.1" text-anchor="end">Wazuh-Rules</text>
+<line x1="899.6" y1="323.0" x2="895.2" y2="324.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="893.2" y="327.7" text-anchor="end">ThePhish</text>
+<line x1="569.3" y1="327.1" x2="574.6" y2="320.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="576.6" y="323.9" text-anchor="start">mac-monitor</text>
+<line x1="916.6" y1="319.2" x2="912.5" y2="300.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="910.5" y="303.3" text-anchor="end">joy</text>
+<line x1="988.3" y1="325.3" x2="982.6" y2="337.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="980.6" y="340.4" text-anchor="end">AttackDetection</text>
+<line x1="883.5" y1="317.4" x2="898.1" y2="321.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="900.1" y="324.1" text-anchor="start">APT-Hunter</text>
+<line x1="911.7" y1="314.3" x2="911.6" y2="323.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="909.6" y="326.1" text-anchor="end">loglizer</text>
+<line x1="562.5" y1="322.1" x2="563.8" y2="309.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="561.8" y="312.2" text-anchor="end">tirreno</text>
+<line x1="100.0" y1="312.8" x2="115.0" y2="308.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="117.0" y="311.9" text-anchor="start">BestEdrOfTheMarket</text>
+<line x1="100.0" y1="308.3" x2="104.5" y2="310.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="106.5" y="313.0" text-anchor="start">nzyme</text>
+<line x1="777.6" y1="312.7" x2="768.1" y2="298.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="766.1" y="301.6" text-anchor="end">Clear-NDR-ISO</text>
+<line x1="100.0" y1="304.5" x2="100.0" y2="285.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="288.5" text-anchor="start">Nginx-Lua-Anti-DD…</text>
+<line x1="799.7" y1="305.9" x2="793.3" y2="318.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="791.3" y="321.8" text-anchor="end">metlo</text>
+<line x1="105.2" y1="303.7" x2="115.1" y2="299.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="117.1" y="302.1" text-anchor="start">netcap</text>
+<line x1="905.7" y1="294.5" x2="898.5" y2="308.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="896.5" y="311.1" text-anchor="end">PacketStreamer</text>
+<line x1="100.0" y1="295.4" x2="104.0" y2="293.7" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.0" y="296.7" text-anchor="end">PyPOTS</text>
+<line x1="1037.9" y1="282.3" x2="1038.8" y2="290.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="1040.8" y="293.9" text-anchor="start">yulong-hids-archi…</text>
+<line x1="100.0" y1="270.4" x2="112.2" y2="272.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="114.2" y="275.3" text-anchor="start">fibratus</text>
+<line x1="700.4" y1="277.9" x2="691.3" y2="281.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="689.3" y="284.6" text-anchor="end">rita-legacy</text>
+<line x1="926.8" y1="276.2" x2="927.6" y2="282.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="929.6" y="285.8" text-anchor="start">Pi.Alert</text>
+<line x1="388.2" y1="263.9" x2="381.2" y2="256.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="379.2" y="259.6" text-anchor="end">Elkeid</text>
+<line x1="927.0" y1="252.5" x2="944.0" y2="249.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="946.0" y="252.2" text-anchor="start">teler</text>
+<line x1="104.6" y1="257.0" x2="103.5" y2="237.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="105.5" y="240.1" text-anchor="start">hayabusa</text>
+<line x1="507.8" y1="250.0" x2="514.3" y2="253.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="516.3" y="256.9" text-anchor="start">snort3</text>
+<line x1="932.9" y1="251.6" x2="919.7" y2="256.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="917.7" y="259.3" text-anchor="end">webrtc-ips</text>
+<line x1="409.6" y1="241.3" x2="411.6" y2="245.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="413.6" y="248.2" text-anchor="start">chainsaw</text>
+<line x1="100.0" y1="235.1" x2="110.4" y2="235.9" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="112.4" y="238.9" text-anchor="start">blocklist-ipsets</text>
+<line x1="100.0" y1="222.9" x2="100.5" y2="207.1" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="102.5" y="210.1" text-anchor="start">core</text>
+<line x1="103.6" y1="227.4" x2="111.4" y2="211.8" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny" x="113.4" y="214.8" text-anchor="start">securityonion</text>
+<line x1="100.0" y1="219.3" x2="104.0" y2="227.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="102.0" y="230.0" text-anchor="end">ossec-hids</text>
+<line x1="100.0" y1="201.0" x2="107.8" y2="214.3" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="109.8" y="217.3" text-anchor="start">suricata</text>
+<line x1="100.0" y1="189.3" x2="100.9" y2="201.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="102.9" y="204.0" text-anchor="start">zeek</text>
+<line x1="100.0" y1="181.3" x2="104.0" y2="187.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="102.0" y="190.2" text-anchor="end">maltrail</text>
+<line x1="100.0" y1="161.4" x2="104.0" y2="151.5" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="102.0" y="154.5" text-anchor="end">ModSecurity</text>
+<line x1="100.0" y1="134.7" x2="110.5" y2="117.4" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="112.5" y="120.4" text-anchor="start">crowdsec</text>
+<line x1="100.0" y1="129.3" x2="104.0" y2="134.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="102.0" y="137.0" text-anchor="end">wazuh</text>
+<line x1="105.0" y1="110.9" x2="112.5" y2="123.2" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="114.5" y="126.2" text-anchor="start">fail2ban</text>
+<line x1="105.5" y1="98.9" x2="104.0" y2="87.0" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="102.0" y="90.0" text-anchor="end">osquery</text>
+<line x1="100.0" y1="86.0" x2="104.0" y2="90.6" stroke="#c3ccd6" stroke-width="0.45" opacity="0.72"/>
+<text class="tiny-strong" x="102.0" y="93.6" text-anchor="end">cilium</text>
+<circle cx="678" cy="100" r="5" fill="#6f7782"/>
+<text class="small" x="687" y="104">UNKNOWN</text>
+<circle cx="754" cy="100" r="5" fill="#2f6f9f"/>
+<text class="small" x="763" y="104">NIDS</text>
+<circle cx="830" cy="100" r="5" fill="#5b8f3a"/>
+<text class="small" x="839" y="104">HIDS</text>
+<circle cx="906" cy="100" r="5" fill="#bc4b51"/>
+<text class="small" x="915" y="104">HIPS</text>
+<circle cx="982" cy="100" r="5" fill="#c96c2f"/>
+<text class="small" x="991" y="104">NIPS</text>
+<circle cx="1058" cy="100" r="5" fill="#2a9d8f"/>
+<text class="small" x="1067" y="104">WIDS</text>
+<text class="small" x="678" y="130">Size: role</text>
+<circle cx="752" cy="127.0" r="4.4" fill="#2a9d8f" opacity="0.72" stroke="white" stroke-width="0.8"/>
+<text class="small" x="762" y="131">Deployable IDS</text>
+<circle cx="884" cy="127.0" r="3.8" fill="#7b5ea7" opacity="0.72" stroke="white" stroke-width="0.8"/>
+<text class="small" x="894" y="131">Platform/framework</text>
+<circle cx="1034" cy="127.0" r="3.3" fill="#d1842f" opacity="0.72" stroke="white" stroke-width="0.8"/>
+<text class="small" x="1044" y="131">Classifier/model</text>
+<circle cx="1166" cy="127.0" r="2.9" fill="#2f6f9f" opacity="0.72" stroke="white" stroke-width="0.8"/>
+<text class="small" x="1176" y="131">Rules/content</text>
+</svg>

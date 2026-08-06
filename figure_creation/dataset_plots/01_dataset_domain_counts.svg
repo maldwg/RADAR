@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="304" viewBox="0 0 980 304">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#17212b}
+.title{font-size:22px;font-weight:700}
+.subtitle{font-size:12px;fill:#53616f}
+.axis{stroke:#9aa5b1;stroke-width:1}
+.grid{stroke:#d7dde5;stroke-width:1;stroke-dasharray:4 4}
+.label{font-size:11px}
+.small{font-size:10px;fill:#53616f}
+.tiny{font-size:9px;fill:#53616f}
+.tick{font-size:10px;fill:#53616f}
+.number{font-size:11px;font-weight:700;fill:#17212b}
+</style>
+<text x="28.00" y="34.00" class="title" text-anchor="start">Datasets By Domain</text>
+<text x="28.00" y="54.00" class="subtitle" text-anchor="start">30 entities from ids_datasets_openalex.csv</text>
+<text x="158.00" y="96.00" class="label" text-anchor="end">General Network</text>
+<rect x="170.00" y="82.00" width="754.00" height="20.00" rx="0.00" fill="#2F6B9A" stroke="none" opacity="0.900"/>
+<text x="932.00" y="96.00" class="label" text-anchor="start">14</text>
+<text x="158.00" y="130.00" class="label" text-anchor="end">IoT/IIoT</text>
+<rect x="170.00" y="116.00" width="377.00" height="20.00" rx="0.00" fill="#C94F4F" stroke="none" opacity="0.900"/>
+<text x="555.00" y="130.00" class="label" text-anchor="start">7</text>
+<text x="158.00" y="164.00" class="label" text-anchor="end">ICS/SCADA</text>
+<rect x="170.00" y="150.00" width="215.43" height="20.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="0.900"/>
+<text x="393.43" y="164.00" class="label" text-anchor="start">4</text>
+<text x="158.00" y="198.00" class="label" text-anchor="end">Automotive/CAN</text>
+<rect x="170.00" y="184.00" width="107.71" height="20.00" rx="0.00" fill="#D9902F" stroke="none" opacity="0.900"/>
+<text x="285.71" y="198.00" class="label" text-anchor="start">2</text>
+<text x="158.00" y="232.00" class="label" text-anchor="end">Wireless</text>
+<rect x="170.00" y="218.00" width="107.71" height="20.00" rx="0.00" fill="#7A5FA8" stroke="none" opacity="0.900"/>
+<text x="285.71" y="232.00" class="label" text-anchor="start">2</text>
+<text x="158.00" y="266.00" class="label" text-anchor="end">Malware/Botnet</text>
+<rect x="170.00" y="252.00" width="53.86" height="20.00" rx="0.00" fill="#3B8C8C" stroke="none" opacity="0.900"/>
+<text x="231.86" y="266.00" class="label" text-anchor="start">1</text>
+<line x1="170.00" y1="74.00" x2="170.00" y2="280.00" class="axis"/>
+<text x="28.00" y="286.00" class="small" text-anchor="start">Data acquired from input CSV</text>
+</svg>

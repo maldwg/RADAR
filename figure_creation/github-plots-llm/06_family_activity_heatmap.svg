@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="790" height="466" viewBox="0 0 790 466" role="img">
+<title>Family x Maintenance Heatmap</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 23px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #64707d; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 8px; fill: #43505c; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+.tile-value { font-size: 24px; font-weight: 700; }
+.tile-label { font-size: 11px; fill: #59636f; }
+</style>
+<rect width="790" height="466" fill="white"/>
+<text class="title" x="395.0" y="34" text-anchor="middle">Family x Maintenance Heatmap</text>
+<text class="subtitle" x="395.0" y="55" text-anchor="middle">Activity buckets are based on pushed_at or updated_at relative to the newest CSV timestamp</text>
+<text class="tiny" x="236.0" y="84" text-anchor="middle">Very active</text>
+<text class="tiny" x="328.0" y="84" text-anchor="middle">Active</text>
+<text class="tiny" x="420.0" y="84" text-anchor="middle">Quiet</text>
+<text class="tiny" x="512.0" y="84" text-anchor="middle">Stale</text>
+<text class="tiny" x="604.0" y="84" text-anchor="middle">Dormant</text>
+<text class="tiny" x="696.0" y="84" text-anchor="middle">Archived</text>
+<text class="label" x="178" y="148.0" text-anchor="end">UNKNOWN</text>
+<rect x="190" y="120" width="88" height="44" rx="5" fill="#2f6b9a"/>
+<text class="value" x="234.0" y="148.0" text-anchor="middle">58</text>
+<rect x="282" y="120" width="88" height="44" rx="5" fill="#abc3d6"/>
+<text class="value" x="326.0" y="148.0" text-anchor="middle">21</text>
+<rect x="374" y="120" width="88" height="44" rx="5" fill="#5b8aaf"/>
+<text class="value" x="418.0" y="148.0" text-anchor="middle">45</text>
+<rect x="466" y="120" width="88" height="44" rx="5" fill="#a1bcd1"/>
+<text class="value" x="510.0" y="148.0" text-anchor="middle">24</text>
+<rect x="558" y="120" width="88" height="44" rx="5" fill="#83a6c3"/>
+<text class="value" x="602.0" y="148.0" text-anchor="middle">33</text>
+<rect x="650" y="120" width="88" height="44" rx="5" fill="#b9cddc"/>
+<text class="value" x="694.0" y="148.0" text-anchor="middle">17</text>
+<text class="label" x="178" y="196.0" text-anchor="end">NIDS</text>
+<rect x="190" y="168" width="88" height="44" rx="5" fill="#cad8e5"/>
+<text class="value" x="234.0" y="196.0" text-anchor="middle">12</text>
+<rect x="282" y="168" width="88" height="44" rx="5" fill="#dee7ee"/>
+<text class="value" x="326.0" y="196.0" text-anchor="middle">6</text>
+<rect x="374" y="168" width="88" height="44" rx="5" fill="#dee7ee"/>
+<text class="value" x="418.0" y="196.0" text-anchor="middle">6</text>
+<rect x="466" y="168" width="88" height="44" rx="5" fill="#e8eef3"/>
+<text class="value" x="510.0" y="196.0" text-anchor="middle">3</text>
+<rect x="558" y="168" width="88" height="44" rx="5" fill="#ebf0f5"/>
+<text class="value" x="602.0" y="196.0" text-anchor="middle">2</text>
+<rect x="650" y="168" width="88" height="44" rx="5" fill="#e5ebf2"/>
+<text class="value" x="694.0" y="196.0" text-anchor="middle">4</text>
+<text class="label" x="178" y="244.0" text-anchor="end">HIDS</text>
+<rect x="190" y="216" width="88" height="44" rx="5" fill="#c6d6e3"/>
+<text class="value" x="234.0" y="244.0" text-anchor="middle">13</text>
+<rect x="282" y="216" width="88" height="44" rx="5" fill="#e5ebf2"/>
+<text class="value" x="326.0" y="244.0" text-anchor="middle">4</text>
+<rect x="374" y="216" width="88" height="44" rx="5" fill="#ebf0f5"/>
+<text class="value" x="418.0" y="244.0" text-anchor="middle">2</text>
+<rect x="466" y="216" width="88" height="44" rx="5" fill="#e8eef3"/>
+<text class="value" x="510.0" y="244.0" text-anchor="middle">3</text>
+<rect x="558" y="216" width="88" height="44" rx="5" fill="#e8eef3"/>
+<text class="value" x="602.0" y="244.0" text-anchor="middle">3</text>
+<rect x="650" y="216" width="88" height="44" rx="5" fill="#ebf0f5"/>
+<text class="value" x="694.0" y="244.0" text-anchor="middle">2</text>
+<text class="label" x="178" y="292.0" text-anchor="end">HIPS</text>
+<rect x="190" y="264" width="88" height="44" rx="5" fill="#ebf0f5"/>
+<text class="value" x="234.0" y="292.0" text-anchor="middle">2</text>
+<rect x="282" y="264" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="264" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="466" y="264" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="558" y="264" width="88" height="44" rx="5" fill="#eff3f6"/>
+<text class="value" x="602.0" y="292.0" text-anchor="middle">1</text>
+<rect x="650" y="264" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<text class="label" x="178" y="340.0" text-anchor="end">NIPS</text>
+<rect x="190" y="312" width="88" height="44" rx="5" fill="#ebf0f5"/>
+<text class="value" x="234.0" y="340.0" text-anchor="middle">2</text>
+<rect x="282" y="312" width="88" height="44" rx="5" fill="#eff3f6"/>
+<text class="value" x="326.0" y="340.0" text-anchor="middle">1</text>
+<rect x="374" y="312" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="466" y="312" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="558" y="312" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="650" y="312" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<text class="label" x="178" y="388.0" text-anchor="end">WIDS</text>
+<rect x="190" y="360" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="282" y="360" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="374" y="360" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="466" y="360" width="88" height="44" rx="5" fill="#f2f5f8"/>
+<rect x="558" y="360" width="88" height="44" rx="5" fill="#e8eef3"/>
+<text class="value" x="602.0" y="388.0" text-anchor="middle">3</text>
+<rect x="650" y="360" width="88" height="44" rx="5" fill="#f2f5f8"/>
+</svg>

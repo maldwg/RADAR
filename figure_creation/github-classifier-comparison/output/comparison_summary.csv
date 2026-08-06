@@ -1,0 +1,2 @@
+model_label,model_name,llm_rows,matched_keyword_rows,keyword_accepts_in_matched,llm_accepts,llm_excludes,llm_uncertain,llm_errors,decision_mismatches,family_mismatches
+qwen,qwen3.6:27b,1326,1326,131,267,1015,28,16,315,44

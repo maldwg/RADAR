@@ -1,0 +1,23 @@
+# Required recall contract for IDS dataset discovery.
+# These names are validation targets only; the crawler must not use them as
+# direct OpenAlex search terms or discovery seeds.
+DARPA 98
+DARPA 99
+KDD 99
+MAWI
+CAIDA
+LBNL
+Kyoto
+Flame
+SimpleWeb
+NSL-KDD
+CDX
+IMPACT
+ISCX-UNB
+ADFA-LD
+IRSC
+UNSW-NB15
+ID2T
+CICIDS2017
+CICIDS2018
+CTU-13

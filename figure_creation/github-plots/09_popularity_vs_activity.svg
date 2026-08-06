@@ -1,0 +1,192 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700" role="img">
+<title>Popularity vs Repository Age</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 23px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #64707d; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 8px; fill: #43505c; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+.tile-value { font-size: 24px; font-weight: 700; }
+.tile-label { font-size: 11px; fill: #59636f; }
+</style>
+<rect width="1100" height="700" fill="white"/>
+<text class="title" x="550.0" y="34" text-anchor="middle">Popularity vs Repository Age</text>
+<text class="subtitle" x="550.0" y="55" text-anchor="middle">Older x-position means longer since last push/update; labels show the most-starred repositories</text>
+<rect x="86" y="82" width="962" height="530" fill="#FBFCFD" stroke="#D8DEE6"/>
+<line x1="86.0" y1="82" x2="86.0" y2="612" stroke="#E3E8EE"/>
+<line x1="86" y1="82.0" x2="1048" y2="82.0" stroke="#E3E8EE"/>
+<text class="tiny" x="86.0" y="630" text-anchor="middle">0</text>
+<text class="tiny" x="78" y="615.0" text-anchor="end">0</text>
+<line x1="278.4" y1="82" x2="278.4" y2="612" stroke="#E3E8EE"/>
+<line x1="86" y1="188.0" x2="1048" y2="188.0" stroke="#E3E8EE"/>
+<text class="tiny" x="278.4" y="630" text-anchor="middle">5</text>
+<text class="tiny" x="78" y="509.0" text-anchor="end">7</text>
+<line x1="470.8" y1="82" x2="470.8" y2="612" stroke="#E3E8EE"/>
+<line x1="86" y1="294.0" x2="1048" y2="294.0" stroke="#E3E8EE"/>
+<text class="tiny" x="470.8" y="630" text-anchor="middle">36</text>
+<text class="tiny" x="78" y="403.0" text-anchor="end">67</text>
+<line x1="663.2" y1="82" x2="663.2" y2="612" stroke="#E3E8EE"/>
+<line x1="86" y1="400.0" x2="1048" y2="400.0" stroke="#E3E8EE"/>
+<text class="tiny" x="663.2" y="630" text-anchor="middle">220</text>
+<text class="tiny" x="78" y="297.0" text-anchor="end">563</text>
+<line x1="855.6" y1="82" x2="855.6" y2="612" stroke="#E3E8EE"/>
+<line x1="86" y1="506.0" x2="1048" y2="506.0" stroke="#E3E8EE"/>
+<text class="tiny" x="855.6" y="630" text-anchor="middle">1,332</text>
+<text class="tiny" x="78" y="191.0" text-anchor="end">4,664</text>
+<line x1="1048.0" y1="82" x2="1048.0" y2="612" stroke="#E3E8EE"/>
+<line x1="86" y1="612.0" x2="1048" y2="612.0" stroke="#E3E8EE"/>
+<text class="tiny" x="1048.0" y="630" text-anchor="middle">8,051</text>
+<text class="tiny" x="78" y="85.0" text-anchor="end">38,555</text>
+<text class="axis" x="567.0" y="676" text-anchor="middle">Days since last activity (log10)</text>
+<text class="axis" x="22" y="347.0" text-anchor="middle" transform="rotate(-90 22 347.0)">Stars (log10)</text>
+<circle cx="258.2" cy="107.2" r="7.3" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>osquery/osquery: 23,318 stars, 2,577 forks, Deployable IDS</title></circle>
+<circle cx="258.2" cy="126.5" r="7.2" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>wazuh/wazuh: 15,891 stars, 2,346 forks, Deployable IDS</title></circle>
+<circle cx="258.2" cy="161.7" r="6.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ntop/ntopng: 7,880 stars, 741 forks, Support tooling</title></circle>
+<circle cx="258.2" cy="162.6" r="6.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>zeek/zeek: 7,730 stars, 1,370 forks, Deployable IDS</title></circle>
+<circle cx="258.2" cy="172.1" r="6.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>OISF/suricata: 6,400 stars, 1,725 forks, Deployable IDS</title></circle>
+<circle cx="430.3" cy="184.3" r="6.8" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ossec/ossec-hids: 5,020 stars, 1,073 forks, Deployable IDS</title></circle>
+<circle cx="896.7" cy="191.3" r="6.7" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Netflix/security_monkey: 4,370 stars, 781 forks, Deployable IDS</title></circle>
+<circle cx="522.1" cy="204.4" r="6.6" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>snort3/snort3: 3,361 stars, 677 forks, Deployable IDS</title></circle>
+<circle cx="808.7" cy="208.8" r="6.6" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>teler-sh/teler: 3,081 stars, 250 forks, Deployable IDS</title></circle>
+<circle cx="858.3" cy="231.9" r="6.5" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>cytopia/pwncat: 1,946 stars, 216 forks, Deployable IDS</title></circle>
+<circle cx="789.9" cy="232.2" r="6.5" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>deepfence/PacketStreamer: 1,931 stars, 244 forks, Support tooling</title></circle>
+<circle cx="780.4" cy="235.2" r="6.4" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>wavestone-cdt/EDRSandblast: 1,819 stars, 317 forks, Deployable IDS</title></circle>
+<circle cx="706.9" cy="236.4" r="6.4" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>metlo-labs/metlo: 1,777 stars, 106 forks, Support tooling</title></circle>
+<circle cx="881.6" cy="237.1" r="6.4" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>VKSRC/Github-Monitor: 1,754 stars, 365 forks, Support tooling</title></circle>
+<circle cx="294.1" cy="238.6" r="6.4" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>nefarius/DsHidMini: 1,701 stars, 99 forks, Support tooling</title></circle>
+<circle cx="757.0" cy="239.4" r="6.4" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>matanolabs/matano: 1,676 stars, 120 forks, Deployable IDS</title></circle>
+<circle cx="523.9" cy="245.5" r="6.4" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>cossacklabs/acra: 1,482 stars, 137 forks, Deployable IDS</title></circle>
+<circle cx="449.8" cy="247.0" r="6.4" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>cisagov/LME: 1,439 stars, 153 forks, Deployable IDS</title></circle>
+<circle cx="802.2" cy="249.8" r="6.4" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>alphasoc/flightsim: 1,360 stars, 144 forks, Deployable IDS</title></circle>
+<circle cx="785.0" cy="250.2" r="6.3" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>emalderson/ThePhish: 1,350 stars, 199 forks, Deployable IDS</title></circle>
+<circle cx="842.4" cy="251.3" r="6.3" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Qianlitp/WatchAD: 1,320 stars, 296 forks, Deployable IDS</title></circle>
+<circle cx="434.5" cy="251.9" r="6.3" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>thalesgroup-cert/Watcher: 1,305 stars, 191 forks, Deployable IDS</title></circle>
+<circle cx="321.0" cy="256.0" r="6.3" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>step-security/harden-runner: 1,202 stars, 106 forks, Deployable IDS</title></circle>
+<circle cx="831.3" cy="256.7" r="6.3" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>olafhartong/ThreatHunting: 1,186 stars, 179 forks, Deployable IDS</title></circle>
+<circle cx="613.8" cy="257.1" r="6.3" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>birdhan/SecurityProduct: 1,176 stars, 186 forks, Deployable IDS</title></circle>
+<circle cx="914.4" cy="262.4" r="6.3" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>nsacyber/GRASSMARLIN: 1,059 stars, 319 forks, Deployable IDS</title></circle>
+<circle cx="836.1" cy="264.8" r="6.3" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Snorby/snorby: 1,010 stars, 217 forks, Deployable IDS</title></circle>
+<circle cx="772.7" cy="269.7" r="6.2" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>A3sal0n/CyberThreatHunting: 915 stars, 166 forks, Deployable IDS</title></circle>
+<circle cx="615.3" cy="274.3" r="6.2" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>wecooperate/iMonitor: 835 stars, 169 forks, Deployable IDS</title></circle>
+<circle cx="971.1" cy="274.8" r="6.2" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>etsy/MIDAS: 826 stars, 142 forks, Deployable IDS</title></circle>
+<circle cx="627.5" cy="275.6" r="6.2" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Cyb3r-Monk/Threat-Hunting-and-Detection: 813 stars, 112 forks, Deployable IDS</title></circle>
+<circle cx="971.6" cy="277.1" r="6.2" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>PHPIDS/PHPIDS: 790 stars, 217 forks, Deployable IDS</title></circle>
+<circle cx="847.4" cy="278.1" r="6.2" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Yamato-Security/WELA-deprecated: 774 stars, 78 forks, Deployable IDS</title></circle>
+<circle cx="203.5" cy="286.0" r="6.1" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>0xDanielLopez/TweetFeed: 661 stars, 70 forks, Deployable IDS</title></circle>
+<circle cx="894.0" cy="290.8" r="6.1" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>EBWi11/AgentSmith-HIDS: 601 stars, 164 forks, Deployable IDS</title></circle>
+<circle cx="556.0" cy="291.4" r="6.1" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Western-OC2-Lab/Intrusion-Detection-System-Using-Machine-Learning: 593 stars, 161 forks, Deployable IDS</title></circle>
+<circle cx="234.3" cy="292.2" r="6.1" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>activecm/rita: 584 stars, 65 forks, Support tooling</title></circle>
+<circle cx="203.5" cy="297.4" r="6.0" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>vulnerability-lookup/vulnerability-lookup: 527 stars, 77 forks, Support tooling</title></circle>
+<circle cx="948.1" cy="298.3" r="6.0" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>SYWorks/waidps: 517 stars, 158 forks, Deployable IDS</title></circle>
+<circle cx="711.7" cy="299.1" r="6.0" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>0xKoda/WireMCP: 509 stars, 58 forks, Deployable IDS</title></circle>
+<circle cx="907.4" cy="299.7" r="6.0" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>daniel-cues/NMapGUI: 503 stars, 105 forks, Deployable IDS</title></circle>
+<circle cx="766.1" cy="300.9" r="6.0" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>LearningKijo/KQL: 491 stars, 85 forks, Deployable IDS</title></circle>
+<circle cx="655.4" cy="302.3" r="6.0" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Azr43lKn1ght/DFIR-LABS: 477 stars, 57 forks, Deployable IDS</title></circle>
+<circle cx="815.3" cy="304.6" r="6.0" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>gojue/ehids-agent: 456 stars, 86 forks, Deployable IDS</title></circle>
+<circle cx="573.1" cy="305.6" r="6.0" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>doitintl/kubeip: 447 stars, 81 forks, Support tooling</title></circle>
+<circle cx="817.7" cy="305.6" r="6.0" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>trustedsec/nps_payload: 447 stars, 118 forks, Deployable IDS</title></circle>
+<circle cx="277.7" cy="305.6" r="6.0" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ShadowsocksR-Live/overtls: 447 stars, 64 forks, Deployable IDS</title></circle>
+<circle cx="277.7" cy="309.4" r="6.0" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>87owo/PYAS: 414 stars, 39 forks, Deployable IDS</title></circle>
+<circle cx="566.1" cy="312.4" r="5.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ymirsky/Kitsune-py: 390 stars, 114 forks, Deployable IDS</title></circle>
+<circle cx="234.3" cy="313.3" r="5.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Karib0u/rustinel: 383 stars, 43 forks, Deployable IDS</title></circle>
+<circle cx="747.9" cy="313.9" r="5.9" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>wecooperate/iMonitorSDK: 379 stars, 86 forks, Deployable IDS</title></circle>
+<circle cx="892.3" cy="314.8" r="5.9" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>sbousseaden/PCAP-ATTACK: 372 stars, 76 forks, Deployable IDS</title></circle>
+<circle cx="726.6" cy="317.7" r="5.9" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>gojue/ebpfmanager: 351 stars, 58 forks, Deployable IDS</title></circle>
+<circle cx="775.8" cy="321.2" r="5.9" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>opencybersecurityalliance/kestrel-lang: 327 stars, 51 forks, Deployable IDS</title></circle>
+<circle cx="677.4" cy="321.2" r="5.9" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>mvelazc0/msInvader: 327 stars, 22 forks, Deployable IDS</title></circle>
+<circle cx="234.3" cy="323.1" r="5.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>secureagentics/Adrian: 315 stars, 68 forks, Deployable IDS</title></circle>
+<circle cx="919.5" cy="323.6" r="5.9" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>changeofpace/MouHidInputHook: 312 stars, 90 forks, Deployable IDS</title></circle>
+<circle cx="518.5" cy="323.8" r="5.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>wecooperate/iDefender: 311 stars, 34 forks, Deployable IDS</title></circle>
+<circle cx="764.6" cy="324.7" r="5.9" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ANG13T/netspionage: 305 stars, 56 forks, Deployable IDS</title></circle>
+<circle cx="446.2" cy="324.9" r="5.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>chriskaliX/Hades: 304 stars, 56 forks, Deployable IDS</title></circle>
+<circle cx="673.1" cy="325.1" r="5.9" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>packetd/packetd: 303 stars, 23 forks, Support tooling</title></circle>
+<circle cx="400.9" cy="326.4" r="5.9" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>tuchg/Lucarne: 295 stars, 14 forks, Support tooling</title></circle>
+<circle cx="203.5" cy="328.5" r="5.8" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>backbay-labs/clawdstrike: 283 stars, 33 forks, Deployable IDS</title></circle>
+<circle cx="656.4" cy="329.4" r="5.8" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>SkypLabs/probequest: 278 stars, 50 forks, Support tooling</title></circle>
+<circle cx="777.1" cy="329.4" r="5.8" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>assetnote/ghostbuster: 278 stars, 36 forks, Support tooling</title></circle>
+<circle cx="985.7" cy="329.7" r="5.8" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>SYWorks/wireless-ids: 276 stars, 83 forks, Deployable IDS</title></circle>
+<circle cx="841.3" cy="330.5" r="5.8" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>trailofbits/osquery-extensions: 272 stars, 36 forks, Support tooling</title></circle>
+<circle cx="685.2" cy="330.6" r="5.8" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>olafhartong/BamboozlEDR: 271 stars, 25 forks, Deployable IDS</title></circle>
+<circle cx="438.5" cy="331.8" r="5.8" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>tread-lightly/CyberOK_Skipa_ips: 265 stars, 8 forks, Deployable IDS</title></circle>
+<circle cx="794.0" cy="332.7" r="5.8" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>0xrajneesh/Incident-Response-Projects-for-Beginners: 260 stars, 35 forks, Deployable IDS</title></circle>
+<circle cx="626.2" cy="332.7" r="5.8" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>dhoelzer/ShowMeThePackets: 260 stars, 51 forks, Deployable IDS</title></circle>
+<circle cx="321.0" cy="334.3" r="5.8" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>TwoSevenOneT/EDRChoker: 252 stars, 44 forks, Deployable IDS</title></circle>
+<circle cx="739.9" cy="336.9" r="5.8" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>randomuserid/Adama: 239 stars, 45 forks, Deployable IDS</title></circle>
+<circle cx="896.8" cy="339.1" r="5.8" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>beave/sagan: 229 stars, 59 forks, Deployable IDS</title></circle>
+<circle cx="741.1" cy="339.3" r="5.8" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>chiragbiradar/DDoS-Attack-Detection-and-Mitigation: 228 stars, 41 forks, Deployable IDS</title></circle>
+<circle cx="860.0" cy="341.5" r="5.8" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ashwin-patil/blue-teaming-with-kql: 218 stars, 37 forks, Deployable IDS</title></circle>
+<circle cx="932.2" cy="342.4" r="5.7" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>fox-it/quantuminsert: 214 stars, 57 forks, Deployable IDS</title></circle>
+<circle cx="527.5" cy="344.1" r="5.7" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Western-OC2-Lab/Intrusion-Detection-System-Using-CNN-and-Transfer-Learning: 207 stars, 47 forks, Deployable IDS</title></circle>
+<circle cx="884.6" cy="344.6" r="5.7" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>abhinav-bhardwaj/IoT-Network-Intrusion-Detection-System-UNSW-NB15: 205 stars, 49 forks, Deployable IDS</title></circle>
+<circle cx="797.9" cy="346.1" r="5.7" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>fuchuanpu/HyperVision: 199 stars, 33 forks, Deployable IDS</title></circle>
+<circle cx="776.5" cy="346.6" r="5.7" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>corelight/community-id-spec: 197 stars, 25 forks, Deployable IDS</title></circle>
+<circle cx="713.8" cy="347.1" r="5.7" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>msdirtbag/MDEAutomator: 195 stars, 25 forks, Support tooling</title></circle>
+<circle cx="653.3" cy="348.1" r="5.7" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>socprime/Uncoder_IO: 191 stars, 43 forks, Deployable IDS</title></circle>
+<circle cx="684.8" cy="351.4" r="5.7" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>smartboxchannel/Plant-Watering-Sensor-Zigbee: 179 stars, 39 forks, Deployable IDS</title></circle>
+<circle cx="666.7" cy="353.4" r="5.7" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>slrbl/Intrusion-and-anomaly-detection-with-machine-learning: 172 stars, 75 forks, Deployable IDS</title></circle>
+<circle cx="708.5" cy="353.9" r="5.7" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Kwangsa19/Ketmanto-Cybersecurity-Portfolio: 170 stars, 42 forks, Deployable IDS</title></circle>
+<circle cx="906.3" cy="353.9" r="5.7" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>violentlydave/mkhtaccess_red: 170 stars, 32 forks, Deployable IDS</title></circle>
+<circle cx="864.0" cy="354.5" r="5.7" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Nirusu/how-to-setup-a-honeypot: 168 stars, 15 forks, Deployable IDS</title></circle>
+<circle cx="160.1" cy="356.3" r="5.7" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>IoTThinks/EasySkyMesh: 162 stars, 6 forks, Support tooling</title></circle>
+<circle cx="684.4" cy="357.3" r="5.7" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>0vm/NetDeflect: 159 stars, 19 forks, Deployable IDS</title></circle>
+<circle cx="849.7" cy="357.6" r="5.7" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>LiaoWenzhe/dataRisk-detection-resources: 158 stars, 18 forks, Deployable IDS</title></circle>
+<circle cx="940.6" cy="357.9" r="5.6" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>simonwsw/deep-soli: 157 stars, 52 forks, Support tooling</title></circle>
+<circle cx="543.4" cy="359.9" r="5.6" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>m-beau/NeuroPyxels: 151 stars, 33 forks, Support tooling</title></circle>
+<circle cx="882.5" cy="360.2" r="5.6" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>abhinav-bhardwaj/Network-Intrusion-Detection-Using-Machine-Learning: 150 stars, 52 forks, Deployable IDS</title></circle>
+<circle cx="258.2" cy="360.2" r="5.6" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>3vil3vo/GreenLuma-Manager: 150 stars, 6 forks, Support tooling</title></circle>
+<circle cx="920.3" cy="361.5" r="5.6" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>michalpurzynski/bro-gramming: 146 stars, 24 forks, Platform/framework</title></circle>
+<circle cx="932.1" cy="361.9" r="5.6" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>tamimmirza/Intrusion-Detection-System-using-Deep-Learning: 145 stars, 57 forks, Deployable IDS</title></circle>
+<circle cx="821.2" cy="362.2" r="5.6" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>fuchuanpu/Whisper: 144 stars, 28 forks, Deployable IDS</title></circle>
+<circle cx="920.4" cy="362.9" r="5.6" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>al0ne/suricata_optimize: 142 stars, 60 forks, Deployable IDS</title></circle>
+<circle cx="607.5" cy="366.2" r="5.6" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>lawndoc/AdvancedHuntingQueries: 133 stars, 18 forks, Deployable IDS</title></circle>
+<circle cx="564.9" cy="366.2" r="5.6" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>NeffIsBack/EVENmonitor: 133 stars, 9 forks, Deployable IDS</title></circle>
+<circle cx="747.5" cy="366.2" r="5.6" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>malwarekid/SOAR-Flow: 133 stars, 33 forks, Deployable IDS</title></circle>
+<circle cx="86.0" cy="368.1" r="5.6" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>gen0sec/synapse: 128 stars, 8 forks, Deployable IDS</title></circle>
+<circle cx="593.5" cy="368.9" r="5.6" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>MaheshShukla1/SOC-Analyst-Notes: 126 stars, 19 forks, Deployable IDS</title></circle>
+<circle cx="1002.2" cy="369.3" r="5.6" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>eldondev/Snort: 125 stars, 105 forks, Deployable IDS</title></circle>
+<circle cx="446.2" cy="369.7" r="5.6" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>zhadyz/AI_SOC: 124 stars, 31 forks, Deployable IDS</title></circle>
+<circle cx="838.2" cy="370.1" r="5.6" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ine-labs/ThreatSeeker: 123 stars, 14 forks, Deployable IDS</title></circle>
+<circle cx="931.8" cy="370.5" r="5.6" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>kirillwow/ids_bypass: 122 stars, 25 forks, Deployable IDS</title></circle>
+<circle cx="888.0" cy="370.5" r="5.6" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>tylabs/dovehawk: 122 stars, 22 forks, Deployable IDS</title></circle>
+<circle cx="688.0" cy="370.9" r="5.6" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>rodanmaharjan/ThreatIntelligence: 121 stars, 23 forks, Deployable IDS</title></circle>
+<circle cx="812.9" cy="371.7" r="5.6" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>Stream-AD/MStream: 119 stars, 19 forks, Deployable IDS</title></circle>
+<circle cx="438.5" cy="373.4" r="5.5" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ubc-provenance/PIDSMaker: 115 stars, 40 forks, Support tooling</title></circle>
+<circle cx="538.9" cy="373.4" r="5.5" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>DXC-0/soc-ressources: 115 stars, 19 forks, Deployable IDS</title></circle>
+<circle cx="900.8" cy="373.9" r="5.5" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>romanchereshnev/HuGaDB: 114 stars, 32 forks, Deployable IDS</title></circle>
+<circle cx="866.5" cy="373.9" r="5.5" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>stamparm/tsusen: 114 stars, 34 forks, Deployable IDS</title></circle>
+<circle cx="950.1" cy="374.3" r="5.5" fill="#8D3B4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>vecna/sniffjoke: 113 stars, 23 forks, Support tooling</title></circle>
+<circle cx="258.2" cy="374.3" r="5.5" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>joeavanzato/LogBoost: 113 stars, 3 forks, Deployable IDS</title></circle>
+<circle cx="203.5" cy="375.2" r="5.5" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>benscha/KQLAdvancedHunting: 111 stars, 17 forks, Deployable IDS</title></circle>
+<circle cx="869.2" cy="375.2" r="5.5" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>danielmiessler/HoneyCredIPTracker: 111 stars, 45 forks, Deployable IDS</title></circle>
+<circle cx="782.5" cy="375.2" r="5.5" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>CyDefOps/project-killchain: 111 stars, 23 forks, Deployable IDS</title></circle>
+<circle cx="430.3" cy="375.6" r="5.5" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>dvf/opinionated-django: 110 stars, 5 forks, Support tooling</title></circle>
+<circle cx="864.8" cy="376.1" r="5.5" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>waimorris/E-GraphSAGE: 109 stars, 23 forks, Deployable IDS</title></circle>
+<circle cx="857.8" cy="376.1" r="5.5" fill="#C94F4F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>mudgalabhay/Intrusion-Detection-System: 109 stars, 53 forks, Deployable IDS</title></circle>
+<circle cx="937.6" cy="376.5" r="5.5" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>utkusen/firstorder: 108 stars, 22 forks, Deployable IDS</title></circle>
+<circle cx="203.5" cy="376.5" r="5.5" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>ccdcoe/CDMCS: 108 stars, 34 forks, Deployable IDS</title></circle>
+<circle cx="631.5" cy="376.5" r="5.5" fill="#4E9A62" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>smartboxchannel/SONOFF-SNZB-02-Temperature-and-humidity-sensor: 108 stars, 19 forks, Deployable IDS</title></circle>
+<circle cx="764.0" cy="377.5" r="5.5" fill="#D9902F" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>osintmatter/RequestShield: 106 stars, 9 forks, Deployable IDS</title></circle>
+<circle cx="203.5" cy="378.4" r="5.5" fill="#3B8C8C" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>microsoft/xbox-multiplayer-analysis-tool: 104 stars, 6 forks, Support tooling</title></circle>
+<circle cx="852.5" cy="379.9" r="5.5" fill="#6C7A89" fill-opacity="0.78" stroke="white" stroke-width="1.1"><title>blacktop/docker-zeek: 101 stars, 31 forks, Support tooling</title></circle>
+<text class="tiny" x="266.2" y="98.2">osquery</text>
+<text class="tiny" x="266.2" y="117.5">wazuh</text>
+<text class="tiny" x="266.2" y="152.7">ntopng</text>
+<text class="tiny" x="266.2" y="129.6">zeek</text>
+<text class="tiny" x="266.2" y="79.1">suricata</text>
+<text class="tiny" x="438.3" y="175.3">ossec-hids</text>
+<text class="tiny" x="904.7" y="182.3">security_monkey</text>
+<text class="tiny" x="530.1" y="195.4">snort3</text>
+<text class="tiny" x="816.7" y="199.8">teler</text>
+<text class="tiny" x="866.3" y="222.9">pwncat</text>
+<text class="tiny" x="797.9" y="187.2">PacketStreamer</text>
+<text class="tiny" x="788.4" y="166.2">EDRSandblast</text>
+<rect x="86" y="641" width="10" height="10" rx="2" fill="#2F6B9A"/>
+<text class="small" x="101" y="650">Deployable IDS</text>
+<rect x="236" y="641" width="10" height="10" rx="2" fill="#7A5FA8"/>
+<text class="small" x="251" y="650">Platform/framework</text>
+<rect x="386" y="641" width="10" height="10" rx="2" fill="#6C7A89"/>
+<text class="small" x="401" y="650">Support tooling</text>
+</svg>

@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="778" viewBox="0 0 1120 778" role="img">
+<title>Top GitHub Topics</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 23px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #64707d; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 8px; fill: #43505c; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+.tile-value { font-size: 24px; font-weight: 700; }
+.tile-label { font-size: 11px; fill: #59636f; }
+</style>
+<rect width="1120" height="778" fill="white"/>
+<text class="title" x="560.0" y="34" text-anchor="middle">Top GitHub Topics</text>
+<text class="subtitle" x="560.0" y="55" text-anchor="middle">Topic metadata from accepted repositories; many older projects have sparse topics</text>
+<text class="label" x="286" y="97" text-anchor="end">security<title>security</title></text>
+<rect x="300" y="82" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="82" width="728.0" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="1036.0" y="97">31</text>
+<text class="label" x="286" y="129" text-anchor="end">cybersecurity<title>cybersecurity</title></text>
+<rect x="300" y="114" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="114" width="563.6" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="871.6" y="129">24</text>
+<text class="label" x="286" y="161" text-anchor="end">threat-hunting<title>threat-hunting</title></text>
+<rect x="300" y="146" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="146" width="446.2" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="754.2" y="161">19</text>
+<text class="label" x="286" y="193" text-anchor="end">intrusion-detection<title>intrusion-detection</title></text>
+<rect x="300" y="178" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="178" width="352.3" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="660.3" y="193">15</text>
+<text class="label" x="286" y="225" text-anchor="end">threat-intelligence<title>threat-intelligence</title></text>
+<rect x="300" y="210" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="210" width="281.8" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="589.8" y="225">12</text>
+<text class="label" x="286" y="257" text-anchor="end">incident-response<title>incident-response</title></text>
+<rect x="300" y="242" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="242" width="258.3" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="566.3" y="257">11</text>
+<text class="label" x="286" y="289" text-anchor="end">python<title>python</title></text>
+<rect x="300" y="274" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="274" width="258.3" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="566.3" y="289">11</text>
+<text class="label" x="286" y="321" text-anchor="end">monitoring<title>monitoring</title></text>
+<rect x="300" y="306" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="306" width="234.8" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="542.8" y="321">10</text>
+<text class="label" x="286" y="353" text-anchor="end">security-tools<title>security-tools</title></text>
+<rect x="300" y="338" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="338" width="234.8" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="542.8" y="353">10</text>
+<text class="label" x="286" y="385" text-anchor="end">siem<title>siem</title></text>
+<rect x="300" y="370" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="370" width="234.8" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="542.8" y="385">10</text>
+<text class="label" x="286" y="417" text-anchor="end">edr<title>edr</title></text>
+<rect x="300" y="402" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="402" width="187.9" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="495.9" y="417">8</text>
+<text class="label" x="286" y="449" text-anchor="end">network-security<title>network-security</title></text>
+<rect x="300" y="434" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="434" width="187.9" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="495.9" y="449">8</text>
+<text class="label" x="286" y="481" text-anchor="end">dfir<title>dfir</title></text>
+<rect x="300" y="466" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="466" width="164.4" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="472.4" y="481">7</text>
+<text class="label" x="286" y="513" text-anchor="end">ebpf<title>ebpf</title></text>
+<rect x="300" y="498" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="498" width="164.4" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="472.4" y="513">7</text>
+<text class="label" x="286" y="545" text-anchor="end">golang<title>golang</title></text>
+<rect x="300" y="530" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="530" width="164.4" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="472.4" y="545">7</text>
+<text class="label" x="286" y="577" text-anchor="end">machine-learning<title>machine-learning</title></text>
+<rect x="300" y="562" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="562" width="164.4" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="472.4" y="577">7</text>
+<text class="label" x="286" y="609" text-anchor="end">threat-detection<title>threat-detection</title></text>
+<rect x="300" y="594" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="594" width="164.4" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="472.4" y="609">7</text>
+<text class="label" x="286" y="641" text-anchor="end">detection-engineering<title>detection-engineering</title></text>
+<rect x="300" y="626" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="626" width="140.9" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="448.9" y="641">6</text>
+<text class="label" x="286" y="673" text-anchor="end">ids<title>ids</title></text>
+<rect x="300" y="658" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="658" width="140.9" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="448.9" y="673">6</text>
+<text class="label" x="286" y="705" text-anchor="end">intrusion-detection-system<title>intrusion-detection-system</title></text>
+<rect x="300" y="690" width="728" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="300" y="690" width="140.9" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="448.9" y="705">6</text>
+<line x1="300.0" y1="724" x2="300.0" y2="729" stroke="#AEB7C2"/>
+<text class="tiny" x="300.0" y="742" text-anchor="middle">0</text>
+<line x1="445.6" y1="724" x2="445.6" y2="729" stroke="#AEB7C2"/>
+<text class="tiny" x="445.6" y="742" text-anchor="middle">6</text>
+<line x1="591.2" y1="724" x2="591.2" y2="729" stroke="#AEB7C2"/>
+<text class="tiny" x="591.2" y="742" text-anchor="middle">12</text>
+<line x1="736.8" y1="724" x2="736.8" y2="729" stroke="#AEB7C2"/>
+<text class="tiny" x="736.8" y="742" text-anchor="middle">19</text>
+<line x1="882.4" y1="724" x2="882.4" y2="729" stroke="#AEB7C2"/>
+<text class="tiny" x="882.4" y="742" text-anchor="middle">25</text>
+<line x1="1028.0" y1="724" x2="1028.0" y2="729" stroke="#AEB7C2"/>
+<text class="tiny" x="1028.0" y="742" text-anchor="middle">31</text>
+</svg>

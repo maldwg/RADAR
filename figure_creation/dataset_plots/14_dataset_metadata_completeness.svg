@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="480" viewBox="0 0 980 480">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#17212b}
+.title{font-size:22px;font-weight:700}
+.subtitle{font-size:12px;fill:#53616f}
+.axis{stroke:#9aa5b1;stroke-width:1}
+.grid{stroke:#d7dde5;stroke-width:1;stroke-dasharray:4 4}
+.label{font-size:11px}
+.small{font-size:10px;fill:#53616f}
+.tiny{font-size:9px;fill:#53616f}
+.tick{font-size:10px;fill:#53616f}
+.number{font-size:11px;font-weight:700;fill:#17212b}
+</style>
+<text x="28.00" y="34.00" class="title" text-anchor="start">Metadata Completeness</text>
+<text x="28.00" y="54.00" class="subtitle" text-anchor="start">30 entities from ids_datasets_openalex.csv</text>
+<text x="200.00" y="99.00" class="label" text-anchor="end">release_year</text>
+<rect x="210.00" y="84.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="84.00" width="634.67" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="97.00" class="small" text-anchor="start">28/30</text>
+<text x="200.00" y="124.00" class="label" text-anchor="end">canonical_publication_year</text>
+<rect x="210.00" y="109.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="109.00" width="498.67" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="122.00" class="small" text-anchor="start">22/30</text>
+<text x="200.00" y="149.00" class="label" text-anchor="end">domain</text>
+<rect x="210.00" y="134.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="134.00" width="680.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="147.00" class="small" text-anchor="start">30/30</text>
+<text x="200.00" y="174.00" class="label" text-anchor="end">data_form</text>
+<rect x="210.00" y="159.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="159.00" width="340.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="172.00" class="small" text-anchor="start">15/30</text>
+<text x="200.00" y="199.00" class="label" text-anchor="end">temporal_type</text>
+<rect x="210.00" y="184.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="184.00" width="408.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="197.00" class="small" text-anchor="start">18/30</text>
+<text x="200.00" y="224.00" class="label" text-anchor="end">environment</text>
+<rect x="210.00" y="209.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="209.00" width="204.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="222.00" class="small" text-anchor="start">9/30</text>
+<text x="200.00" y="249.00" class="label" text-anchor="end">labeling</text>
+<rect x="210.00" y="234.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="234.00" width="90.67" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="247.00" class="small" text-anchor="start">4/30</text>
+<text x="200.00" y="274.00" class="label" text-anchor="end">confidence</text>
+<rect x="210.00" y="259.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="259.00" width="680.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="272.00" class="small" text-anchor="start">30/30</text>
+<text x="200.00" y="299.00" class="label" text-anchor="end">artifact_type</text>
+<rect x="210.00" y="284.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="284.00" width="680.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="297.00" class="small" text-anchor="start">30/30</text>
+<text x="200.00" y="324.00" class="label" text-anchor="end">canonical_score</text>
+<rect x="210.00" y="309.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="309.00" width="498.67" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="322.00" class="small" text-anchor="start">22/30</text>
+<text x="200.00" y="349.00" class="label" text-anchor="end">citations</text>
+<rect x="210.00" y="334.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="334.00" width="498.67" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="347.00" class="small" text-anchor="start">22/30</text>
+<text x="200.00" y="374.00" class="label" text-anchor="end">survey_count</text>
+<rect x="210.00" y="359.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="359.00" width="680.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="372.00" class="small" text-anchor="start">30/30</text>
+<text x="200.00" y="399.00" class="label" text-anchor="end">candidate_count</text>
+<rect x="210.00" y="384.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="384.00" width="680.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="397.00" class="small" text-anchor="start">30/30</text>
+<text x="200.00" y="424.00" class="label" text-anchor="end">discovery_method</text>
+<rect x="210.00" y="409.00" width="680.00" height="16.00" rx="0.00" fill="#edf1f5" stroke="none" opacity="1.000"/>
+<rect x="210.00" y="409.00" width="680.00" height="16.00" rx="0.00" fill="#4E9A62" stroke="none" opacity="1.000"/>
+<text x="898.00" y="422.00" class="small" text-anchor="start">30/30</text>
+<text x="28.00" y="462.00" class="small" text-anchor="start">Data acquired from input CSV</text>
+</svg>

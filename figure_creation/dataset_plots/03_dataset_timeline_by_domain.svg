@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="1082" viewBox="0 0 1420 1082">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#17212b}
+.title{font-size:22px;font-weight:700}
+.subtitle{font-size:12px;fill:#53616f}
+.axis{stroke:#9aa5b1;stroke-width:1}
+.grid{stroke:#d7dde5;stroke-width:1;stroke-dasharray:4 4}
+.label{font-size:11px}
+.small{font-size:10px;fill:#53616f}
+.tiny{font-size:9px;fill:#53616f}
+.tick{font-size:10px;fill:#53616f}
+.number{font-size:11px;font-weight:700;fill:#17212b}
+</style>
+<text x="28.00" y="34.00" class="title" text-anchor="start">Dataset Release Timeline By Domain</text>
+<text x="28.00" y="54.00" class="subtitle" text-anchor="start">30 entities from ids_datasets_openalex.csv</text>
+<line x1="310.00" y1="86.00" x2="310.00" y2="986.00" class="grid"/>
+<text x="310.00" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 310.00 1002.00)">1998</text>
+<line x1="424.22" y1="86.00" x2="424.22" y2="986.00" class="grid"/>
+<text x="424.22" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 424.22 1002.00)">2001</text>
+<line x1="538.44" y1="86.00" x2="538.44" y2="986.00" class="grid"/>
+<text x="538.44" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 538.44 1002.00)">2004</text>
+<line x1="652.67" y1="86.00" x2="652.67" y2="986.00" class="grid"/>
+<text x="652.67" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 652.67 1002.00)">2007</text>
+<line x1="766.89" y1="86.00" x2="766.89" y2="986.00" class="grid"/>
+<text x="766.89" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 766.89 1002.00)">2010</text>
+<line x1="881.11" y1="86.00" x2="881.11" y2="986.00" class="grid"/>
+<text x="881.11" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 881.11 1002.00)">2013</text>
+<line x1="995.33" y1="86.00" x2="995.33" y2="986.00" class="grid"/>
+<text x="995.33" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 995.33 1002.00)">2016</text>
+<line x1="1109.56" y1="86.00" x2="1109.56" y2="986.00" class="grid"/>
+<text x="1109.56" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 1109.56 1002.00)">2019</text>
+<line x1="1223.78" y1="86.00" x2="1223.78" y2="986.00" class="grid"/>
+<text x="1223.78" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 1223.78 1002.00)">2022</text>
+<line x1="1338.00" y1="86.00" x2="1338.00" y2="986.00" class="grid"/>
+<text x="1338.00" y="1002.00" class="tick" text-anchor="middle" transform="rotate(-35.0 1338.00 1002.00)">2025</text>
+<rect x="28.00" y="83.00" width="1318.00" height="344.00" rx="0.00" fill="#f8fafc" stroke="none" opacity="1.000"/>
+<text x="28.00" y="100.00" class="label" text-anchor="start">General Network</text>
+<text x="296.00" y="100.00" class="label" text-anchor="end">DARPA</text>
+<line x1="310.00" y1="96.00" x2="1338.00" y2="96.00" class="grid"/>
+<circle cx="310.00" cy="96.00" r="12.27" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>DARPA | artifact=Dataset | domain=General Network | citations=17 | score=4.29 | survey_count=8 | candidate_count=1153 | year=1998 | poor quality. Due to this low Veracity, these data sets would also lack Value as well, further reducing their relevancy. Table 1 Summary of popular datasets in the intrusion detection domain [30] Data source Dataset name Abbreviation Network Traffic DARPA 1998 TCPDump Files DARP…</title></circle>
+<text x="320.00" y="100.00" class="tiny" text-anchor="start">1998</text>
+<text x="296.00" y="126.00" class="label" text-anchor="end">ADFA</text>
+<line x1="310.00" y1="122.00" x2="1338.00" y2="122.00" class="grid"/>
+<circle cx="348.07" cy="122.00" r="8.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>ADFA | artifact=Dataset | domain=General Network | citations=0 | score=0.00 | survey_count=2 | candidate_count=304 | year=1999 | the basis to derive the KDD Cup99 able due to privacy issues. However, there are a few dataset which has been used in Third International publicly available datasets such as DARPA, KDD, Knowledge Discovery and Data Mining Tools Competi- NSL-KDD and ADFA-LD and they are widely us…</title></circle>
+<text x="358.07" y="126.00" class="tiny" text-anchor="start">1999</text>
+<text x="296.00" y="152.00" class="label" text-anchor="end">KDD</text>
+<line x1="310.00" y1="148.00" x2="1338.00" y2="148.00" class="grid"/>
+<circle cx="348.07" cy="148.00" r="8.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>KDD | artifact=Dataset | domain=General Network | citations=0 | score=0.00 | survey_count=13 | candidate_count=1168 | year=1999 | oustafa and Slay 2015, 2016) (Table 3). dropped packets while the dataset was being created. KDD Cup 1999 itself suffers also from not even distribution of the 4.1.5 Kyoto2006+ attacks and record redundancy (Tavallaee et al. 2009). While describing KDD Cup 99, we spotted, that o…</title></circle>
+<text x="358.07" y="152.00" class="tiny" text-anchor="start">1999</text>
+<text x="296.00" y="178.00" class="label" text-anchor="end">FLAME</text>
+<line x1="310.00" y1="174.00" x2="1338.00" y2="174.00" class="grid"/>
+<polygon points="690.74,161.35 678.09,186.65 703.39,186.65" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>FLAME | artifact=Generator/framework | domain=General Network | citations=36 | score=10.28 | survey_count=1 | candidate_count=1 | year=2008 | dataset-like name, generator/framework title, security/traffic scope: FLAME: a flow-level anomaly modeling engine</title></polygon>
+<text x="700.74" y="178.00" class="tiny" text-anchor="start">2008</text>
+<text x="296.00" y="204.00" class="label" text-anchor="end">NSL-KDD</text>
+<line x1="310.00" y1="200.00" x2="1338.00" y2="200.00" class="grid"/>
+<circle cx="728.81" cy="200.00" r="13.40" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>NSL-KDD | artifact=Dataset | domain=General Network | citations=42 | score=3.58 | survey_count=7 | candidate_count=446 | year=2009 | om Tree model to improve accuracy and reduce the literature, each with its advantages and disadvan- the false alarm rate (Thaseen &amp; Kumar, 2013). Subrama- tages. In the testing stage, the trained model is used to nian et al. proposed classifying the NSL-KDD dataset classify the …</title></circle>
+<text x="738.81" y="204.00" class="tiny" text-anchor="start">2009</text>
+<text x="296.00" y="230.00" class="label" text-anchor="end">ROAD</text>
+<line x1="310.00" y1="226.00" x2="1338.00" y2="226.00" class="grid"/>
+<polygon points="919.19,212.17 905.35,239.83 933.02,239.83" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>ROAD | artifact=Generator/framework | domain=General Network | citations=14 | score=7.23 | survey_count=2 | candidate_count=674 | year=2014 | dataset-like name, dataset word in title, dataset-creation title: A comprehensive guide to CAN IDS data and introduction of the ROAD dataset</title></polygon>
+<text x="929.19" y="230.00" class="tiny" text-anchor="start">2014</text>
+<text x="296.00" y="256.00" class="label" text-anchor="end">ID2T</text>
+<line x1="310.00" y1="252.00" x2="1338.00" y2="252.00" class="grid"/>
+<polygon points="957.26,239.77 945.03,264.23 969.49,264.23" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>ID2T | artifact=Generator/framework | domain=General Network | citations=27 | score=14.44 | survey_count=1 | candidate_count=1 | year=2015 | dataset-like name, dataset word in title, dataset-creation title, generator/framework title, security/traffic scope: ID2T: A DIY dataset creation toolkit for Intrusion Detection Systems</title></polygon>
+<text x="967.26" y="256.00" class="tiny" text-anchor="start">2015</text>
+<text x="296.00" y="282.00" class="label" text-anchor="end">UNSW-NB15</text>
+<line x1="310.00" y1="278.00" x2="1338.00" y2="278.00" class="grid"/>
+<circle cx="957.26" cy="278.00" r="14.00" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>UNSW-NB15 | artifact=Dataset | domain=General Network | citations=3585 | score=11.85 | survey_count=3 | candidate_count=299 | year=2015 | solete, as the attacks incorporated in this Graph-based traffic analysis [100]. These analyses differ dataset are mostly outdated. The skewedness of KDD-99 and mainly on the feature selection part as statistical features NSL-KDD is almost removed in UNSW-NB15 [79], [80], are sel…</title></circle>
+<text x="967.26" y="282.00" class="tiny" text-anchor="start">2015</text>
+<text x="296.00" y="308.00" class="label" text-anchor="end">CICIDS2017</text>
+<line x1="310.00" y1="304.00" x2="1338.00" y2="304.00" class="grid"/>
+<circle cx="1033.41" cy="304.00" r="8.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>CICIDS2017 | artifact=Dataset | domain=General Network | citations=0 | score=0.00 | survey_count=5 | candidate_count=1531 | year=2017 | ion Remote operation - Staging - System manipulation Attack data 746 317,388 5542 74,202,804 Privilege escalation - Data exfiltration -Back-door insertion Total 5951 2,747,550 7724 205,625,958 subgroups of variables to identify the feasible interac- CICIDS 2017 tions between var…</title></circle>
+<text x="1043.41" y="308.00" class="tiny" text-anchor="start">2017</text>
+<text x="296.00" y="334.00" class="label" text-anchor="end">CAIDA</text>
+<line x1="310.00" y1="330.00" x2="1338.00" y2="330.00" class="grid"/>
+<circle cx="1071.48" cy="330.00" r="8.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>CAIDA | artifact=Dataset | domain=General Network | citations=0 | score=0.00 | survey_count=3 | candidate_count=486 | year=2018 | hou et al. released a graph-based dataset made of both workers, that are responsible for loading the graphs into synthetic and real botnet topologies within a real background memory and for computing the embeddings using a given network traffic. The CAIDA 2018 passive network tr…</title></circle>
+<text x="1081.48" y="334.00" class="tiny" text-anchor="start">2018</text>
+<text x="296.00" y="360.00" class="label" text-anchor="end">CSE-CIC-IDS2018</text>
+<line x1="310.00" y1="356.00" x2="1338.00" y2="356.00" class="grid"/>
+<circle cx="1071.48" cy="356.00" r="8.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>CSE-CIC-IDS2018 | artifact=Dataset | domain=General Network | citations=0 | score=0.00 | survey_count=5 | candidate_count=1014 | year=2018 | detection,” Machine Learning, vol. 101, no. 1, pp. 59-84, Proceedings of the Twenty-Fourth Australasian Database Confer- 2015. ence - Volume 137, 2013, pp. 101-107. [64] R. Singh, H. Kumar, and R. K. Singla, “Analysis of feature selection [42] “The CSE-CIC-IDS2018 Dataset,” http…</title></circle>
+<text x="1081.48" y="360.00" class="tiny" text-anchor="start">2018</text>
+<text x="296.00" y="386.00" class="label" text-anchor="end">Real-World</text>
+<line x1="310.00" y1="382.00" x2="1338.00" y2="382.00" class="grid"/>
+<circle cx="1147.63" cy="382.00" r="12.62" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>Real-World | artifact=Dataset | domain=General Network | citations=128 | score=10.85 | survey_count=1 | candidate_count=1 | year=2020 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: LITNET-2020: An Annotated Real-World Network Flow Dataset for Network Intrusion Detection</title></circle>
+<text x="1157.63" y="386.00" class="tiny" text-anchor="start">2020</text>
+<text x="296.00" y="412.00" class="label" text-anchor="end">TII-SSRC-23</text>
+<line x1="310.00" y1="408.00" x2="1338.00" y2="408.00" class="grid"/>
+<circle cx="1261.85" cy="408.00" r="10.92" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>TII-SSRC-23 | artifact=Dataset | domain=General Network | citations=34 | score=13.51 | survey_count=1 | candidate_count=1 | year=2023 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: TII-SSRC-23 Dataset: Typological Exploration of Diverse Traffic Patterns for Intrusion Detection</title></circle>
+<text x="1251.85" y="412.00" class="tiny" text-anchor="end">2023</text>
+<rect x="28.00" y="439.00" width="1318.00" height="162.00" rx="0.00" fill="#ffffff" stroke="none" opacity="1.000"/>
+<text x="28.00" y="456.00" class="label" text-anchor="start">IoT/IIoT</text>
+<text x="296.00" y="456.00" class="label" text-anchor="end">Bot-IoT</text>
+<line x1="310.00" y1="452.00" x2="1338.00" y2="452.00" class="grid"/>
+<circle cx="1109.56" cy="452.00" r="12.73" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>Bot-IoT | artifact=Dataset | domain=IoT/IIoT | citations=94 | score=11.83 | survey_count=4 | candidate_count=1 | year=2019 | o a related dataset with feature ’X’ of {car, boat, train, plane}. Ferrag et al. [20] (Deep learning for cyber security intrusion detection: approaches, datasets, and comparative study) Seven deep learning models were evaluated on CICIDS2018 and the Bot-IoT data- set [58]. The m…</title></circle>
+<text x="1119.56" y="456.00" class="tiny" text-anchor="start">2019</text>
+<text x="296.00" y="482.00" class="label" text-anchor="end">SDN</text>
+<line x1="310.00" y1="478.00" x2="1338.00" y2="478.00" class="grid"/>
+<circle cx="1147.63" cy="478.00" r="14.00" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>SDN | artifact=Dataset | domain=IoT/IIoT | citations=397 | score=11.85 | survey_count=5 | candidate_count=4 | year=2020 | d accurate attack prediction. There are some intrusion detection datasets used by researchers, but those datasets are either outdated or incompatible with the SDN environment. In this survey, an overview of the published work was conducted using the InSDN dataset from 2020 to 20…</title></circle>
+<text x="1157.63" y="482.00" class="tiny" text-anchor="start">2020</text>
+<text x="296.00" y="508.00" class="label" text-anchor="end">ToN-IoT</text>
+<line x1="310.00" y1="504.00" x2="1338.00" y2="504.00" class="grid"/>
+<circle cx="1147.63" cy="504.00" r="14.00" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>ToN-IoT | artifact=Dataset | domain=IoT/IIoT | citations=772 | score=11.85 | survey_count=3 | candidate_count=2 | year=2020 | password 22.3 Ton-IoT technology (SEIT), University of New South attack, cross-site scripting (XSS), backdoor, man-in- 2020 million Wales (UNSW), Canberra the-middle (MITM), and scanning contains 2.5 million of records, and it has been created by 6.7. CSE-CIC-IDS2018. This datas…</title></circle>
+<text x="1157.63" y="508.00" class="tiny" text-anchor="start">2020</text>
+<text x="296.00" y="534.00" class="label" text-anchor="end">LATAM-DDoS-IoT</text>
+<line x1="310.00" y1="530.00" x2="1338.00" y2="530.00" class="grid"/>
+<circle cx="1223.78" cy="530.00" r="10.72" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>LATAM-DDoS-IoT | artifact=Dataset | domain=IoT/IIoT | citations=29 | score=6.46 | survey_count=1 | candidate_count=1 | year=2022 | dataset-like name, dataset word in title, security/traffic scope: Toward the Protection of IoT Networks: Introducing the LATAM-DDoS-IoT Dataset</title></circle>
+<text x="1213.78" y="534.00" class="tiny" text-anchor="end">2022</text>
+<text x="296.00" y="560.00" class="label" text-anchor="end">CICIoT2023</text>
+<line x1="310.00" y1="556.00" x2="1338.00" y2="556.00" class="grid"/>
+<circle cx="1261.85" cy="556.00" r="14.00" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>CICIoT2023 | artifact=Dataset | domain=IoT/IIoT | citations=786 | score=12.85 | survey_count=1 | candidate_count=1 | year=2023 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: CICIoT2023: A Real-Time Dataset and Benchmark for Large-Scale Attacks in IoT Environment</title></circle>
+<text x="1251.85" y="560.00" class="tiny" text-anchor="end">2023</text>
+<text x="296.00" y="586.00" class="label" text-anchor="end">Real-Time</text>
+<line x1="310.00" y1="582.00" x2="1338.00" y2="582.00" class="grid"/>
+<circle cx="1261.85" cy="582.00" r="14.00" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>Real-Time | artifact=Dataset | domain=IoT/IIoT | citations=786 | score=10.85 | survey_count=1 | candidate_count=1 | year=2023 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: CICIoT2023: A Real-Time Dataset and Benchmark for Large-Scale Attacks in IoT Environment</title></circle>
+<text x="1251.85" y="586.00" class="tiny" text-anchor="end">2023</text>
+<rect x="28.00" y="613.00" width="1318.00" height="110.00" rx="0.00" fill="#ffffff" stroke="none" opacity="1.000"/>
+<text x="28.00" y="630.00" class="label" text-anchor="start">ICS/SCADA</text>
+<text x="296.00" y="630.00" class="label" text-anchor="end">PowerCyber</text>
+<line x1="310.00" y1="626.00" x2="1338.00" y2="626.00" class="grid"/>
+<circle cx="766.89" cy="626.00" r="13.60" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>PowerCyber | artifact=Dataset | domain=ICS/SCADA | citations=67 | score=3.72 | survey_count=2 | candidate_count=34 | year=2010 | crack-NG, [online]. Available: https://www.aircrack-ng.org/ [59] A. Hahn, B. Kregel, M. Govindarasu, J. Fitzpatrick, R. Adnan, S. [37] P. Huitsing, R. Chandia, M. Papa, and S. Shenoi, B, “Attack taxonomies Sridhar and M. Higdon, ”Development of the powercyber SCADA for the Modbu…</title></circle>
+<text x="776.89" y="630.00" class="tiny" text-anchor="start">2010</text>
+<text x="296.00" y="656.00" class="label" text-anchor="end">ICISSP</text>
+<line x1="310.00" y1="652.00" x2="1338.00" y2="652.00" class="grid"/>
+<circle cx="1071.48" cy="652.00" r="8.50" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>ICISSP | artifact=Dataset | domain=ICS/SCADA | citations=0 | score=0.00 | survey_count=2 | candidate_count=320 | year=2018 | ing for DNN using hybrid PCA- GWO for intrusion detection in IoMT architecture. Comput Commun 160: 139-149 Sharafaldin I, Lashkari AH, Ghorbani AA (2018) Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization. In: ICISSP, pp 108-116 Shen C, Li…</title></circle>
+<text x="1081.48" y="656.00" class="tiny" text-anchor="start">2018</text>
+<text x="296.00" y="682.00" class="label" text-anchor="end">RICS-el</text>
+<line x1="310.00" y1="678.00" x2="1338.00" y2="678.00" class="grid"/>
+<circle cx="1071.48" cy="678.00" r="10.06" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>RICS-el | artifact=Dataset | domain=ICS/SCADA | citations=17 | score=10.29 | survey_count=1 | candidate_count=1 | year=2018 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: RICS-el: Building a National Testbed for Research and Training on SCADA Security (Short Paper)</title></circle>
+<text x="1081.48" y="682.00" class="tiny" text-anchor="start">2018</text>
+<text x="296.00" y="708.00" class="label" text-anchor="end">Hardware-in-the-Loop</text>
+<line x1="310.00" y1="704.00" x2="1338.00" y2="704.00" class="grid"/>
+<circle cx="1185.70" cy="704.00" r="12.18" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>Hardware-in-the-Loop | artifact=Dataset | domain=ICS/SCADA | citations=91 | score=10.82 | survey_count=1 | candidate_count=1 | year=2021 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: A Hardware-in-the-Loop Water Distribution Testbed Dataset for Cyber-Physical Security Testing</title></circle>
+<text x="1195.70" y="708.00" class="tiny" text-anchor="start">2021</text>
+<rect x="28.00" y="735.00" width="1318.00" height="58.00" rx="0.00" fill="#ffffff" stroke="none" opacity="1.000"/>
+<text x="28.00" y="752.00" class="label" text-anchor="start">Automotive/CAN</text>
+<text x="296.00" y="752.00" class="label" text-anchor="end">VANET</text>
+<line x1="310.00" y1="748.00" x2="1338.00" y2="748.00" class="grid"/>
+<polygon points="843.04,732.36 827.40,763.64 858.67,763.64" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>VANET | artifact=Generator/framework | domain=Automotive/CAN | citations=49 | score=6.62 | survey_count=1 | candidate_count=540 | year=2012 | dataset-like name, dataset word in title, security/traffic scope: Synthetic datasets generation for intrusion detection in VANET</title></polygon>
+<text x="853.04" y="752.00" class="tiny" text-anchor="start">2012</text>
+<text x="296.00" y="778.00" class="label" text-anchor="end">can-train-and-test</text>
+<line x1="310.00" y1="774.00" x2="1338.00" y2="774.00" class="grid"/>
+<circle cx="1299.93" cy="774.00" r="12.20" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>can-train-and-test | artifact=Dataset | domain=Automotive/CAN | citations=69 | score=11.73 | survey_count=2 | candidate_count=2 | year=2024 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: can-train-and-test: A curated CAN dataset for automotive intrusion detection</title></circle>
+<text x="1289.93" y="778.00" class="tiny" text-anchor="end">2024</text>
+<rect x="28.00" y="805.00" width="1318.00" height="58.00" rx="0.00" fill="#ffffff" stroke="none" opacity="1.000"/>
+<text x="28.00" y="822.00" class="label" text-anchor="start">Wireless</text>
+<text x="296.00" y="822.00" class="label" text-anchor="end">WSN-DS</text>
+<line x1="310.00" y1="818.00" x2="1338.00" y2="818.00" class="grid"/>
+<circle cx="995.33" cy="818.00" r="14.00" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>WSN-DS | artifact=Dataset | domain=Wireless | citations=396 | score=10.85 | survey_count=1 | candidate_count=1 | year=2016 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: WSN-DS: A Dataset for Intrusion Detection Systems in Wireless Sensor Networks</title></circle>
+<text x="1005.33" y="822.00" class="tiny" text-anchor="start">2016</text>
+<text x="296.00" y="848.00" class="label" text-anchor="end">UAV-NIDD</text>
+<line x1="310.00" y1="844.00" x2="1338.00" y2="844.00" class="grid"/>
+<circle cx="1338.00" cy="844.00" r="10.20" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>UAV-NIDD | artifact=Dataset | domain=Wireless | citations=19 | score=10.33 | survey_count=1 | candidate_count=1 | year=2025 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: UAV-NIDD: A Dynamic Dataset for Cybersecurity and Intrusion Detection in UAV Networks</title></circle>
+<text x="1328.00" y="848.00" class="tiny" text-anchor="end">2025</text>
+<rect x="28.00" y="875.00" width="1318.00" height="32.00" rx="0.00" fill="#ffffff" stroke="none" opacity="1.000"/>
+<text x="28.00" y="892.00" class="label" text-anchor="start">Malware/Botnet</text>
+<text x="296.00" y="892.00" class="label" text-anchor="end">UMUDGA</text>
+<line x1="310.00" y1="888.00" x2="1338.00" y2="888.00" class="grid"/>
+<circle cx="1147.63" cy="888.00" r="10.72" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.780"><title>UMUDGA | artifact=Dataset | domain=Malware/Botnet | citations=29 | score=10.46 | survey_count=1 | candidate_count=1 | year=2020 | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: UMUDGA: A dataset for profiling algorithmically generated domain names in botnet detection</title></circle>
+<text x="1157.63" y="892.00" class="tiny" text-anchor="start">2020</text>
+<text x="310.00" y="1034.00" class="small" text-anchor="start">2 accepted row(s) are not shown because no release year is available.</text>
+<circle cx="317.00" cy="1007.00" r="7.00" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<text x="330.00" y="1011.00" class="small" text-anchor="start">Dataset</text>
+<rect x="540.50" y="1000.50" width="13.00" height="13.00" fill="#7A5FA8" stroke="#ffffff" opacity="0.900"></rect>
+<text x="560.00" y="1011.00" class="small" text-anchor="start">Dataset + generator/framework</text>
+<polygon points="777.00,1000.00 770.00,1014.00 784.00,1014.00" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.900"></polygon>
+<text x="790.00" y="1011.00" class="small" text-anchor="start">Generator/framework</text>
+<text x="28.00" y="1064.00" class="small" text-anchor="start">Data acquired from input CSV</text>
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="306" viewBox="0 0 900 306" role="img">
+<title>Repository Activity</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 22px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #6f7782; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 7px; fill: #43505c; }
+.tiny-strong { font-size: 8px; font-weight: 700; fill: #263238; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+</style>
+<rect width="900" height="306" fill="white"/>
+<text class="title" x="450.0" y="34" text-anchor="middle">Repository Activity</text>
+<text class="subtitle" x="450.0" y="54" text-anchor="middle">Buckets use pushed_at relative to 2026-05-19; archived repos are separated</text>
+<text class="label" x="218" y="96" text-anchor="end">Very active (&lt;=90d)<title>Very active (&lt;=90d)</title></text>
+<rect x="230" y="82" width="586" height="18" rx="3" fill="#eef2f5"/>
+<rect x="230" y="82" width="586.0" height="18" rx="3" fill="#2a9d8f"/>
+<text class="value" x="824.0" y="96">90</text>
+<text class="label" x="218" y="127" text-anchor="end">Active (&lt;=1y)<title>Active (&lt;=1y)</title></text>
+<rect x="230" y="113" width="586" height="18" rx="3" fill="#eef2f5"/>
+<rect x="230" y="113" width="188.8" height="18" rx="3" fill="#5b8f3a"/>
+<text class="value" x="426.8" y="127">29</text>
+<text class="label" x="218" y="158" text-anchor="end">Quiet (1-3y)<title>Quiet (1-3y)</title></text>
+<rect x="230" y="144" width="586" height="18" rx="3" fill="#eef2f5"/>
+<rect x="230" y="144" width="384.2" height="18" rx="3" fill="#d1842f"/>
+<text class="value" x="622.2" y="158">59</text>
+<text class="label" x="218" y="189" text-anchor="end">Stale (3-5y)<title>Stale (3-5y)</title></text>
+<rect x="230" y="175" width="586" height="18" rx="3" fill="#eef2f5"/>
+<rect x="230" y="175" width="156.3" height="18" rx="3" fill="#bc4b51"/>
+<text class="value" x="394.3" y="189">24</text>
+<text class="label" x="218" y="220" text-anchor="end">Dormant (&gt;5y)<title>Dormant (&gt;5y)</title></text>
+<rect x="230" y="206" width="586" height="18" rx="3" fill="#eef2f5"/>
+<rect x="230" y="206" width="273.5" height="18" rx="3" fill="#8d3b4f"/>
+<text class="value" x="511.5" y="220">42</text>
+<text class="label" x="218" y="251" text-anchor="end">Archived<title>Archived</title></text>
+<rect x="230" y="237" width="586" height="18" rx="3" fill="#eef2f5"/>
+<rect x="230" y="237" width="149.8" height="18" rx="3" fill="#6f7782"/>
+<text class="value" x="387.8" y="251">23</text>
+</svg>

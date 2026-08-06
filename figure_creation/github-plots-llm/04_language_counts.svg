@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="650" viewBox="0 0 1040 650" role="img">
+<title>Implementation Languages</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 23px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #64707d; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 8px; fill: #43505c; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+.tile-value { font-size: 24px; font-weight: 700; }
+.tile-label { font-size: 11px; fill: #59636f; }
+</style>
+<rect width="1040" height="650" fill="white"/>
+<text class="title" x="520.0" y="34" text-anchor="middle">Implementation Languages</text>
+<text class="subtitle" x="520.0" y="55" text-anchor="middle">Primary GitHub language among accepted repositories</text>
+<text class="label" x="266" y="97" text-anchor="end">Python<title>Python</title></text>
+<rect x="280" y="82" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="82" width="668.0" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="956.0" y="97">93</text>
+<text class="label" x="266" y="129" text-anchor="end">Go<title>Go</title></text>
+<rect x="280" y="114" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="114" width="172.4" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="460.4" y="129">24</text>
+<text class="label" x="266" y="161" text-anchor="end">Jupyter Notebook<title>Jupyter Notebook</title></text>
+<rect x="280" y="146" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="146" width="150.8" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="438.8" y="161">21</text>
+<text class="label" x="266" y="193" text-anchor="end">Unknown<title>Unknown</title></text>
+<rect x="280" y="178" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="178" width="150.8" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="438.8" y="193">21</text>
+<text class="label" x="266" y="225" text-anchor="end">C++<title>C++</title></text>
+<rect x="280" y="210" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="210" width="136.5" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="424.5" y="225">19</text>
+<text class="label" x="266" y="257" text-anchor="end">C<title>C</title></text>
+<rect x="280" y="242" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="242" width="107.7" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="395.7" y="257">15</text>
+<text class="label" x="266" y="289" text-anchor="end">Shell<title>Shell</title></text>
+<rect x="280" y="274" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="274" width="100.6" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="388.6" y="289">14</text>
+<text class="label" x="266" y="321" text-anchor="end">Rust<title>Rust</title></text>
+<rect x="280" y="306" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="306" width="71.8" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="359.8" y="321">10</text>
+<text class="label" x="266" y="353" text-anchor="end">PowerShell<title>PowerShell</title></text>
+<rect x="280" y="338" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="338" width="64.6" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="352.6" y="353">9</text>
+<text class="label" x="266" y="385" text-anchor="end">Zeek<title>Zeek</title></text>
+<rect x="280" y="370" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="370" width="64.6" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="352.6" y="385">9</text>
+<text class="label" x="266" y="417" text-anchor="end">JavaScript<title>JavaScript</title></text>
+<rect x="280" y="402" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="402" width="35.9" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="323.9" y="417">5</text>
+<text class="label" x="266" y="449" text-anchor="end">TypeScript<title>TypeScript</title></text>
+<rect x="280" y="434" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="434" width="35.9" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="323.9" y="449">5</text>
+<text class="label" x="266" y="481" text-anchor="end">Java<title>Java</title></text>
+<rect x="280" y="466" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="466" width="28.7" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="316.7" y="481">4</text>
+<text class="label" x="266" y="513" text-anchor="end">PHP<title>PHP</title></text>
+<rect x="280" y="498" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="498" width="28.7" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="316.7" y="513">4</text>
+<text class="label" x="266" y="545" text-anchor="end">HTML<title>HTML</title></text>
+<rect x="280" y="530" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="530" width="21.5" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="309.5" y="545">3</text>
+<text class="label" x="266" y="577" text-anchor="end">Lua<title>Lua</title></text>
+<rect x="280" y="562" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="562" width="14.4" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="302.4" y="577">2</text>
+<line x1="280.0" y1="596" x2="280.0" y2="601" stroke="#AEB7C2"/>
+<text class="tiny" x="280.0" y="614" text-anchor="middle">0</text>
+<line x1="413.6" y1="596" x2="413.6" y2="601" stroke="#AEB7C2"/>
+<text class="tiny" x="413.6" y="614" text-anchor="middle">19</text>
+<line x1="547.2" y1="596" x2="547.2" y2="601" stroke="#AEB7C2"/>
+<text class="tiny" x="547.2" y="614" text-anchor="middle">37</text>
+<line x1="680.8" y1="596" x2="680.8" y2="601" stroke="#AEB7C2"/>
+<text class="tiny" x="680.8" y="614" text-anchor="middle">56</text>
+<line x1="814.4" y1="596" x2="814.4" y2="601" stroke="#AEB7C2"/>
+<text class="tiny" x="814.4" y="614" text-anchor="middle">74</text>
+<line x1="948.0" y1="596" x2="948.0" y2="601" stroke="#AEB7C2"/>
+<text class="tiny" x="948.0" y="614" text-anchor="middle">93</text>
+</svg>

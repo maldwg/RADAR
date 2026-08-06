@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="780" viewBox="0 0 1320 780">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#17212b}
+.title{font-size:22px;font-weight:700}
+.subtitle{font-size:12px;fill:#53616f}
+.axis{stroke:#9aa5b1;stroke-width:1}
+.grid{stroke:#d7dde5;stroke-width:1;stroke-dasharray:4 4}
+.label{font-size:11px}
+.small{font-size:10px;fill:#53616f}
+.tiny{font-size:9px;fill:#53616f}
+.tick{font-size:10px;fill:#53616f}
+.number{font-size:11px;font-weight:700;fill:#17212b}
+</style>
+<text x="28.00" y="34.00" class="title" text-anchor="start">Discovery Method Vs Score And Citations</text>
+<text x="28.00" y="54.00" class="subtitle" text-anchor="start">30 entities from ids_datasets_openalex.csv</text>
+<line x1="96.00" y1="90.00" x2="96.00" y2="682.00" class="grid"/>
+<text x="96.00" y="700.00" class="tick" text-anchor="middle">0</text>
+<line x1="286.80" y1="90.00" x2="286.80" y2="682.00" class="grid"/>
+<text x="286.80" y="700.00" class="tick" text-anchor="middle">4</text>
+<line x1="477.60" y1="90.00" x2="477.60" y2="682.00" class="grid"/>
+<text x="477.60" y="700.00" class="tick" text-anchor="middle">25</text>
+<line x1="668.40" y1="90.00" x2="668.40" y2="682.00" class="grid"/>
+<text x="668.40" y="700.00" class="tick" text-anchor="middle">135</text>
+<line x1="859.20" y1="90.00" x2="859.20" y2="682.00" class="grid"/>
+<text x="859.20" y="700.00" class="tick" text-anchor="middle">697</text>
+<line x1="1050.00" y1="90.00" x2="1050.00" y2="682.00" class="grid"/>
+<text x="1050.00" y="700.00" class="tick" text-anchor="middle">3.6k</text>
+<line x1="96.00" y1="682.00" x2="1050.00" y2="682.00" class="grid"/>
+<text x="86.00" y="686.00" class="tick" text-anchor="end">3.6</text>
+<line x1="96.00" y1="563.60" x2="1050.00" y2="563.60" class="grid"/>
+<text x="86.00" y="567.60" class="tick" text-anchor="end">5.7</text>
+<line x1="96.00" y1="445.20" x2="1050.00" y2="445.20" class="grid"/>
+<text x="86.00" y="449.20" class="tick" text-anchor="end">7.9</text>
+<line x1="96.00" y1="326.80" x2="1050.00" y2="326.80" class="grid"/>
+<text x="86.00" y="330.80" class="tick" text-anchor="end">10.1</text>
+<line x1="96.00" y1="208.40" x2="1050.00" y2="208.40" class="grid"/>
+<text x="86.00" y="212.40" class="tick" text-anchor="end">12.3</text>
+<line x1="96.00" y1="90.00" x2="1050.00" y2="90.00" class="grid"/>
+<text x="86.00" y="94.00" class="tick" text-anchor="end">14.4</text>
+<line x1="96.00" y1="90.00" x2="96.00" y2="682.00" class="axis"/>
+<line x1="96.00" y1="682.00" x2="1050.00" y2="682.00" class="axis"/>
+<text x="573.00" y="748.00" class="label" text-anchor="middle">Citations, log scale</text>
+<text x="22.00" y="386.00" class="label" text-anchor="middle" transform="rotate(-90.0 22.00 386.00)">Heuristic/canonical score</text>
+<circle cx="432.89" cy="642.95" r="12.80" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>DARPA | artifact=Dataset | domain=General Network | citations=17 | score=4.29 | survey_count=8 | candidate_count=1153 | method=Alias query | all_methods=Alias query; Survey PDF table | poor quality. Due to this low Veracity, these data sets would also lack Value as well, further reducing their relevancy. Table 1 Summary of popular datasets in the intrusion detection domain [30] Data source Dataset name Abbreviation Network Traffic DARPA 1998 TCPDump Files DARP…</title></circle>
+<circle cx="534.40" cy="682.00" r="12.80" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>NSL-KDD | artifact=Dataset | domain=General Network | citations=42 | score=3.58 | survey_count=7 | candidate_count=446 | method=Alias query | all_methods=Alias query; Survey PDF table | om Tree model to improve accuracy and reduce the literature, each with its advantages and disadvan- the false alarm rate (Thaseen &amp; Kumar, 2013). Subrama- tages. In the testing stage, the trained model is used to nian et al. proposed classifying the NSL-KDD dataset classify the …</title></circle>
+<circle cx="587.82" cy="673.86" r="12.80" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>PowerCyber | artifact=Dataset | domain=ICS/SCADA | citations=67 | score=3.72 | survey_count=2 | candidate_count=34 | method=Alias query | all_methods=Alias query; Survey PDF table | crack-NG, [online]. Available: https://www.aircrack-ng.org/ [59] A. Hahn, B. Kregel, M. Govindarasu, J. Fitzpatrick, R. Adnan, S. [37] P. Huitsing, R. Chandia, M. Papa, and S. Shenoi, B, “Attack taxonomies Sridhar and M. Higdon, ”Development of the powercyber SCADA for the Modbu…</title></circle>
+<circle cx="411.64" cy="482.66" r="12.80" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>ROAD | artifact=Generator/framework | domain=General Network | citations=14 | score=7.23 | survey_count=2 | candidate_count=674 | method=Alias query | all_methods=Alias query; Dataset query; Survey metadata | dataset-like name, dataset word in title, dataset-creation title: A comprehensive guide to CAN IDS data and introduction of the ROAD dataset</title></circle>
+<circle cx="1050.00" cy="230.93" r="12.80" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>UNSW-NB15 | artifact=Dataset | domain=General Network | citations=3585 | score=11.85 | survey_count=3 | candidate_count=299 | method=Alias query | all_methods=Alias query; Survey PDF table | solete, as the attacks incorporated in this Graph-based traffic analysis [100]. These analyses differ dataset are mostly outdated. The skewedness of KDD-99 and mainly on the feature selection part as statistical features NSL-KDD is almost removed in UNSW-NB15 [79], [80], are sel…</title></circle>
+<circle cx="551.98" cy="515.79" r="12.80" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>VANET | artifact=Generator/framework | domain=Automotive/CAN | citations=49 | score=6.62 | survey_count=1 | candidate_count=540 | method=Alias query | all_methods=Alias query; Dataset query | dataset-like name, dataset word in title, security/traffic scope: Synthetic datasets generation for intrusion detection in VANET</title></circle>
+<circle cx="626.79" cy="231.84" r="9.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>Bot-IoT | artifact=Dataset | domain=IoT/IIoT | citations=94 | score=11.83 | survey_count=4 | candidate_count=1 | method=Dataset query | all_methods=Dataset query; Survey PDF table; Trusted references | o a related dataset with feature ’X’ of {car, boat, train, plane}. Ferrag et al. [20] (Deep learning for cyber security intrusion detection: approaches, datasets, and comparative study) Seven deep learning models were evaluated on CICIDS2018 and the Bot-IoT data- set [58]. The m…</title></circle>
+<circle cx="873.23" cy="176.42" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>CICIoT2023 | artifact=Dataset | domain=IoT/IIoT | citations=786 | score=12.85 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: CICIoT2023: A Real-Time Dataset and Benchmark for Large-Scale Attacks in IoT Environment</title></circle>
+<circle cx="516.88" cy="316.72" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>FLAME | artifact=Generator/framework | domain=General Network | citations=36 | score=10.28 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, generator/framework title, security/traffic scope: FLAME: a flow-level anomaly modeling engine</title></circle>
+<circle cx="623.05" cy="286.92" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>Hardware-in-the-Loop | artifact=Dataset | domain=ICS/SCADA | citations=91 | score=10.82 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: A Hardware-in-the-Loop Water Distribution Testbed Dataset for Cyber-Physical Security Testing</title></circle>
+<circle cx="484.39" cy="90.00" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>ID2T | artifact=Generator/framework | domain=General Network | citations=27 | score=14.44 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, generator/framework title, security/traffic scope: ID2T: A DIY dataset creation toolkit for Intrusion Detection Systems</title></circle>
+<circle cx="492.44" cy="524.86" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>LATAM-DDoS-IoT | artifact=Dataset | domain=IoT/IIoT | citations=29 | score=6.46 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, security/traffic scope: Toward the Protection of IoT Networks: Introducing the LATAM-DDoS-IoT Dataset</title></circle>
+<circle cx="432.89" cy="315.89" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>RICS-el | artifact=Dataset | domain=ICS/SCADA | citations=17 | score=10.29 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: RICS-el: Building a National Testbed for Research and Training on SCADA Security (Short Paper)</title></circle>
+<circle cx="873.23" cy="285.44" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>Real-Time | artifact=Dataset | domain=IoT/IIoT | citations=786 | score=10.85 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: CICIoT2023: A Real-Time Dataset and Benchmark for Large-Scale Attacks in IoT Environment</title></circle>
+<circle cx="662.45" cy="285.44" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>Real-World | artifact=Dataset | domain=General Network | citations=128 | score=10.85 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: LITNET-2020: An Annotated Real-World Network Flow Dataset for Network Intrusion Detection</title></circle>
+<circle cx="793.77" cy="230.93" r="11.44" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>SDN | artifact=Dataset | domain=IoT/IIoT | citations=397 | score=11.85 | survey_count=5 | candidate_count=4 | method=Dataset query | all_methods=Dataset query; Survey PDF table | d accurate attack prediction. There are some intrusion detection datasets used by researchers, but those datasets are either outdated or incompatible with the SDN environment. In this survey, an overview of the published work was conducted using the InSDN dataset from 2020 to 20…</title></circle>
+<circle cx="510.40" cy="140.55" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>TII-SSRC-23 | artifact=Dataset | domain=General Network | citations=34 | score=13.51 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: TII-SSRC-23 Dataset: Typological Exploration of Diverse Traffic Patterns for Intrusion Detection</title></circle>
+<circle cx="871.14" cy="230.93" r="9.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>ToN-IoT | artifact=Dataset | domain=IoT/IIoT | citations=772 | score=11.85 | survey_count=3 | candidate_count=2 | method=Dataset query | all_methods=Dataset query; Survey PDF table | password 22.3 Ton-IoT technology (SEIT), University of New South attack, cross-site scripting (XSS), backdoor, man-in- 2020 million Wales (UNSW), Canberra the-middle (MITM), and scanning contains 2.5 million of records, and it has been created by 6.7. CSE-CIC-IDS2018. This datas…</title></circle>
+<circle cx="445.18" cy="314.02" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>UAV-NIDD | artifact=Dataset | domain=Wireless | citations=19 | score=10.33 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: UAV-NIDD: A Dynamic Dataset for Cybersecurity and Intrusion Detection in UAV Networks</title></circle>
+<circle cx="492.44" cy="306.82" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>UMUDGA | artifact=Dataset | domain=Malware/Botnet | citations=29 | score=10.46 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: UMUDGA: A dataset for profiling algorithmically generated domain names in botnet detection</title></circle>
+<circle cx="793.47" cy="285.44" r="7.97" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>WSN-DS | artifact=Dataset | domain=Wireless | citations=396 | score=10.85 | survey_count=1 | candidate_count=1 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: WSN-DS: A Dataset for Intrusion Detection Systems in Wireless Sensor Networks</title></circle>
+<circle cx="591.19" cy="237.27" r="9.44" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.760"><title>can-train-and-test | artifact=Dataset | domain=Automotive/CAN | citations=69 | score=11.73 | survey_count=2 | candidate_count=2 | method=Dataset query | all_methods=Dataset query | dataset-like name, dataset word in title, dataset-creation title, security/traffic scope: can-train-and-test: A curated CAN dataset for automotive intrusion detection</title></circle>
+<line x1="432.89" y1="642.95" x2="441.89" y2="629.95" class="grid" stroke="#a8b2bd"/>
+<rect x="438.89" y="623.95" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="441.89" y="634.95" class="tiny" text-anchor="start">DARPA</text>
+<line x1="534.40" y1="682.00" x2="543.40" y2="669.00" class="grid" stroke="#a8b2bd"/>
+<rect x="540.40" y="663.00" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="543.40" y="674.00" class="tiny" text-anchor="start">NSL-KDD</text>
+<line x1="587.82" y1="673.86" x2="596.82" y2="660.86" class="grid" stroke="#a8b2bd"/>
+<rect x="593.82" y="654.86" width="59.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="596.82" y="665.86" class="tiny" text-anchor="start">PowerCyber</text>
+<line x1="411.64" y1="482.66" x2="420.64" y2="469.66" class="grid" stroke="#a8b2bd"/>
+<rect x="417.64" y="463.66" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="420.64" y="474.66" class="tiny" text-anchor="start">ROAD</text>
+<line x1="1050.00" y1="230.93" x2="1059.00" y2="217.93" class="grid" stroke="#a8b2bd"/>
+<rect x="1056.00" y="211.93" width="53.70" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="1059.00" y="222.93" class="tiny" text-anchor="start">UNSW-NB15</text>
+<line x1="551.98" y1="515.79" x2="560.98" y2="502.79" class="grid" stroke="#a8b2bd"/>
+<rect x="557.98" y="496.79" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="560.98" y="507.79" class="tiny" text-anchor="start">VANET</text>
+<line x1="626.79" y1="231.84" x2="635.79" y2="218.84" class="grid" stroke="#a8b2bd"/>
+<rect x="632.79" y="212.84" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="635.79" y="223.84" class="tiny" text-anchor="start">Bot-IoT</text>
+<line x1="873.23" y1="176.42" x2="882.23" y2="163.42" class="grid" stroke="#a8b2bd"/>
+<rect x="879.23" y="157.42" width="59.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="882.23" y="168.42" class="tiny" text-anchor="start">CICIoT2023</text>
+<line x1="516.88" y1="316.72" x2="525.88" y2="303.72" class="grid" stroke="#a8b2bd"/>
+<rect x="522.88" y="297.72" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="525.88" y="308.72" class="tiny" text-anchor="start">FLAME</text>
+<line x1="623.05" y1="286.92" x2="632.05" y2="273.92" class="grid" stroke="#a8b2bd"/>
+<rect x="629.05" y="267.92" width="112.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="632.05" y="278.92" class="tiny" text-anchor="start">Hardware-in-the-Loop</text>
+<line x1="484.39" y1="90.00" x2="493.39" y2="77.00" class="grid" stroke="#a8b2bd"/>
+<rect x="490.39" y="71.00" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="493.39" y="82.00" class="tiny" text-anchor="start">ID2T</text>
+<line x1="492.44" y1="524.86" x2="501.44" y2="534.86" class="grid" stroke="#a8b2bd"/>
+<rect x="498.44" y="528.86" width="80.20" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="501.44" y="539.86" class="tiny" text-anchor="start">LATAM-DDoS-IoT</text>
+<line x1="432.89" y1="315.89" x2="441.89" y2="302.89" class="grid" stroke="#a8b2bd"/>
+<rect x="438.89" y="296.89" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="441.89" y="307.89" class="tiny" text-anchor="start">RICS-el</text>
+<line x1="873.23" y1="285.44" x2="882.23" y2="272.44" class="grid" stroke="#a8b2bd"/>
+<rect x="879.23" y="266.44" width="53.70" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="882.23" y="277.44" class="tiny" text-anchor="start">Real-Time</text>
+<line x1="662.45" y1="285.44" x2="671.45" y2="295.44" class="grid" stroke="#a8b2bd"/>
+<rect x="668.45" y="289.44" width="59.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="671.45" y="300.44" class="tiny" text-anchor="start">Real-World</text>
+<line x1="793.77" y1="230.93" x2="802.77" y2="217.93" class="grid" stroke="#a8b2bd"/>
+<rect x="799.77" y="211.93" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="802.77" y="222.93" class="tiny" text-anchor="start">SDN</text>
+<line x1="510.40" y1="140.55" x2="519.40" y2="127.55" class="grid" stroke="#a8b2bd"/>
+<rect x="516.40" y="121.55" width="64.30" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="519.40" y="132.55" class="tiny" text-anchor="start">TII-SSRC-23</text>
+<line x1="871.14" y1="230.93" x2="880.14" y2="217.93" class="grid" stroke="#a8b2bd"/>
+<rect x="877.14" y="211.93" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="880.14" y="222.93" class="tiny" text-anchor="start">ToN-IoT</text>
+<line x1="445.18" y1="314.02" x2="454.18" y2="324.02" class="grid" stroke="#a8b2bd"/>
+<rect x="451.18" y="318.02" width="48.40" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="454.18" y="329.02" class="tiny" text-anchor="start">UAV-NIDD</text>
+<line x1="492.44" y1="306.82" x2="492.44" y2="284.82" class="grid" stroke="#a8b2bd"/>
+<rect x="468.44" y="278.82" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="492.44" y="289.82" class="tiny" text-anchor="middle">UMUDGA</text>
+<line x1="793.47" y1="285.44" x2="802.47" y2="272.44" class="grid" stroke="#a8b2bd"/>
+<rect x="799.47" y="266.44" width="48.00" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="802.47" y="277.44" class="tiny" text-anchor="start">WSN-DS</text>
+<line x1="591.19" y1="237.27" x2="600.19" y2="247.27" class="grid" stroke="#a8b2bd"/>
+<rect x="597.19" y="241.27" width="101.40" height="14.00" rx="3.00" fill="#ffffff" stroke="#d7dde5" opacity="0.920"/>
+<text x="600.19" y="252.27" class="tiny" text-anchor="start">can-train-and-test</text>
+<text x="1078.00" y="95.00" class="label" text-anchor="start">Discovery method</text>
+<circle cx="1085.00" cy="114.00" r="6.00" fill="#2F6B9A" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<text x="1098.00" y="118.00" class="small" text-anchor="start">Dataset query</text>
+<circle cx="1085.00" cy="138.00" r="6.00" fill="#D9902F" stroke="#ffffff" stroke-width="1" opacity="0.900"></circle>
+<text x="1098.00" y="142.00" class="small" text-anchor="start">Alias query</text>
+<text x="1078.00" y="690.00" class="label" text-anchor="start">Point size</text>
+<text x="1078.00" y="710.00" class="small" text-anchor="start">survey_count + candidate_count</text>
+<text x="28.00" y="762.00" class="small" text-anchor="start">Data acquired from input CSV</text>
+</svg>

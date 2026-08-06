@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="330" viewBox="0 0 1040 330" role="img">
+<title>Repositories By Role</title>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; fill: #263238; }
+.title { font-size: 23px; font-weight: 700; }
+.subtitle { font-size: 12px; fill: #64707d; }
+.axis { font-size: 11px; fill: #59636f; }
+.label { font-size: 12px; }
+.small { font-size: 10px; fill: #59636f; }
+.tiny { font-size: 8px; fill: #43505c; }
+.value { font-size: 11px; font-weight: 700; fill: #263238; }
+.tile-value { font-size: 24px; font-weight: 700; }
+.tile-label { font-size: 11px; fill: #59636f; }
+</style>
+<rect width="1040" height="330" fill="white"/>
+<text class="title" x="520.0" y="34" text-anchor="middle">Repositories By Role</text>
+<text class="subtitle" x="520.0" y="55" text-anchor="middle">Deployable tools separated from frameworks, classifiers, rules, support, and demos</text>
+<text class="label" x="266" y="97" text-anchor="end">Support tooling<title>Support tooling</title></text>
+<rect x="280" y="82" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="82" width="668.0" height="19" rx="4" fill="#6C7A89"/>
+<text class="value" x="956.0" y="97">84</text>
+<text class="label" x="266" y="129" text-anchor="end">Research/demo<title>Research/demo</title></text>
+<rect x="280" y="114" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="114" width="580.5" height="19" rx="4" fill="#8C6D31"/>
+<text class="value" x="868.5" y="129">73</text>
+<text class="label" x="266" y="161" text-anchor="end">Deployable IDS<title>Deployable IDS</title></text>
+<rect x="280" y="146" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="146" width="349.9" height="19" rx="4" fill="#2F6B9A"/>
+<text class="value" x="637.9" y="161">44</text>
+<text class="label" x="266" y="193" text-anchor="end">Platform/framework<title>Platform/framework</title></text>
+<rect x="280" y="178" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="178" width="254.5" height="19" rx="4" fill="#7A5FA8"/>
+<text class="value" x="542.5" y="193">32</text>
+<text class="label" x="266" y="225" text-anchor="end">Rules/content<title>Rules/content</title></text>
+<rect x="280" y="210" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="210" width="246.5" height="19" rx="4" fill="#3B8C8C"/>
+<text class="value" x="534.5" y="225">31</text>
+<text class="label" x="266" y="257" text-anchor="end">Classifier/model<title>Classifier/model</title></text>
+<rect x="280" y="242" width="668" height="19" rx="4" fill="#EEF2F5"/>
+<rect x="280" y="242" width="23.9" height="19" rx="4" fill="#D9902F"/>
+<text class="value" x="311.9" y="257">3</text>
+<line x1="280.0" y1="276" x2="280.0" y2="281" stroke="#AEB7C2"/>
+<text class="tiny" x="280.0" y="294" text-anchor="middle">0</text>
+<line x1="413.6" y1="276" x2="413.6" y2="281" stroke="#AEB7C2"/>
+<text class="tiny" x="413.6" y="294" text-anchor="middle">17</text>
+<line x1="547.2" y1="276" x2="547.2" y2="281" stroke="#AEB7C2"/>
+<text class="tiny" x="547.2" y="294" text-anchor="middle">34</text>
+<line x1="680.8" y1="276" x2="680.8" y2="281" stroke="#AEB7C2"/>
+<text class="tiny" x="680.8" y="294" text-anchor="middle">50</text>
+<line x1="814.4" y1="276" x2="814.4" y2="281" stroke="#AEB7C2"/>
+<text class="tiny" x="814.4" y="294" text-anchor="middle">67</text>
+<line x1="948.0" y1="276" x2="948.0" y2="281" stroke="#AEB7C2"/>
+<text class="tiny" x="948.0" y="294" text-anchor="middle">84</text>
+</svg>
