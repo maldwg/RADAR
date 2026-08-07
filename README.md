@@ -1,210 +1,147 @@
-# Data Gathering
+# IDS Dataset and Repository Meta-Study
 
-This folder contains scripts for collecting metadata used in the IDS/dataset analysis.
+This repository contains two reproducible research pipelines. GitHub discovery builds a role-labelled catalogue of meaningful IDS/NDR repositories. OpenAlex discovery finds papers that introduce IDS/attack datasets or data-generation frameworks; papers that merely apply an existing dataset are retained only in the audit trail.
 
-## OpenAlex Dataset Discovery
+Both pipelines use the same stages:
 
-`openalex_dataset_discovery.py` searches for IDS/security datasets and related dataset-generation frameworks using OpenAlex only. It is meant to find canonical dataset publications, not papers that merely train a detector on an existing dataset.
-
-Example run:
-
-```bash
-python3 data-gathering/openalex_dataset_discovery.py \
-  --dataset-search-per-page 100 \
-  --max-reference-works 300 \
-  --candidate-per-page 20 \
-  --out data-gathering/ids_datasets_openalex.csv
+```text
+collection -> recall-oriented keyword prefilter -> row-level Ollama adjudication -> global reconciliation -> export -> plots
 ```
 
-### Workflow
+The keyword score only controls which records reach the LLM. It is not a final relevance label, and keyword scores/signals are deliberately omitted from model prompts.
 
-The script combines several discovery sources:
+## Environment
 
-1. Trusted survey/base papers supplied with `--trusted-paper` or `--trusted-papers-file`.
-2. Automatically discovered IDS dataset surveys, unless `--no-auto-surveys` is used.
-3. Dataset names extracted from OpenAlex titles and, optionally, table-like contexts in open-access PDFs.
-4. References from trusted survey papers, unless `--no-reference-snowball` is used.
-5. Direct OpenAlex searches for dataset-publication and generator/framework papers.
-
-The output entity is the dataset or dataset-generation artifact, not every paper that mentions it.
-
-### Rating And Filtering
-
-Candidate papers are scored with a heuristic. Positive signals include:
-
-- dataset or benchmark wording in the title
-- introduction/release wording such as `introduced`, `presented`, `created`, `publicly available`
-- security or traffic scope such as intrusion detection, attacks, botnets, DNS, ICS/SCADA, IoT, CAN, logs, or network traffic
-- the dataset/artifact name appearing in the title
-- DOI, citation count, and mentions from multiple trusted sources
-- generator/framework wording such as traffic generation, synthetic attacks, attack injection, dataset toolkit, or anomaly modeling engine
-
-OpenAlex abstracts, keywords, and topics are not fetched or used to decide whether a paper proposes a dataset. Candidate/base-paper decisions are title-first because abstract phrase matching was too imprecise for distinguishing proposed datasets from downstream usage.
-
-Negative filters reject likely false positives:
-
-- surveys and reviews
-- detector/classifier/model papers
-- papers that only use, benchmark, compare, or analyze an existing dataset
-- generic names such as `ICS`, `CAN`, `AI/ML`, or `CICIDS`
-
-The `artifact_type` column separates classic datasets from related generation tools:
-
-- `Dataset`
-- `Generator/framework`
-- `Dataset + generator/framework`
-
-### Outputs
-
-For an output path like `ids_datasets_openalex.csv`, the script writes:
-
-- `ids_datasets_openalex.csv`: accepted dataset/artifact entities
-- `ids_datasets_openalex_candidates.csv`: candidate canonical papers and scores
-- `ids_datasets_openalex_rejected.csv`: rejected candidates with rejection reasons
-
-The candidate and rejected files are important for manual auditing. They show where recall or precision can still be tuned.
-
-### Useful Parameters
-
-- `--trusted-paper`, `--trusted-papers-file`: manually provide trusted seed papers.
-- `--no-auto-surveys`: use only manual trusted papers.
-- `--direct-dataset-search` / `--no-direct-dataset-search`: enable or disable direct OpenAlex searches for dataset/framework papers.
-- `--dataset-query`: add a custom dataset/framework search query.
-- `--reference-snowball` / `--no-reference-snowball`: inspect or skip references from trusted papers.
-- `--max-reference-works`: maximum trusted-paper references to inspect.
-- `--candidate-pages`, `--candidate-per-page`: how deeply to search for canonical papers per dataset/artifact.
-- `--candidate-query-profile compact|full`, `--max-aliases-per-entity`, `--max-candidate-queries-per-entity`: control candidate-resolution fanout. `compact` is the default; `full` restores the older broad query templates when you also raise the caps.
-- `--mailto` or `OPENALEX_MAILTO`: identify the crawler to OpenAlex's polite pool; the crawler logs when this is missing.
-- `--include-low-confidence`: include weak/unresolved entities in the accepted CSV.
-
-## GitHub IDS Repository Crawler
-
-`github-crawler.py` searches GitHub for open-source IDS/IPS/security-monitoring repositories, scores them, filters out support/research/false-positive repositories, and writes a compact CSV for plotting.
-
-Useful cache-only rebuild:
+The project targets Python 3.11. The existing thesis environment already contains the runtime dependencies:
 
 ```bash
-python3 data-gathering/github-crawler.py \
-  --evaluated-cache-in data-gathering/ids_repos.evaluated.csv \
-  --cache-only \
-  --out data-gathering/ids_repos.csv
+/home/max/venv/phd/bin/python -m pip install -e .
 ```
 
-Useful interrupted-run continuation:
+Credentials and model selection are environment-only:
 
 ```bash
-python3 data-gathering/github-crawler.py \
-  --evaluated-cache-in data-gathering/ids_repos.evaluated.csv \
-  --evaluated-cache-out data-gathering/ids_repos.evaluated.csv \
-  --out data-gathering/ids_repos.csv
+export GITHUB_TOKEN=...
+export OPENALEX_MAILTO=researcher@example.org
+export OPENALEX_API_KEY=...          # optional
+export OLLAMA_URL=http://127.0.0.1:11434
+export OLLAMA_MODEL=your-model
 ```
 
-Backfill missing latest commit SHAs from an existing evaluated cache:
+Do not put secrets into `config/default.toml`.
+
+## Commands
+
+Each stage can be run separately and resumed:
 
 ```bash
-python3 data-gathering/github-crawler.py \
-  --evaluated-cache-in data-gathering/ids_repos.evaluated.csv \
-  --evaluated-cache-out data-gathering/ids_repos.evaluated.csv \
-  --cache-only \
-  --refresh-commit-sha \
-  --out data-gathering/ids_repos.csv
+ids-meta github collect
+ids-meta github prefilter
+ids-meta github classify
+ids-meta github reconcile
+ids-meta github export
+ids-meta github plot
+
+ids-meta openalex collect
+ids-meta openalex prefilter
+ids-meta openalex classify
+ids-meta openalex reconcile
+ids-meta openalex export
+ids-meta openalex plot
 ```
 
-### Crawler Features In Execution Order
-
-Keep this list in sync when changing `github-crawler.py`.
-
-- Raises Python's CSV field-size limit so wide evaluated-cache rows with README/docs text can be read.
-- Resolves GitHub authentication from `--token`, `GITHUB_TOKEN`, or `GH_TOKEN`.
-- Selects request pacing: faster authenticated mode, or slow `--anonymous-friendly` public-API pacing.
-- Loads the evaluated-repository cache from `--evaluated-cache-in` when provided.
-- If `--cache-only` is used, skips GitHub search and uses only repositories from the evaluated cache.
-- Otherwise searches GitHub with the default seed queries plus any `--extra-seed` queries.
-- Deduplicates search results by repository full name while preserving all matched search seeds.
-- Does not apply final relevance, role, or main-repository decisions during collection.
-- Performs English/Latin parseability analysis on the available evidence text.
-- Counts English words, unique English words, Latin letters, CJK characters, and English-vs-CJK share.
-- Matches evidence phrases with exact normalized text first, then fuzzy token/concept matching for reordered words and close domain variants.
-- Assigns preliminary core IDS/IPS hits such as IDS, IPS, HIDS, NIDS, WIDS, NDR, and NSM.
-- Ignores curated product-signal priors for scoring, canonical/main-repository inference, and acceptance.
-- Applies category evidence for solution families such as IDS, IPS, HIDS, NIDS, WIDS, PIDS, NIPS, HIPS, DBIDS, DBIPS, WIPS, and UNKNOWN, using the strongest matched phrase per family to avoid synonym overcounting.
-- Applies negative/research/support evidence such as `survey`, `benchmark`, `awesome`, `tutorial`, `notebook`, `course project`, `deprecated`, or `unmaintained`.
-- Infers repository kind from metadata, e.g. system, ruleset, tooling, framework, classifier, dataset, paper, list, or tutorial.
-- Infers detection method/type, e.g. signature-based, rule-based, Log-based, packet-analysis, query-based, ML-based, DNN-based, ANN-based, anomaly-based, or UNKNOWN.
-- Infers repository role as full IDS, classifier-only, or framework-only.
-- Infers support descriptors for derivative/support repositories, e.g. rulesets, dashboards, integrations, deployment tooling, distributions, or wrappers.
-- Demotes generic libraries, APIs, or SDKs when their IDS evidence is only phrased as a possible thing users could build with them.
-- Infers a base-detector identity used for deduplication.
-- Builds a same-owner repository-family identity from lexical tool stems, stripping side-variant terms such as `legacy`, `docker`, `packages`, `ansible`, `helm`, `flutter`, or `android`.
-- Infers base-detector status as `base` or `support`, with an audit reason and score.
-- Ranks collected candidates only for progress order, using stars and number of matched queries.
-- Enriches every collected candidate before any final relevance, role, or main-repository decision is made.
-- For every collected repository, reuses cached repository JSON/README/docs when available.
-- If no usable cache exists, fetches repository detail JSON from GitHub.
-- For fresh repository evaluations, fetches the latest visible default-branch commit SHA and stores it as `last_commit_sha`.
-- If `--refresh-commit-sha` is used, also fetches missing `last_commit_sha` values for cached repositories.
-- Optionally fetches README text according to `--readme-mode`.
-- Discovers documentation/homepage URLs from repository metadata and README text.
-- Optionally fetches documentation text according to `--docs-mode` and `--max-docs-pages`.
-- Recomputes the final score from repository metadata, topics, README text, and docs text.
-- Infers a generic main-repository signal from repository shape, role, base-detector evidence, activity, and side-variant naming.
-- Classifies all enriched repositories before applying acceptance filters.
-- Rejects repositories below `--min-stars`.
-- Rejects forks unless `--include-forks` is set.
-- Rejects archived repositories unless `--include-archived` is set.
-- Rejects repositories older than `--pushed-within-days` when that option is set.
-- Rejects research/list/tutorial/dataset-style repositories unless allowed by `--include-research`.
-- Rejects repositories below `--min-score`.
-- Rejects repositories without significant parseable English evidence.
-- Rejects support/derivative repositories unless they are base detectors or `--include-support-tools` is set.
-- Rejects repositories with no core IDS/IPS hits.
-- Rejects adjacent-method-only rows where the only inferred method is packet-analysis, threat-intel, or an unclear `* tool (method unclear)` label.
-- Rejects RASP-like rows unless they also have strong standalone IDS wording and a non-risky detector method.
-- Rejects integrity-only rows unless they also have strong standalone IDS wording plus base-detector evidence.
-- Rejects full-role repositories whose solution family remains UNKNOWN.
-- Rejects tooling repositories without strong direct or product-relation evidence.
-- Marks accepted rows as fully fledged IDS, classifier-only, or framework-only.
-- Writes a wide evaluated cache row for every evaluated repository, accepted or rejected.
-- Stores repository JSON, README text, docs text, docs URLs, matched queries, score card JSON, errors, `last_commit_sha`, and key metadata in the evaluated cache.
-- Writes the partial output CSV after batch classification according to `--checkpoint-every`.
-- Periodically writes the evaluated cache according to `--evaluated-cache-out`.
-- Deduplicates accepted rows by base-detector identity and same-owner repository-family identity.
-- Keeps the highest-quality row per identity, preferring likely main repositories over side variants, fully fledged IDS rows, stronger base-detector evidence, more stars, and higher score.
-- Sorts final rows by stars and score.
-- Truncates final rows to `--max-repos`.
-- Assigns final rank numbers.
-- Writes the final compact CSV to `--out`.
-- Prints a short top-match summary.
-
-### GitHub Crawler Outputs
-
-For an output path like `ids_repos.csv`, the crawler can write:
-
-- `ids_repos.csv`: compact accepted repository list used by the plotting scripts.
-- `ids_repos.partial.csv`: checkpointed compact accepted list during long runs.
-- `ids_repos.evaluated.csv`: wide cache/audit file for every evaluated repository.
-
-The evaluated cache is the most important debugging artifact. It records why a repository was accepted or rejected and lets later runs avoid re-fetching the same repositories.
-
-## LLM Repository Classification Outputs
-
-`github-llm-classifier.py` reads the keyword crawler's evaluated cache and keeps three deliberately separate outputs:
-
-- `ids_repos.llm_classified.csv`: wide, resumable intermediate/audit output. It includes accepted, excluded, uncertain, and errored model decisions. Do not use this as a final plotting input.
-- `ids_repos.llm_accepted.csv`: wide accepted output for `figure_creation/github-classifier-comparison/compare_keyword_llm_classifiers.py`. It contains every accepted catalogue role, including deployable IDS, support tooling, frameworks, rules/content, classifier models, and research demos.
-- `ids_repos.llm.csv`: compact accepted output compatible with `figure_creation/ids_github_repo_plots_improved.py`.
-
-The two final outputs can be regenerated from an existing intermediate file without running Ollama again:
+`ids-meta run github` and `ids-meta run openalex` execute all stages. Collection and LLM adjudication have separate limits. The defaults for both sources retrieve at most 1,000 records and classify the 100 strongest non-rejected prefilter results:
 
 ```bash
-python3 data-gathering/github-llm-classifier.py \
-  --export-catalogue-from data-gathering/ids_repos.llm_classified.csv
+ids-meta github run --collect-limit 1000 --classify-limit 100
+ids-meta openalex run --collect-limit 1000 --classify-limit 100
 ```
 
-Create the standard repository figures from the compact LLM catalogue:
+The shortlist is deterministic: `candidate` rows precede `borderline` rows, higher prefilter scores come first within each band, and the stable source ID breaks ties. Cached decisions count toward the classification limit, so resume cannot silently expand a 100-row shortlist. Configure persistent defaults as `github.collection_limit`, `github.classification_limit`, `openalex.collection_limit`, and `openalex.classification_limit` in TOML.
+
+For a single `collect` or `classify` command, `--limit N` remains a shorthand for that stage. On `run`, legacy `--limit N` sets both limits; prefer the explicit options when the limits differ. `--dry-run` avoids Ollama calls during classification; collection dry-runs inspect the existing cache without network access.
+
+Commands log timestamped progress to stdout at `INFO` level by default, including searches, date-shard splitting, API retries/rate limits, enrichment, cache reuse, prefilter totals, each LLM decision, checkpoints, exports, and generated figures. Redirect stdout to retain a complete run log:
 
 ```bash
-python3 figure_creation/ids_github_repo_plots_improved.py \
-  --input data-gathering/ids_repos.llm.csv \
-  --out-dir figure_creation/github-plots-llm
+ids-meta github collect > artifacts/github-collect.log 2>&1
+ids-meta --log-level DEBUG openalex classify
 ```
+
+Set `logging.level` and `logging.progress_every` in the TOML configuration for persistent defaults. `--log-level DEBUG|INFO|WARNING|ERROR` overrides the configured level for one command.
+
+API pacing is enforced inside the HTTP clients before every request, including retries and enrichment calls. The defaults are conservative and configurable:
+
+```toml
+[github]
+request_pause_seconds = 2.0
+search_pause_seconds = 3.0
+
+[openalex]
+request_pause_seconds = 1.0
+```
+
+GitHub search uses its own stricter interval because it has a smaller rate-limit bucket than ordinary repository API calls. Startup logs report the active intervals; DEBUG logs show individual pacing sleeps.
+
+GitHub pacing also adapts to the `X-RateLimit-*` response headers and spreads remaining calls over the quota window. A rate-limit wait therefore does not consume ordinary retry attempts. If startup reports `authentication=anonymous`, export `GITHUB_TOKEN` or `GH_TOKEN`; anonymous collection is technically supported but repository enrichment will be extremely slow.
+
+Classification is intentionally row-level, but canonical selection is not. The `reconcile` stage runs after all available decisions are present:
+
+- GitHub repositories are grouped into project families using immutable fork/parent metadata, generic name variants, explicit repository links, and shared project metadata. Each accepted row remains in the catalogue and receives a relationship such as `canonical`, `deployment_variant`, `rules_content`, `integration`, or `mirror`.
+- OpenAlex papers are grouped by the generically extracted artifact name and aliases. Original, versioned, and generator releases remain visible, while one paper is labelled `canonical_base`; duplicate publication/preprint records are labelled `alternate_manifestation`.
+- Structural ranking handles clear families without another model call. Only close cases can receive one group-level Ollama adjudication over the complete family. Stars and citation counts are never supplied as selection criteria.
+
+This makes the result independent of classification order: seeing a packaging repository or version paper first cannot permanently make it the canonical base. Re-running reconciliation after more candidates are collected updates the family decision.
+
+Classifier audit plots are separate from thesis-facing catalogue plots:
+
+```bash
+ids-meta compare github
+ids-meta compare openalex
+```
+
+Use `--config path/to/config.toml`, `--input`, and `--output` for alternate runs. The default generic discovery queries and weighted concept groups live in `config/terms/`. Production term profiles must contain domain concepts only, never named products, repositories, datasets, or benchmarks.
+
+## Data products
+
+- `data/raw/<source>/cache.sqlite3`: resumable API evidence, coverage records, and fingerprinted LLM decisions.
+- `data/interim/github/candidates.csv`: every GitHub prefilter result.
+- `data/interim/github/classifications.csv`: every evaluated GitHub accept/exclude/uncertain/error decision.
+- `data/interim/github/reconciled.csv`: complete GitHub audit plus global project-family and canonical fields.
+- `data/processed/github/repositories.csv`: one combined accepted, role-labelled repository catalogue with canonical relationships.
+- `data/interim/openalex/paper_candidates.csv`: work-level OpenAlex prefilter results.
+- `data/interim/openalex/classifications.csv`: every evaluated paper decision.
+- `data/interim/openalex/reconciled.csv`: complete paper audit plus artifact-family, manifestation, and canonical-base fields.
+- `data/processed/openalex/base_papers.csv`: security-intended dataset and generator base papers.
+- `data/processed/openalex/adjacent_base_papers.csv`: neutral foundational data releases.
+- `artifacts/plots/`: SVG/PDF figures plus the exact aggregate CSV behind each plot.
+- `artifacts/runs/`: configuration fingerprints, source coverage, counts, and the explicit API-coverage limitation for each command.
+
+Popularity and citation fields are descriptive metadata only. They never determine relevance or inclusion.
+
+The GitHub plot bundle starts with one tall, scrollable feature matrix of every accepted repository and a lossless `data/00_repository_overview.csv`. It groups repositories by normalized system family and shows role dots, system labels, methods, activity, stars, forks, canonical/variant status, and latest commit time. New collections obtain the exact latest commit timestamp; older cached records transparently use `pushed_at` and mark that fallback in the CSV.
+
+The OpenAlex bundle starts with one tall chronological table of every canonical artifact family and `data/00_artifact_timeline_overview.csv`. Its publication timeline is stacked by `dataset`, `generator_framework`, and `dataset_and_generator` rather than merging those contributions into one count. Overview figures are never split into pages; large SVG/PDF canvases are intended for scrolling and zooming.
+
+Survey discovery runs before direct discovery so it cannot be starved by `--limit`. Limited runs reserve `openalex.survey_reference_fraction` of their candidate capacity for papers cited by detected surveys. References are resolved in API batches, and each cached paper records both `survey_reference` and the originating `survey_reference:<OpenAlex survey ID>` provenance. Run manifests record survey-source, reference-work, and reference-edge counts; coverage records expose truncated reference lists and unresolved references.
+
+## CSV conventions
+
+- Schema version is `1.0`.
+- Lists are semicolon-separated.
+- Booleans are lowercase `true` or `false`.
+- Timestamps use UTC ISO 8601.
+- `unknown` means the evidence did not support a taxonomy value; an empty cell means the source did not provide metadata.
+- Processed OpenAlex metadata always comes from the accepted work itself, not from an earlier keyword catalogue.
+
+## Testing
+
+Tests are offline and use small source/LLM fixtures. They do not run GitHub, OpenAlex, or Ollama:
+
+```bash
+MPLCONFIGDIR=/tmp/ids-meta-matplotlib \
+  PYTHONPATH=src \
+  /home/max/venv/phd/bin/python -m unittest discover -s tests -v
+```
+
+The catalogues are bounded by source indexing and the recorded query coverage. They must not be described as exhaustive beyond that observable coverage.

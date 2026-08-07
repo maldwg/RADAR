@@ -1,0 +1,266 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+from typing import Any
+from unittest.mock import Mock, patch
+
+from ids_meta.common.cache import PipelineCache
+from ids_meta.common.config import load_settings, load_term_profile
+from ids_meta.github.pipeline import classify, export, prefilter
+from ids_meta.github.reconcile import reconcile
+from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, ROLES, derive_labels, normalize_response
+from ids_meta.common.csvio import atomic_write_csv
+from ids_meta.github.collect import GitHubClient, _enrich, collect, search_shards
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class FakeGitHubModel:
+    model = "fixture-model"
+
+    def __init__(self) -> None:
+        """Initialize the fixture model's invocation counter."""
+        self.calls = 0
+
+    def generate(self, _prompt: str, _schema: dict[str, Any]) -> dict[str, Any]:
+        """Return a deterministic accepted standalone-detector response."""
+        self.calls += 1
+        return {
+            "role": "standalone_detector", "confidence": .95,
+            "observation_scopes": ["network"], "capabilities": ["detection", "response"],
+            "detection_methods": ["signature_based", "packet_analysis"],
+            "independent_fork": False, "direct_self_description": True,
+            "primary_reason": "The project directly describes a runnable network detector.",
+            "evidence": [{"source": "README", "quote": "intruson detction system analyzes network traffic"}],
+        }
+
+
+class GitHubPipelineTests(unittest.TestCase):
+    def test_client_paces_every_request_and_search_bucket(self) -> None:
+        """Verify core and search pacing intervals are both enforced."""
+        client = GitHubClient(request_pause_seconds=1.0, search_pause_seconds=2.2)
+        client._last_request_at = 10.0
+        client._last_search_at = 10.0
+        with patch("ids_meta.github.collect.time.monotonic", side_effect=[10.5, 12.2]), patch("ids_meta.github.collect.time.sleep") as sleep:
+            client._wait_before_request(True)
+        self.assertEqual(sleep.call_count, 1)
+        self.assertAlmostEqual(sleep.call_args.args[0], 1.7)
+        self.assertEqual(client._last_request_at, 12.2)
+
+    def test_rate_limit_wait_does_not_consume_request_retries(self) -> None:
+        """Verify quota waits do not exhaust transient-failure retry attempts."""
+        client = GitHubClient(token="fixture", request_pause_seconds=0, search_pause_seconds=0)
+        limited = Mock(
+            status_code=403,
+            headers={
+                "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "110",
+                "X-RateLimit-Resource": "core", "X-RateLimit-Limit": "5000", "X-RateLimit-Used": "5000",
+            },
+            text="API rate limit exceeded",
+        )
+        success = Mock(
+            status_code=200,
+            headers={"X-RateLimit-Remaining": "4999", "X-RateLimit-Reset": "3700", "X-RateLimit-Resource": "core"},
+            text="{}",
+        )
+        client.session.get = Mock(side_effect=[limited, success])
+        with patch.object(client, "_wait_before_request"), patch("ids_meta.github.collect.time.time", return_value=100), patch("ids_meta.github.collect.time.sleep") as sleep:
+            response = client.request("/repos/example/project")
+        self.assertIs(response, success)
+        self.assertEqual(client.session.get.call_count, 2)
+        sleep.assert_called_once_with(12.0)
+
+    def test_adaptive_pacing_spreads_remaining_quota(self) -> None:
+        """Verify adaptive pacing distributes calls over the reset window."""
+        client = GitHubClient(token=None, request_pause_seconds=2, search_pause_seconds=3)
+        response = Mock(headers={"X-RateLimit-Remaining": "59", "X-RateLimit-Reset": "3700", "X-RateLimit-Resource": "core"})
+        with patch("ids_meta.github.collect.time.time", return_value=100):
+            client._observe_rate_limit(response)
+        self.assertGreater(client._adaptive_core_pause, 60)
+
+    def test_all_meaningful_roles_can_enter_combined_catalogue(self) -> None:
+        """Verify every supported meaningful role can be accepted."""
+        config = {"accept_confidence": .8, "exclude_confidence": .75, "require_verified_quote": True}
+        for role in ROLES:
+            with self.subTest(role=role):
+                decision = normalize_response({
+                    "role": role, "confidence": .9, "observation_scopes": ["unknown"],
+                    "capabilities": [], "detection_methods": ["unknown"],
+                    "independent_fork": False, "direct_self_description": True,
+                    "primary_reason": "fixture",
+                }, [{"source": "README", "quote": "fixture"}], config, False)
+                self.assertEqual(decision["decision"], "accept")
+
+    def test_derivative_fork_requires_independence_evidence(self) -> None:
+        """Verify derivative forks need evidence of independent significance."""
+        decision = normalize_response({
+            "role": "standalone_detector", "confidence": .95, "observation_scopes": ["network"],
+            "capabilities": ["detection"], "detection_methods": ["signature_based"],
+            "independent_fork": False, "direct_self_description": True, "primary_reason": "fixture",
+        }, [{"source": "README", "quote": "fixture"}], {"accept_confidence": .8}, True)
+        self.assertEqual(decision["decision"], "uncertain")
+
+    def test_search_is_sharded_below_github_cap(self) -> None:
+        """Verify overflowing GitHub searches split into retrievable shards."""
+        class SearchClient:
+            def search(self, query: str, page: int, per_page: int) -> dict[str, Any]:
+                """Return an overflowing parent interval and bounded child intervals."""
+                # The full interval overflows; recursively split intervals fit.
+                total = 1500 if "2008-01-01..2008-01-04" in query else 1
+                return {"total_count": total, "incomplete_results": False, "items": [{"id": query}] if page == 1 and total == 1 else []}
+
+        from datetime import date
+        shards = list(search_shards(SearchClient(), "intrusion detection", date(2008, 1, 1), date(2008, 1, 4), 100))  # type: ignore[arg-type]
+        self.assertGreaterEqual(len(shards), 2)
+        self.assertTrue(all(not incomplete for _shard, _page, incomplete in shards))
+
+    def test_resumed_collection_never_exceeds_repository_limit(self) -> None:
+        """Verify a full cached pool does not trigger an extra discovery request."""
+        class NoCallClient:
+            authenticated = True
+
+            def __init__(self) -> None:
+                """Initialize the unexpected-search counter."""
+                self.search_calls = 0
+
+            def search(self, _query: str, _page: int, _per_page: int) -> dict[str, Any]:
+                """Record an API search that should not occur in this fixture."""
+                self.search_calls += 1
+                return {"total_count": 0, "items": []}
+
+        with tempfile.TemporaryDirectory() as directory:
+            fake = NoCallClient()
+            with PipelineCache(Path(directory) / "cache.sqlite3") as cache:
+                for repo_id in ("1", "2"):
+                    item = {"id": int(repo_id), "full_name": f"example/repo-{repo_id}"}
+                    cache.put_record("github.search_candidate", repo_id, {"item": item, "matched_queries": ["query"]}, "now")
+                    cache.put_record("github.repository", repo_id, {"repository": item, "matched_queries": ["query"]}, "now")
+                counts = collect(
+                    {"created_from": "2020-01-01", "per_page": 100, "progress_every": 10},
+                    {"search_queries": ["query"]}, cache, limit=2, client=fake, resume=True,  # type: ignore[arg-type]
+                )
+            self.assertEqual(counts["discovered"], 2)
+            self.assertEqual(fake.search_calls, 0)
+
+    def test_derived_taxonomy(self) -> None:
+        """Verify normalized dimensions deterministically produce display labels."""
+        self.assertEqual(derive_labels(["network"], ["detection", "response"]), ["NIDS", "NDR"])
+        self.assertIn("XDR", derive_labels(["multi_scope"], ["response"]))
+
+    def test_enrichment_records_exact_latest_commit_time(self) -> None:
+        """Verify enrichment preserves the latest commit's exact timestamp."""
+        class Client:
+            def get_json(self, path: str, _params: dict[str, Any] | None = None):
+                """Return fixture repository or latest-commit API metadata."""
+                if path.endswith("/commits"):
+                    return [{
+                        "sha": "abc", "html_url": "https://github.invalid/commit/abc",
+                        "commit": {"committer": {"date": "2025-05-06T07:08:09Z"}},
+                    }]
+                return {"full_name": "example/project", "parent": None}
+
+            def raw_readme(self, _full_name: str) -> str:
+                """Return fixture README evidence."""
+                return "README"
+
+            def docs(self, _full_name: str, _max_files: int) -> str:
+                """Return fixture documentation evidence."""
+                return "docs"
+
+        payload = _enrich(Client(), {"full_name": "example/project"}, 1)  # type: ignore[arg-type]
+        self.assertEqual(payload["last_commit_at"], "2025-05-06T07:08:09Z")
+        self.assertEqual(payload["last_commit_sha"], "abc")
+
+    def test_offline_pipeline_and_resume(self) -> None:
+        """Verify the offline GitHub pipeline exports and resumes decisions."""
+        settings = load_settings(ROOT / "config/default.toml")
+        profile = load_term_profile(settings, "github")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates, classified, reconciled, catalogue = root / "candidates.csv", root / "classified.csv", root / "reconciled.csv", root / "repositories.csv"
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("github.repository", "101", {
+                    "repository": {
+                        "id": 101, "node_id": "R_101", "full_name": "example/network-guard", "name": "network-guard",
+                        "owner": {"login": "example"}, "html_url": "https://github.invalid/example/network-guard",
+                        "description": "A network intruson detction system", "topics": ["network-security"],
+                        "license": {"spdx_id": "MIT"}, "language": "Python", "fork": False, "archived": False,
+                        "stargazers_count": 0, "forks_count": 0, "open_issues_count": 0,
+                        "created_at": "2024-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z",
+                        "pushed_at": "2025-01-01T00:00:00Z", "default_branch": "main",
+                    },
+                    "readme_text": "This intruson detction system analyzes network traffic. Install and run the sensor.",
+                    "docs_text": "", "last_commit_sha": "abc", "parent_full_name": "", "matched_queries": ["intrusion detection system"],
+                }, "2026-01-01T00:00:00+00:00")
+                rows = prefilter(settings.section("github"), profile, cache, candidates, "fixture-run")
+                self.assertEqual(rows[0]["prefilter_band"], "candidate")
+                model = FakeGitHubModel()
+                first = classify(candidates, classified, cache, settings.section("ollama"), generator=model)
+                self.assertEqual(first[0]["decision"], "accept")
+                self.assertIn("NDR", first[0]["derived_labels"])
+                classify(candidates, classified, cache, settings.section("ollama"), generator=model)
+                self.assertEqual(model.calls, 1, "matching evidence/profile should resume without another LLM call")
+                reconcile(classified, reconciled, cache, settings.section("ollama"), settings.section("github"), dry_run=True)
+                final = export(reconciled, catalogue)
+                self.assertEqual(len(final), 1)
+                self.assertEqual(final[0]["role"], "standalone_detector")
+                self.assertEqual(final[0]["repository_relationship"], "canonical")
+
+    def test_classification_limit_includes_cached_ranked_rows(self) -> None:
+        """Verify resume keeps the same bounded score-ranked shortlist."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates, classified = root / "candidates.csv", root / "classified.csv"
+            rows = []
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                for repo_id, score in (("1", "7"), ("2", "12"), ("3", "9")):
+                    row = {column: "" for column in CANDIDATE_COLUMNS}
+                    row.update({
+                        "github_repo_id": repo_id, "full_name": f"example/repo-{repo_id}",
+                        "prefilter_band": "candidate", "prefilter_score": score,
+                        "evidence_hash": f"evidence-{repo_id}",
+                    })
+                    rows.append(row)
+                    cache.put_record("github.repository", repo_id, {
+                        "repository": {"full_name": f"example/repo-{repo_id}"},
+                        "readme_text": "fixture evidence", "docs_text": "",
+                    }, "2026-01-01T00:00:00+00:00")
+                atomic_write_csv(candidates, rows, CANDIDATE_COLUMNS)
+                first = classify(candidates, classified, cache, {}, limit=2, dry_run=True)
+                second = classify(candidates, classified, cache, {}, limit=1, dry_run=True)
+            self.assertEqual([row["github_repo_id"] for row in first], ["2", "3"])
+            self.assertEqual([row["github_repo_id"] for row in second], ["2"])
+
+    def test_project_reconciliation_is_order_independent(self) -> None:
+        """Verify canonical repository selection is independent of input order."""
+        settings = load_settings(ROOT / "config/default.toml")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def row(repo_id: str, name: str) -> dict[str, str]:
+                """Build one accepted repository classification fixture."""
+                value = {column: "" for column in CLASSIFICATION_COLUMNS}
+                value.update({
+                    "github_repo_id": repo_id, "full_name": f"example/{name}", "owner": "example", "name": name,
+                    "decision": "accept", "role": "standalone_detector", "fork": "false",
+                    "direct_self_description": "true", "last_commit_sha": "sha", "stars": "0",
+                })
+                return value
+            source_rows = [row("102", "network-guard-docker"), row("101", "network-guard")]
+            selections = []
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                for index, ordered in enumerate((source_rows, list(reversed(source_rows)))):
+                    source, output = root / f"source-{index}.csv", root / f"output-{index}.csv"
+                    atomic_write_csv(source, ordered, CLASSIFICATION_COLUMNS)
+                    result = reconcile(source, output, cache, settings.section("ollama"), settings.section("github"), dry_run=True)
+                    accepted = [item for item in result if item.get("decision") == "accept"]
+                    selections.append({item["canonical_repo_id"] for item in accepted})
+                    relationships = {item["github_repo_id"]: item["repository_relationship"] for item in accepted}
+                    self.assertEqual(relationships, {"101": "canonical", "102": "deployment_variant"})
+            self.assertEqual(selections, [{"101"}, {"101"}])
+
+
+if __name__ == "__main__":
+    unittest.main()

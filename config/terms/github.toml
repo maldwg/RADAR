@@ -1,0 +1,38 @@
+# Generic concepts only. Named repositories, vendors, and products are forbidden.
+search_queries = [
+  "intrusion detection system",
+  "intrusion prevention system",
+  "network detection response",
+  "network security monitoring",
+  "host intrusion detection",
+  "wireless intrusion detection",
+  "database intrusion detection",
+  "malicious traffic detection",
+  "attack detection network traffic",
+  "security anomaly detection logs",
+]
+
+[positive.security_scope]
+weight = 3.0
+terms = ["intrusion", "attack detection", "malicious traffic", "unauthorized behavior", "threat detection"]
+
+[positive.detector_identity]
+weight = 4.0
+terms = ["intrusion detection system", "intrusion prevention system", "network detection and response", "host intrusion detection", "network intrusion detection", "security sensor"]
+
+[positive.observation]
+weight = 2.0
+terms = ["network traffic", "packet capture", "network flow", "audit log", "system call", "host event", "wireless traffic", "database query"]
+
+[positive.operational]
+weight = 2.0
+terms = ["install", "deploy", "run the agent", "daemon", "sensor", "engine", "container", "command line"]
+
+[positive.related_artifact]
+weight = 2.0
+terms = ["detection rules", "classifier", "detection framework", "security analytics", "intrusion dataset", "research prototype"]
+
+[negative.unrelated]
+weight = -4.0
+terms = ["vulnerability scanner", "secret scanner", "awesome list", "course assignment", "offensive tool", "exploit collection"]
+

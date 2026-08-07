@@ -1,0 +1,40 @@
+# Generic concepts only. Named datasets and benchmark names are forbidden.
+direct_queries = [
+  "intrusion detection dataset",
+  "network attack traffic dataset",
+  "cybersecurity dataset intrusion detection",
+  "host intrusion detection dataset system calls",
+  "wireless intrusion detection dataset",
+  "malicious traffic corpus",
+  "attack traffic generation framework",
+]
+survey_queries = [
+  "intrusion detection datasets survey",
+  "network security datasets review",
+  "cyber attack datasets systematic review",
+]
+
+[positive.security_scope]
+weight = 3.0
+terms = ["intrusion detection", "network attack", "cyber attack", "malicious traffic", "security anomaly", "attack detection"]
+
+[positive.data_artifact]
+weight = 3.0
+terms = ["dataset", "data set", "corpus", "benchmark", "traffic traces", "trace collection", "testbed"]
+
+[positive.release]
+weight = 4.0
+terms = ["introduce", "release", "present a dataset", "new dataset", "collected", "generated", "publicly available", "data generation framework"]
+
+[positive.observation]
+weight = 1.0
+terms = ["packet", "network flow", "traffic", "log", "system call", "telemetry", "wireless", "industrial control"]
+
+[negative.downstream]
+weight = -3.0
+terms = ["feature selection", "classification accuracy", "trained on", "evaluated on", "comparative analysis", "oversampling"]
+
+[negative.review]
+weight = -4.0
+terms = ["survey", "systematic review", "literature review", "taxonomy of datasets"]
+

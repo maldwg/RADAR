@@ -1,0 +1,2 @@
+"""Shared pipeline infrastructure."""
+

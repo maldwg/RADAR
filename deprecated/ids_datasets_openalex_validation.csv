@@ -1,3 +1,0 @@
-level,check,dataset_id,name,details
-warning,late_canonical_publication,awid3,AWID3,canonical_publication_year=2022 is much later than release_year=2011: Best of Both Worlds: Detecting Application Layer Attacks through 802.11 and Non-802.11 Features
-warning,late_canonical_publication,vpnforwarded,VPN-forwarded,canonical_publication_year=2020 is much later than release_year=2016: Scalable VPN-forwarded Honeypots: Dataset and Threat Intelligence Insights
