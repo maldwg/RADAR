@@ -10,6 +10,7 @@ import pandas as pd
 
 from ids_meta.plotting.common import COLORS, add_heading, configure_style, count_legend, count_plot, explode_values, load_frame, metadata_caption, save_figure, stamp, write_index, write_table
 from ids_meta.common.logging import logger
+from ids_meta.github.schema import DEFAULT_SYSTEM_TYPE_PROFILE
 
 LOG = logger("plotting.github")
 
@@ -41,7 +42,10 @@ def _activity(value: str) -> str:
 
 def _primary_family(row: pd.Series) -> str:
     """Choose the most informative normalized family label for a repository."""
-    labels = [value for value in str(row.get("derived_labels", "")).split(";") if value]
+    primary = str(row.get("primary_system_type", "")).strip()
+    if primary and primary != "unknown":
+        return primary
+    labels = [value for value in str(row.get("system_types", "") or row.get("derived_labels", "")).split(";") if value and value != "unknown"]
     if labels:
         return labels[0]
     scopes = [value for value in str(row.get("observation_scopes", "")).split(";") if value and value != "unknown"]
@@ -112,7 +116,7 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
             canonical = row.get("repository_relationship") == "canonical"
             ax.scatter([1.15], [cursor + .36], s=13, marker="o", facecolor="#2F6F9F" if canonical else "white", edgecolor="#2F6F9F" if canonical else "#9AA5AE", linewidth=.8, zorder=3)
             ax.text(1.55, cursor + .36, _short(row.get("full_name", ""), 34), fontsize=7.2, color="#263238", va="center")
-            system = str(row.get("derived_labels", "")) or str(row.get("observation_scopes", ""))
+            system = str(row.get("system_types", "") or row.get("derived_labels", "")) or str(row.get("observation_scopes", ""))
             ax.text(20.5, cursor + .36, _short(system, 18), fontsize=7, color="#43505C", va="center")
             ax.text(30.5, cursor + .36, _short(row.get("detection_methods", ""), 34), fontsize=7, color="#43505C", va="center")
             for x, (role, _abbreviation, _full, role_color) in zip(role_x, ROLE_MATRIX):
@@ -151,7 +155,28 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
     return save_figure(fig, out_dir, "00_repository_overview", formats, dpi)
 
 
-def build(input_path: Path, out_dir: Path, config: dict[str, object]) -> list[Path]:
+def _system_type_definitions(profile: dict[str, object] | None) -> pd.DataFrame:
+    """Flatten configured system-type rules into an auditable plot-side table."""
+    types = (profile or DEFAULT_SYSTEM_TYPE_PROFILE).get("types", {})
+    rows: list[dict[str, object]] = []
+    if not isinstance(types, dict):
+        return pd.DataFrame()
+    for code, value in types.items():
+        rule = value if isinstance(value, dict) else {}
+        rows.append({
+            "code": code, "name": rule.get("name", code), "description": rule.get("description", ""),
+            "priority": rule.get("priority", 0), "fallback_only": str(bool(rule.get("fallback_only"))).lower(),
+            "any_scopes": ";".join(rule.get("any_scopes", [])), "all_scopes": ";".join(rule.get("all_scopes", [])),
+            "any_capabilities": ";".join(rule.get("any_capabilities", [])), "all_capabilities": ";".join(rule.get("all_capabilities", [])),
+            "any_methods": ";".join(rule.get("any_methods", [])), "all_methods": ";".join(rule.get("all_methods", [])),
+            "any_roles": ";".join(rule.get("any_roles", [])),
+        })
+    return pd.DataFrame(rows).sort_values(["priority", "code"], ascending=[False, True], kind="stable")
+
+
+def build(
+    input_path: Path, out_dir: Path, config: dict[str, object], system_type_profile: dict[str, object] | None = None,
+) -> list[Path]:
     """Generate the complete GitHub catalogue plot and aggregate-table bundle."""
     LOG.info("building GitHub plots input=%s output=%s", input_path, out_dir)
     configure_style()
@@ -161,10 +186,14 @@ def build(input_path: Path, out_dir: Path, config: dict[str, object]) -> list[Pa
     caption = metadata_caption(frame, "multi-label figures may count a repository more than once")
     outputs: list[Path] = []
     exact_commit = frame.get("last_commit_at", pd.Series("", index=frame.index)).fillna("")
+    type_values = frame.get("system_types", frame.get("derived_labels", pd.Series("unknown", index=frame.index))).replace("", "unknown")
+    primary_types = frame.get("primary_system_type", pd.Series("", index=frame.index)).replace("", pd.NA).fillna(type_values.str.split(";").str[0]).replace("", "unknown")
     overview = pd.DataFrame({
         "repository": frame["full_name"],
         "system_role": frame["role"].map(ROLE_LABELS).fillna(frame["role"]),
-        "system_labels": frame.get("derived_labels", pd.Series("", index=frame.index)),
+        "primary_system_type": primary_types,
+        "system_types": type_values,
+        "system_type_names": frame.get("system_type_names", pd.Series("", index=frame.index)),
         "observation_scope": frame["observation_scopes"],
         "capabilities": frame["capabilities"],
         "methods": frame["detection_methods"],
@@ -177,12 +206,16 @@ def build(input_path: Path, out_dir: Path, config: dict[str, object]) -> list[Pa
     overview["_canonical"] = (overview["relationship"] != "canonical").astype(int)
     overview = overview.sort_values(["_canonical", "system_role", "repository"], kind="stable").drop(columns="_canonical")
     write_table(overview, out_dir / "data", "00_repository_overview")
+    write_table(_system_type_definitions(system_type_profile), out_dir / "data", "00_system_type_definitions")
     for stale in out_dir.glob("00_repository_overview_p*.*"):
         stale.unlink()
     outputs += _overview_matrix(frame, out_dir, formats, dpi)
     outputs += count_plot(frame, "role", "Repository roles", caption, out_dir, "01_role_counts", formats, dpi)
     outputs += count_plot(frame, "repository_relationship", "Repository relationships", caption, out_dir, "02_repository_relationships", formats, dpi)
     canonical = frame[frame["repository_relationship"] == "canonical"].copy()
+    canonical["system_types"] = canonical.get("system_types", canonical.get("derived_labels", pd.Series("unknown", index=canonical.index))).replace("", "unknown")
+    system_type_rows = explode_values(canonical, "system_types", "github_repo_id")
+    outputs += count_plot(system_type_rows, "system_types", "Configured system types", metadata_caption(canonical, "canonical projects; deterministically derived; multi-label"), out_dir, "02b_system_types", formats, dpi)
     detectors = canonical[canonical["role"] == "standalone_detector"]
     method_rows = canonical[canonical["role"].isin(["standalone_detector", "classifier_model", "platform_framework"])]
     for number, column, title, source, filter_note in (
@@ -232,6 +265,7 @@ def build(input_path: Path, out_dir: Path, config: dict[str, object]) -> list[Pa
     outputs += save_figure(fig, out_dir, "10_metadata_completeness", formats, dpi)
     outputs.append(write_index(out_dir, input_path, frame, outputs, [
         "Role, relationship, activity, language, and completeness cover all accepted repository rows.",
+        "System types are deterministic rules from config/taxonomy/github_system_types.toml; data/00_system_type_definitions.csv records the exact definitions.",
         "Scope/capability figures use canonical standalone detector projects; method figures also include canonical classifier models and platforms.",
         "Popularity uses canonical projects only and never affects inclusion or canonical selection.",
         "Multi-label plots may count one repository in more than one category.",

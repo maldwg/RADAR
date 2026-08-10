@@ -14,6 +14,9 @@ github_cache = "data/raw/github/cache.sqlite3"
 openalex_cache = "data/raw/openalex/cache.sqlite3"
 github_terms = "config/terms/github.toml"
 openalex_terms = "config/terms/openalex.toml"
+github_prompts = "config/prompts/github.toml"
+openalex_prompts = "config/prompts/openalex.toml"
+github_system_types = "config/taxonomy/github_system_types.toml"
 
 [ollama]
 url = "http://192.168.175.151:11434"
@@ -23,12 +26,11 @@ retries = 2
 temperature = 0.0
 seed = 42
 max_output_tokens = 900
-accept_confidence = 0.80
-exclude_confidence = 0.75
 require_verified_quote = true
 
 [github]
 # Bound source discovery separately from the ranked LLM adjudication shortlist.
+# Use classification_limit = "all" to classify every candidate/borderline row.
 collection_limit = 1000
 classification_limit = 100
 per_page = 100
@@ -49,15 +51,25 @@ canonical_ambiguity_margin = 2.0
 
 [openalex]
 # Score the broad retrieval pool, then adjudicate only its strongest candidates.
+# Use classification_limit = "all" to classify every candidate/borderline row.
 collection_limit = 1000
 classification_limit = 100
 per_page = 100
 max_pages_per_query = 10
+# Auxiliary discovery sources; not counted toward collection_limit or classification_limit.
 max_surveys = 25
 max_reference_works_per_survey = 300
 max_survey_reference_candidates_total = 1000
 # With --limit, reserve this fraction of candidate capacity for survey-reference snowballing.
 survey_reference_fraction = 0.35
+# Search every query fairly and rank an oversampled result pool before retaining works.
+survey_scan_multiplier = 4.0
+direct_scan_multiplier = 3.0
+reference_scan_multiplier = 3.0
+# Generic evidence-quality floor; citations never contribute to retrieval ranking.
+retrieval_minimum_score = 1.0
+retrieval_minimum_title_tokens = 3
+retrieval_title_weight = 0.5
 request_pause_seconds = 1
 candidate_threshold = 7.0
 borderline_threshold = 4.0

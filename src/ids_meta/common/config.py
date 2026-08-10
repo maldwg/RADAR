@@ -59,3 +59,63 @@ def load_settings(path: Path | str = Path("config/default.toml")) -> Settings:
 def load_term_profile(settings: Settings, source: str) -> dict[str, Any]:
     """Load the generic discovery and scoring profile for one source."""
     return _read_toml(settings.path(f"{source}_terms"))
+
+
+def load_prompt_profile(settings: Settings, source: str) -> dict[str, Any]:
+    """Load and validate one source-specific classifier-prompt profile."""
+    profile = _read_toml(settings.path(f"{source}_prompts"))
+    if str(profile.get("schema_version", "")) != "1.0":
+        raise ConfigError(f"only {source} prompt schema_version 1.0 is supported")
+    for key in ("template", "reconciliation_template"):
+        if not isinstance(profile.get(key), str) or not str(profile[key]).strip():
+            raise ConfigError(f"{source} prompt profile requires a non-empty {key}")
+        if "${evidence}" not in str(profile[key]):
+            raise ConfigError(f"{source} prompt profile {key} must contain ${{evidence}}")
+    if source == "github":
+        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, SCOPES
+
+        taxonomies = {"roles": AUDIT_ROLES, "scopes": SCOPES, "capabilities": CAPABILITIES, "methods": METHODS}
+    elif source == "openalex":
+        from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, TIERS
+
+        taxonomies = {
+            "roles": PAPER_ROLES, "tiers": TIERS, "artifact_types": ARTIFACT_TYPES,
+            "domains": DOMAINS, "data_forms": DATA_FORMS, "environments": ENVIRONMENTS,
+            "labeling": LABELING,
+        }
+    else:
+        raise ConfigError(f"unsupported prompt source: {source}")
+    for table, values in taxonomies.items():
+        descriptions = profile.get(table)
+        if not isinstance(descriptions, dict):
+            raise ConfigError(f"{source} prompt profile requires a [{table}] table")
+        missing = [value for value in values if not str(descriptions.get(value, "")).strip()]
+        if missing:
+            raise ConfigError(f"{source} prompt profile [{table}] is missing: {', '.join(missing)}")
+    return profile
+
+
+def load_system_type_profile(settings: Settings, source: str) -> dict[str, Any]:
+    """Load and structurally validate one source's extensible system-type rules."""
+    profile = _read_toml(settings.path(f"{source}_system_types"))
+    if str(profile.get("schema_version", "")) != "1.0":
+        raise ConfigError(f"only {source} system-type schema_version 1.0 is supported")
+    types = profile.get("types")
+    if not isinstance(types, dict) or not types:
+        raise ConfigError(f"{source} system-type profile requires a non-empty [types] table")
+    selectors = (
+        "any_scopes", "all_scopes", "any_capabilities", "all_capabilities",
+        "any_methods", "all_methods", "any_roles",
+    )
+    for code, rule in types.items():
+        if not isinstance(rule, dict):
+            raise ConfigError(f"system type {code!r} must be a table")
+        if not str(rule.get("name", "")).strip() or not str(rule.get("description", "")).strip():
+            raise ConfigError(f"system type {code!r} requires name and description")
+        if not any(rule.get(selector) for selector in selectors):
+            raise ConfigError(f"system type {code!r} requires at least one selector")
+        for selector in selectors:
+            value = rule.get(selector, [])
+            if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+                raise ConfigError(f"system type {code!r}.{selector} must be an array of non-empty strings")
+    return profile

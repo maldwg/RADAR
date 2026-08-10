@@ -35,18 +35,22 @@ def score_evidence(text: str, profile: dict[str, Any], candidate_threshold: floa
 
 
 def shortlist_candidates(
-    rows: list[dict[str, str]], id_column: str, limit: int | None,
+    rows: list[dict[str, str]], id_column: str, limit: int | None, secondary_score_column: str | None = None,
 ) -> list[dict[str, str]]:
     """Rank eligible candidates deterministically and return the requested prefix."""
     band_order = {"candidate": 0, "borderline": 1}
 
-    def ranking_key(row: dict[str, str]) -> tuple[int, float, str]:
-        """Order stronger bands and scores first, with a stable identifier tie-break."""
+    def ranking_key(row: dict[str, str]) -> tuple[int, float, float, str]:
+        """Order bands and scores first, leaving the stable ID as the final tie-break."""
         try:
             score = float(row.get("prefilter_score", ""))
         except (TypeError, ValueError):
             score = float("-inf")
-        return band_order.get(row.get("prefilter_band", ""), 2), -score, row.get(id_column, "")
+        try:
+            secondary = float(row.get(secondary_score_column, "")) if secondary_score_column else float("-inf")
+        except (TypeError, ValueError):
+            secondary = float("-inf")
+        return band_order.get(row.get("prefilter_band", ""), 2), -score, -secondary, row.get(id_column, "")
 
     eligible = [row for row in rows if row.get("prefilter_band") in band_order]
     ranked = sorted(eligible, key=ranking_key)

@@ -62,11 +62,17 @@ def stamp(fig: plt.Figure, caption: str) -> None:
     fig.text(.01, .005, caption, fontsize=7.5, color="#5f6c76", ha="left")
 
 
-def add_heading(fig: plt.Figure, title: str, subtitle: str, *, top: float = .80) -> None:
-    """Reserve separate figure space for titles so they never overlap the subtitle or axes."""
-    fig.subplots_adjust(top=top, bottom=.14)
-    fig.suptitle(title, x=.08, y=.975, ha="left", va="top", fontsize=14, fontweight="bold")
-    fig.text(.08, .915, textwrap.fill(subtitle, width=115), ha="left", va="top", fontsize=8.5, color="#5f6c76")
+def add_heading(fig: plt.Figure, title: str, subtitle: str, *, top: float | None = None) -> None:
+    """Reserve fixed physical margins for a title and subtitle on short or tall figures."""
+    height = max(1.0, float(fig.get_figheight()))
+    title_y = 1.0 - .12 / height
+    subtitle_y = 1.0 - .48 / height
+    physical_top = 1.0 - .90 / height
+    axes_top = max(top, physical_top) if top is not None else physical_top
+    axes_bottom = max(.10, .95 / height)
+    fig.subplots_adjust(top=axes_top, bottom=axes_bottom)
+    fig.suptitle(title, x=.08, y=title_y, ha="left", va="top", fontsize=14, fontweight="bold")
+    fig.text(.08, subtitle_y, textwrap.fill(subtitle, width=115), ha="left", va="top", fontsize=8.5, color="#5f6c76")
 
 
 def count_legend(ax: plt.Axes, label: str, color: str = COLORS[0]) -> None:

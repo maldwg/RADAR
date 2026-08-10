@@ -14,9 +14,28 @@ SCOPES = ("network", "host_endpoint", "wireless", "database", "provenance", "app
 CAPABILITIES = ("detection", "prevention", "response", "monitoring")
 METHODS = (
     "signature_based", "rule_based", "anomaly_based", "integrity_based", "query_based",
-    "ml_based", "ann_based", "dnn_based", "packet_analysis", "flow_analysis",
+    "protocol_analysis", "ml_based", "ann_based", "dnn_based", "packet_analysis", "flow_analysis",
     "log_analysis", "system_call_analysis", "threat_intelligence_based", "hybrid", "unknown",
 )
+
+DEFAULT_SYSTEM_TYPE_PROFILE: dict[str, Any] = {"types": {
+    "NIDS": {"name": "Network intrusion detection system", "priority": 100, "any_scopes": ["network"], "all_capabilities": ["detection"]},
+    "NIPS": {"name": "Network intrusion prevention system", "priority": 99, "any_scopes": ["network"], "all_capabilities": ["prevention"]},
+    "NDR": {"name": "Network detection and response", "priority": 98, "any_scopes": ["network"], "all_capabilities": ["detection", "response"]},
+    "HIDS": {"name": "Host intrusion detection system", "priority": 100, "any_scopes": ["host_endpoint"], "all_capabilities": ["detection"]},
+    "HIPS": {"name": "Host intrusion prevention system", "priority": 99, "any_scopes": ["host_endpoint"], "all_capabilities": ["prevention"]},
+    "EDR": {"name": "Endpoint detection and response", "priority": 98, "any_scopes": ["host_endpoint"], "all_capabilities": ["detection", "response"]},
+    "WIDS": {"name": "Wireless intrusion detection system", "priority": 100, "any_scopes": ["wireless"], "all_capabilities": ["detection"]},
+    "WIPS": {"name": "Wireless intrusion prevention system", "priority": 99, "any_scopes": ["wireless"], "all_capabilities": ["prevention"]},
+    "DBIDS": {"name": "Database intrusion detection system", "priority": 100, "any_scopes": ["database"], "all_capabilities": ["detection"]},
+    "DBIPS": {"name": "Database intrusion prevention system", "priority": 99, "any_scopes": ["database"], "all_capabilities": ["prevention"]},
+    "APIDS": {"name": "Application-protocol intrusion detection system", "priority": 100, "any_scopes": ["application"], "all_capabilities": ["detection"]},
+    "PIDS": {"name": "Protocol-based intrusion detection system", "priority": 110, "any_methods": ["protocol_analysis"], "all_capabilities": ["detection"]},
+    "ProvIDS": {"name": "Provenance-based intrusion detection system", "priority": 100, "any_scopes": ["provenance"], "all_capabilities": ["detection"]},
+    "XDR": {"name": "Extended detection and response", "priority": 105, "any_scopes": ["multi_scope"], "all_capabilities": ["detection", "response"]},
+    "IDS": {"name": "Intrusion detection system", "priority": 10, "all_capabilities": ["detection"], "fallback_only": True},
+    "IPS": {"name": "Intrusion prevention system", "priority": 9, "all_capabilities": ["prevention"], "fallback_only": True},
+}}
 
 METADATA_COLUMNS = [
     "schema_version", "run_id", "github_repo_id", "node_id", "full_name", "owner", "name",
@@ -27,8 +46,9 @@ METADATA_COLUMNS = [
 ]
 CANDIDATE_COLUMNS = METADATA_COLUMNS + ["prefilter_score", "prefilter_band", "prefilter_signals", "matched_queries"]
 CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
-    "pipeline_version", "profile_hash", "llm_model", "decision", "role", "role_confidence",
-    "observation_scopes", "capabilities", "detection_methods", "derived_labels",
+    "pipeline_version", "profile_hash", "llm_model", "decision", "role",
+    "observation_scopes", "capabilities", "detection_methods", "primary_system_type",
+    "system_types", "system_type_names", "derived_labels",
     "independent_fork", "direct_self_description", "primary_reason", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
 ]
@@ -40,9 +60,9 @@ CATALOGUE_COLUMNS = CLASSIFICATION_COLUMNS + RECONCILIATION_COLUMNS
 
 RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "object",
+    "additionalProperties": False,
     "properties": {
         "role": {"type": "string", "enum": list(AUDIT_ROLES)},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "observation_scopes": {"type": "array", "items": {"type": "string", "enum": list(SCOPES)}},
         "capabilities": {"type": "array", "items": {"type": "string", "enum": list(CAPABILITIES)}},
         "detection_methods": {"type": "array", "items": {"type": "string", "enum": list(METHODS)}},
@@ -53,7 +73,7 @@ RESPONSE_SCHEMA: dict[str, Any] = {
             "source": {"type": "string"}, "quote": {"type": "string"}
         }, "required": ["source", "quote"]}},
     },
-    "required": ["role", "confidence", "observation_scopes", "capabilities", "detection_methods", "independent_fork", "direct_self_description", "primary_reason", "evidence"],
+    "required": ["role", "observation_scopes", "capabilities", "detection_methods", "independent_fork", "direct_self_description", "primary_reason", "evidence"],
 }
 
 
@@ -63,60 +83,116 @@ def _allowed(values: Any, allowed: tuple[str, ...], default: str | None = None) 
     return result or ([default] if default else [])
 
 
+def _matches_system_type(
+    rule: dict[str, Any], scopes: set[str], capabilities: set[str], methods: set[str], role: str,
+) -> bool:
+    """Return whether normalized repository dimensions satisfy one configured type rule."""
+    dimensions = {"scopes": scopes, "capabilities": capabilities, "methods": methods}
+    for name, values in dimensions.items():
+        any_values = {str(value) for value in rule.get(f"any_{name}", [])}
+        all_values = {str(value) for value in rule.get(f"all_{name}", [])}
+        if any_values and not any_values.intersection(values):
+            return False
+        if all_values and not all_values.issubset(values):
+            return False
+    roles = {str(value) for value in rule.get("any_roles", [])}
+    return not roles or role in roles
+
+
+def validate_system_type_profile(profile: dict[str, Any]) -> None:
+    """Reject type rules that reference unsupported normalized dimension values."""
+    types = profile.get("types", {})
+    if not isinstance(types, dict) or not types:
+        raise ValueError("system-type profile requires a non-empty types table")
+    dimensions = {
+        "scopes": set(SCOPES), "capabilities": set(CAPABILITIES),
+        "methods": set(METHODS), "roles": set(AUDIT_ROLES),
+    }
+    for code, value in types.items():
+        if not isinstance(value, dict):
+            raise ValueError(f"system type {code!r} must be a table")
+        for dimension, allowed in dimensions.items():
+            selectors = (f"any_{dimension}",) if dimension == "roles" else (f"any_{dimension}", f"all_{dimension}")
+            for selector in selectors:
+                invalid = {str(item) for item in value.get(selector, [])} - allowed
+                if invalid:
+                    raise ValueError(f"system type {code!r} has invalid {selector}: {sorted(invalid)}")
+        try:
+            float(value.get("priority", 0) or 0)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"system type {code!r}.priority must be numeric") from exc
+
+
+def derive_system_types(
+    scopes: list[str], capabilities: list[str], methods: list[str] | None = None,
+    role: str = "", profile: dict[str, Any] | None = None,
+) -> list[str]:
+    """Derive an ordered, extensible system-type list from configured dimension rules."""
+    active_profile = profile or DEFAULT_SYSTEM_TYPE_PROFILE
+    validate_system_type_profile(active_profile)
+    types = active_profile.get("types", {})
+    if not isinstance(types, dict):
+        return []
+    ordered = sorted(
+        ((str(code), rule) for code, rule in types.items() if isinstance(rule, dict)),
+        key=lambda item: (-float(item[1].get("priority", 0) or 0), item[0].casefold()),
+    )
+    scope_values, capability_values = set(scopes), set(capabilities)
+    method_values = set(methods or [])
+    specific = [
+        code for code, rule in ordered
+        if not bool(rule.get("fallback_only")) and _matches_system_type(rule, scope_values, capability_values, method_values, role)
+    ]
+    if specific:
+        return specific
+    return [
+        code for code, rule in ordered
+        if bool(rule.get("fallback_only")) and _matches_system_type(rule, scope_values, capability_values, method_values, role)
+    ]
+
+
+def system_type_names(codes: list[str], profile: dict[str, Any] | None = None) -> list[str]:
+    """Resolve configured human-readable names for ordered system-type codes."""
+    types = (profile or DEFAULT_SYSTEM_TYPE_PROFILE).get("types", {})
+    return [str(types.get(code, {}).get("name", code)) for code in codes]
+
+
 def derive_labels(scopes: list[str], capabilities: list[str]) -> list[str]:
-    """Derive familiar IDS/IPS/DR labels from normalized scope and capability dimensions."""
-    values: list[str] = []
-    detected, prevents, responds = "detection" in capabilities, "prevention" in capabilities, "response" in capabilities
-    for scope, detection_label, prevention_label, response_label in (
-        ("network", "NIDS", "NIPS", "NDR"),
-        ("host_endpoint", "HIDS", "HIPS", "EDR"),
-        ("wireless", "WIDS", "WIPS", ""),
-        ("database", "DBIDS", "DBIPS", ""),
-        ("provenance", "PIDS", "", ""),
-    ):
-        if scope not in scopes:
-            continue
-        if detected and detection_label:
-            values.append(detection_label)
-        if prevents and prevention_label:
-            values.append(prevention_label)
-        if responds and response_label:
-            values.append(response_label)
-    if "multi_scope" in scopes and responds:
-        values.append("XDR")
-    if not values and detected:
-        values.append("IDS")
-    if not values and prevents:
-        values.append("IPS")
-    return list(dict.fromkeys(values))
+    """Preserve the legacy derived-label interface using the default system taxonomy."""
+    return derive_system_types(scopes, capabilities)
 
 
-def normalize_response(raw: dict[str, Any], verified: list[dict[str, str]], config: dict[str, Any], is_fork: bool) -> dict[str, str]:
+def normalize_response(
+    raw: dict[str, Any], verified: list[dict[str, str]], config: dict[str, Any], is_fork: bool,
+    system_type_profile: dict[str, Any] | None = None,
+) -> dict[str, str]:
     """Validate a repository model response and derive its auditable decision fields."""
     role = str(raw.get("role", "uncertain"))
     role = role if role in AUDIT_ROLES else "uncertain"
-    confidence = max(0.0, min(1.0, float(raw.get("confidence", 0) or 0)))
     scopes = _allowed(raw.get("observation_scopes", []), SCOPES, "unknown")
     capabilities = _allowed(raw.get("capabilities", []), CAPABILITIES)
     methods = _allowed(raw.get("detection_methods", []), METHODS, "unknown")
+    type_codes = derive_system_types(scopes, capabilities, methods, role, system_type_profile)
     independent = bool(raw.get("independent_fork"))
     self_description = bool(raw.get("direct_self_description"))
     require_quote = bool(config.get("require_verified_quote", True))
     evidence_ok = bool(verified) or not require_quote
-    if role in ROLES and confidence >= float(config.get("accept_confidence", .8)) and self_description and evidence_ok and (not is_fork or independent):
+    if role in ROLES and self_description and evidence_ok and (not is_fork or independent):
         decision = "accept"
-    elif role == "out_of_scope" and confidence >= float(config.get("exclude_confidence", .75)):
+    elif role == "out_of_scope" and evidence_ok:
         decision = "exclude"
     else:
         decision = "uncertain"
     return {
         "decision": decision,
         "role": role,
-        "role_confidence": f"{confidence:.3f}",
         "observation_scopes": ";".join(scopes),
         "capabilities": ";".join(capabilities),
         "detection_methods": ";".join(methods),
-        "derived_labels": ";".join(derive_labels(scopes, capabilities)),
+        "primary_system_type": type_codes[0] if type_codes else "unknown",
+        "system_types": ";".join(type_codes) if type_codes else "unknown",
+        "system_type_names": ";".join(system_type_names(type_codes, system_type_profile)) if type_codes else "Unknown",
+        "derived_labels": ";".join(type_codes),
         "independent_fork": str(independent).lower(),
         "direct_self_description": str(self_description).lower(),
         "primary_reason": str(raw.get("primary_reason", "")).strip()[:1000],
@@ -125,9 +201,9 @@ def normalize_response(raw: dict[str, Any], verified: list[dict[str, str]], conf
     }
 
 
-def validate_processed_row(row: dict[str, str]) -> None:
+def validate_processed_row(row: dict[str, str], system_type_profile: dict[str, Any] | None = None) -> None:
     """Validate required metadata and taxonomy fields in an accepted repository row."""
-    required = ("github_repo_id", "html_url", "role", "run_id", "evidence_json", "project_id", "canonical_repo_id", "repository_relationship")
+    required = ("github_repo_id", "html_url", "role", "run_id", "evidence_json", "project_id", "canonical_repo_id", "repository_relationship", "primary_system_type", "system_types")
     missing = [name for name in required if not row.get(name)]
     if missing:
         raise ValueError(f"processed GitHub row is missing {', '.join(missing)}: {row.get('full_name', '<unknown>')}")
@@ -137,3 +213,7 @@ def validate_processed_row(row: dict[str, str]) -> None:
         invalid = set(split_values(row.get(field))) - set(allowed)
         if invalid:
             raise ValueError(f"invalid {field}: {sorted(invalid)}")
+    configured = set((system_type_profile or DEFAULT_SYSTEM_TYPE_PROFILE).get("types", {})) | {"unknown"}
+    invalid_types = set(split_values(row.get("system_types"))) - configured
+    if invalid_types:
+        raise ValueError(f"invalid system_types: {sorted(invalid_types)}")
