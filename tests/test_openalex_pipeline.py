@@ -7,12 +7,12 @@ from typing import Any
 from unittest.mock import patch
 
 from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import load_settings, load_term_profile
-from ids_meta.openalex.collect import OpenAlexClient, collect, normalize_work, reconstruct_abstract
-from ids_meta.openalex.pipeline import classify, export, prefilter
+from ids_meta.common.config import load_prompt_profile, load_settings, load_term_profile
+from ids_meta.openalex.collect import OpenAlexClient, balanced_search, collect, normalize_work, rank_work_pool, reconstruct_abstract
+from ids_meta.openalex.pipeline import classify, export, export_survey_sources, prefilter
 from ids_meta.openalex.reconcile import reconcile
 from ids_meta.openalex.entities import canonicalize_artifact_ids
-from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS, normalize_response
+from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ensure_resource_name, normalize_response
 from ids_meta.common.csvio import atomic_write_csv
 
 
@@ -28,21 +28,48 @@ class FakePaperModel:
         if downstream:
             return {
                 "paper_role": "downstream_application", "relevance_tier": "excluded", "artifact_name": "",
-                "artifact_aliases": [], "artifact_type": "unknown", "domain": "unknown", "data_form": "unknown",
-                "capture_environment": "unknown", "labeling": "unknown", "confidence": .95,
+                "artifact_display_name": "", "artifact_aliases": [], "artifact_type": "unknown", "domain": "unknown", "data_form": "unknown",
+                "capture_environment": "unknown", "labeling": "unknown",
                 "direct_release_evidence": False, "primary_reason": "Applies existing data.",
                 "evidence": [{"source": "Abstract", "quote": "classification accuracy"}],
             }
         return {
             "paper_role": "original_release", "relevance_tier": "core", "artifact_name": "Network Attack Trace Corpus",
-            "artifact_aliases": ["NAT Corpus"], "artifact_type": "dataset", "domain": "general_network",
-            "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled", "confidence": .96,
+            "artifact_display_name": "NAT Corpus", "artifact_aliases": ["NAT Corpus"], "artifact_type": "dataset", "domain": "general_network",
+            "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled",
             "direct_release_evidence": True, "primary_reason": "Introduces and releases attack traces.",
             "evidence": [{"source": "Abstract", "quote": "introduce a new labeled intrusion detection dataset"}],
         }
 
 
 class OpenAlexPipelineTests(unittest.TestCase):
+    def test_balanced_search_visits_every_query_before_repeating(self) -> None:
+        """Verify retrieval scans generic queries round-robin rather than sequentially."""
+        class Client:
+            def search(self, query: str, _per_page: int, _max_pages: int):
+                """Yield three identifiable results for each fixture query."""
+                for index in range(3):
+                    yield {"id": f"{query}-{index}"}
+
+        results, scanned, _exhausted = balanced_search(Client(), ["first", "second"], 100, 1, 4)  # type: ignore[arg-type]
+        self.assertEqual([query for query, _item in results], ["first", "second", "first", "second"])
+        self.assertEqual(scanned, {"first": 2, "second": 2})
+
+    def test_retrieval_ranking_uses_evidence_not_citations(self) -> None:
+        """Verify textual evidence outranks citation popularity during retrieval."""
+        profile = {
+            "positive": {
+                "scope": {"weight": 3, "terms": ["intrusion detection"]},
+                "release": {"weight": 4, "terms": ["introduce"]},
+            },
+        }
+        pool = {
+            "W1": {"openalex_id": "W1", "title": "Highly cited unrelated analysis paper", "abstract": "", "cited_by_count": 10000},
+            "W2": {"openalex_id": "W2", "title": "We introduce an intrusion detection corpus", "abstract": "", "cited_by_count": 0},
+        }
+        ranked, _scores = rank_work_pool(pool, profile, 0, 3)
+        self.assertEqual([row["openalex_id"] for row in ranked], ["W2", "W1"])
+
     def test_client_paces_every_request(self) -> None:
         """Verify OpenAlex calls respect the configured minimum interval."""
         client = OpenAlexClient(request_pause_seconds=.5)
@@ -55,7 +82,9 @@ class OpenAlexPipelineTests(unittest.TestCase):
 
     def test_release_roles_and_adjacent_tier(self) -> None:
         """Verify release roles map correctly to core, adjacent, and exclusions."""
-        config = {"accept_confidence": .8, "exclude_confidence": .75, "require_verified_quote": True}
+        self.assertNotIn("confidence", RESPONSE_SCHEMA["properties"])
+        self.assertNotIn("classification_confidence", CLASSIFICATION_COLUMNS)
+        config = {"require_verified_quote": True}
         cases = (
             ("original_release", "core", "dataset", "accept"),
             ("versioned_release", "core", "dataset_and_generator", "accept"),
@@ -68,11 +97,23 @@ class OpenAlexPipelineTests(unittest.TestCase):
             with self.subTest(role=role, tier=tier):
                 result = normalize_response({
                     "paper_role": role, "relevance_tier": tier, "artifact_name": "Generic Trace Corpus" if "release" in role else "",
-                    "artifact_aliases": [], "artifact_type": artifact_type, "domain": "unknown", "data_form": "unknown",
-                    "capture_environment": "unknown", "labeling": "unknown", "confidence": .95,
+                    "artifact_display_name": "Generic Trace", "artifact_aliases": [], "artifact_type": artifact_type, "domain": "unknown", "data_form": "unknown",
+                    "capture_environment": "unknown", "labeling": "unknown",
                     "direct_release_evidence": "release" in role, "primary_reason": "fixture",
                 }, [{"source": "Abstract", "quote": "fixture"}], config, "artifact-id")
                 self.assertEqual(result["decision"], expected)
+
+        mismatch = normalize_response({
+            "paper_role": "generator_release", "relevance_tier": "core", "artifact_name": "Generic Toolkit",
+            "artifact_display_name": "Generic Toolkit", "artifact_aliases": [], "artifact_type": "dataset", "domain": "unknown", "data_form": "unknown",
+            "capture_environment": "unknown", "labeling": "unknown",
+            "direct_release_evidence": True, "primary_reason": "Introduces a generator.",
+            "evidence": [{"source": "Abstract", "quote": "introduces a generator"}],
+        }, [], config, "artifact-id")
+        self.assertEqual(mismatch["decision"], "uncertain")
+        self.assertIn("role_artifact_type_mismatch", mismatch["classification_validation_flags"])
+        self.assertIn("verified_evidence_missing", mismatch["classification_validation_flags"])
+        self.assertIn("introduces a generator", mismatch["model_evidence_json"])
 
     def test_generic_alias_linking_uses_one_stable_artifact_id(self) -> None:
         """Verify generic spelling variants share a stable artifact identifier."""
@@ -82,6 +123,14 @@ class OpenAlexPipelineTests(unittest.TestCase):
         ]
         canonicalize_artifact_ids(rows)
         self.assertEqual(rows[0]["artifact_id"], rows[1]["artifact_id"])
+
+    def test_resource_name_is_explicit_for_legacy_and_new_classifications(self) -> None:
+        """Verify processed rows expose a concise resource name independently of the paper title."""
+        legacy = {"artifact_name": "CICIDS2017", "artifact_display_name": "", "artifact_aliases": ""}
+        self.assertEqual(ensure_resource_name(legacy), "CICIDS2017")
+        self.assertEqual(legacy["resource_name"], "CICIDS2017")
+        aliased = {"artifact_name": "Intrusion Detection Dataset Toolkit", "artifact_display_name": "", "artifact_aliases": "ID2T"}
+        self.assertEqual(ensure_resource_name(aliased), "ID2T")
 
     def test_abstract_reconstruction_and_metadata(self) -> None:
         """Verify abstract reconstruction and normalized source metadata."""
@@ -124,22 +173,28 @@ class OpenAlexPipelineTests(unittest.TestCase):
             settings = {
                 "per_page": 10, "max_pages_per_query": 1, "max_surveys": 1,
                 "max_reference_works_per_survey": 10, "max_survey_reference_candidates_total": 10,
-                "survey_reference_fraction": .4, "progress_every": 10,
+                "survey_reference_fraction": .4, "progress_every": 10, "retrieval_minimum_score": 0,
             }
             profile = {"survey_queries": ["dataset survey"], "direct_queries": ["intrusion dataset"]}
             with PipelineCache(root / "cache.sqlite3") as cache:
                 counts = collect(settings, profile, cache, limit=5, client=fake)  # type: ignore[arg-type]
                 referenced = cache.get_record("openalex.work", "https://openalex.org/W2")
-            self.assertEqual(counts["discovered"], 5)
+                active = cache.get_record("openalex.collection", "latest")
+                survey_rows = export_survey_sources(cache, root / "surveys.csv", "run")
+            self.assertEqual(counts["discovered"], 4)
+            self.assertEqual(counts["auxiliary_cached_works"], 1)
             self.assertEqual(counts["survey_sources"], 1)
             self.assertEqual(counts["survey_reference_works"], 2)
             self.assertEqual(len(fake.batches), 1)
             self.assertIn("survey_reference:W1", referenced["discovery_relations"])
+            self.assertNotIn("https://openalex.org/W1", active["work_ids"])
+            self.assertEqual([row["openalex_id"] for row in survey_rows], ["https://openalex.org/W1"])
 
     def test_work_level_classification_and_export(self) -> None:
         """Verify work-level adjudication excludes downstream applications."""
         settings = load_settings(ROOT / "config/default.toml")
         profile = load_term_profile(settings, "openalex")
+        prompts = load_prompt_profile(settings, "openalex")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidates, classified, reconciled = root / "candidates.csv", root / "classified.csv", root / "reconciled.csv"
@@ -151,20 +206,43 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     "authors": "A Researcher", "venue": "Security Venue", "publication_year": 2024, "publication_date": "2024-01-01",
                     "work_type": "article", "primary_url": "https://doi.org/10.1/example", "pdf_url": "", "is_oa": "true", "cited_by_count": 0,
                 }
-                downstream = dict(base, openalex_id="https://openalex.org/W2", doi="10.1/downstream", title="Improving a classifier", abstract="We report classification accuracy for network traffic intrusion detection using an existing dataset.")
+                downstream = dict(base, openalex_id="https://openalex.org/W2", doi="10.1/downstream", title="Improving a classifier", abstract="We report classification accuracy for network traffic intrusion detection using a publicly available existing dataset.")
                 cache.put_record("openalex.work", base["openalex_id"], {"work": base, "discovery_relations": ["direct_search"], "matched_queries": ["intrusion detection dataset"]}, "2026-01-01T00:00:00+00:00")
                 cache.put_record("openalex.work", downstream["openalex_id"], {"work": downstream, "discovery_relations": ["direct_search"], "matched_queries": ["intrusion detection dataset"]}, "2026-01-01T00:00:00+00:00")
                 rows = prefilter(settings.section("openalex"), profile, cache, candidates, "fixture-run")
                 self.assertEqual(len(rows), 2)
-                decisions = classify(candidates, classified, cache, settings.section("ollama"), generator=FakePaperModel())
+                decisions = classify(candidates, classified, cache, settings.section("ollama"), generator=FakePaperModel(), prompt_config=prompts)
                 self.assertEqual({row["decision"] for row in decisions}, {"accept", "exclude"})
+                accepted_decision = next(row for row in decisions if row["decision"] == "accept")
+                self.assertEqual(accepted_decision["classification_validation_flags"], "")
+                self.assertEqual(accepted_decision["artifact_display_name"], "NAT Corpus")
+                self.assertIn("introduce a new labeled", accepted_decision["model_evidence_json"])
                 reconcile(classified, reconciled, cache, settings.section("ollama"), settings.section("openalex"), dry_run=True)
                 accepted, adjacent_rows = export(reconciled, main, adjacent)
                 self.assertEqual(len(accepted), 1)
                 self.assertEqual(adjacent_rows, [])
                 self.assertEqual(accepted[0]["openalex_id"], "https://openalex.org/W1")
                 self.assertTrue(accepted[0]["artifact_id"])
+                self.assertEqual(accepted[0]["resource_name"], "NAT Corpus")
                 self.assertEqual(accepted[0]["paper_relationship"], "canonical_base")
+
+    def test_prefilter_uses_latest_collection_without_deleting_history(self) -> None:
+        """Verify stale cached works do not leak into the latest candidate pool."""
+        profile = {"positive": {"scope": {"weight": 3, "terms": ["intrusion detection"]}}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                for work_id in ("W-old", "W-new", "W-survey"):
+                    cache.put_record("openalex.work", work_id, {
+                        "work": {"openalex_id": work_id, "title": "An intrusion detection dataset"},
+                        "discovery_relations": ["direct_search"], "matched_queries": ["query"],
+                    }, "2026-01-01T00:00:00+00:00")
+                cache.put_record("openalex.collection", "latest", {
+                    "work_ids": ["W-new", "W-survey"], "survey_ids": ["W-survey"], "selected_at": "now",
+                }, "now")
+                rows = prefilter({"candidate_threshold": 3, "borderline_threshold": 1}, profile, cache, root / "candidates.csv", "run")
+                self.assertIsNotNone(cache.get_record("openalex.work", "W-old"))
+            self.assertEqual([row["openalex_id"] for row in rows], ["W-new"])
 
     def test_paper_reconciliation_is_order_independent(self) -> None:
         """Verify base-paper selection is independent of input row order."""

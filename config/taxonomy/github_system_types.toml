@@ -1,0 +1,118 @@
+schema_version = "1.0"
+
+# System types are derived deterministically from the normalized LLM dimensions.
+# Add another [types.CODE] table to extend this list without changing Python.
+# Supported selectors are any/all_scopes, any/all_capabilities, any/all_methods,
+# and any_roles. Higher priority types become the primary_system_type.
+
+[types.NIDS]
+name = "Network intrusion detection system"
+description = "Detects intrusions from network packets, flows, sessions, or network infrastructure."
+priority = 100
+any_scopes = ["network"]
+all_capabilities = ["detection"]
+
+[types.NIPS]
+name = "Network intrusion prevention system"
+description = "Actively prevents intrusions at the network observation scope."
+priority = 99
+any_scopes = ["network"]
+all_capabilities = ["prevention"]
+
+[types.NDR]
+name = "Network detection and response"
+description = "Detects network threats and supports or performs response actions."
+priority = 98
+any_scopes = ["network"]
+all_capabilities = ["detection", "response"]
+
+[types.HIDS]
+name = "Host intrusion detection system"
+description = "Detects intrusions from endpoint files, processes, events, system calls, or host state."
+priority = 100
+any_scopes = ["host_endpoint"]
+all_capabilities = ["detection"]
+
+[types.HIPS]
+name = "Host intrusion prevention system"
+description = "Actively prevents intrusions at the host or endpoint scope."
+priority = 99
+any_scopes = ["host_endpoint"]
+all_capabilities = ["prevention"]
+
+[types.EDR]
+name = "Endpoint detection and response"
+description = "Detects endpoint threats and supports or performs response actions."
+priority = 98
+any_scopes = ["host_endpoint"]
+all_capabilities = ["detection", "response"]
+
+[types.WIDS]
+name = "Wireless intrusion detection system"
+description = "Detects intrusions in wireless protocols, radio networks, or wireless devices."
+priority = 100
+any_scopes = ["wireless"]
+all_capabilities = ["detection"]
+
+[types.WIPS]
+name = "Wireless intrusion prevention system"
+description = "Actively prevents intrusions at the wireless observation scope."
+priority = 99
+any_scopes = ["wireless"]
+all_capabilities = ["prevention"]
+
+[types.DBIDS]
+name = "Database intrusion detection system"
+description = "Detects malicious or anomalous database queries, transactions, audit events, or state changes."
+priority = 100
+any_scopes = ["database"]
+all_capabilities = ["detection"]
+
+[types.DBIPS]
+name = "Database intrusion prevention system"
+description = "Actively prevents intrusions at the database observation scope."
+priority = 99
+any_scopes = ["database"]
+all_capabilities = ["prevention"]
+
+[types.APIDS]
+name = "Application-protocol intrusion detection system"
+description = "Detects intrusions from application-layer requests, APIs, services, or protocol behavior."
+priority = 100
+any_scopes = ["application"]
+all_capabilities = ["detection"]
+
+[types.PIDS]
+name = "Protocol-based intrusion detection system"
+description = "Detects violations or attacks through explicit stateful or semantic protocol analysis; PIDS always has this meaning in this catalogue."
+priority = 110
+any_methods = ["protocol_analysis"]
+all_capabilities = ["detection"]
+
+[types.ProvIDS]
+name = "Provenance-based intrusion detection system"
+description = "Detects intrusions using information-flow or system-provenance graphs and event lineage."
+priority = 100
+any_scopes = ["provenance"]
+all_capabilities = ["detection"]
+
+[types.XDR]
+name = "Extended detection and response"
+description = "Combines detection and response across materially different observation scopes."
+priority = 105
+any_scopes = ["multi_scope"]
+all_capabilities = ["detection", "response"]
+
+[types.IDS]
+name = "Intrusion detection system"
+description = "Detects intrusions, but the evidence does not support a more specific configured system type."
+priority = 10
+all_capabilities = ["detection"]
+fallback_only = true
+
+[types.IPS]
+name = "Intrusion prevention system"
+description = "Prevents intrusions, but the evidence does not support a more specific configured system type."
+priority = 9
+all_capabilities = ["prevention"]
+fallback_only = true

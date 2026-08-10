@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
+from html import unescape
 from typing import Any
 
 import requests
@@ -82,28 +83,34 @@ def format_evidence(sections: list[EvidenceSection], max_chars: int = 14000) -> 
 
 
 def verify_evidence(value: Any, sections: list[EvidenceSection]) -> tuple[list[dict[str, str]], bool]:
-    """Keep only model quotes that occur in their claimed evidence section."""
-    supplied = {section.source: normalize_text(section.text) for section in sections}
+    """Keep quotes found in their claimed section, tolerating harmless source casing and HTML entities."""
+    supplied = {
+        normalize_text(unescape(section.source)): (section.source, normalize_text(unescape(section.text)))
+        for section in sections
+    }
     verified: list[dict[str, str]] = []
     for item in value if isinstance(value, list) else []:
         if not isinstance(item, dict):
             continue
         source = str(item.get("source", "")).strip()
         quote = str(item.get("quote", "")).strip()
-        if source in supplied and quote and normalize_text(quote) in supplied[source]:
-            verified.append({"source": source, "quote": quote})
+        source_key = normalize_text(unescape(source))
+        quote_text = normalize_text(unescape(quote))
+        if source_key in supplied and quote_text and quote_text in supplied[source_key][1]:
+            verified.append({"source": supplied[source_key][0], "quote": quote})
     return verified, bool(verified)
 
 
-def decision_profile(model: str, prompt_version: str, config: dict[str, Any]) -> str:
+def decision_profile(
+    model: str, prompt_version: str, config: dict[str, Any], prompt_config: dict[str, Any] | None = None,
+) -> str:
     """Fingerprint model and decision settings that affect cached classifications."""
     relevant = {
         "model": model,
         "prompt_version": prompt_version,
         "temperature": config.get("temperature"),
         "seed": config.get("seed"),
-        "accept_confidence": config.get("accept_confidence"),
-        "exclude_confidence": config.get("exclude_confidence"),
         "require_verified_quote": config.get("require_verified_quote"),
+        "prompt_config": prompt_config or {},
     }
     return stable_hash(json.dumps(relevant, sort_keys=True))

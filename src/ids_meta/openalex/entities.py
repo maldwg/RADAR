@@ -7,7 +7,7 @@ from ids_meta.common.text import normalize_text, split_values, stable_hash
 
 def _names(row: dict[str, str]) -> set[str]:
     """Return normalized artifact names and aliases suitable for comparison."""
-    values = [row.get("artifact_name", ""), *split_values(row.get("artifact_aliases", ""))]
+    values = [row.get("artifact_name", ""), row.get("artifact_display_name", ""), *split_values(row.get("artifact_aliases", ""))]
     return {normalize_text(value) for value in values if len(normalize_text(value)) >= 5}
 
 

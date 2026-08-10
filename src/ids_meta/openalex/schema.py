@@ -18,14 +18,17 @@ LABELING = ("labeled", "partially_labeled", "unlabeled", "unknown")
 METADATA_COLUMNS = [
     "schema_version", "run_id", "openalex_id", "doi", "title", "abstract", "authors", "venue",
     "publication_year", "publication_date", "work_type", "primary_url", "pdf_url", "is_oa",
-    "cited_by_count", "citation_as_of", "metadata_fetched_at", "discovery_relations", "matched_queries", "evidence_hash",
+    "cited_by_count", "citation_as_of", "referenced_works_count", "metadata_fetched_at", "discovery_relations", "matched_queries", "evidence_hash",
+    "retrieval_rank_score", "retrieval_score", "retrieval_title_score", "retrieval_signals", "survey_discovery_score",
 ]
 CANDIDATE_COLUMNS = METADATA_COLUMNS + ["prefilter_score", "prefilter_band", "prefilter_signals"]
+SURVEY_COLUMNS = METADATA_COLUMNS
 CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
     "pipeline_version", "profile_hash", "llm_model", "decision", "paper_role", "relevance_tier",
-    "artifact_id", "artifact_name", "artifact_aliases", "artifact_type", "domain", "data_form",
-    "capture_environment", "labeling", "classification_confidence", "direct_release_evidence",
-    "primary_reason", "evidence_json", "evidence_quote_verified", "classified_at", "error",
+    "artifact_id", "artifact_name", "artifact_display_name", "resource_name", "artifact_aliases", "artifact_type", "domain", "data_form",
+    "capture_environment", "labeling", "direct_release_evidence",
+    "primary_reason", "classification_validation_flags", "model_evidence_json", "evidence_json",
+    "evidence_quote_verified", "classified_at", "error",
 ]
 RECONCILIATION_COLUMNS = [
     "publication_family_id", "canonical_openalex_id", "canonical_doi", "canonical_title",
@@ -35,24 +38,25 @@ CATALOGUE_COLUMNS = CLASSIFICATION_COLUMNS + RECONCILIATION_COLUMNS
 
 RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "object",
+    "additionalProperties": False,
     "properties": {
         "paper_role": {"type": "string", "enum": list(PAPER_ROLES)},
         "relevance_tier": {"type": "string", "enum": list(TIERS)},
         "artifact_name": {"type": "string"},
+        "artifact_display_name": {"type": "string", "maxLength": 80},
         "artifact_aliases": {"type": "array", "items": {"type": "string"}},
         "artifact_type": {"type": "string", "enum": list(ARTIFACT_TYPES)},
         "domain": {"type": "string", "enum": list(DOMAINS)},
         "data_form": {"type": "string", "enum": list(DATA_FORMS)},
         "capture_environment": {"type": "string", "enum": list(ENVIRONMENTS)},
         "labeling": {"type": "string", "enum": list(LABELING)},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "direct_release_evidence": {"type": "boolean"},
         "primary_reason": {"type": "string"},
         "evidence": {"type": "array", "maxItems": 4, "items": {"type": "object", "properties": {
-            "source": {"type": "string"}, "quote": {"type": "string"}
+            "source": {"type": "string", "enum": ["OpenAlex metadata", "Abstract"]}, "quote": {"type": "string"}
         }, "required": ["source", "quote"]}},
     },
-    "required": ["paper_role", "relevance_tier", "artifact_name", "artifact_aliases", "artifact_type", "domain", "data_form", "capture_environment", "labeling", "confidence", "direct_release_evidence", "primary_reason", "evidence"],
+    "required": ["paper_role", "relevance_tier", "artifact_name", "artifact_display_name", "artifact_aliases", "artifact_type", "domain", "data_form", "capture_environment", "labeling", "direct_release_evidence", "primary_reason", "evidence"],
 }
 
 
@@ -62,45 +66,82 @@ def enum_value(value: Any, allowed: tuple[str, ...], default: str) -> str:
     return text if text in allowed else default
 
 
+def ensure_resource_name(row: dict[str, str]) -> str:
+    """Populate an explicit concise resource name from LLM output or legacy name fields."""
+    display = str(row.get("artifact_display_name", "") or "").strip()
+    if not display:
+        aliases = [value.strip() for value in str(row.get("artifact_aliases", "") or "").split(";") if value.strip()]
+        compact = [value for value in aliases if len(value) <= 80]
+        if compact:
+            display = min(compact, key=lambda value: (len(value), value.casefold()))
+    if not display:
+        canonical = str(row.get("artifact_name", "") or "").strip()
+        display = canonical if len(canonical) <= 80 else canonical[:79].rstrip() + "…"
+    row["artifact_display_name"] = display
+    row["resource_name"] = display
+    return display
+
+
 def normalize_response(raw: dict[str, Any], verified: list[dict[str, str]], config: dict[str, Any], artifact_id: str) -> dict[str, str]:
     """Normalize and adjudicate a raw OpenAlex classifier response."""
     role = enum_value(raw.get("paper_role"), PAPER_ROLES, "uncertain")
     tier = enum_value(raw.get("relevance_tier"), TIERS, "uncertain")
-    confidence = max(0.0, min(1.0, float(raw.get("confidence", 0) or 0)))
     direct = bool(raw.get("direct_release_evidence"))
     artifact_name = str(raw.get("artifact_name", "")).strip()
+    artifact_display_name = str(raw.get("artifact_display_name", "")).strip()[:80]
     artifact_type = enum_value(raw.get("artifact_type"), ARTIFACT_TYPES, "unknown")
     role_artifact_ok = (
         role in ("original_release", "versioned_release") and artifact_type in ("dataset", "dataset_and_generator")
     ) or (role == "generator_release" and artifact_type in ("generator_framework", "dataset_and_generator"))
     quote_ok = bool(verified) or not bool(config.get("require_verified_quote", True))
-    if role in ACCEPTED_ROLES and role_artifact_ok and tier == "core" and confidence >= float(config.get("accept_confidence", .8)) and direct and artifact_name and quote_ok:
+    validation_flags: list[str] = []
+    if role in ACCEPTED_ROLES:
+        if not role_artifact_ok:
+            validation_flags.append("role_artifact_type_mismatch")
+        if tier not in ("core", "adjacent") or (tier == "adjacent" and role == "generator_release"):
+            validation_flags.append("tier_not_accepted_for_role")
+        if not direct:
+            validation_flags.append("direct_release_evidence_missing")
+        if not artifact_name:
+            validation_flags.append("artifact_name_missing")
+        if not quote_ok:
+            validation_flags.append("verified_evidence_missing")
+    elif role in ("survey", "downstream_application", "dataset_analysis", "unrelated") and not quote_ok:
+        validation_flags.append("verified_evidence_missing")
+    elif role == "uncertain":
+        validation_flags.append("model_role_uncertain")
+    if role in ACCEPTED_ROLES and role_artifact_ok and tier == "core" and direct and artifact_name and quote_ok:
         decision = "accept"
-    elif role in ("original_release", "versioned_release") and role_artifact_ok and tier == "adjacent" and confidence >= float(config.get("accept_confidence", .8)) and direct and artifact_name and quote_ok:
+    elif role in ("original_release", "versioned_release") and role_artifact_ok and tier == "adjacent" and direct and artifact_name and quote_ok:
         decision = "accept_adjacent"
-    elif role in ("survey", "downstream_application", "dataset_analysis", "unrelated") and confidence >= float(config.get("exclude_confidence", .75)):
+    elif role in ("survey", "downstream_application", "dataset_analysis", "unrelated") and quote_ok:
         decision = "exclude"
     else:
         decision = "uncertain"
     aliases = raw.get("artifact_aliases") if isinstance(raw.get("artifact_aliases"), list) else []
-    return {
+    result = {
         "decision": decision, "paper_role": role, "relevance_tier": tier,
         "artifact_id": artifact_id, "artifact_name": artifact_name,
+        "artifact_display_name": artifact_display_name,
         "artifact_aliases": ";".join(dict.fromkeys(str(item).strip() for item in aliases if str(item).strip())),
         "artifact_type": artifact_type,
         "domain": enum_value(raw.get("domain"), DOMAINS, "unknown"),
         "data_form": enum_value(raw.get("data_form"), DATA_FORMS, "unknown"),
         "capture_environment": enum_value(raw.get("capture_environment"), ENVIRONMENTS, "unknown"),
         "labeling": enum_value(raw.get("labeling"), LABELING, "unknown"),
-        "classification_confidence": f"{confidence:.3f}", "direct_release_evidence": str(direct).lower(),
+        "direct_release_evidence": str(direct).lower(),
         "primary_reason": str(raw.get("primary_reason", "")).strip()[:1000],
+        "classification_validation_flags": ";".join(validation_flags),
+        "model_evidence_json": json.dumps(raw.get("evidence") if isinstance(raw.get("evidence"), list) else [], ensure_ascii=False),
         "evidence_json": json.dumps(verified, ensure_ascii=False), "evidence_quote_verified": str(bool(verified)).lower(),
     }
+    ensure_resource_name(result)
+    return result
 
 
 def validate_processed_row(row: dict[str, str]) -> None:
     """Validate the required metadata and taxonomy of an accepted paper row."""
-    required = ("artifact_id", "artifact_name", "openalex_id", "title", "publication_year", "paper_role", "run_id", "evidence_json", "publication_family_id", "canonical_openalex_id", "paper_relationship")
+    required = ("artifact_id", "artifact_name", "artifact_display_name", "resource_name", "openalex_id", "title", "publication_year", "paper_role", "run_id", "evidence_json", "publication_family_id", "canonical_openalex_id", "paper_relationship")
     missing = [name for name in required if not row.get(name)]
     if missing:
         raise ValueError(f"processed OpenAlex row is missing {', '.join(missing)}: {row.get('openalex_id', '<unknown>')}")

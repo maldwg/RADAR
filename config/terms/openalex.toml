@@ -5,8 +5,8 @@ direct_queries = [
   "cybersecurity dataset intrusion detection",
   "host intrusion detection dataset system calls",
   "wireless intrusion detection dataset",
-  "malicious traffic corpus",
-  "attack traffic generation framework",
+  "malicious network traffic corpus",
+  "network attack traffic generation framework",
 ]
 survey_queries = [
   "intrusion detection datasets survey",
@@ -15,20 +15,20 @@ survey_queries = [
 ]
 
 [positive.security_scope]
-weight = 3.0
+weight = 4.0
 terms = ["intrusion detection", "network attack", "cyber attack", "malicious traffic", "security anomaly", "attack detection"]
 
 [positive.data_artifact]
 weight = 3.0
-terms = ["dataset", "data set", "corpus", "benchmark", "traffic traces", "trace collection", "testbed"]
+terms = ["dataset", "data set", "corpus", "testbed", "collected data", "gathered data", "captured"]
 
 [positive.release]
-weight = 4.0
-terms = ["introduce", "release", "present a dataset", "new dataset", "collected", "generated", "publicly available", "data generation framework"]
+weight = 2.0
+terms = ["release", "present a dataset", "new dataset", "generated", "publicly available", "data generation framework", "novel dataset", "publish"]
 
-[positive.observation]
+[positive.network_traffic]
 weight = 1.0
-terms = ["packet", "network flow", "traffic", "log", "system call", "telemetry", "wireless", "industrial control"]
+terms = ["packet", "network flow", "network traffic", ]
 
 [negative.downstream]
 weight = -3.0
@@ -38,3 +38,7 @@ terms = ["feature selection", "classification accuracy", "trained on", "evaluate
 weight = -4.0
 terms = ["survey", "systematic review", "literature review", "taxonomy of datasets"]
 
+
+[negative.classifier]
+weight = -2.0
+terms = ["classifier", "performs better", "benchmark", "exceeds", "outperforms" ]

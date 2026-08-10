@@ -7,10 +7,10 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import load_settings, load_term_profile
+from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from ids_meta.github.pipeline import classify, export, prefilter
 from ids_meta.github.reconcile import reconcile
-from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, ROLES, derive_labels, normalize_response
+from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, derive_labels, derive_system_types, normalize_response
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.github.collect import GitHubClient, _enrich, collect, search_shards
 
@@ -29,7 +29,7 @@ class FakeGitHubModel:
         """Return a deterministic accepted standalone-detector response."""
         self.calls += 1
         return {
-            "role": "standalone_detector", "confidence": .95,
+            "role": "standalone_detector",
             "observation_scopes": ["network"], "capabilities": ["detection", "response"],
             "detection_methods": ["signature_based", "packet_analysis"],
             "independent_fork": False, "direct_self_description": True,
@@ -83,11 +83,13 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_all_meaningful_roles_can_enter_combined_catalogue(self) -> None:
         """Verify every supported meaningful role can be accepted."""
-        config = {"accept_confidence": .8, "exclude_confidence": .75, "require_verified_quote": True}
+        self.assertNotIn("confidence", RESPONSE_SCHEMA["properties"])
+        self.assertNotIn("role_confidence", CLASSIFICATION_COLUMNS)
+        config = {"require_verified_quote": True}
         for role in ROLES:
             with self.subTest(role=role):
                 decision = normalize_response({
-                    "role": role, "confidence": .9, "observation_scopes": ["unknown"],
+                    "role": role, "observation_scopes": ["unknown"],
                     "capabilities": [], "detection_methods": ["unknown"],
                     "independent_fork": False, "direct_self_description": True,
                     "primary_reason": "fixture",
@@ -97,10 +99,10 @@ class GitHubPipelineTests(unittest.TestCase):
     def test_derivative_fork_requires_independence_evidence(self) -> None:
         """Verify derivative forks need evidence of independent significance."""
         decision = normalize_response({
-            "role": "standalone_detector", "confidence": .95, "observation_scopes": ["network"],
+            "role": "standalone_detector", "observation_scopes": ["network"],
             "capabilities": ["detection"], "detection_methods": ["signature_based"],
             "independent_fork": False, "direct_self_description": True, "primary_reason": "fixture",
-        }, [{"source": "README", "quote": "fixture"}], {"accept_confidence": .8}, True)
+        }, [{"source": "README", "quote": "fixture"}], {}, True)
         self.assertEqual(decision["decision"], "uncertain")
 
     def test_search_is_sharded_below_github_cap(self) -> None:
@@ -148,7 +150,19 @@ class GitHubPipelineTests(unittest.TestCase):
     def test_derived_taxonomy(self) -> None:
         """Verify normalized dimensions deterministically produce display labels."""
         self.assertEqual(derive_labels(["network"], ["detection", "response"]), ["NIDS", "NDR"])
-        self.assertIn("XDR", derive_labels(["multi_scope"], ["response"]))
+        self.assertIn("XDR", derive_system_types(["multi_scope"], ["detection", "response"]))
+
+    def test_configured_system_types_are_extensible_and_unambiguous(self) -> None:
+        """Verify configured type rules support standard and newly added codes without code edits."""
+        settings = load_settings(ROOT / "config/default.toml")
+        profile = load_system_type_profile(settings, "github")
+        self.assertEqual(derive_system_types(["database"], ["detection"], profile=profile), ["DBIDS"])
+        self.assertEqual(derive_system_types(["network"], ["detection"], ["protocol_analysis"], profile=profile)[0], "PIDS")
+        extended = {"types": {**profile["types"], "CLOUDIDS": {
+            "name": "Cloud intrusion detection system", "description": "Fixture extension",
+            "priority": 200, "any_scopes": ["multi_scope"], "all_capabilities": ["detection"],
+        }}}
+        self.assertEqual(derive_system_types(["multi_scope"], ["detection"], profile=extended), ["CLOUDIDS"])
 
     def test_enrichment_records_exact_latest_commit_time(self) -> None:
         """Verify enrichment preserves the latest commit's exact timestamp."""
@@ -178,6 +192,8 @@ class GitHubPipelineTests(unittest.TestCase):
         """Verify the offline GitHub pipeline exports and resumes decisions."""
         settings = load_settings(ROOT / "config/default.toml")
         profile = load_term_profile(settings, "github")
+        prompts = load_prompt_profile(settings, "github")
+        system_types = load_system_type_profile(settings, "github")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidates, classified, reconciled, catalogue = root / "candidates.csv", root / "classified.csv", root / "reconciled.csv", root / "repositories.csv"
@@ -198,13 +214,15 @@ class GitHubPipelineTests(unittest.TestCase):
                 rows = prefilter(settings.section("github"), profile, cache, candidates, "fixture-run")
                 self.assertEqual(rows[0]["prefilter_band"], "candidate")
                 model = FakeGitHubModel()
-                first = classify(candidates, classified, cache, settings.section("ollama"), generator=model)
+                first = classify(candidates, classified, cache, settings.section("ollama"), generator=model, prompt_config=prompts, system_type_profile=system_types)
                 self.assertEqual(first[0]["decision"], "accept")
                 self.assertIn("NDR", first[0]["derived_labels"])
-                classify(candidates, classified, cache, settings.section("ollama"), generator=model)
+                self.assertEqual(first[0]["primary_system_type"], "NIDS")
+                self.assertIn("Network intrusion detection system", first[0]["system_type_names"])
+                classify(candidates, classified, cache, settings.section("ollama"), generator=model, prompt_config=prompts, system_type_profile=system_types)
                 self.assertEqual(model.calls, 1, "matching evidence/profile should resume without another LLM call")
                 reconcile(classified, reconciled, cache, settings.section("ollama"), settings.section("github"), dry_run=True)
-                final = export(reconciled, catalogue)
+                final = export(reconciled, catalogue, system_types)
                 self.assertEqual(len(final), 1)
                 self.assertEqual(final[0]["role"], "standalone_detector")
                 self.assertEqual(final[0]["repository_relationship"], "canonical")
