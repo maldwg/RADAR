@@ -7,4 +7,4 @@ data/raw/**/*.sqlite3
 data/raw/**/*.sqlite3-*
 artifacts/plots/
 artifacts/runs/
-
+**/*.log
