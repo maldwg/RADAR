@@ -108,15 +108,27 @@ def _relationship(row: dict[str, str], canonical: dict[str, str]) -> str:
     return "related_repository"
 
 
+def _score_parts(row: dict[str, str], inbound_links: int) -> dict[str, float]:
+    """Return named structural canonical-ranking components."""
+    return {
+        "role": ROLE_WEIGHT.get(row.get("role", ""), 0) * 10.0,
+        "nonfork": 5.0 if row.get("fork") != "true" else 0.0,
+        "self_description": 4.0 if row.get("direct_self_description") == "true" else 0.0,
+        "nonvariant": 4.0 if not _variant_tokens(row) else 0.0,
+        "inbound_links": float(min(8, inbound_links * 2)),
+        "commit": 1.0 if row.get("last_commit_sha") else 0.0,
+    }
+
+
 def _score(row: dict[str, str], inbound_links: int) -> float:
     """Rank canonical candidates using structural evidence rather than popularity."""
-    score = ROLE_WEIGHT.get(row.get("role", ""), 0) * 10.0
-    score += 5 if row.get("fork") != "true" else 0
-    score += 4 if row.get("direct_self_description") == "true" else 0
-    score += 4 if not _variant_tokens(row) else 0
-    score += min(8, inbound_links * 2)
-    score += 1 if row.get("last_commit_sha") else 0
-    return score
+    return sum(_score_parts(row, inbound_links).values())
+
+
+def _score_breakdown(row: dict[str, str], inbound_links: int) -> str:
+    """Format a stable human-readable structural score decomposition."""
+    parts = _score_parts(row, inbound_links)
+    return " + ".join(f"{name}={value:.1f}" for name, value in parts.items()) + f" = {sum(parts.values()):.1f}"
 
 
 def _prompt(group: list[dict[str, str]], scores: dict[str, float], prompt_config: dict[str, Any] | None = None) -> str:
@@ -144,6 +156,10 @@ def reconcile(
     require_columns(rows, ("github_repo_id", "full_name", "decision", "role"), classifications_path)
     accepted = [row for row in rows if row.get("decision") == "accept"]
     links = {row.get("github_repo_id", ""): _linked_names(row, cache) for row in accepted}
+    for row in accepted:
+        upstream = row.get("upstream_full_name", "").strip().casefold()
+        if upstream:
+            links[row.get("github_repo_id", "")].add(upstream)
 
     def should_link(left: dict[str, str], right: dict[str, str]) -> bool:
         """Decide whether two accepted repositories belong to one project family."""
@@ -158,7 +174,8 @@ def reconcile(
         same_stem = repository_stem(left.get("name", "")) == repository_stem(right.get("name", "")) and len(repository_stem(left.get("name", ""))) >= 4
         explicit = right_name in links.get(left.get("github_repo_id", ""), set()) or left_name in links.get(right.get("github_repo_id", ""), set())
         shared_homepage = bool(_homepage(left)) and _homepage(left) == _homepage(right)
-        return (same_owner and same_stem) or (explicit and (same_owner or same_stem)) or (shared_homepage and same_stem)
+        derivative_context = bool(_variant_tokens(left) or _variant_tokens(right))
+        return (same_owner and same_stem) or (explicit and (same_owner or same_stem or derivative_context)) or (shared_homepage and same_stem)
 
     groups = group_by_links(accepted, should_link)
     LOG.info("reconciling GitHub catalogue accepted=%d project_families=%d", len(accepted), len(groups))
@@ -179,13 +196,26 @@ def reconcile(
                 if linked in group_names:
                     inbound[group_names[linked]] += 1
         scores = {row.get("github_repo_id", ""): _score(row, inbound[row.get("github_repo_id", "")]) for row in group}
-        ordered = sorted(group, key=lambda row: (-scores[row.get("github_repo_id", "")], row.get("full_name", "").casefold(), row.get("github_repo_id", "")))
-        canonical = ordered[0]
-        margin = scores[canonical.get("github_repo_id", "")] - (scores[ordered[1].get("github_repo_id", "")] if len(ordered) > 1 else 999)
-        resolution = "deterministic"
-        reason = f"highest structural score {scores[canonical.get('github_repo_id', '')]:.1f}; margin {margin:.1f}"
+        base_candidates = [
+            row for row in group
+            if not _variant_tokens(row) and (row.get("fork") != "true" or row.get("independent_fork") == "true")
+        ]
+        ordered = sorted(base_candidates, key=lambda row: (-scores[row.get("github_repo_id", "")], row.get("full_name", "").casefold(), row.get("github_repo_id", "")))
+        canonical = ordered[0] if ordered else None
+        margin: float | None = None
+        resolution = "base_repository_missing" if canonical is None else "deterministic"
         adjudicated = False
-        if len(group) > 1 and margin < ambiguity_margin and use_llm:
+        if canonical is None:
+            reason = "no eligible base repository in family; only derivative or non-independent fork repositories were found"
+        elif len(group) == 1:
+            resolution = "singleton_project"
+            reason = f"singleton project; structural score {scores[canonical.get('github_repo_id', '')]:.1f}; margin n/a"
+        elif len(ordered) == 1:
+            reason = f"only eligible base repository; structural score {scores[canonical.get('github_repo_id', '')]:.1f}; margin n/a"
+        else:
+            margin = scores[canonical.get("github_repo_id", "")] - scores[ordered[1].get("github_repo_id", "")]
+            reason = f"highest structural score {scores[canonical.get('github_repo_id', '')]:.1f}; margin {margin:.1f}"
+        if canonical is not None and len(ordered) > 1 and margin is not None and margin < ambiguity_margin and use_llm:
             group_key = stable_hash(*sorted(row.get("github_repo_id", "") for row in group))
             evidence_hash = stable_hash(json.dumps(group, sort_keys=True))
             try:
@@ -195,7 +225,7 @@ def reconcile(
                 cached = cache.get_decision("github.reconciliation", group_key, profile_hash, evidence_hash) if cache else None
                 raw = cached or model_client.generate(_prompt(group, scores, prompt_config), RESPONSE_SCHEMA)
                 selected = str(raw.get("canonical_repo_id", ""))
-                if selected in by_id and by_id[selected] in group:
+                if any(row.get("github_repo_id") == selected for row in base_candidates):
                     canonical = by_id[selected]
                     reason = str(raw.get("reason", "group LLM adjudication"))[:1000]
                     resolution = "llm_group_adjudication"
@@ -206,19 +236,35 @@ def reconcile(
                 resolution = "ambiguous_deterministic_fallback"
                 reason += f"; group adjudication failed: {str(exc)[:240]}"
                 LOG.warning("GitHub group adjudication failed group=%s: %s", group_key, exc)
-        elif len(group) > 1 and margin < ambiguity_margin:
+        elif canonical is not None and len(ordered) > 1 and margin is not None and margin < ambiguity_margin:
             resolution = "ambiguous_deterministic_fallback"
-        confidence = margin_confidence(margin, len(group), adjudicated)
-        canonical_id = canonical.get("github_repo_id", "")
-        project_id = f"github-project-{canonical_id}"
-        LOG.info("reconciled project family %d/%d members=%d canonical=%s resolution=%s", group_index, len(groups), len(group), canonical.get("full_name", canonical_id), resolution)
+        canonical_id = canonical.get("github_repo_id", "") if canonical else ""
+        project_id = f"github-project-{canonical_id}" if canonical_id else f"github-unresolved-{stable_hash(*sorted(row.get('github_repo_id', '') for row in group), length=12)}"
+        if canonical is None or len(group) == 1:
+            confidence = ""
+        elif len(ordered) == 1:
+            confidence = ".960"
+        else:
+            confidence = f"{margin_confidence(float(margin), len(group), adjudicated):.3f}"
+        canonical_score = scores.get(canonical_id) if canonical_id else None
+        breakdown = _score_breakdown(canonical, inbound[canonical_id]) if canonical else ""
+        LOG.info("reconciled project family %d/%d members=%d canonical=%s resolution=%s", group_index, len(groups), len(group), canonical.get("full_name", canonical_id) if canonical else "missing", resolution)
         for row in group:
+            if canonical is None:
+                relationship = "base_repository_missing"
+            elif len(group) == 1:
+                relationship = "standalone_project"
+            else:
+                relationship = _relationship(row, canonical)
             reconciled_fields[row.get("github_repo_id", "")] = {
                 "project_id": project_id, "canonical_repo_id": canonical_id,
-                "canonical_full_name": canonical.get("full_name", ""),
-                "repository_relationship": _relationship(row, canonical),
-                "canonical_confidence": f"{confidence:.3f}", "canonical_reason": reason,
+                "canonical_full_name": canonical.get("full_name", "") if canonical else "",
+                "repository_relationship": relationship,
+                "canonical_confidence": confidence, "canonical_reason": reason,
                 "canonical_resolution": resolution,
+                "canonical_score": f"{canonical_score:.1f}" if canonical_score is not None else "",
+                "canonical_margin": f"{margin:.1f}" if margin is not None else "",
+                "canonical_score_breakdown": breakdown,
             }
     output_rows: list[dict[str, str]] = []
     for row in rows:

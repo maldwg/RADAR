@@ -15,7 +15,7 @@ ${capabilities}
 Detection methods:
 ${methods}
 
-Set direct_self_description only when evidence states what this repository itself does. A fork is independent only with direct evidence of materially distinct functionality. Return exact short quotes from the named evidence sections and JSON matching the schema.
+Set direct_self_description only when evidence states what this repository itself does. For standalone_detector, set runtime_observation only with evidence that the repository consumes live or operational packets, flows, logs, events, calls, frames, or queries; set runnable_detector only with a documented executable, service, daemon, sensor, CLI, or concrete run path; and set offline_dataset_only for notebooks, training/evaluation scripts, or classifiers limited to static datasets. A standalone detector requires runtime_observation and runnable_detector and must not be offline_dataset_only. Extract upstream_full_name only when evidence explicitly identifies an upstream GitHub owner/repository. A fork is independent only with direct evidence of materially distinct functionality. Return exact short quotes from the named evidence sections and JSON matching the schema.
 
 EVIDENCE
 ${evidence}"""
@@ -27,7 +27,7 @@ GROUP
 ${evidence}"""
 
 [roles]
-standalone_detector = "Deployable detector or prevention system whose primary function is identifying or blocking intrusions."
+standalone_detector = "Runnable detector or prevention system that consumes operational observations and decides or blocks intrusions; notebooks, static-dataset classifiers, and paper-only experiments do not qualify."
 platform_framework = "Extensible security platform integrating multiple detection, monitoring, response, or analysis components."
 classifier_model = "Reusable trained model or classifier implementation that decides whether activity is malicious or anomalous."
 rules_content = "Detection signatures, rules, policies, queries, or threat content rather than a standalone detector."

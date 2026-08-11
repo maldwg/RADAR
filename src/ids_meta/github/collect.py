@@ -168,7 +168,7 @@ class GitHubClient:
 
     def search(self, query: str, page: int = 1, per_page: int = 100) -> dict[str, Any]:
         """Search GitHub repositories using the configured result ordering."""
-        return self.get_json("/search/repositories", {"q": query, "page": page, "per_page": per_page, "sort": "updated", "order": "desc"})
+        return self.get_json("/search/repositories", {"q": query, "page": page, "per_page": per_page})
 
     def raw_readme(self, full_name: str) -> str:
         """Fetch a repository README as raw text, returning blank on failure."""
@@ -215,8 +215,9 @@ def search_shards(client: GitHubClient, base_query: str, start: date, end: date,
     LOG.debug("query=%r shard=%s total=%d", base_query, shard, total)
     if total > 1000 and start < end:
         LOG.info("query=%r shard=%s exceeds GitHub's 1,000-result cap; splitting date range", base_query, shard)
-        for left, right in _split_range(start, end):
-            yield from search_shards(client, base_query, left, right, per_page)
+        left, right = _split_range(start, end)
+        yield from search_shards(client, base_query, *right, per_page)
+        yield from search_shards(client, base_query, *left, per_page)
         return
     incomplete = bool(first.get("incomplete_results")) or total > 1000
     yield shard, first, incomplete
@@ -270,48 +271,65 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     end = datetime.now(timezone.utc).date()
     seen: dict[str, dict[str, Any]] = {}
     matched: dict[str, set[str]] = {}
+    best_match_rank: dict[str, int] = {}
     if resume:
         for key, payload, _cached_at in cache.records("github.search_candidate"):
-            if limit is not None and len(seen) >= limit:
-                break
             if payload.get("item"):
                 seen[key] = payload["item"]
                 matched[key] = set(payload.get("matched_queries", []))
+                best_match_rank[key] = int(payload.get("best_match_rank") or 10**9)
     fetched_at = utc_now()
     incomplete_shards: set[tuple[str, str]] = set()
+    scan_multiplier = max(1.0, float(settings.get("search_scan_multiplier", 1.0)))
+    scan_target = None if limit is None else max(limit, math.ceil(limit * scan_multiplier))
+    queries = [str(query) for query in profile.get("search_queries", [])]
     LOG.info(
-        "starting GitHub collection queries=%d resume=%s limit=%s cached_search_candidates=%d pacing=%.2fs/search=%.2fs authentication=%s",
-        len(profile.get("search_queries", [])), resume, limit or "none", len(seen),
+        "starting GitHub collection queries=%d resume=%s limit=%s scan_target=%s cached_search_candidates=%d ordering=github_best_match pacing=%.2fs/search=%.2fs authentication=%s",
+        len(queries), resume, limit or "none", scan_target or "all", len(seen),
         float(settings.get("request_pause_seconds", 1.0)), float(settings.get("search_pause_seconds", 2.2)),
         "token" if client.authenticated else "anonymous",
     )
-    for query in profile.get("search_queries", []):
-        if limit is not None and len(seen) >= limit:
-            LOG.info("collection limit already satisfied from cached candidates before query=%r", query)
-            break
-        query_before = len(seen)
-        LOG.info("searching GitHub query=%r", query)
-        for shard, page, incomplete in search_shards(client, str(query), start, end, per_page):
-            if incomplete:
-                incomplete_shards.add((str(query), shard))
-            cache.put_coverage("github", str(query), shard, "incomplete" if incomplete else "complete", int(page.get("total_count") or 0), {"incomplete_results": bool(page.get("incomplete_results"))}, utc_now())
-            for item in page.get("items", []):
-                key = str(item.get("id") or "")
-                if not key:
+    if not (resume and scan_target is not None and len(seen) >= scan_target):
+        iterators = {query: iter(search_shards(client, query, start, end, per_page)) for query in queries}
+        active = list(queries)
+        query_positions = {query: 0 for query in queries}
+        per_query_target = None if scan_target is None else max(1, math.ceil(scan_target / max(1, len(queries))))
+        while active:
+            for query in list(active):
+                try:
+                    shard, page, incomplete = next(iterators[query])
+                except StopIteration:
+                    active.remove(query)
                     continue
-                if key not in seen and limit is not None and len(seen) >= limit:
-                    break
-                seen[key] = item
-                matched.setdefault(key, set()).add(str(query))
-                cache.put_record("github.search_candidate", key, {"item": item, "matched_queries": sorted(matched[key])}, fetched_at)
-                if limit is not None and len(seen) >= limit:
-                    break
-            if limit is not None and len(seen) >= limit:
-                break
-        if limit is not None and len(seen) >= limit:
-            LOG.info("collection limit reached after query=%r", query)
-            break
-        LOG.info("finished query=%r new_unique_candidates=%d total_unique_candidates=%d", query, len(seen) - query_before, len(seen))
+                if incomplete:
+                    incomplete_shards.add((query, shard))
+                cache.put_coverage("github", query, shard, "incomplete" if incomplete else "complete", int(page.get("total_count") or 0), {"incomplete_results": bool(page.get("incomplete_results")), "ordering": "best_match"}, utc_now())
+                for item in page.get("items", []):
+                    key = str(item.get("id") or "")
+                    if not key:
+                        continue
+                    query_positions[query] += 1
+                    seen[key] = item
+                    matched.setdefault(key, set()).add(query)
+                    best_match_rank[key] = min(best_match_rank.get(key, 10**9), query_positions[query])
+                    cache.put_record("github.search_candidate", key, {
+                        "item": item, "matched_queries": sorted(matched[key]),
+                        "best_match_rank": best_match_rank[key],
+                    }, fetched_at)
+                    if per_query_target is not None and query_positions[query] >= per_query_target:
+                        if query in active:
+                            active.remove(query)
+                        break
+    ranked_ids = sorted(seen, key=lambda key: (
+        best_match_rank.get(key, 10**9), -len(matched.get(key, set())), key,
+    ))
+    selected_ids = ranked_ids if limit is None else ranked_ids[:max(0, limit)]
+    seen = {key: seen[key] for key in selected_ids}
+    matched = {key: matched.get(key, set()) for key in selected_ids}
+    cache.put_record("github.collection", "latest", {
+        "repository_ids": selected_ids, "selected_at": fetched_at, "collection_limit": limit,
+        "ordering": "github_best_match", "scan_target": scan_target,
+    }, fetched_at)
     progress_every = max(1, int(settings.get("progress_every", 25)))
     reused = 0
     for index, (key, item) in enumerate(seen.items()):

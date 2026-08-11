@@ -33,6 +33,7 @@ class FakeGitHubModel:
             "observation_scopes": ["network"], "capabilities": ["detection", "response"],
             "detection_methods": ["signature_based", "packet_analysis"],
             "independent_fork": False, "direct_self_description": True,
+            "runtime_observation": True, "runnable_detector": True, "offline_dataset_only": False, "upstream_full_name": "",
             "primary_reason": "The project directly describes a runnable network detector.",
             "evidence": [{"source": "README", "quote": "intruson detction system analyzes network traffic"}],
         }
@@ -92,18 +93,43 @@ class GitHubPipelineTests(unittest.TestCase):
                     "role": role, "observation_scopes": ["unknown"],
                     "capabilities": [], "detection_methods": ["unknown"],
                     "independent_fork": False, "direct_self_description": True,
+            "runtime_observation": True, "runnable_detector": True, "offline_dataset_only": False, "upstream_full_name": "",
                     "primary_reason": "fixture",
                 }, [{"source": "README", "quote": "fixture"}], config, False)
                 self.assertEqual(decision["decision"], "accept")
+
+    def test_standalone_detector_requires_runtime_and_runnable_evidence(self) -> None:
+        """Verify static-dataset classifiers cannot pass as standalone detectors."""
+        decision = normalize_response({
+            "role": "standalone_detector", "observation_scopes": ["network"],
+            "capabilities": ["detection"], "detection_methods": ["ml_based"],
+            "independent_fork": False, "direct_self_description": True,
+            "runtime_observation": False, "runnable_detector": False,
+            "offline_dataset_only": True, "upstream_full_name": "", "primary_reason": "fixture",
+        }, [{"source": "README", "quote": "evaluated on a static dataset"}], {}, False)
+        self.assertEqual(decision["decision"], "uncertain")
+        self.assertEqual(
+            decision["classification_validation_flags"],
+            "runtime_observation_missing;runnable_detector_missing;offline_dataset_only",
+        )
 
     def test_derivative_fork_requires_independence_evidence(self) -> None:
         """Verify derivative forks need evidence of independent significance."""
         decision = normalize_response({
             "role": "standalone_detector", "observation_scopes": ["network"],
             "capabilities": ["detection"], "detection_methods": ["signature_based"],
-            "independent_fork": False, "direct_self_description": True, "primary_reason": "fixture",
+            "independent_fork": False, "direct_self_description": True,
+            "runtime_observation": True, "runnable_detector": True, "offline_dataset_only": False, "upstream_full_name": "", "primary_reason": "fixture",
         }, [{"source": "README", "quote": "fixture"}], {}, True)
         self.assertEqual(decision["decision"], "uncertain")
+
+    def test_search_uses_native_best_match_without_sort_override(self) -> None:
+        """Verify GitHub controls repository relevance ordering directly."""
+        client = GitHubClient(request_pause_seconds=0, search_pause_seconds=0)
+        with patch.object(client, "get_json", return_value={"items": []}) as get_json:
+            client.search("intrusion detection", 2, 50)
+        params = get_json.call_args.args[1]
+        self.assertEqual(params, {"q": "intrusion detection", "page": 2, "per_page": 50})
 
     def test_search_is_sharded_below_github_cap(self) -> None:
         """Verify overflowing GitHub searches split into retrievable shards."""
@@ -118,6 +144,38 @@ class GitHubPipelineTests(unittest.TestCase):
         shards = list(search_shards(SearchClient(), "intrusion detection", date(2008, 1, 1), date(2008, 1, 4), 100))  # type: ignore[arg-type]
         self.assertGreaterEqual(len(shards), 2)
         self.assertTrue(all(not incomplete for _shard, _page, incomplete in shards))
+
+    def test_collection_balances_best_match_across_queries(self) -> None:
+        """Verify one early query cannot consume the complete collection budget."""
+        class Client:
+            authenticated = True
+            def search(self, query: str, _page: int, _per_page: int) -> dict[str, Any]:
+                """Return one native best-match result for each query."""
+                base = query.split(" created:", 1)[0]
+                repo_id = 1 if base == "first" else 2
+                return {"total_count": 1, "items": [{"id": repo_id, "full_name": "example/" + base}]}
+            def get_json(self, path: str, _params: dict[str, Any] | None = None) -> Any:
+                """Return repository or empty commit metadata."""
+                if path.endswith("/commits"):
+                    return []
+                name = path.rsplit("/repos/", 1)[-1]
+                return {"id": 1 if name.endswith("first") else 2, "full_name": name, "owner": {"login": "example"}}
+            def raw_readme(self, _full_name: str) -> str:
+                """Return minimal repository evidence."""
+                return "intrusion detection system"
+            def docs(self, _full_name: str, _max_files: int) -> str:
+                """Return no documentation fixture."""
+                return ""
+        with tempfile.TemporaryDirectory() as directory:
+            with PipelineCache(Path(directory) / "cache.sqlite3") as cache:
+                counts = collect(
+                    {"created_from": "2020-01-01", "per_page": 100, "progress_every": 10, "search_scan_multiplier": 1},
+                    {"search_queries": ["first", "second"]}, cache, limit=2, client=Client(), resume=False,
+                )
+                active = cache.get_record("github.collection", "latest")
+            self.assertEqual(counts["discovered"], 2)
+            self.assertEqual(set(active["repository_ids"]), {"1", "2"})
+            self.assertEqual(active["ordering"], "github_best_match")
 
     def test_resumed_collection_never_exceeds_repository_limit(self) -> None:
         """Verify a full cached pool does not trigger an extra discovery request."""
@@ -225,7 +283,11 @@ class GitHubPipelineTests(unittest.TestCase):
                 final = export(reconciled, catalogue, system_types)
                 self.assertEqual(len(final), 1)
                 self.assertEqual(final[0]["role"], "standalone_detector")
-                self.assertEqual(final[0]["repository_relationship"], "canonical")
+                self.assertEqual(final[0]["repository_relationship"], "standalone_project")
+                self.assertEqual(final[0]["canonical_margin"], "")
+                self.assertEqual(final[0]["canonical_confidence"], "")
+                self.assertIn("margin n/a", final[0]["canonical_reason"])
+                self.assertIn("role=", final[0]["canonical_score_breakdown"])
 
     def test_classification_limit_includes_cached_ranked_rows(self) -> None:
         """Verify resume keeps the same bounded score-ranked shortlist."""
@@ -278,6 +340,52 @@ class GitHubPipelineTests(unittest.TestCase):
                     relationships = {item["github_repo_id"]: item["repository_relationship"] for item in accepted}
                     self.assertEqual(relationships, {"101": "canonical", "102": "deployment_variant"})
             self.assertEqual(selections, [{"101"}, {"101"}])
+
+    def test_verified_upstream_variant_joins_base_without_becoming_canonical(self) -> None:
+        """Verify a cross-owner deployment variant resolves to its explicit upstream base."""
+        settings = load_settings(ROOT / "config/default.toml")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / "source.csv", root / "output.csv"
+            base = {column: "" for column in CLASSIFICATION_COLUMNS}
+            base.update({
+                "github_repo_id": "1", "full_name": "OISF/suricata", "owner": "OISF", "name": "suricata",
+                "decision": "accept", "role": "standalone_detector", "fork": "false",
+                "direct_self_description": "true", "last_commit_sha": "sha",
+            })
+            variant = {column: "" for column in CLASSIFICATION_COLUMNS}
+            variant.update({
+                "github_repo_id": "2", "full_name": "third/ansible-suricata", "owner": "third", "name": "ansible-suricata",
+                "decision": "accept", "role": "support_tooling", "fork": "false",
+                "direct_self_description": "true", "upstream_full_name": "OISF/suricata", "last_commit_sha": "sha",
+            })
+            atomic_write_csv(source, [variant, base], CLASSIFICATION_COLUMNS)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                result = reconcile(source, output, cache, settings.section("ollama"), settings.section("github"), dry_run=True)
+            values = {row["github_repo_id"]: row for row in result}
+            self.assertEqual(values["1"]["repository_relationship"], "canonical")
+            self.assertEqual(values["2"]["repository_relationship"], "deployment_variant")
+            self.assertEqual(values["2"]["canonical_full_name"], "OISF/suricata")
+            self.assertEqual(values["1"]["canonical_margin"], "")
+            self.assertNotIn("-9", values["1"]["canonical_reason"])
+
+    def test_derivative_only_family_reports_missing_base(self) -> None:
+        """Verify a lone packaging repository is not called canonical."""
+        settings = load_settings(ROOT / "config/default.toml")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / "source.csv", root / "output.csv"
+            row = {column: "" for column in CLASSIFICATION_COLUMNS}
+            row.update({
+                "github_repo_id": "2", "full_name": "third/ansible-suricata", "owner": "third", "name": "ansible-suricata",
+                "decision": "accept", "role": "support_tooling", "fork": "false", "direct_self_description": "true",
+            })
+            atomic_write_csv(source, [row], CLASSIFICATION_COLUMNS)
+            result = reconcile(source, output, None, settings.section("ollama"), settings.section("github"), dry_run=True)
+            self.assertEqual(result[0]["repository_relationship"], "base_repository_missing")
+            self.assertEqual(result[0]["canonical_repo_id"], "")
+            self.assertEqual(result[0]["canonical_margin"], "")
+
 
 
 if __name__ == "__main__":

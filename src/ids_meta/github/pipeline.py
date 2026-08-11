@@ -13,7 +13,7 @@ from ids_meta.common.text import split_values, stable_hash
 from ids_meta.common.logging import logger
 from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, RESPONSE_SCHEMA, SCOPES, derive_system_types, normalize_response, system_type_names, validate_processed_row
 
-PROMPT_VERSION = "github-4"
+PROMPT_VERSION = "github-5"
 LOG = logger("github.pipeline")
 
 class Generator(Protocol):
@@ -67,8 +67,12 @@ def prefilter(config: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     """Score every cached repository and export all prefilter bands."""
     rows: list[dict[str, object]] = []
     counts = {"candidate": 0, "borderline": 0, "reject": 0}
-    LOG.info("starting GitHub keyword prefilter")
+    latest_collection = cache.get_record("github.collection", "latest") or {}
+    active_ids = {str(value) for value in latest_collection.get("repository_ids", []) if value}
+    LOG.info("starting GitHub keyword prefilter active_collection=%s active_pool=%s", latest_collection.get("selected_at", "legacy_cache_fallback"), len(active_ids) if active_ids else "all_cached_repositories")
     for key, payload, fetched_at in cache.records("github.repository"):
+        if active_ids and key not in active_ids:
+            continue
         sections = evidence_sections(payload)
         result = score_evidence(
             format_evidence(sections, 30000), profile,
@@ -131,14 +135,14 @@ def classify(
         result.update({"pipeline_version": PROMPT_VERSION, "profile_hash": profile_hash, "llm_model": model, "classified_at": utc_now(), "error": ""})
         LOG.info("classifying rank=%d/%d score=%s band=%s %s", rank, len(selected), row.get("prefilter_score", ""), row.get("prefilter_band", ""), row.get("full_name", key))
         if dry_run:
-            result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})
+            result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})
         else:
             try:
                 raw = client.generate(prompt(sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
                 verified, _ = verify_evidence(raw.get("evidence"), sections)
                 result.update(normalize_response(raw, verified, ollama_config, row.get("fork") == "true", system_type_profile))
             except Exception as exc:
-                result.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+                result.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
         cache.put_decision("github.classification", key, profile_hash, evidence_hash, result, result["classified_at"])
         results.append(result)
         new_decisions += 1

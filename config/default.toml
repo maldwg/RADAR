@@ -32,6 +32,8 @@ require_verified_quote = true
 # Bound source discovery separately from the ranked LLM adjudication shortlist.
 # Use classification_limit = "all" to classify every candidate/borderline row.
 collection_limit = 1000
+# Oversample native GitHub best-match results before selecting the active collection.
+search_scan_multiplier = 3.0
 classification_limit = 100
 per_page = 100
 max_docs_files = 3
