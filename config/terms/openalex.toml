@@ -7,6 +7,9 @@ direct_queries = [
   "wireless intrusion detection dataset",
   "malicious network traffic corpus",
   "network attack traffic generation framework",
+  "network anomaly traffic generation",
+  "benchmark dataset intrusion detection",
+  
 ]
 survey_queries = [
   "intrusion detection datasets survey",

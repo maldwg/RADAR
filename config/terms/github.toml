@@ -10,9 +10,22 @@ search_queries = [
   "malicious traffic detection",
   "attack detection network traffic",
   "security anomaly detection logs",
-  "cybersecurity",
   "IDS",
-  "Attack detection"
+  "Attack detection",
+  "Intrusion Prevention System",
+  "HIDS",
+  "NIDS",
+  "PIDS",
+  "DBIDS",
+  "ANIDS",
+  "NDR",
+  "EDR",
+  "XDR",
+  "Hybrid IDS",
+  "SIEM",
+  "Intrusion Detection System in:readme",
+  "Intrusion Prevention System in:readme",
+
 ]
 
 [positive.security_scope]

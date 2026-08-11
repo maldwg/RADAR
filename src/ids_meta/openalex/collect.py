@@ -108,15 +108,16 @@ def balanced_search(
 
 def rank_work_pool(
     pool: dict[str, dict[str, Any]], profile: dict[str, Any], minimum_score: float, minimum_title_tokens: int,
-    title_weight: float = 0.5,
+    title_weight: float = 0.5, retain_below_minimum: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, tuple[ScoreResult, ScoreResult]]]:
     """Filter and rank a deduplicated work pool using generic textual evidence."""
+    retain_below_minimum = retain_below_minimum or set()
     scores: dict[str, tuple[ScoreResult, ScoreResult]] = {}
     retained: list[dict[str, Any]] = []
     for key, work in pool.items():
         full, title = work_scores(work, profile)
         scores[key] = full, title
-        if usable_title(work, minimum_title_tokens) and full.score >= minimum_score:
+        if usable_title(work, minimum_title_tokens) and (full.score >= minimum_score or key in retain_below_minimum):
             retained.append(work)
     retained.sort(key=lambda work: (
         -(scores[str(work.get("openalex_id", ""))][0].score + title_weight * scores[str(work.get("openalex_id", ""))][1].score),
@@ -219,7 +220,9 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     direct_scan_multiplier = max(1.0, float(settings.get("direct_scan_multiplier", 3.0)))
     survey_scan_multiplier = max(1.0, float(settings.get("survey_scan_multiplier", 4.0)))
     reference_scan_multiplier = max(1.0, float(settings.get("reference_scan_multiplier", 3.0)))
+    survey_consensus_threshold = max(2, int(settings.get("survey_consensus_threshold", 2)))
     minimum_score = float(settings.get("retrieval_minimum_score", 1.0))
+    minimum_citations = max(0, int(settings.get("minimum_citations", 0)))
     minimum_title_tokens = max(1, int(settings.get("retrieval_minimum_title_tokens", 3)))
     title_weight = max(0.0, float(settings.get("retrieval_title_weight", 0.5)))
     reference_budget = reference_total_limit if limit is None else min(reference_total_limit, int(limit * reference_fraction))
@@ -316,7 +319,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     for query, item in direct_results:
         normalized = normalize_work(item)
         key = str(normalized.get("openalex_id", ""))
-        if key and not is_survey_work(normalized):
+        if key and not is_survey_work(normalized) and int(normalized.get("cited_by_count") or 0) >= minimum_citations:
             direct_pool[key] = normalized
             direct_matches.setdefault(key, set()).add(query)
     ranked_direct, direct_scores = rank_work_pool(direct_pool, profile, minimum_score, minimum_title_tokens, title_weight)
@@ -376,7 +379,23 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
                     reference_pool[str(normalized["openalex_id"])] = normalized
         except RuntimeError as exc:
             LOG.warning("reference batch failed: %s", exc)
-    ranked_references, reference_scores = rank_work_pool(reference_pool, profile, minimum_score, minimum_title_tokens, title_weight)
+    reference_pool = {
+        key: work for key, work in reference_pool.items()
+        if int(work.get("cited_by_count") or 0) >= minimum_citations
+    }
+    consensus_reference_ids = {
+        key for key in reference_pool
+        if len(reference_sources.get(key, set())) >= survey_consensus_threshold
+    }
+    ranked_references, reference_scores = rank_work_pool(
+        reference_pool, profile, minimum_score, minimum_title_tokens, title_weight,
+        retain_below_minimum=consensus_reference_ids,
+    )
+    ranked_references.sort(key=lambda work: (
+        -len(reference_sources.get(str(work.get("openalex_id", "")), set())),
+        -(reference_scores[str(work.get("openalex_id", ""))][0].score + title_weight * reference_scores[str(work.get("openalex_id", ""))][1].score),
+        str(work.get("openalex_id", "")),
+    ))
     new_reference_works = 0
     new_reference_ids: set[str] = set()
     for normalized in ranked_references:

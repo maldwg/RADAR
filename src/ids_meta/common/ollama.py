@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass
 from html import unescape
@@ -12,6 +13,8 @@ from ids_meta.common.text import normalize_text, stable_hash
 from ids_meta.common.logging import logger
 
 LOG = logger("ollama")
+
+ELLIPSIS_RE = re.compile(r"(?:\.{3,}|\u2026)+")
 
 
 @dataclass(frozen=True)
@@ -83,7 +86,7 @@ def format_evidence(sections: list[EvidenceSection], max_chars: int = 14000) -> 
 
 
 def verify_evidence(value: Any, sections: list[EvidenceSection]) -> tuple[list[dict[str, str]], bool]:
-    """Keep quotes found in their claimed section, tolerating harmless source casing and HTML entities."""
+    """Keep source-bound quotes whose exact or ellipsis-separated fragments occur in order."""
     supplied = {
         normalize_text(unescape(section.source)): (section.source, normalize_text(unescape(section.text)))
         for section in sections
@@ -95,8 +98,18 @@ def verify_evidence(value: Any, sections: list[EvidenceSection]) -> tuple[list[d
         source = str(item.get("source", "")).strip()
         quote = str(item.get("quote", "")).strip()
         source_key = normalize_text(unescape(source))
-        quote_text = normalize_text(unescape(quote))
-        if source_key in supplied and quote_text and quote_text in supplied[source_key][1]:
+        fragments = [normalize_text(unescape(part)) for part in ELLIPSIS_RE.split(quote)]
+        fragments = [fragment for fragment in fragments if fragment]
+        source_text = supplied.get(source_key, ("", ""))[1]
+        offset = 0
+        fragments_match = bool(fragments)
+        for fragment in fragments:
+            position = source_text.find(fragment, offset)
+            if position < 0:
+                fragments_match = False
+                break
+            offset = position + len(fragment)
+        if source_key in supplied and fragments_match:
             verified.append({"source": supplied[source_key][0], "quote": quote})
     return verified, bool(verified)
 

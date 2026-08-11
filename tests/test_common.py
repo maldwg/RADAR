@@ -158,6 +158,22 @@ class CommonTests(unittest.TestCase):
         _, wrong = verify_evidence([{"source": "Abstract", "quote": "detects intrusions"}], sections)
         self.assertFalse(wrong)
 
+    def test_evidence_quotes_allow_ordered_ellipsis_fragments(self) -> None:
+        """Verify truncated model quotes match all fragments in source order."""
+        sections = [EvidenceSection("Abstract", "First release statement. Intervening details. Final access statement.")]
+        evidence = [{"source": "Abstract", "quote": "First release statement ... Final access statement"}]
+        verified, ok = verify_evidence(evidence, sections)
+        self.assertTrue(ok)
+        self.assertEqual(verified, evidence)
+        _, reversed_fragments = verify_evidence(
+            [{"source": "Abstract", "quote": "Final access statement … First release statement"}], sections,
+        )
+        self.assertFalse(reversed_fragments)
+        _, missing_fragment = verify_evidence(
+            [{"source": "Abstract", "quote": "First release statement...unsupported claim...Final access statement"}], sections,
+        )
+        self.assertFalse(missing_fragment)
+
     def test_cache_decisions_are_fingerprint_specific(self) -> None:
         """Verify cached decisions are isolated by evidence and profile hashes."""
         with tempfile.TemporaryDirectory() as directory:

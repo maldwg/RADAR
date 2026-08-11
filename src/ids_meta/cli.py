@@ -174,7 +174,7 @@ def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str,
         if args.action in {"classify", "run"}:
             input_path = Path(args.input) if args.input else paths["candidates"]
             output_path = Path(args.output) if args.output and args.action == "classify" else paths["classifications"]
-            rows = classify_openalex(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config)
+            rows = classify_openalex(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, openalex_config=config)
             manifest.counts["classifications"] = len(rows)
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]

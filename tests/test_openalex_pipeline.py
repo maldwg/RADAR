@@ -12,7 +12,7 @@ from ids_meta.openalex.collect import OpenAlexClient, balanced_search, collect, 
 from ids_meta.openalex.pipeline import classify, export, export_survey_sources, prefilter
 from ids_meta.openalex.reconcile import reconcile
 from ids_meta.openalex.entities import canonicalize_artifact_ids
-from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ensure_resource_name, normalize_response
+from ids_meta.openalex.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ensure_resource_name, normalize_response
 from ids_meta.common.csvio import atomic_write_csv
 
 
@@ -69,6 +69,20 @@ class OpenAlexPipelineTests(unittest.TestCase):
         }
         ranked, _scores = rank_work_pool(pool, profile, 0, 3)
         self.assertEqual([row["openalex_id"] for row in ranked], ["W2", "W1"])
+
+    def test_survey_consensus_can_bypass_textual_retrieval_floor(self) -> None:
+        """Verify opaque dataset-paper titles survive when multiple surveys cite them."""
+        pool = {
+            "W-ctu": {
+                "openalex_id": "W-ctu", "title": "An empirical comparison of botnet detection methods",
+                "abstract": "", "cited_by_count": 937,
+            },
+        }
+        ranked, scores = rank_work_pool(
+            pool, {"positive": {}}, 1, 3, retain_below_minimum={"W-ctu"},
+        )
+        self.assertEqual(scores["W-ctu"][0].score, 0)
+        self.assertEqual([row["openalex_id"] for row in ranked], ["W-ctu"])
 
     def test_client_paces_every_request(self) -> None:
         """Verify OpenAlex calls respect the configured minimum interval."""
@@ -190,6 +204,43 @@ class OpenAlexPipelineTests(unittest.TestCase):
             self.assertNotIn("https://openalex.org/W1", active["work_ids"])
             self.assertEqual([row["openalex_id"] for row in survey_rows], ["https://openalex.org/W1"])
 
+    def test_classification_enriches_missing_abstract_and_candidate_csv(self) -> None:
+        """Verify missing evidence is cached and changes the decision fingerprint."""
+        class Enricher:
+            def enrich(self, _work: dict[str, Any]) -> dict[str, str]:
+                """Return deterministic external abstract evidence."""
+                return {
+                    "abstract": "We introduce a new labeled intrusion detection dataset containing network attack packet traces.",
+                    "abstract_source": "Semantic Scholar",
+                }
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates, classified = root / "candidates.csv", root / "classified.csv"
+            row = {column: "" for column in CANDIDATE_COLUMNS}
+            row.update({
+                "openalex_id": "W-missing", "title": "Opaque comparison title", "cited_by_count": "50",
+                "prefilter_score": "7", "prefilter_band": "candidate", "evidence_hash": "old-hash",
+            })
+            atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("openalex.work", "W-missing", {
+                    "work": {"openalex_id": "W-missing", "title": "Opaque comparison title", "abstract": ""},
+                    "discovery_relations": ["survey_reference"],
+                }, "2026-01-01T00:00:00+00:00")
+                decisions = classify(
+                    candidates, classified, cache, {"require_verified_quote": True},
+                    generator=FakePaperModel(), enricher=Enricher(), openalex_config={"enrich_missing_abstracts": True},
+                    prompt_config=load_prompt_profile(load_settings(ROOT / "config/default.toml"), "openalex"),
+                )
+                cached_work = cache.get_record("openalex.work", "W-missing")["work"]
+            with candidates.open(newline="", encoding="utf-8") as handle:
+                enriched_row = next(__import__("csv").DictReader(handle))
+            self.assertEqual(decisions[0]["decision"], "accept")
+            self.assertEqual(cached_work["abstract_source"], "Semantic Scholar")
+            self.assertEqual(enriched_row["abstract_source"], "Semantic Scholar")
+            self.assertNotEqual(enriched_row["evidence_hash"], "old-hash")
+
     def test_work_level_classification_and_export(self) -> None:
         """Verify work-level adjudication excludes downstream applications."""
         settings = load_settings(ROOT / "config/default.toml")
@@ -204,7 +255,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     "openalex_id": "https://openalex.org/W1", "doi": "10.1/example", "title": "A New Intrusion Detection Dataset",
                     "abstract": "We introduce a new labeled intrusion detection dataset containing network attack packet traces.",
                     "authors": "A Researcher", "venue": "Security Venue", "publication_year": 2024, "publication_date": "2024-01-01",
-                    "work_type": "article", "primary_url": "https://doi.org/10.1/example", "pdf_url": "", "is_oa": "true", "cited_by_count": 0,
+                    "work_type": "article", "primary_url": "https://doi.org/10.1/example", "pdf_url": "", "is_oa": "true", "cited_by_count": 50,
                 }
                 downstream = dict(base, openalex_id="https://openalex.org/W2", doi="10.1/downstream", title="Improving a classifier", abstract="We report classification accuracy for network traffic intrusion detection using a publicly available existing dataset.")
                 cache.put_record("openalex.work", base["openalex_id"], {"work": base, "discovery_relations": ["direct_search"], "matched_queries": ["intrusion detection dataset"]}, "2026-01-01T00:00:00+00:00")
@@ -243,6 +294,23 @@ class OpenAlexPipelineTests(unittest.TestCase):
                 rows = prefilter({"candidate_threshold": 3, "borderline_threshold": 1}, profile, cache, root / "candidates.csv", "run")
                 self.assertIsNotNone(cache.get_record("openalex.work", "W-old"))
             self.assertEqual([row["openalex_id"] for row in rows], ["W-new"])
+
+    def test_prefilter_enforces_minimum_citations(self) -> None:
+        """Verify papers below the configured citation floor never become candidates."""
+        profile = {"positive": {"scope": {"weight": 3, "terms": ["intrusion detection"]}}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                for work_id, citations in (("W-low", 49), ("W-boundary", 50)):
+                    cache.put_record("openalex.work", work_id, {
+                        "work": {"openalex_id": work_id, "title": "An intrusion detection dataset", "cited_by_count": citations},
+                        "discovery_relations": ["direct_search"], "matched_queries": ["query"],
+                    }, "2026-01-01T00:00:00+00:00")
+                rows = prefilter(
+                    {"candidate_threshold": 3, "borderline_threshold": 1, "minimum_citations": 50},
+                    profile, cache, root / "candidates.csv", "run",
+                )
+            self.assertEqual([row["openalex_id"] for row in rows], ["W-boundary"])
 
     def test_paper_reconciliation_is_order_independent(self) -> None:
         """Verify base-paper selection is independent of input row order."""

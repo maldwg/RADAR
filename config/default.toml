@@ -66,10 +66,18 @@ survey_reference_fraction = 0.35
 survey_scan_multiplier = 4.0
 direct_scan_multiplier = 3.0
 reference_scan_multiplier = 3.0
+# References shared by this many selected surveys bypass the generic text-score floor.
+survey_consensus_threshold = 2
 # Generic evidence-quality floor; citations never contribute to retrieval ranking.
 retrieval_minimum_score = 1.0
 retrieval_minimum_title_tokens = 3
 retrieval_title_weight = 0.5
+# Hard eligibility floor for candidate papers; auxiliary survey sources are exempt.
+minimum_citations = 50
+# Enrich only papers whose OpenAlex abstract is missing; full text is best-effort.
+enrich_missing_abstracts = true
+evidence_lookup_timeout_seconds = 30
+max_enriched_full_text_chars = 30000
 request_pause_seconds = 1
 candidate_threshold = 7.0
 borderline_threshold = 4.0

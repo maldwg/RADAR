@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -11,15 +12,22 @@ from ids_meta.common.run import utc_now
 from ids_meta.common.scoring import score_evidence, shortlist_candidates
 from ids_meta.common.text import normalize_text, slug, stable_hash
 from ids_meta.common.logging import logger
+from ids_meta.openalex.enrich import ScholarlyEvidenceClient
 from ids_meta.openalex.schema import ARTIFACT_TYPES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, RESPONSE_SCHEMA, SURVEY_COLUMNS, TIERS, ensure_resource_name, normalize_response, validate_processed_row
 
-PROMPT_VERSION = "openalex-5"
+PROMPT_VERSION = "openalex-7"
 LOG = logger("openalex.pipeline")
 
 class Generator(Protocol):
     model: str
     def generate(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         """Return one structured model response for the supplied prompt."""
+        ...
+
+
+class EvidenceEnricher(Protocol):
+    def enrich(self, work: dict[str, Any]) -> dict[str, str]:
+        """Return discovered abstract and optional full-text evidence."""
         ...
 
 
@@ -34,6 +42,8 @@ def evidence_sections(payload: dict[str, Any]) -> list[EvidenceSection]:
     sections = [EvidenceSection("OpenAlex metadata", metadata)]
     if work.get("abstract"):
         sections.append(EvidenceSection("Abstract", str(work["abstract"])))
+    if work.get("full_text"):
+        sections.append(EvidenceSection("Full text", str(work["full_text"])))
     return sections
 
 
@@ -47,6 +57,7 @@ def metadata_row(key: str, payload: dict[str, Any], fetched_at: str, run_id: str
         "authors": work.get("authors", ""), "venue": work.get("venue", ""), "publication_year": work.get("publication_year", ""),
         "publication_date": work.get("publication_date", ""), "work_type": work.get("work_type", ""),
         "primary_url": work.get("primary_url", ""), "pdf_url": work.get("pdf_url", ""), "is_oa": work.get("is_oa", "false"),
+        "abstract_source": work.get("abstract_source", "OpenAlex" if work.get("abstract") else ""), "full_text_url": work.get("full_text_url", ""),
         "cited_by_count": work.get("cited_by_count", 0), "citation_as_of": fetched_at[:10],
         "referenced_works_count": len(work.get("referenced_works") or []), "metadata_fetched_at": fetched_at,
         "discovery_relations": ";".join(payload.get("discovery_relations", [])), "matched_queries": ";".join(payload.get("matched_queries", [])),
@@ -61,6 +72,7 @@ def prefilter(config: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     """Score cached works and export every candidate with its prefilter band."""
     rows: list[dict[str, object]] = []
     counts = {"candidate": 0, "borderline": 0, "reject": 0}
+    minimum_citations = max(0, int(config.get("minimum_citations", 0)))
     latest_collection = cache.get_record("openalex.collection", "latest") or {}
     active_ids = {str(value) for value in latest_collection.get("work_ids", []) if value}
     auxiliary_survey_ids = {str(value) for value in latest_collection.get("survey_ids", []) if value}
@@ -71,6 +83,10 @@ def prefilter(config: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     )
     for key, payload, fetched_at in cache.records("openalex.work"):
         if active_ids and key not in active_ids:
+            continue
+        citations = int((payload.get("work") or {}).get("cited_by_count") or 0)
+        if citations < minimum_citations:
+            LOG.debug("skipping paper below citation floor citations=%d minimum=%d title=%s", citations, minimum_citations, (payload.get("work") or {}).get("title", key))
             continue
         result = score_evidence(format_evidence(evidence_sections(payload), 30000), profile, float(config.get("candidate_threshold", 7)), float(config.get("borderline_threshold", 4)))
         row = metadata_row(key, payload, fetched_at, run_id)
@@ -123,13 +139,21 @@ def prompt(sections: list[EvidenceSection], prompt_config: dict[str, Any] | None
     return render_prompt(settings, blocks, format_evidence(sections))
 
 
-def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_config: dict[str, Any], limit: int | None = None, resume: bool = True, dry_run: bool = False, generator: Generator | None = None, prompt_config: dict[str, Any] | None = None) -> list[dict[str, str]]:
+def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_config: dict[str, Any], limit: int | None = None, resume: bool = True, dry_run: bool = False, generator: Generator | None = None, prompt_config: dict[str, Any] | None = None, openalex_config: dict[str, Any] | None = None, enricher: EvidenceEnricher | None = None) -> list[dict[str, str]]:
     """Classify eligible papers while checkpointing auditable LLM decisions."""
     rows = read_csv(candidates_path)
     require_columns(rows, ("openalex_id", "prefilter_band", "evidence_hash"), candidates_path)
     eligible = shortlist_candidates(rows, "openalex_id", None, "retrieval_rank_score")
     selected = shortlist_candidates(rows, "openalex_id", limit, "retrieval_rank_score")
     client = generator if generator is not None else (None if dry_run else OllamaClient(ollama_config))
+    enrichment_config = openalex_config or {}
+    evidence_client = enricher
+    if evidence_client is None and not dry_run and bool(enrichment_config.get("enrich_missing_abstracts", False)):
+        evidence_client = ScholarlyEvidenceClient(
+            timeout=float(enrichment_config.get("evidence_lookup_timeout_seconds", 30)),
+            api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY", ""),
+            max_full_text_chars=int(enrichment_config.get("max_enriched_full_text_chars", 30000)),
+        )
     model = getattr(client, "model", "dry-run")
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, prompt_config)
     results: list[dict[str, str]] = []
@@ -139,7 +163,32 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         len(eligible), len(selected), limit if limit is not None else "all_eligible", resume, dry_run, model,
     )
     for rank, row in enumerate(selected, 1):
-        key, evidence_hash = row["openalex_id"], row["evidence_hash"]
+        key = row["openalex_id"]
+        payload = cache.get_record("openalex.work", key)
+        if not payload:
+            raise ValueError(f"raw OpenAlex work is missing: {key}")
+        work = payload.get("work") or {}
+        if evidence_client is not None and not work.get("abstract") and not work.get("full_text"):
+            try:
+                enriched = evidence_client.enrich(work)
+            except Exception as exc:  # Enrichment is best-effort and must not block classification.
+                LOG.warning("paper evidence enrichment failed title=%s error=%s", row.get("title", key), exc)
+                enriched = {}
+            if enriched:
+                work.update(enriched)
+                payload["work"] = work
+                cache.put_record("openalex.work", key, payload, utc_now())
+                sections = evidence_sections(payload)
+                row.update({
+                    "abstract": work.get("abstract", ""),
+                    "abstract_source": work.get("abstract_source", ""),
+                    "pdf_url": work.get("pdf_url", "") or work.get("full_text_url", ""),
+                    "full_text_url": work.get("full_text_url", ""),
+                    "evidence_hash": stable_hash(format_evidence(sections, 30000)),
+                })
+                atomic_write_csv(candidates_path, rows, CANDIDATE_COLUMNS)
+                LOG.info("enriched missing paper evidence title=%s abstract=%s full_text=%s", row.get("title", key), bool(work.get("abstract")), bool(work.get("full_text")))
+        evidence_hash = row["evidence_hash"]
         cached = cache.get_decision("openalex.classification", key, profile_hash, evidence_hash) if resume else None
         if cached:
             results.append({str(k): str(v) for k, v in cached.items()})
@@ -150,9 +199,6 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                 cached.get("decision", ""), cached.get("paper_role", ""),
             )
             continue
-        payload = cache.get_record("openalex.work", key)
-        if not payload:
-            raise ValueError(f"raw OpenAlex work is missing: {key}")
         sections = evidence_sections(payload)
         result = dict(row)
         result.update({"pipeline_version": PROMPT_VERSION, "profile_hash": profile_hash, "llm_model": model, "classified_at": utc_now(), "error": ""})

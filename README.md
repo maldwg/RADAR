@@ -24,6 +24,7 @@ Credentials and model selection are environment-only:
 export GITHUB_TOKEN=...
 export OPENALEX_MAILTO=researcher@example.org
 export OPENALEX_API_KEY=...          # optional
+export SEMANTIC_SCHOLAR_API_KEY=... # optional, raises missing-evidence lookup limits
 export OLLAMA_URL=http://127.0.0.1:11434
 export OLLAMA_MODEL=your-model
 ```
@@ -133,7 +134,7 @@ GitHub system types are defined independently in `config/taxonomy/github_system_
 - `artifacts/plots/`: SVG/PDF figures plus the exact aggregate CSV behind each plot.
 - `artifacts/runs/`: configuration fingerprints, source coverage, counts, and the explicit API-coverage limitation for each command.
 
-Popularity and citation fields are descriptive metadata only. They never determine relevance or inclusion.
+Popularity fields are descriptive metadata only. OpenAlex candidate papers must meet the configured `minimum_citations` eligibility floor (50 by default); among eligible papers, citations never determine retrieval ranking, relevance, or canonical-family selection. Auxiliary survey sources are exempt from the floor.
 
 The GitHub plot bundle starts with one tall, scrollable feature matrix of every accepted repository and a lossless `data/00_repository_overview.csv`. It groups repositories by normalized system family and shows role dots, system labels, methods, activity, stars, forks, canonical/variant status, and latest commit time. New collections obtain the exact latest commit timestamp; older cached records transparently use `pushed_at` and mark that fallback in the CSV.
 
@@ -143,7 +144,7 @@ The remaining figures deliberately avoid overloaded scatterplots. Citation conte
 
 OpenAlex discovery no longer lets the first query consume the collection budget. It scans all generic survey and direct queries round-robin, oversamples their result pools, and ranks title-plus-abstract evidence before retaining candidates. Title evidence has a configurable additional weight (`openalex.retrieval_title_weight`) so an abstract that merely mentions many relevant concepts cannot completely hide an obviously weak title. Blank or structurally uninformative titles and results below the generic retrieval floor are not retained. Retrieval, title, combined rank, and survey-source scores are exported in the audit CSVs. Citations are logged and exported but never enter retrieval ranking. The selected work IDs are recorded as the active collection: later prefiltering reads this pool rather than mixing in stale works from older collection strategies, while those historical raw records remain in SQLite for audit and reuse.
 
-Survey discovery runs before direct discovery so it cannot be starved by the collection limit. Surveys themselves are ranked using generic positive evidence, with each selected survey's score, citations, and reference-list size logged. They are auxiliary records and are excluded from both the collection limit and LLM shortlist. For a 250-paper collection with `survey_reference_fraction = 0.35`, the target allocation is 163 direct candidates plus 87 new snowballed candidates, in addition to the separately configured survey sources. Unused snowball capacity is backfilled with the next strongest direct papers. Reference IDs mentioned by multiple selected surveys are resolved first; an oversampled reference pool is then ranked from the cited papers' actual titles and abstracts. Each retained paper records both `survey_reference` and every originating `survey_reference:<OpenAlex survey ID>` relation. Run manifests and coverage records expose scanned/selected result counts and bounded query/reference lists.
+Survey discovery runs before direct discovery so it cannot be starved by the collection limit. Surveys themselves are ranked using generic positive evidence, with each selected survey's score, citations, and reference-list size logged. They are auxiliary records and are excluded from both the collection limit and LLM shortlist. For a 250-paper collection with `survey_reference_fraction = 0.35`, the target allocation is 163 direct candidates plus 87 new snowballed candidates, in addition to the separately configured survey sources. Unused snowball capacity is backfilled with the next strongest direct papers. Reference IDs mentioned by multiple selected surveys are resolved first. References shared by at least `survey_consensus_threshold` selected surveys (two by default) may bypass the generic text-score floor, and survey-source count takes priority when filling the snowball budget. This preserves opaque dataset papers whose OpenAlex metadata does not expose their release contribution. Each retained paper records both `survey_reference` and every originating `survey_reference:<OpenAlex survey ID>` relation. Run manifests and coverage records expose scanned/selected result counts and bounded query/reference lists.
 
 ## CSV conventions
 
@@ -153,6 +154,7 @@ Survey discovery runs before direct discovery so it cannot be starved by the col
 - Timestamps use UTC ISO 8601.
 - `unknown` means the evidence did not support a taxonomy value; an empty cell means the source did not provide metadata.
 - Processed OpenAlex metadata always comes from the accepted work itself, not from an earlier keyword catalogue.
+- When an OpenAlex work has no abstract, classification resolves it by DOI or exact normalized title through Semantic Scholar. Successful abstracts and optional open-access PDF text are cached, written back to the candidate audit, and included in the evidence hash; missing full text never blocks classification.
 - OpenAlex release roles and artifact types must agree: dataset releases use `dataset` or `dataset_and_generator`; generator releases use `generator_framework` or `dataset_and_generator`.
 - Accepted OpenAlex rows always expose `resource_name`; legacy rows without a dedicated display name are backfilled from an extracted alias or `artifact_name`, never from a hardcoded dataset registry.
 

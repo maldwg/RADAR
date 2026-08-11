@@ -17,7 +17,7 @@ LABELING = ("labeled", "partially_labeled", "unlabeled", "unknown")
 
 METADATA_COLUMNS = [
     "schema_version", "run_id", "openalex_id", "doi", "title", "abstract", "authors", "venue",
-    "publication_year", "publication_date", "work_type", "primary_url", "pdf_url", "is_oa",
+    "publication_year", "publication_date", "work_type", "primary_url", "pdf_url", "is_oa", "abstract_source", "full_text_url",
     "cited_by_count", "citation_as_of", "referenced_works_count", "metadata_fetched_at", "discovery_relations", "matched_queries", "evidence_hash",
     "retrieval_rank_score", "retrieval_score", "retrieval_title_score", "retrieval_signals", "survey_discovery_score",
 ]
@@ -53,7 +53,7 @@ RESPONSE_SCHEMA: dict[str, Any] = {
         "direct_release_evidence": {"type": "boolean"},
         "primary_reason": {"type": "string"},
         "evidence": {"type": "array", "maxItems": 4, "items": {"type": "object", "properties": {
-            "source": {"type": "string", "enum": ["OpenAlex metadata", "Abstract"]}, "quote": {"type": "string"}
+            "source": {"type": "string", "enum": ["OpenAlex metadata", "Abstract", "Full text"]}, "quote": {"type": "string"}
         }, "required": ["source", "quote"]}},
     },
     "required": ["paper_role", "relevance_tier", "artifact_name", "artifact_display_name", "artifact_aliases", "artifact_type", "domain", "data_form", "capture_environment", "labeling", "direct_release_evidence", "primary_reason", "evidence"],
