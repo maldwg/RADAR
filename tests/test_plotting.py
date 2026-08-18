@@ -10,6 +10,7 @@ from ids_meta.openalex.schema import CATALOGUE_COLUMNS as OPENALEX_COLUMNS
 from ids_meta.plotting.github import build as build_github
 from ids_meta.plotting.openalex import build as build_openalex
 from ids_meta.plotting.compare import build as build_compare
+from ids_meta.plotting.compare import build_models
 
 
 class PlottingTests(unittest.TestCase):
@@ -34,6 +35,14 @@ class PlottingTests(unittest.TestCase):
             self.assertFalse((root / "github-plots/00_repository_overview_p01.svg").exists())
             comparison = build_compare("github", github_csv, root / "comparison", {"formats": ["svg"], "dpi": 72})
             self.assertTrue(comparison)
+            second_csv = root / "github-second.csv"
+            second_row = dict(github_row)
+            second_row["decision"] = "exclude"
+            atomic_write_csv(second_csv, [second_row], GITHUB_COLUMNS)
+            model_outputs = build_models("github", {"model-a": github_csv, "model-b": second_csv}, root / "model-comparison", {"formats": ["svg"], "dpi": 72, "top_n": 5})
+            self.assertTrue(model_outputs)
+            self.assertTrue((root / "model-comparison/data/02_pairwise_agreement.csv").is_file())
+            self.assertTrue((root / "model-comparison/data/03_disagreement_records.csv").is_file())
 
             openalex_csv = root / "openalex.csv"
             paper = {column: "" for column in OPENALEX_COLUMNS}

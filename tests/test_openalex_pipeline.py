@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import load_prompt_profile, load_settings, load_term_profile
-from ids_meta.openalex.collect import OpenAlexClient, balanced_search, collect, normalize_work, rank_work_pool, reconstruct_abstract
+from ids_meta.openalex.collect import OpenAlexClient, balanced_search, collect, is_survey_work, normalize_work, rank_work_pool, reconstruct_abstract
 from ids_meta.openalex.pipeline import classify, export, export_survey_sources, prefilter
 from ids_meta.openalex.reconcile import reconcile
 from ids_meta.openalex.entities import canonicalize_artifact_ids
@@ -83,6 +83,25 @@ class OpenAlexPipelineTests(unittest.TestCase):
         )
         self.assertEqual(scores["W-ctu"][0].score, 0)
         self.assertEqual([row["openalex_id"] for row in ranked], ["W-ctu"])
+
+    def test_mixed_survey_and_release_work_remains_a_candidate(self) -> None:
+        """Verify a survey section does not hide an explicit dataset-toolkit release."""
+        mixed = {
+            "title": "On Generating Network Traffic Datasets",
+            "abstract": (
+                "First, we present a comprehensive survey on intrusion detection datasets. "
+                "Second, we present the Intrusion Detection Dataset Toolkit. "
+                "ID2T is open source software and is made available to the community."
+            ),
+            "work_type": "article",
+        }
+        pure = {
+            "title": "A comprehensive survey of intrusion detection datasets",
+            "abstract": "We review and compare existing datasets.",
+            "work_type": "review",
+        }
+        self.assertFalse(is_survey_work(mixed))
+        self.assertTrue(is_survey_work(pure))
 
     def test_client_paces_every_request(self) -> None:
         """Verify OpenAlex calls respect the configured minimum interval."""
@@ -204,6 +223,69 @@ class OpenAlexPipelineTests(unittest.TestCase):
             self.assertNotIn("https://openalex.org/W1", active["work_ids"])
             self.assertEqual([row["openalex_id"] for row in survey_rows], ["https://openalex.org/W1"])
 
+    def test_prefilter_enriches_missing_abstract_before_scoring(self) -> None:
+        """Verify an opaque survey reference gains evidence before prefilter scoring."""
+        class Enricher:
+            def __init__(self) -> None:
+                """Initialize the enrichment call counter."""
+                self.calls = 0
+
+            def enrich(self, _work: dict[str, Any]) -> dict[str, str]:
+                """Return direct dataset-release evidence."""
+                self.calls += 1
+                return {
+                    "abstract": "We introduce a new public intrusion detection dataset containing labeled botnet network traffic.",
+                    "abstract_source": "Publisher lookup",
+                }
+
+        settings = load_settings(ROOT / "config/default.toml")
+        profile = load_term_profile(settings, "openalex")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            enricher = Enricher()
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("openalex.work", "W-ctu", {
+                    "work": {
+                        "openalex_id": "W-ctu", "title": "An empirical comparison of botnet detection methods",
+                        "abstract": "", "cited_by_count": 937,
+                    },
+                    "discovery_relations": [
+                        "survey_reference", "survey_reference:W1", "survey_reference:W2",
+                    ],
+                }, "2026-01-01T00:00:00+00:00")
+                rows = prefilter(
+                    settings.section("openalex"), profile, cache, root / "candidates.csv", "run", enricher=enricher,
+                )
+                cached = cache.get_record("openalex.work", "W-ctu")
+            self.assertEqual(enricher.calls, 1)
+            self.assertEqual(rows[0]["prefilter_band"], "candidate")
+            self.assertEqual(rows[0]["abstract_source"], "Publisher lookup")
+            self.assertTrue(cached["work"]["abstract"])
+
+    def test_survey_consensus_reaches_classification_if_enrichment_fails(self) -> None:
+        """Verify two survey citations prevent an opaque release paper from being rejected."""
+        class EmptyEnricher:
+            def enrich(self, _work: dict[str, Any]) -> dict[str, str]:
+                """Simulate unavailable external evidence."""
+                return {}
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("openalex.work", "W-opaque", {
+                    "work": {"openalex_id": "W-opaque", "title": "An empirical comparison", "cited_by_count": 50},
+                    "discovery_relations": ["survey_reference:W1", "survey_reference:W2"],
+                }, "2026-01-01T00:00:00+00:00")
+                rows = prefilter(
+                    {
+                        "candidate_threshold": 7, "borderline_threshold": 4, "minimum_citations": 50,
+                        "survey_consensus_threshold": 2,
+                    },
+                    {"positive": {}}, cache, root / "candidates.csv", "run", enricher=EmptyEnricher(),
+                )
+            self.assertEqual(rows[0]["prefilter_band"], "borderline")
+            self.assertIn("survey_consensus:2", rows[0]["prefilter_signals"])
+
     def test_classification_enriches_missing_abstract_and_candidate_csv(self) -> None:
         """Verify missing evidence is cached and changes the decision fingerprint."""
         class Enricher:
@@ -240,6 +322,56 @@ class OpenAlexPipelineTests(unittest.TestCase):
             self.assertEqual(cached_work["abstract_source"], "Semantic Scholar")
             self.assertEqual(enriched_row["abstract_source"], "Semantic Scholar")
             self.assertNotEqual(enriched_row["evidence_hash"], "old-hash")
+
+    def test_classification_errors_are_not_cached_and_are_retried(self) -> None:
+        """Verify a malformed model response cannot become a terminal cached decision."""
+        class RecoveringModel:
+            model = "fixture-model"
+
+            def __init__(self) -> None:
+                """Fail once before returning a valid release classification."""
+                self.calls = 0
+
+            def generate(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
+                """Raise on the first call and delegate the successful retry."""
+                self.calls += 1
+                if self.calls == 1:
+                    raise RuntimeError("malformed JSON")
+                return FakePaperModel().generate(prompt, schema)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates, classified = root / "candidates.csv", root / "classified.csv"
+            row = {column: "" for column in CANDIDATE_COLUMNS}
+            row.update({
+                "openalex_id": "W-retry", "title": "A New Intrusion Detection Dataset",
+                "abstract": "We introduce a new labeled intrusion detection dataset containing network attack packet traces.",
+                "cited_by_count": "50", "prefilter_score": "7", "prefilter_band": "candidate",
+                "evidence_hash": "retry-evidence",
+            })
+            atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
+            model = RecoveringModel()
+            prompts = load_prompt_profile(load_settings(ROOT / "config/default.toml"), "openalex")
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("openalex.work", "W-retry", {
+                    "work": {
+                        "openalex_id": "W-retry", "title": row["title"], "abstract": row["abstract"],
+                    },
+                }, "2026-01-01T00:00:00+00:00")
+                first = classify(
+                    candidates, classified, cache, {"require_verified_quote": True},
+                    generator=model, prompt_config=prompts,
+                )
+                self.assertEqual(first[0]["decision"], "error")
+                self.assertIsNone(cache.get_decision(
+                    "openalex.classification", "W-retry", first[0]["profile_hash"], "retry-evidence",
+                ))
+                second = classify(
+                    candidates, classified, cache, {"require_verified_quote": True},
+                    generator=model, prompt_config=prompts,
+                )
+            self.assertEqual(model.calls, 2)
+            self.assertEqual(second[0]["decision"], "accept")
 
     def test_work_level_classification_and_export(self) -> None:
         """Verify work-level adjudication excludes downstream applications."""
@@ -284,12 +416,15 @@ class OpenAlexPipelineTests(unittest.TestCase):
             root = Path(directory)
             with PipelineCache(root / "cache.sqlite3") as cache:
                 for work_id in ("W-old", "W-new", "W-survey"):
+                    work = {"openalex_id": work_id, "title": "An intrusion detection dataset"}
+                    if work_id == "W-survey":
+                        work.update({"title": "A survey of intrusion detection datasets", "work_type": "review"})
                     cache.put_record("openalex.work", work_id, {
-                        "work": {"openalex_id": work_id, "title": "An intrusion detection dataset"},
+                        "work": work,
                         "discovery_relations": ["direct_search"], "matched_queries": ["query"],
                     }, "2026-01-01T00:00:00+00:00")
                 cache.put_record("openalex.collection", "latest", {
-                    "work_ids": ["W-new", "W-survey"], "survey_ids": ["W-survey"], "selected_at": "now",
+                    "work_ids": ["W-new"], "survey_ids": ["W-survey"], "selected_at": "now",
                 }, "now")
                 rows = prefilter({"candidate_threshold": 3, "borderline_threshold": 1}, profile, cache, root / "candidates.csv", "run")
                 self.assertIsNotNone(cache.get_record("openalex.work", "W-old"))

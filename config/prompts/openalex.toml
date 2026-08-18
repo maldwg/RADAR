@@ -24,7 +24,7 @@ ${environments}
 Label availability:
 ${labeling}
 
-Role and artifact type must agree: original_release or versioned_release requires dataset or dataset_and_generator; generator_release requires generator_framework or dataset_and_generator. Papers applying, comparing, cleaning, or evaluating existing resources are excluded regardless of wording.
+Role and artifact type must agree: original_release or versioned_release requires dataset or dataset_and_generator; generator_release requires generator_framework or dataset_and_generator. Papers applying, comparing, cleaning, or evaluating existing resources are excluded regardless of wording. A paper may combine survey and release contributions: when it directly introduces and releases an eligible dataset or generator, choose the applicable release role even if the paper also contains a survey; choose survey only when it releases no eligible resource.
 
 For artifact_name, extract the canonical dataset, corpus, toolkit, or generator name rather than copying the publication title. For artifact_display_name, return the shortest explicit name or acronym used for that artifact. Never invent an acronym. If no compact proper name is stated, return a concise evidence-grounded descriptor of at most six words. Put other stated variants in artifact_aliases.
 

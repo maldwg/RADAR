@@ -15,7 +15,7 @@ from ids_meta.common.logging import logger
 from ids_meta.openalex.enrich import ScholarlyEvidenceClient
 from ids_meta.openalex.schema import ARTIFACT_TYPES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, RESPONSE_SCHEMA, SURVEY_COLUMNS, TIERS, ensure_resource_name, normalize_response, validate_processed_row
 
-PROMPT_VERSION = "openalex-7"
+PROMPT_VERSION = "openalex-8"
 LOG = logger("openalex.pipeline")
 
 class Generator(Protocol):
@@ -68,15 +68,23 @@ def metadata_row(key: str, payload: dict[str, Any], fetched_at: str, run_id: str
     }
 
 
-def prefilter(config: dict[str, Any], profile: dict[str, Any], cache: PipelineCache, output: Path, run_id: str) -> list[dict[str, object]]:
+def prefilter(
+    config: dict[str, Any], profile: dict[str, Any], cache: PipelineCache, output: Path, run_id: str,
+    enricher: EvidenceEnricher | None = None,
+) -> list[dict[str, object]]:
     """Score cached works and export every candidate with its prefilter band."""
     rows: list[dict[str, object]] = []
     counts = {"candidate": 0, "borderline": 0, "reject": 0}
     minimum_citations = max(0, int(config.get("minimum_citations", 0)))
     latest_collection = cache.get_record("openalex.collection", "latest") or {}
     active_ids = {str(value) for value in latest_collection.get("work_ids", []) if value}
-    auxiliary_survey_ids = {str(value) for value in latest_collection.get("survey_ids", []) if value}
-    active_ids.difference_update(auxiliary_survey_ids)
+    evidence_client = enricher
+    if evidence_client is None and bool(config.get("enrich_missing_abstracts", False)):
+        evidence_client = ScholarlyEvidenceClient(
+            timeout=float(config.get("evidence_lookup_timeout_seconds", 30)),
+            api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY", ""),
+            max_full_text_chars=int(config.get("max_enriched_full_text_chars", 30000)),
+        )
     LOG.info(
         "starting OpenAlex paper prefilter active_collection=%s active_pool=%s",
         latest_collection.get("selected_at", "legacy_cache_fallback"), len(active_ids) if active_ids else "all_cached_works",
@@ -88,14 +96,36 @@ def prefilter(config: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         if citations < minimum_citations:
             LOG.debug("skipping paper below citation floor citations=%d minimum=%d title=%s", citations, minimum_citations, (payload.get("work") or {}).get("title", key))
             continue
+        work = payload.get("work") or {}
+        if evidence_client is not None and not work.get("abstract") and not work.get("full_text"):
+            try:
+                enriched = evidence_client.enrich(work)
+            except Exception as exc:
+                LOG.warning("prefilter evidence enrichment failed title=%s error=%s", work.get("title", key), exc)
+                enriched = {}
+            if enriched:
+                work.update(enriched)
+                payload["work"] = work
+                cache.put_record("openalex.work", key, payload, utc_now())
+                LOG.info(
+                    "enriched paper before prefilter title=%s abstract=%s full_text=%s",
+                    work.get("title", key), bool(work.get("abstract")), bool(work.get("full_text")),
+                )
         result = score_evidence(format_evidence(evidence_sections(payload), 30000), profile, float(config.get("candidate_threshold", 7)), float(config.get("borderline_threshold", 4)))
+        relations = set(payload.get("discovery_relations", []))
+        survey_sources = {value for value in relations if str(value).startswith("survey_reference:")}
+        consensus_threshold = max(2, int(config.get("survey_consensus_threshold", 2)))
+        band = "borderline" if result.band == "reject" and len(survey_sources) >= consensus_threshold else result.band
+        signals = list(result.signals)
+        if band != result.band:
+            signals.append(f"survey_consensus:{len(survey_sources)}")
         row = metadata_row(key, payload, fetched_at, run_id)
-        row.update({"prefilter_score": result.score, "prefilter_band": result.band, "prefilter_signals": ";".join(result.signals)})
+        row.update({"prefilter_score": result.score, "prefilter_band": band, "prefilter_signals": ";".join(signals)})
         rows.append(row)
-        counts[result.band] += 1
+        counts[band] += 1
         LOG.info(
             "prefiltered paper score=%.1f band=%s retrieval_rank_score=%s citations=%s provenance=%s title=%s",
-            result.score, result.band, row.get("retrieval_rank_score", ""), row.get("cited_by_count", 0), row.get("discovery_relations", "") or "unknown",
+            result.score, band, row.get("retrieval_rank_score", ""), row.get("cited_by_count", 0), row.get("discovery_relations", "") or "unknown",
             row.get("title", key),
         )
     atomic_write_csv(output, rows, CANDIDATE_COLUMNS)
@@ -154,7 +184,7 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
             api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY", ""),
             max_full_text_chars=int(enrichment_config.get("max_enriched_full_text_chars", 30000)),
         )
-    model = getattr(client, "model", "dry-run")
+    model = getattr(client, "model", str(ollama_config.get("model") or "dry-run"))
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, prompt_config)
     results: list[dict[str, str]] = []
     new_decisions = 0
@@ -190,7 +220,7 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                 LOG.info("enriched missing paper evidence title=%s abstract=%s full_text=%s", row.get("title", key), bool(work.get("abstract")), bool(work.get("full_text")))
         evidence_hash = row["evidence_hash"]
         cached = cache.get_decision("openalex.classification", key, profile_hash, evidence_hash) if resume else None
-        if cached:
+        if cached and cached.get("decision") != "error":
             results.append({str(k): str(v) for k, v in cached.items()})
             LOG.info(
                 "reused cached paper decision rank=%d/%d score=%s retrieval_rank_score=%s citations=%s provenance=%s title=%s decision=%s role=%s",
@@ -199,6 +229,8 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                 cached.get("decision", ""), cached.get("paper_role", ""),
             )
             continue
+        if cached:
+            LOG.info("retrying cached paper classification error rank=%d/%d title=%s", rank, len(selected), row.get("title", key))
         sections = evidence_sections(payload)
         result = dict(row)
         result.update({"pipeline_version": PROMPT_VERSION, "profile_hash": profile_hash, "llm_model": model, "classified_at": utc_now(), "error": ""})
@@ -218,7 +250,8 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                 result.update(normalize_response(raw, verified, ollama_config, artifact_id))
             except Exception as exc:
                 result.update({"decision": "error", "paper_role": "", "relevance_tier": "", "artifact_id": "", "artifact_name": "", "artifact_display_name": "", "resource_name": "", "artifact_aliases": "", "artifact_type": "", "domain": "", "data_form": "", "capture_environment": "", "labeling": "", "direct_release_evidence": "", "primary_reason": "", "classification_validation_flags": "classification_error", "model_evidence_json": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
-        cache.put_decision("openalex.classification", key, profile_hash, evidence_hash, result, result["classified_at"])
+        if result.get("decision") != "error":
+            cache.put_decision("openalex.classification", key, profile_hash, evidence_hash, result, result["classified_at"])
         results.append(result)
         new_decisions += 1
         atomic_write_csv(output, results, CLASSIFICATION_COLUMNS)

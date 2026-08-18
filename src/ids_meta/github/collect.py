@@ -226,6 +226,17 @@ def search_shards(client: GitHubClient, base_query: str, start: date, end: date,
         yield shard, client.search(query, page, per_page), incomplete
 
 
+def search_best_matches(client: GitHubClient, query: str, per_page: int) -> Iterator[tuple[str, dict[str, Any], bool]]:
+    """Page GitHub's native best-match results without introducing a date bias."""
+    first = client.search(query, 1, per_page)
+    total = int(first.get("total_count") or 0)
+    incomplete = bool(first.get("incomplete_results"))
+    yield "all", first, incomplete
+    pages = min(10, math.ceil(min(total, 1000) / per_page))
+    for page in range(2, pages + 1):
+        yield "all", client.search(query, page, per_page), incomplete
+
+
 def _enrich(client: GitHubClient, item: dict[str, Any], max_docs_files: int) -> dict[str, Any]:
     """Fetch repository metadata, README, documentation, fork, and commit evidence."""
     full_name = item.get("full_name", "")
@@ -269,31 +280,44 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     per_page = int(settings.get("per_page", 100))
     start = date.fromisoformat(str(settings.get("created_from", "2008-01-01")))
     end = datetime.now(timezone.utc).date()
+    minimum_stars = max(0, int(settings.get("minimum_stars", 100)))
+    max_results_per_query = max(1, int(settings.get("max_results_per_query", 100)))
+    native_search = max_results_per_query <= 1000
+    strategy_kind = "native_best_match" if native_search else "date_shards"
+    search_strategy = f"github_{strategy_kind}_v3_stars_{minimum_stars}_cap_{max_results_per_query}"
     seen: dict[str, dict[str, Any]] = {}
     matched: dict[str, set[str]] = {}
     best_match_rank: dict[str, int] = {}
     if resume:
         for key, payload, _cached_at in cache.records("github.search_candidate"):
-            if payload.get("item"):
+            if payload.get("item") and payload.get("search_strategy") == search_strategy:
                 seen[key] = payload["item"]
                 matched[key] = set(payload.get("matched_queries", []))
                 best_match_rank[key] = int(payload.get("best_match_rank") or 10**9)
     fetched_at = utc_now()
     incomplete_shards: set[tuple[str, str]] = set()
     scan_multiplier = max(1.0, float(settings.get("search_scan_multiplier", 1.0)))
-    scan_target = None if limit is None else max(limit, math.ceil(limit * scan_multiplier))
     queries = [str(query) for query in profile.get("search_queries", [])]
+    requested_scan_target = None if limit is None else max(limit, math.ceil(limit * scan_multiplier))
+    capacity = len(queries) * max_results_per_query
+    scan_target = capacity if requested_scan_target is None else min(requested_scan_target, capacity)
+    qualified_queries = {query: f"{query} stars:>={minimum_stars}" for query in queries}
     LOG.info(
-        "starting GitHub collection queries=%d resume=%s limit=%s scan_target=%s cached_search_candidates=%d ordering=github_best_match pacing=%.2fs/search=%.2fs authentication=%s",
-        len(queries), resume, limit or "none", scan_target or "all", len(seen),
+        "starting GitHub collection queries=%d resume=%s limit=%s scan_target=%s minimum_stars=%d max_results_per_query=%d cached_search_candidates=%d ordering=github_best_match pacing=%.2fs/search=%.2fs authentication=%s",
+        len(queries), resume, limit or "none", scan_target or "all", minimum_stars, max_results_per_query, len(seen),
         float(settings.get("request_pause_seconds", 1.0)), float(settings.get("search_pause_seconds", 2.2)),
         "token" if client.authenticated else "anonymous",
     )
     if not (resume and scan_target is not None and len(seen) >= scan_target):
-        iterators = {query: iter(search_shards(client, query, start, end, per_page)) for query in queries}
+        if native_search:
+            iterators = {query: iter(search_best_matches(client, qualified_queries[query], per_page)) for query in queries}
+        else:
+            iterators = {query: iter(search_shards(client, qualified_queries[query], start, end, per_page)) for query in queries}
         active = list(queries)
         query_positions = {query: 0 for query in queries}
-        per_query_target = None if scan_target is None else max(1, math.ceil(scan_target / max(1, len(queries))))
+        per_query_target = min(
+            max_results_per_query, max(1, math.ceil(scan_target / max(1, len(queries)))),
+        )
         while active:
             for query in list(active):
                 try:
@@ -315,6 +339,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
                     cache.put_record("github.search_candidate", key, {
                         "item": item, "matched_queries": sorted(matched[key]),
                         "best_match_rank": best_match_rank[key],
+                        "search_strategy": search_strategy,
                     }, fetched_at)
                     if per_query_target is not None and query_positions[query] >= per_query_target:
                         if query in active:
@@ -328,7 +353,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     matched = {key: matched.get(key, set()) for key in selected_ids}
     cache.put_record("github.collection", "latest", {
         "repository_ids": selected_ids, "selected_at": fetched_at, "collection_limit": limit,
-        "ordering": "github_best_match", "scan_target": scan_target,
+        "ordering": "github_best_match", "scan_target": scan_target, "search_strategy": search_strategy,
     }, fetched_at)
     progress_every = max(1, int(settings.get("progress_every", 25)))
     reused = 0

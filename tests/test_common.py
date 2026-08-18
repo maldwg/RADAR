@@ -5,19 +5,25 @@ import argparse
 import tempfile
 import unittest
 import io
+import json
 from contextlib import redirect_stdout
 from pathlib import Path
 
 from ids_meta.common.cache import PipelineCache
+from ids_meta.common.csvio import atomic_write_csv
+from ids_meta.common.ensemble import ensemble_classifications
+from ids_meta.common.config import Settings
 from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from ids_meta.common.ollama import EvidenceSection, decision_profile, verify_evidence
 from ids_meta.common.scoring import score_evidence
 from ids_meta.common.scoring import shortlist_candidates
 from ids_meta.common.text import contains_concept, normalize_text
 from ids_meta.common.logging import configure_logging, logger
-from ids_meta.cli import _pipeline_limits, build_parser
+from ids_meta.cli import _configured_models, _ensemble_config, _execution_paths, _pipeline_limits, build_parser
 from ids_meta.github.pipeline import prompt as github_prompt
+from ids_meta.github.schema import CLASSIFICATION_COLUMNS as GITHUB_CLASSIFICATION_COLUMNS
 from ids_meta.openalex.pipeline import prompt as openalex_prompt
+from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS as OPENALEX_CLASSIFICATION_COLUMNS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -181,6 +187,76 @@ class CommonTests(unittest.TestCase):
                 cache.put_decision("x", "1", "profile-a", "evidence-a", {"decision": "accept"}, "now")
                 self.assertIsNotNone(cache.get_decision("x", "1", "profile-a", "evidence-a"))
                 self.assertIsNone(cache.get_decision("x", "1", "profile-a", "evidence-b"))
+
+    def test_multi_model_configuration_and_paths(self) -> None:
+        """Verify model lists, ensemble subsets, and isolated filesystem paths."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            values = {
+                "paths": {
+                    "interim_dir": "interim", "processed_dir": "processed", "plots_dir": "plots",
+                    "github_cache": "github.sqlite3", "openalex_cache": "openalex.sqlite3",
+                },
+                "ollama": {"model": "legacy", "models": ["model/a", "model:b", "model/a"]},
+                "ensemble": {"enabled": True, "models": ["model:b"], "threshold": .75},
+            }
+            settings = Settings(root, values)
+            models = _configured_models(settings)
+            self.assertEqual(models, ["model/a", "model:b"])
+            self.assertEqual(_ensemble_config(settings, models), (True, ["model:b"], .75))
+            paths = _execution_paths(settings, "github", models)
+            self.assertEqual(paths["model/a"]["classifications"], root / "interim/github/models/model-a/classifications.csv")
+            self.assertNotEqual(paths["model/a"]["classifications"], paths["model:b"]["classifications"])
+
+    def test_ensemble_votes_include_exclude_uncertain_and_missing(self) -> None:
+        """Verify majority votes, ties, thresholds, and missing results are auditable."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            decisions = {
+                "alpha": {"1": "accept", "2": "accept"},
+                "beta": {"1": "accept", "2": "exclude", "3": "exclude"},
+                "gamma": {"1": "exclude", "2": "uncertain", "3": "exclude"},
+            }
+            inputs: dict[str, Path] = {}
+            for model, model_decisions in decisions.items():
+                path = root / f"{model}.csv"
+                rows = []
+                for identifier, decision in model_decisions.items():
+                    row = {column: "" for column in GITHUB_CLASSIFICATION_COLUMNS}
+                    row.update({"github_repo_id": identifier, "full_name": f"fixture/{identifier}", "decision": decision, "llm_model": model})
+                    rows.append(row)
+                atomic_write_csv(path, rows, GITHUB_CLASSIFICATION_COLUMNS)
+                inputs[model] = path
+            output = root / "ensemble.csv"
+            rows = ensemble_classifications("github", inputs, output, .5, GITHUB_CLASSIFICATION_COLUMNS)
+            by_id = {str(row["github_repo_id"]): row for row in rows}
+            self.assertEqual(by_id["1"]["decision"], "accept")
+            self.assertEqual(by_id["1"]["ensemble_agreement"], "0.667")
+            strict = ensemble_classifications("github", inputs, root / "strict.csv", .7, GITHUB_CLASSIFICATION_COLUMNS)
+            strict_by_id = {str(row["github_repo_id"]): row for row in strict}
+            self.assertEqual(strict_by_id["1"]["decision"], "uncertain")
+            self.assertEqual(strict_by_id["1"]["ensemble_threshold"], "0.700")
+            self.assertEqual(by_id["2"]["decision"], "uncertain")
+            self.assertEqual(by_id["2"]["ensemble_vote_status"], "below_threshold")
+            self.assertEqual(by_id["3"]["decision"], "exclude")
+            self.assertEqual(by_id["3"]["ensemble_unavailable_score"], "0.333")
+            self.assertEqual(json.loads(str(by_id["3"]["ensemble_decision_counts"]))["missing"], 1)
+            self.assertEqual(json.loads(str(by_id["3"]["ensemble_model_decisions"]))["alpha"], "missing")
+            tied = ensemble_classifications("github", {key: inputs[key] for key in ("alpha", "gamma")}, root / "tie.csv", .5, GITHUB_CLASSIFICATION_COLUMNS)
+            tied_by_id = {str(row["github_repo_id"]): row for row in tied}
+            self.assertEqual(tied_by_id["1"]["decision"], "uncertain")
+            self.assertEqual(tied_by_id["1"]["ensemble_vote_status"], "tie")
+            openalex_inputs: dict[str, Path] = {}
+            for model, decision, tier in (("core-model", "accept", "core"), ("adjacent-model", "accept_adjacent", "adjacent")):
+                path = root / f"{model}-openalex.csv"
+                row = {column: "" for column in OPENALEX_CLASSIFICATION_COLUMNS}
+                row.update({"openalex_id": "W1", "title": "Fixture release", "decision": decision, "relevance_tier": tier, "llm_model": model})
+                atomic_write_csv(path, [row], OPENALEX_CLASSIFICATION_COLUMNS)
+                openalex_inputs[model] = path
+            openalex_rows = ensemble_classifications("openalex", openalex_inputs, root / "openalex-ensemble.csv", .5, OPENALEX_CLASSIFICATION_COLUMNS)
+            self.assertEqual(openalex_rows[0]["decision"], "accept_adjacent")
+            self.assertEqual(openalex_rows[0]["relevance_tier"], "adjacent")
+            self.assertEqual(openalex_rows[0]["ensemble_representative_model"], "adjacent-model")
 
 
 if __name__ == "__main__":

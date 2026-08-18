@@ -21,6 +21,8 @@ github_system_types = "config/taxonomy/github_system_types.toml"
 [ollama]
 url = "http://192.168.175.151:11434"
 model = "qwen3.6:27b"
+# Optional multi-model mode. An empty array keeps the scalar model behavior and legacy paths.
+models = ["gemma4:31b", "qwen3.6:27b"]
 timeout_seconds = 300
 retries = 2
 temperature = 0.0
@@ -28,11 +30,21 @@ seed = 42
 max_output_tokens = 900
 require_verified_quote = true
 
+[ensemble]
+# When enabled, models may be an empty array (all ollama.models) or a selected subset.
+enabled = true
+models = ["gemma4:31b", "qwen3.6:27b"]
+# Agreement is divided by all selected members; ties and values below this threshold are uncertain.
+threshold = 0.5
+
 [github]
 # Bound source discovery separately from the ranked LLM adjudication shortlist.
 # Use classification_limit = "all" to classify every candidate/borderline row.
 collection_limit = 1000
-# Oversample native GitHub best-match results before selecting the active collection.
+# Keep GitHub native relevance ordering while bounding each query to reputable projects.
+minimum_stars = 100
+max_results_per_query = 100
+# Oversample across queries before selecting the active collection.
 search_scan_multiplier = 3.0
 classification_limit = 100
 per_page = 100
@@ -75,7 +87,7 @@ retrieval_minimum_score = 1.0
 retrieval_minimum_title_tokens = 3
 retrieval_title_weight = 0.5
 # Hard eligibility floor for candidate papers; auxiliary survey sources are exempt.
-minimum_citations = 50
+minimum_citations = 25
 # Enrich only papers whose OpenAlex abstract is missing; full text is best-effort.
 enrich_missing_abstracts = true
 evidence_lookup_timeout_seconds = 30

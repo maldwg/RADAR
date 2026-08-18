@@ -111,7 +111,7 @@ def classify(
     eligible = shortlist_candidates(rows, "github_repo_id", None)
     selected = shortlist_candidates(rows, "github_repo_id", limit)
     client = generator if generator is not None else (None if dry_run else OllamaClient(ollama_config))
-    model = getattr(client, "model", "dry-run")
+    model = getattr(client, "model", str(ollama_config.get("model") or "dry-run"))
     decision_config = {"prompt": prompt_config or {}, "system_types": system_type_profile or {}}
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)
     results: list[dict[str, str]] = []

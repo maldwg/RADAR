@@ -149,9 +149,13 @@ class GitHubPipelineTests(unittest.TestCase):
         """Verify one early query cannot consume the complete collection budget."""
         class Client:
             authenticated = True
+            def __init__(self) -> None:
+                """Record the exact queries sent to GitHub search."""
+                self.search_queries: list[str] = []
             def search(self, query: str, _page: int, _per_page: int) -> dict[str, Any]:
                 """Return one native best-match result for each query."""
-                base = query.split(" created:", 1)[0]
+                self.search_queries.append(query)
+                base = query.split(" stars:", 1)[0]
                 repo_id = 1 if base == "first" else 2
                 return {"total_count": 1, "items": [{"id": repo_id, "full_name": "example/" + base}]}
             def get_json(self, path: str, _params: dict[str, Any] | None = None) -> Any:
@@ -167,15 +171,62 @@ class GitHubPipelineTests(unittest.TestCase):
                 """Return no documentation fixture."""
                 return ""
         with tempfile.TemporaryDirectory() as directory:
+            client = Client()
             with PipelineCache(Path(directory) / "cache.sqlite3") as cache:
                 counts = collect(
                     {"created_from": "2020-01-01", "per_page": 100, "progress_every": 10, "search_scan_multiplier": 1},
-                    {"search_queries": ["first", "second"]}, cache, limit=2, client=Client(), resume=False,
+                    {"search_queries": ["first", "second"]}, cache, limit=2, client=client, resume=False,
                 )
                 active = cache.get_record("github.collection", "latest")
             self.assertEqual(counts["discovered"], 2)
             self.assertEqual(set(active["repository_ids"]), {"1", "2"})
             self.assertEqual(active["ordering"], "github_best_match")
+            self.assertEqual(client.search_queries, ["first stars:>=100", "second stars:>=100"])
+            self.assertEqual(active["search_strategy"], "github_native_best_match_v3_stars_100_cap_100")
+
+    def test_collection_caps_each_query_at_one_hundred_results(self) -> None:
+        """Verify default discovery enforces both the star qualifier and per-query cap."""
+        class Client:
+            authenticated = True
+
+            def __init__(self) -> None:
+                """Record search calls for the bounded query."""
+                self.search_queries: list[str] = []
+
+            def search(self, query: str, _page: int, _per_page: int) -> dict[str, Any]:
+                """Return more repositories than one query may contribute."""
+                self.search_queries.append(query)
+                return {
+                    "total_count": 150,
+                    "items": [{"id": index, "full_name": f"example/repo-{index}"} for index in range(1, 151)],
+                }
+
+            def get_json(self, path: str, _params: dict[str, Any] | None = None) -> Any:
+                """Return repository or empty commit metadata."""
+                if path.endswith("/commits"):
+                    return []
+                name = path.rsplit("/repos/", 1)[-1]
+                return {"id": int(name.rsplit("-", 1)[-1]), "full_name": name}
+
+            def raw_readme(self, _full_name: str) -> str:
+                """Return minimal repository evidence."""
+                return "intrusion detection system"
+
+            def docs(self, _full_name: str, _max_files: int) -> str:
+                """Return no documentation fixture."""
+                return ""
+
+        with tempfile.TemporaryDirectory() as directory:
+            client = Client()
+            with PipelineCache(Path(directory) / "cache.sqlite3") as cache:
+                counts = collect(
+                    {"per_page": 100, "progress_every": 100, "search_scan_multiplier": 3},
+                    {"search_queries": ["intrusion detection"]}, cache, limit=1000, client=client, resume=False,
+                )
+                active = cache.get_record("github.collection", "latest")
+            self.assertEqual(counts["discovered"], 100)
+            self.assertEqual(len(active["repository_ids"]), 100)
+            self.assertEqual(client.search_queries, ["intrusion detection stars:>=100"])
 
     def test_resumed_collection_never_exceeds_repository_limit(self) -> None:
         """Verify a full cached pool does not trigger an extra discovery request."""
@@ -196,7 +247,10 @@ class GitHubPipelineTests(unittest.TestCase):
             with PipelineCache(Path(directory) / "cache.sqlite3") as cache:
                 for repo_id in ("1", "2"):
                     item = {"id": int(repo_id), "full_name": f"example/repo-{repo_id}"}
-                    cache.put_record("github.search_candidate", repo_id, {"item": item, "matched_queries": ["query"]}, "now")
+                    cache.put_record("github.search_candidate", repo_id, {
+                        "item": item, "matched_queries": ["query"],
+                        "search_strategy": "github_native_best_match_v3_stars_100_cap_100",
+                    }, "now")
                     cache.put_record("github.repository", repo_id, {"repository": item, "matched_queries": ["query"]}, "now")
                 counts = collect(
                     {"created_from": "2020-01-01", "per_page": 100, "progress_every": 10},

@@ -47,11 +47,17 @@ def normalize_work(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def is_survey_work(work: dict[str, Any]) -> bool:
-    """Return whether a work is explicitly identifiable as a survey or review."""
+    """Return whether a work is a survey without an explicit resource release claim."""
     text = f"{work.get('title', '')} {work.get('abstract', '')}"
-    return str(work.get("work_type", "")).casefold() == "review" or any(
+    survey = str(work.get("work_type", "")).casefold() == "review" or any(
         contains_concept(text, term) for term in ("survey", "systematic review", "literature review", "dataset review", "mapping study")
     )
+    release = any(contains_concept(text, term) for term in (
+        "new dataset", "present a dataset", "presents a dataset", "introduce a dataset", "introduces a dataset",
+        "release a dataset", "release the dataset", "released dataset", "public dataset", "publicly available",
+        "made available", "open source", "open-source", "dataset toolkit", "data generation framework",
+    ))
+    return survey and not release
 
 
 def work_text(work: dict[str, Any], title_only: bool = False) -> str:
@@ -319,7 +325,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     for query, item in direct_results:
         normalized = normalize_work(item)
         key = str(normalized.get("openalex_id", ""))
-        if key and not is_survey_work(normalized) and int(normalized.get("cited_by_count") or 0) >= minimum_citations:
+        if key and int(normalized.get("cited_by_count") or 0) >= minimum_citations:
             direct_pool[key] = normalized
             direct_matches.setdefault(key, set()).add(query)
     ranked_direct, direct_scores = rank_work_pool(direct_pool, profile, minimum_score, minimum_title_tokens, title_weight)

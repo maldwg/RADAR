@@ -95,7 +95,7 @@ GitHub search uses its own stricter interval because it has a smaller rate-limit
 
 GitHub pacing also adapts to the `X-RateLimit-*` response headers and spreads remaining calls over the quota window. A rate-limit wait therefore does not consume ordinary retry attempts. If startup reports `authentication=anonymous`, export `GITHUB_TOKEN` or `GH_TOKEN`; anonymous collection is technically supported but repository enrichment will be extremely slow.
 
-GitHub discovery uses the API native best-match order with no stars or updated-time sort override. It scans configured queries round-robin with per-query quotas, oversamples according to `github.search_scan_multiplier`, and records an explicit active collection. Prefiltering reads only that collection, while older cached repositories remain available for audit. Recent date shards are visited before older shards when GitHub’s 1,000-result cap requires recursive splitting.
+GitHub discovery appends the configured minimum-star qualifier (100 by default) to every query while retaining the API native best-match order; it does not sort by stars, updated time, or creation date. Each query contributes at most `github.max_results_per_query` repositories (100 by default). Queries are scanned round-robin, and the collector records an explicit active collection. Prefiltering reads only that collection, while older cached repositories remain available for audit.
 
 Classification is intentionally row-level, but canonical selection is not. The `reconcile` stage runs after all available decisions are present:
 
@@ -111,6 +111,26 @@ Classifier audit plots are separate from thesis-facing catalogue plots:
 ids-meta compare github
 ids-meta compare openalex
 ```
+
+### Multiple models and ensembles
+
+Set `ollama.models` to run the model-dependent stages once per model. Collection and prefiltering remain shared, so every model receives the same ranked candidates. Leave the array empty to retain the scalar `ollama.model` setting and all legacy paths. When a non-empty array is configured, it takes precedence over `ollama.model`.
+
+```toml
+[ollama]
+model = "qwen3.6:27b"
+models = ["qwen3.6:27b", "llama3.3:70b", "gemma3:27b"]
+
+[ensemble]
+enabled = true
+# Empty means every ollama.models entry; otherwise list only participating models.
+models = ["qwen3.6:27b", "llama3.3:70b"]
+threshold = 0.5
+```
+
+The ensemble first maps `accept` and OpenAlex `accept_adjacent` to include, while `exclude` and `uncertain` remain separate dispositions. A unique disposition must reach the threshold among all selected ensemble members. Missing/error results remain in the denominator, and tied or below-threshold votes become `uncertain`. The ensemble CSV preserves the representative classification plus member names, each model decision, exact decision counts, all disposition scores, agreement, and vote status. Its reconciliation is deterministic and does not ask another model to override the vote.
+
+With two or more configured models, outputs are isolated under `data/interim/<source>/models/<model-slug>/`, `data/processed/<source>/models/<model-slug>/`, and `artifacts/plots/<source>/models/<model-slug>/`. Ensemble equivalents use an `ensemble/` directory. Cross-model decision counts, pairwise agreement, and record-level disagreement tables/plots are written to `artifacts/plots/comparisons/<source>/models/`. The shared cache remains safe because decision fingerprints already include the model name. `ids-meta compare <source>` detects this configuration and rebuilds the cross-model bundle. In multi-model or ensemble mode, model-dependent `--output` paths and stage-specific `--input` paths for reconcile, export, or plot are rejected because one file cannot represent every variant; a shared candidate `--input` remains supported for classify and run.
 
 Use `--config path/to/config.toml`, `--input`, and `--output` for alternate runs. The default generic discovery queries and weighted concept groups live in `config/terms/`. Production term profiles must contain domain concepts only, never named products, repositories, datasets, or benchmarks.
 

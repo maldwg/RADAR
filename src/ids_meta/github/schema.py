@@ -45,6 +45,12 @@ METADATA_COLUMNS = [
     "metadata_fetched_at", "evidence_hash",
 ]
 CANDIDATE_COLUMNS = METADATA_COLUMNS + ["prefilter_score", "prefilter_band", "prefilter_signals", "matched_queries"]
+ENSEMBLE_COLUMNS = [
+    "ensemble_models", "ensemble_model_decisions", "ensemble_representative_model", "ensemble_threshold", "ensemble_disposition",
+    "ensemble_agreement", "ensemble_include_score", "ensemble_exclude_score",
+    "ensemble_uncertain_score", "ensemble_unavailable_score", "ensemble_decision_counts",
+    "ensemble_vote_status",
+]
 CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
     "pipeline_version", "profile_hash", "llm_model", "decision", "role",
     "observation_scopes", "capabilities", "detection_methods", "primary_system_type",
@@ -52,7 +58,7 @@ CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
     "independent_fork", "direct_self_description", "runtime_observation", "runnable_detector",
     "offline_dataset_only", "upstream_full_name", "classification_validation_flags", "primary_reason", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
-]
+] + ENSEMBLE_COLUMNS
 RECONCILIATION_COLUMNS = [
     "project_id", "canonical_repo_id", "canonical_full_name", "repository_relationship",
     "canonical_confidence", "canonical_reason", "canonical_resolution",

@@ -22,6 +22,12 @@ METADATA_COLUMNS = [
     "retrieval_rank_score", "retrieval_score", "retrieval_title_score", "retrieval_signals", "survey_discovery_score",
 ]
 CANDIDATE_COLUMNS = METADATA_COLUMNS + ["prefilter_score", "prefilter_band", "prefilter_signals"]
+ENSEMBLE_COLUMNS = [
+    "ensemble_models", "ensemble_model_decisions", "ensemble_representative_model", "ensemble_threshold", "ensemble_disposition",
+    "ensemble_agreement", "ensemble_include_score", "ensemble_exclude_score",
+    "ensemble_uncertain_score", "ensemble_unavailable_score", "ensemble_decision_counts",
+    "ensemble_vote_status",
+]
 SURVEY_COLUMNS = METADATA_COLUMNS
 CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
     "pipeline_version", "profile_hash", "llm_model", "decision", "paper_role", "relevance_tier",
@@ -29,7 +35,7 @@ CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
     "capture_environment", "labeling", "direct_release_evidence",
     "primary_reason", "classification_validation_flags", "model_evidence_json", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
-]
+] + ENSEMBLE_COLUMNS
 RECONCILIATION_COLUMNS = [
     "publication_family_id", "canonical_openalex_id", "canonical_doi", "canonical_title",
     "paper_relationship", "canonical_confidence", "canonical_reason", "canonical_resolution",
