@@ -54,7 +54,7 @@ def metadata_caption(frame: pd.DataFrame, extra: str = "") -> str:
     run = run_ids[0] if len(run_ids) == 1 else "multiple runs" if run_ids else "unknown run"
     fetched = sorted(set(value[:10] for value in frame.get("metadata_fetched_at", pd.Series(dtype=str)).astype(str) if value))
     as_of = fetched[-1] if fetched else "unknown date"
-    return f"n={len(frame)}; {run}; metadata as of {as_of}" + (f"; {extra}" if extra else "")
+    return f"n={len(frame)}" + (f"; {extra}" if extra else "")
 
 
 def stamp(fig: plt.Figure, caption: str) -> None:

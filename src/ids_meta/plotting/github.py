@@ -5,7 +5,8 @@ import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, Rectangle
+import matplotlib.dates as mdates
+from matplotlib.patches import FancyBboxPatch, Patch, Rectangle
 import pandas as pd
 
 from ids_meta.plotting.common import COLORS, add_heading, configure_style, count_legend, count_plot, explode_values, load_frame, metadata_caption, save_figure, stamp, write_index, write_table
@@ -85,7 +86,6 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
     fig, ax = plt.subplots(figsize=(18, max(7, total_units * .34)))
     ax.set_xlim(0, 100); ax.set_ylim(total_units, 0); ax.axis("off")
     ax.text(50, .55, "Repository feature matrix", ha="center", va="center", fontsize=17, fontweight="bold", color="#263238")
-    ax.text(50, 1.18, "Every accepted repository; grouped by normalized system family; role dots distinguish detectors, frameworks, models, content, tooling, and demos", ha="center", va="center", fontsize=8.5, color="#6F7782")
 
     headers = [(1.3, "Repository"), (20.5, "System"), (30.5, "Detection method(s)"), (68.5, "Activity"), (75, "Stars"), (84.2, "Forks"), (91.2, "Last commit")]
     for x, label in headers:
@@ -174,20 +174,494 @@ def _system_type_definitions(profile: dict[str, object] | None) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values(["priority", "code"], ascending=[False, True], kind="stable")
 
 
+
+def _clean_values(value: object) -> list[str]:
+    """Split a semicolon/comma separated multi-value cell into stable non-empty labels."""
+    raw = str(value or "").strip()
+    if not raw or raw.casefold() in {"unknown", "none", "nan", "null", "n/a", "na"}:
+        return []
+    values: list[str] = []
+    for semicolon_part in raw.split(";"):
+        for item in semicolon_part.split(","):
+            item = item.strip()
+            if item and item.casefold() not in {"unknown", "none", "nan", "null", "n/a", "na"}:
+                values.append(item)
+    return list(dict.fromkeys(values))
+
+
+def _display_system_type(value: object) -> str:
+    """Format normalized IDS-type codes such as nids/hids/pids for plot labels."""
+    text = str(value or "unknown").strip()
+    if not text:
+        return "Unknown"
+    upper_codes = {"nids", "hids", "pids", "wids", "xdr", "ndr", "ids", "ips"}
+    if text.casefold() in upper_codes:
+        return text.upper()
+    return text.replace("_", " ").title()
+
+
+def _primary_system_type_series(frame: pd.DataFrame) -> pd.Series:
+    """Return one primary IDS type per row with deterministic fallbacks."""
+    system_types = frame.get(
+        "system_types",
+        frame.get("derived_labels", pd.Series("unknown", index=frame.index)),
+    ).fillna("").astype(str)
+    primary = frame.get("primary_system_type", pd.Series("", index=frame.index)).fillna("").astype(str)
+    fallback = system_types.map(lambda value: (_clean_values(value) or ["unknown"])[0])
+    return primary.where(primary.str.strip() != "", fallback).replace("", "unknown")
+
+
+def _system_type_colors(values: list[str]) -> dict[str, str]:
+    """Assign stable colors to the IDS types present in a figure."""
+    ordered = list(dict.fromkeys(values))
+    return {value: FAMILY_COLORS[index % len(FAMILY_COLORS)] for index, value in enumerate(ordered)}
+
+
+def _repository_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Plot repository creation time on x, GitHub stars on y, and IDS type as color."""
+    canonical = frame[frame["repository_relationship"] == "canonical"].copy()
+    canonical["primary_system_type"] = _primary_system_type_series(canonical)
+    canonical["stars_numeric"] = pd.to_numeric(canonical.get("stars", 0), errors="coerce").fillna(0).clip(lower=0)
+
+    created_raw = canonical.get("created_at", pd.Series("", index=canonical.index)).fillna("")
+    canonical["timeline_date"] = pd.to_datetime(created_raw, errors="coerce", utc=True)
+    canonical["timeline_date_source"] = "created_at"
+    missing_created = canonical["timeline_date"].isna()
+    pushed_raw = canonical.get("pushed_at", pd.Series("", index=canonical.index)).fillna("")
+    canonical.loc[missing_created, "timeline_date"] = pd.to_datetime(pushed_raw[missing_created], errors="coerce", utc=True)
+    canonical.loc[missing_created, "timeline_date_source"] = "pushed_at_fallback"
+    canonical = canonical.dropna(subset=["timeline_date"]).sort_values(["timeline_date", "stars_numeric", "full_name"], kind="stable")
+
+    columns = [
+        "github_repo_id", "project_id", "full_name", "primary_system_type", "system_types", "role",
+        "timeline_date", "timeline_date_source", "stars_numeric", "repository_relationship", "html_url",
+    ]
+    for column in columns:
+        if column not in canonical:
+            canonical[column] = ""
+    timeline_table = canonical[columns].rename(columns={"stars_numeric": "stars"})
+    write_table(timeline_table, out_dir / "data", "01_repository_timeline")
+
+    fig, ax = plt.subplots(figsize=(15.5, 7.4))
+    add_heading(
+        fig,
+        "IDS repository timeline",
+        metadata_caption(canonical, "canonical projects; x = repository creation date; y = GitHub stars; color = primary IDS type"),
+        top=.84,
+    )
+    fig.subplots_adjust(left=.09, right=.84, bottom=.22)
+    if canonical.empty:
+        ax.axis("off")
+        ax.text(.5, .5, "No dated canonical repositories", transform=ax.transAxes, ha="center", va="center")
+        return save_figure(fig, out_dir, "01_repository_timeline", formats, dpi)
+
+    type_values = canonical["primary_system_type"].astype(str).tolist()
+    colors = _system_type_colors(type_values)
+    for system_type, group in canonical.groupby("primary_system_type", sort=False):
+        ax.scatter(
+            group["timeline_date"], group["stars_numeric"], s=58,
+            color=colors[str(system_type)], edgecolor="white", linewidth=.9,
+            label=_display_system_type(system_type), zorder=3,
+        )
+
+    # Repository names are mandatory. Place them underneath each point; duplicate dates/stars
+    # get deterministic horizontal offsets without moving the actual data point.
+    canonical["_duplicate_index"] = canonical.groupby(["timeline_date", "stars_numeric"], sort=False).cumcount()
+    canonical["_duplicate_size"] = canonical.groupby(["timeline_date", "stars_numeric"], sort=False)["github_repo_id"].transform("size")
+    for _, row in canonical.iterrows():
+        duplicate_index = int(row["_duplicate_index"])
+        duplicate_size = int(row["_duplicate_size"])
+        dx = (duplicate_index - (duplicate_size - 1) / 2.0) * 32
+        ax.annotate(
+            _short(row.get("full_name", ""), 32),
+            (row["timeline_date"], row["stars_numeric"]),
+            xytext=(dx, -12), textcoords="offset points",
+            ha="center", va="top", fontsize=6.6, color="#43505C",
+            arrowprops={"arrowstyle": "-", "color": "#C7D0D6", "lw": .5} if abs(dx) > 1 else None,
+            annotation_clip=False,
+        )
+
+    ax.set_xlabel("Repository creation date")
+    ax.set_ylabel("GitHub stars")
+    ax.set_ylim(bottom=min(-1, -float(canonical["stars_numeric"].max()) * .03))
+    locator = mdates.AutoDateLocator(minticks=6, maxticks=12)
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+    ax.grid(axis="x", alpha=.35)
+    ax.grid(axis="y", alpha=.25)
+    handles = [Patch(facecolor=colors[value], label=_display_system_type(value)) for value in dict.fromkeys(type_values)]
+    ax.legend(handles=handles, title="IDS type", loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=8)
+    return save_figure(fig, out_dir, "01_repository_timeline", formats, dpi)
+
+
+def _role_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Cross repository roles (standalone/demo/etc.) with normalized IDS types."""
+    canonical = frame[frame["repository_relationship"] == "canonical"].copy()
+    canonical["system_types"] = canonical.get(
+        "system_types", canonical.get("derived_labels", pd.Series("unknown", index=canonical.index))
+    ).fillna("").astype(str)
+    records: list[dict[str, object]] = []
+    for _, row in canonical.iterrows():
+        types = _clean_values(row.get("system_types", "")) or ["unknown"]
+        for system_type in types:
+            records.append({
+                "github_repo_id": row.get("github_repo_id", ""),
+                "full_name": row.get("full_name", ""),
+                "role": row.get("role", "unknown") or "unknown",
+                "system_type": system_type,
+            })
+    expanded = pd.DataFrame(records, columns=["github_repo_id", "full_name", "role", "system_type"])
+    write_table(expanded, out_dir / "data", "02_role_type_matrix_records")
+    matrix = pd.crosstab(expanded["role"], expanded["system_type"]) if not expanded.empty else pd.DataFrame()
+    preferred_roles = [role for role, *_ in ROLE_MATRIX]
+    role_order = [role for role in preferred_roles if role in matrix.index] + [role for role in matrix.index if role not in preferred_roles]
+    if role_order:
+        matrix = matrix.reindex(role_order)
+    write_table(matrix.reset_index(), out_dir / "data", "02_role_type_matrix")
+
+    display = matrix if not matrix.empty else pd.DataFrame([[0]], index=["no data"], columns=["no data"])
+    fig, ax = plt.subplots(figsize=(max(10.5, 6.5 + .8 * len(display.columns)), max(5.7, 3.0 + .55 * len(display.index))))
+    add_heading(fig, "Repository role by IDS type", metadata_caption(canonical, "canonical projects; multi-label IDS types"), top=.84)
+    image = ax.imshow(display.values, cmap="Blues", aspect="auto", vmin=0)
+    maximum = max(1, int(display.to_numpy().max()))
+    for r in range(len(display.index)):
+        for c in range(len(display.columns)):
+            count = int(display.iloc[r, c])
+            ax.text(c, r, str(count), ha="center", va="center", fontsize=8, fontweight="bold", color="white" if count > maximum * .52 else "#263238")
+    ax.set_xticks(range(len(display.columns)), [_display_system_type(value) for value in display.columns], rotation=30, ha="right")
+    ax.set_yticks(range(len(display.index)), [ROLE_LABELS.get(str(value), str(value).replace("_", " ").title()) for value in display.index])
+    ax.set_xlabel("IDS type")
+    ax.set_ylabel("Repository role")
+    ax.grid(False)
+    fig.colorbar(image, ax=ax, pad=.02, label="Repositories")
+    return save_figure(fig, out_dir, "02_role_type_matrix", formats, dpi)
+
+
+def _detection_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Cross detection methods with normalized IDS types."""
+    canonical = frame[frame["repository_relationship"] == "canonical"].copy()
+    records: list[dict[str, object]] = []
+    for _, row in canonical.iterrows():
+        types = _clean_values(row.get("system_types", row.get("derived_labels", ""))) or ["unknown"]
+        methods = _clean_values(row.get("detection_methods", "")) or ["unknown"]
+        for system_type in types:
+            for method in methods:
+                records.append({
+                    "github_repo_id": row.get("github_repo_id", ""),
+                    "full_name": row.get("full_name", ""),
+                    "system_type": system_type,
+                    "detection_method": method,
+                })
+    expanded = pd.DataFrame(records, columns=["github_repo_id", "full_name", "system_type", "detection_method"])
+    write_table(expanded, out_dir / "data", "04_detection_method_type_matrix_records")
+    matrix = pd.crosstab(expanded["detection_method"], expanded["system_type"]) if not expanded.empty else pd.DataFrame()
+    if not matrix.empty:
+        matrix = matrix.loc[matrix.sum(axis=1).sort_values(ascending=False).index]
+    write_table(matrix.reset_index(), out_dir / "data", "04_detection_method_type_matrix")
+
+    display = matrix if not matrix.empty else pd.DataFrame([[0]], index=["no data"], columns=["no data"])
+    fig, ax = plt.subplots(figsize=(max(10.5, 6.5 + .8 * len(display.columns)), max(5.8, 3.0 + .55 * len(display.index))))
+    add_heading(fig, "Detection method by IDS type", metadata_caption(canonical, "canonical projects; methods and IDS types are multi-label"), top=.84)
+    image = ax.imshow(display.values, cmap="Blues", aspect="auto", vmin=0)
+    maximum = max(1, int(display.to_numpy().max()))
+    for r in range(len(display.index)):
+        for c in range(len(display.columns)):
+            count = int(display.iloc[r, c])
+            ax.text(c, r, str(count), ha="center", va="center", fontsize=8, fontweight="bold", color="white" if count > maximum * .52 else "#263238")
+    ax.set_xticks(range(len(display.columns)), [_display_system_type(value) for value in display.columns], rotation=30, ha="right")
+    ax.set_yticks(range(len(display.index)), [str(value).replace("_", " ") for value in display.index])
+    ax.set_xlabel("IDS type")
+    ax.set_ylabel("Detection method")
+    ax.grid(False)
+    fig.colorbar(image, ax=ax, pad=.02, label="Repositories")
+    return save_figure(fig, out_dir, "04_detection_method_type_matrix", formats, dpi)
+
+
+def _write_count_table(frame: pd.DataFrame, column: str, out_dir: Path, stem: str) -> None:
+    """Write exact counts for a count plot plus row-level records used by it."""
+    if column not in frame:
+        write_table(pd.DataFrame(columns=[column, "count"]), out_dir / "data", stem)
+        write_table(pd.DataFrame(), out_dir / "data", f"{stem}_records")
+        return
+    values = frame[column].fillna("").astype(str).replace("", "unknown")
+    counts = values.value_counts(dropna=False).rename_axis(column).reset_index(name="count")
+    write_table(counts, out_dir / "data", stem)
+    record_columns = [value for value in ["github_repo_id", "project_id", "full_name", column] if value in frame]
+    write_table(frame[record_columns].copy(), out_dir / "data", f"{stem}_records")
+
+
+def _metadata_completeness(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Plot percentage of repositories with each metadata field populated, including GitHub topics/tags."""
+    fields = [
+        ("html_url", "Repository URL"),
+        ("description", "Description"),
+        ("topics", "Topics/tags"),
+        ("tags", "Tags"),
+        ("license_spdx", "License"),
+        ("language", "Primary language"),
+        ("created_at", "Created at"),
+        ("pushed_at", "Pushed at"),
+        ("last_commit_sha", "Last commit SHA"),
+        ("last_commit_at", "Last commit timestamp"),
+        ("system_types", "IDS type"),
+        ("detection_methods", "Detection methods"),
+        ("observation_scopes", "Observation scopes"),
+        ("capabilities", "Capabilities"),
+        ("role", "Repository role"),
+        ("repository_relationship", "Repository relationship"),
+        ("discovery_relations", "Discovery provenance"),
+    ]
+    # Do not add a duplicate standalone Tags row if the schema has no tags field.
+    fields = [(field, label) for field, label in fields if field in frame.columns or field != "tags"]
+    missing = {"", "unknown", "none", "nan", "null", "n/a", "na", "[]", "{}"}
+    rows: list[dict[str, object]] = []
+    for field, label in fields:
+        if field not in frame:
+            present = 0
+        else:
+            present = int(frame[field].map(lambda value: str(value).strip().casefold() not in missing).sum())
+        rows.append({"field": field, "label": label, "present": present, "total": len(frame), "percent": present / max(1, len(frame)) * 100})
+    completeness = pd.DataFrame(rows).sort_values(["percent", "label"], ascending=[True, True], kind="stable")
+    write_table(completeness, out_dir / "data", "06_metadata_completeness")
+
+    record_columns = [
+        value for value in [
+            "github_repo_id", "project_id", "full_name", "html_url", "description", "topics", "tags", "license_spdx", "language",
+            "created_at", "pushed_at", "last_commit_sha", "last_commit_at", "system_types", "detection_methods", "observation_scopes",
+            "capabilities", "role", "repository_relationship", "discovery_relations",
+        ] if value in frame
+    ]
+    write_table(frame[record_columns].copy(), out_dir / "data", "06_metadata_completeness_records")
+
+    fig, ax = plt.subplots(figsize=(11.3, max(6.5, 3.0 + .36 * len(completeness))))
+    add_heading(fig, "Repository metadata completeness", metadata_caption(frame, "all accepted repositories; non-empty/non-placeholder values"), top=.84)
+    positions = list(range(len(completeness)))
+    ax.barh(positions, [100] * len(positions), height=.58, color="#EEF2F4", edgecolor="none")
+    ax.barh(positions, completeness["percent"], height=.58, color=COLORS[1], edgecolor="none")
+    ax.set_yticks(positions, completeness["label"])
+    ax.set_xlim(0, 112)
+    ax.set_xlabel("Repositories with metadata available (%)")
+    ax.set_xticks([0, 25, 50, 75, 100], ["0%", "25%", "50%", "75%", "100%"])
+    ax.grid(axis="y", visible=False)
+    for position, (_, row) in zip(positions, completeness.iterrows()):
+        ax.text(min(109, float(row["percent"]) + 1.5), position, f"{row['percent']:.0f}% ({int(row['present'])}/{int(row['total'])})", va="center", fontsize=7.4, color="#43505C")
+    return save_figure(fig, out_dir, "06_metadata_completeness", formats, dpi)
+
+
+def _tag_counts(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int, top_n: int) -> list[Path]:
+    """Plot the most common GitHub topics/tags across accepted repositories."""
+    records: list[dict[str, object]] = []
+    for _, row in frame.iterrows():
+        combined: list[str] = []
+        for field in ("topics", "tags"):
+            if field in frame:
+                combined.extend(_clean_values(row.get(field, "")))
+        for tag in dict.fromkeys(combined):
+            records.append({"github_repo_id": row.get("github_repo_id", ""), "full_name": row.get("full_name", ""), "tag": tag})
+    expanded = pd.DataFrame(records, columns=["github_repo_id", "full_name", "tag"])
+    counts = expanded["tag"].value_counts().rename_axis("tag").reset_index(name="repositories") if not expanded.empty else pd.DataFrame(columns=["tag", "repositories"])
+    counts["percent_of_repositories"] = counts["repositories"] / max(1, len(frame)) * 100
+    write_table(counts, out_dir / "data", "07_common_tags")
+    write_table(expanded, out_dir / "data", "07_common_tags_records")
+
+    plotted = counts.head(top_n).iloc[::-1]
+    fig, ax = plt.subplots(figsize=(11.2, max(5.8, 3.2 + .35 * max(1, len(plotted)))))
+    add_heading(fig, "Most common repository tags", metadata_caption(frame, f"all accepted repositories; top {top_n}; a repository may have multiple tags"), top=.84)
+    if plotted.empty:
+        ax.axis("off")
+        ax.text(.5, .5, "No repository topics/tags available", transform=ax.transAxes, ha="center", va="center")
+        return save_figure(fig, out_dir, "07_common_tags", formats, dpi)
+    positions = list(range(len(plotted)))
+    ax.barh(positions, plotted["repositories"], color=COLORS[0])
+    ax.set_yticks(positions, plotted["tag"])
+    ax.set_xlabel("Repositories")
+    ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    ax.grid(axis="y", visible=False)
+    for position, (_, row) in zip(positions, plotted.iterrows()):
+        ax.text(float(row["repositories"]) + .15, position, f"{int(row['repositories'])} ({row['percent_of_repositories']:.0f}%)", va="center", fontsize=7.3, color="#43505C")
+    return save_figure(fig, out_dir, "07_common_tags", formats, dpi)
+
+
+def _discovery_source_label(token: str) -> str:
+    """Normalize detailed GitHub discovery-relation tokens into readable source groups."""
+    normalized = token.strip().casefold().replace("-", "_").replace(" ", "_")
+    if not normalized:
+        return "Other"
+    if normalized == "direct_search" or ("direct" in normalized and "search" in normalized):
+        return "Direct search"
+    if "snowball" in normalized or "reference" in normalized or "referenced" in normalized or normalized.startswith("related_"):
+        return "Reference / snowball"
+    if "seed" in normalized:
+        return "Seed source"
+    if "search" in normalized:
+        return "Search source"
+    return token.strip().replace("_", " ").title()
+
+
+def _discovery_source_boxplot(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Boxplot annual repository counts by discovery source, using repository creation year as the time grouping."""
+    view = frame.copy()
+    relations = view.get("discovery_relations", pd.Series("", index=view.index)).fillna("").astype(str)
+    created = pd.to_datetime(view.get("created_at", pd.Series("", index=view.index)), errors="coerce", utc=True)
+    fallback = pd.to_datetime(view.get("pushed_at", pd.Series("", index=view.index)), errors="coerce", utc=True)
+    view["discovery_year"] = created.fillna(fallback).dt.year
+    view["discovery_year_source"] = created.notna().map({True: "created_at", False: "pushed_at_fallback"})
+
+    record_rows: list[dict[str, object]] = []
+    for index, row in view.iterrows():
+        source_tokens = _clean_values(relations.loc[index])
+        sources = list(dict.fromkeys(_discovery_source_label(token) for token in source_tokens)) or ["Other"]
+        for source in sources:
+            record_rows.append({
+                "github_repo_id": row.get("github_repo_id", ""),
+                "full_name": row.get("full_name", ""),
+                "discovery_year": row.get("discovery_year"),
+                "discovery_year_source": row.get("discovery_year_source", ""),
+                "source": source,
+                "discovery_relations": row.get("discovery_relations", ""),
+            })
+    records = pd.DataFrame(record_rows, columns=["github_repo_id", "full_name", "discovery_year", "discovery_year_source", "source", "discovery_relations"])
+    write_table(records, out_dir / "data", "08_discovery_sources_records")
+
+    dated = records.dropna(subset=["discovery_year"]).copy()
+    if not dated.empty:
+        dated["discovery_year"] = dated["discovery_year"].astype(int)
+        source_order = dated.groupby("source")["github_repo_id"].nunique().sort_values(ascending=False).index.tolist()
+        years = range(int(dated["discovery_year"].min()), int(dated["discovery_year"].max()) + 1)
+        grid = pd.MultiIndex.from_product([years, source_order], names=["discovery_year", "source"]).to_frame(index=False)
+        annual = grid.merge(
+            dated.groupby(["discovery_year", "source"])["github_repo_id"].nunique().rename("repositories").reset_index(),
+            how="left", on=["discovery_year", "source"],
+        ).fillna({"repositories": 0})
+        annual["repositories"] = annual["repositories"].astype(int)
+    else:
+        source_order = []
+        annual = pd.DataFrame(columns=["discovery_year", "source", "repositories"])
+    write_table(annual, out_dir / "data", "08_discovery_sources")
+
+    fig, ax = plt.subplots(figsize=(max(10.5, 2.0 + 2.0 * max(1, len(source_order))), 6.4))
+    add_heading(fig, "Discovery-source contribution", metadata_caption(view, "boxplots show annual repository counts per discovery source; multi-source repositories may appear in multiple groups"), top=.84)
+    if annual.empty:
+        ax.axis("off")
+        ax.text(.5, .5, "No dated discovery-provenance data", transform=ax.transAxes, ha="center", va="center")
+        return save_figure(fig, out_dir, "08_discovery_sources", formats, dpi)
+    values = [annual.loc[annual["source"] == source, "repositories"].tolist() for source in source_order]
+    positions = list(range(1, len(source_order) + 1))
+    boxes = ax.boxplot(values, positions=positions, widths=.55, patch_artist=True, showfliers=False)
+    for index, patch in enumerate(boxes["boxes"]):
+        color = FAMILY_COLORS[index % len(FAMILY_COLORS)]
+        patch.set_facecolor(color)
+        patch.set_alpha(.24)
+        patch.set_edgecolor(color)
+        patch.set_linewidth(1.2)
+    for median in boxes["medians"]:
+        median.set_color("#263238")
+        median.set_linewidth(1.5)
+    for name in ("whiskers", "caps"):
+        for item in boxes[name]:
+            item.set_color("#7A8791")
+    ax.set_xticks(positions, source_order, rotation=20, ha="right")
+    ax.set_ylabel("Repositories per creation year")
+    ax.set_xlabel("Discovery source")
+    ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    ax.grid(axis="x", visible=False)
+    return save_figure(fig, out_dir, "08_discovery_sources", formats, dpi)
+
+
+def _classification_audit(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Cross deterministic candidate/borderline/reject bands with final model inclusion/exclusion decisions."""
+    view = frame.copy()
+    band_column = next((column for column in ("prefilter_band", "filter_band", "candidate_band") if column in view), None)
+    decision_column = next((column for column in ("decision", "final_decision", "classification_decision", "model_decision") if column in view), None)
+    score_column = next((column for column in ("prefilter_score", "filter_score", "score") if column in view), None)
+
+    if band_column is None or decision_column is None:
+        write_table(pd.DataFrame(columns=["prefilter_band", "decision", "count", "percent_within_band"]), out_dir / "data", "09_classification_audit")
+        write_table(pd.DataFrame(), out_dir / "data", "09_classification_audit_records")
+        fig, ax = plt.subplots(figsize=(10.5, 5.8))
+        add_heading(fig, "Candidate filtering versus final model decision", metadata_caption(view, "requires prefilter/filter band and final decision columns"), top=.84)
+        ax.axis("off")
+        ax.text(.5, .5, "No candidate-audit classification columns available", transform=ax.transAxes, ha="center", va="center")
+        return save_figure(fig, out_dir, "09_classification_audit", formats, dpi)
+
+    view["audit_band"] = view[band_column].fillna("").astype(str).replace("", "unknown")
+    view["audit_decision"] = view[decision_column].fillna("").astype(str).replace("", "unknown")
+    view["audit_score"] = pd.to_numeric(view[score_column], errors="coerce") if score_column else pd.Series(float("nan"), index=view.index)
+
+    preferred_bands = ["candidate", "borderline", "reject", "unknown"]
+    observed_bands = list(dict.fromkeys(view["audit_band"].tolist()))
+    bands = [value for value in preferred_bands if value in observed_bands] + [value for value in observed_bands if value not in preferred_bands]
+    preferred_decisions = ["include", "accept", "accept_adjacent", "exclude", "reject", "uncertain", "error", "unknown"]
+    observed_decisions = list(dict.fromkeys(view["audit_decision"].tolist()))
+    decisions = [value for value in preferred_decisions if value in observed_decisions] + [value for value in observed_decisions if value not in preferred_decisions]
+
+    matrix = pd.crosstab(view["audit_band"], view["audit_decision"]).reindex(index=bands, columns=decisions, fill_value=0)
+    percentages = matrix.div(matrix.sum(axis=1).replace(0, 1), axis=0) * 100
+    score_summary = view.groupby("audit_band")["audit_score"].agg(["min", "median", "max"]).reindex(bands)
+    table = matrix.stack().rename("count").reset_index().rename(columns={"audit_band": "prefilter_band", "audit_decision": "decision"})
+    pct = percentages.stack().rename("percent_within_band").reset_index().rename(columns={"audit_band": "prefilter_band", "audit_decision": "decision"})
+    table = table.merge(pct, on=["prefilter_band", "decision"])
+    if not score_summary.empty:
+        scores = score_summary.reset_index().rename(columns={"audit_band": "prefilter_band", "min": "score_min", "median": "score_median", "max": "score_max"})
+        table = table.merge(scores, on="prefilter_band", how="left")
+    write_table(table, out_dir / "data", "09_classification_audit")
+
+    record_columns = [value for value in ["github_repo_id", "project_id", "full_name", band_column, score_column, decision_column, "role", "system_types", "discovery_relations"] if value and value in view]
+    write_table(view[record_columns].copy(), out_dir / "data", "09_classification_audit_records")
+
+    display = matrix if not matrix.empty else pd.DataFrame([[0]], index=["no data"], columns=["no data"])
+    display_pct = percentages if not percentages.empty else display.astype(float)
+    fig, ax = plt.subplots(figsize=(max(10.5, 6.5 + .85 * len(display.columns)), max(5.5, 3.4 + .8 * len(display.index))))
+    add_heading(fig, "Candidate filtering versus final model decision", metadata_caption(view, "cells show exact count and percentage within prefilter band"), top=.84)
+    image = ax.imshow(display_pct.values, cmap="Blues", aspect="auto", vmin=0, vmax=100)
+    for r in range(len(display.index)):
+        for c in range(len(display.columns)):
+            count = int(display.iloc[r, c])
+            percent = float(display_pct.iloc[r, c])
+            ax.text(c, r, f"{count}\n{percent:.0f}%", ha="center", va="center", fontsize=8, fontweight="bold", color="white" if percent >= 55 else "#263238")
+    row_labels: list[str] = []
+    for band in display.index:
+        label = str(band).replace("_", " ")
+        if band in score_summary.index:
+            summary = score_summary.loc[band]
+            if pd.notna(summary.get("min")) and pd.notna(summary.get("max")):
+                label += f"\nscore {summary['min']:g}–{summary['max']:g}; med {summary['median']:g}"
+        row_labels.append(label)
+    ax.set_xticks(range(len(display.columns)), [str(value).replace("_", " ") for value in display.columns], rotation=25, ha="right")
+    ax.set_yticks(range(len(display.index)), row_labels)
+    ax.set_xlabel("Final model / review decision")
+    ax.set_ylabel("Deterministic filter classification")
+    ax.grid(False)
+    fig.colorbar(image, ax=ax, pad=.02, label="Share within filter band (%)")
+    return save_figure(fig, out_dir, "09_classification_audit", formats, dpi)
+
+
 def build(
-    input_path: Path, out_dir: Path, config: dict[str, object], system_type_profile: dict[str, object] | None = None,
+    input_path: Path,
+    out_dir: Path,
+    config: dict[str, object],
+    system_type_profile: dict[str, object] | None = None,
+    classifications_path: Path | None = None,
 ) -> list[Path]:
-    """Generate the complete GitHub catalogue plot and aggregate-table bundle."""
+    """Generate the GitHub IDS catalogue plot and audit-table bundle."""
     LOG.info("building GitHub plots input=%s output=%s", input_path, out_dir)
     configure_style()
-    frame = load_frame(input_path, ("github_repo_id", "project_id", "repository_relationship", "role", "observation_scopes", "capabilities", "detection_methods", "language", "stars", "forks", "pushed_at"))
+    frame = load_frame(
+        input_path,
+        (
+            "github_repo_id", "project_id", "repository_relationship", "role", "observation_scopes",
+            "capabilities", "detection_methods", "language", "stars", "forks", "pushed_at",
+        ),
+    )
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
-    dpi, top_n = int(config.get("dpi", 160)), int(config.get("top_n", 15))
-    caption = metadata_caption(frame, "multi-label figures may count a repository more than once")
+    dpi = int(config.get("dpi", 160))
+    top_n = int(config.get("top_n", 15))
     outputs: list[Path] = []
+
+    # 00 — keep the existing detailed repository overview unchanged.
     exact_commit = frame.get("last_commit_at", pd.Series("", index=frame.index)).fillna("")
     type_values = frame.get("system_types", frame.get("derived_labels", pd.Series("unknown", index=frame.index))).replace("", "unknown")
-    primary_types = frame.get("primary_system_type", pd.Series("", index=frame.index)).replace("", pd.NA).fillna(type_values.str.split(";").str[0]).replace("", "unknown")
+    primary_types = _primary_system_type_series(frame)
     overview = pd.DataFrame({
         "repository": frame["full_name"],
         "system_role": frame["role"].map(ROLE_LABELS).fillna(frame["role"]),
@@ -198,7 +672,8 @@ def build(
         "capabilities": frame["capabilities"],
         "methods": frame["detection_methods"],
         "relationship": frame["repository_relationship"],
-        "stars": frame["stars"], "forks": frame["forks"],
+        "stars": frame["stars"],
+        "forks": frame["forks"],
         "last_commit_at": exact_commit.where(exact_commit != "", frame["pushed_at"]),
         "last_commit_time_source": exact_commit.map(lambda value: "commit_metadata" if value else "repository_pushed_at_fallback"),
         "repository_url": frame.get("html_url", pd.Series("", index=frame.index)),
@@ -210,66 +685,60 @@ def build(
     for stale in out_dir.glob("00_repository_overview_p*.*"):
         stale.unlink()
     outputs += _overview_matrix(frame, out_dir, formats, dpi)
-    outputs += count_plot(frame, "role", "Repository roles", caption, out_dir, "01_role_counts", formats, dpi)
-    outputs += count_plot(frame, "repository_relationship", "Repository relationships", caption, out_dir, "02_repository_relationships", formats, dpi)
-    canonical = frame[frame["repository_relationship"] == "canonical"].copy()
-    canonical["system_types"] = canonical.get("system_types", canonical.get("derived_labels", pd.Series("unknown", index=canonical.index))).replace("", "unknown")
-    system_type_rows = explode_values(canonical, "system_types", "github_repo_id")
-    outputs += count_plot(system_type_rows, "system_types", "Configured system types", metadata_caption(canonical, "canonical projects; deterministically derived; multi-label"), out_dir, "02b_system_types", formats, dpi)
-    detectors = canonical[canonical["role"] == "standalone_detector"]
-    method_rows = canonical[canonical["role"].isin(["standalone_detector", "classifier_model", "platform_framework"])]
-    for number, column, title, source, filter_note in (
-        (3, "observation_scopes", "Observation scopes", detectors, "canonical standalone_detector projects only"),
-        (4, "capabilities", "Detection and response capabilities", detectors, "canonical standalone_detector projects only"),
-        (5, "detection_methods", "Detection methods", method_rows, "canonical detectors, classifier models, and platforms only"),
-    ):
-        exploded = explode_values(source, column, "github_repo_id")
-        outputs += count_plot(exploded, column, title, metadata_caption(source, f"{filter_note}; multi-label"), out_dir, f"0{number}_{column}", formats, dpi)
-    role_scope = explode_values(method_rows, "observation_scopes", "github_repo_id").merge(method_rows[["github_repo_id", "role"]], on="github_repo_id")
-    matrix = pd.crosstab(role_scope["role"], role_scope["observation_scopes"])
-    if matrix.empty:
-        matrix = pd.DataFrame([[0]], index=["no data"], columns=["no data"])
-    write_table(matrix.reset_index(), out_dir / "data", "06_role_scope_heatmap")
-    fig, ax = plt.subplots(figsize=(10, 5.8))
-    image = ax.imshow(matrix.values, cmap="Blues", aspect="auto")
-    ax.set_xticks(range(len(matrix.columns)), [str(value).replace("_", " ") for value in matrix.columns], rotation=35, ha="right")
-    ax.set_yticks(range(len(matrix.index)), [str(value).replace("_", " ") for value in matrix.index])
-    add_heading(fig, "Repository role by observation scope", metadata_caption(method_rows, "canonical detectors, classifier models, and platforms; multi-label"))
-    fig.colorbar(image, ax=ax, label="Repositories")
-    stamp(fig, metadata_caption(method_rows, "detectors, classifier models, and platforms only; multi-label"))
-    outputs += save_figure(fig, out_dir, "06_role_scope_heatmap", formats, dpi)
+
+    # 01 — creation timeline with stars and IDS-type colors.
+    outputs += _repository_timeline(frame, out_dir, formats, dpi)
+
+    # 02 — role x IDS-type overview matrix.
+    outputs += _role_type_matrix(frame, out_dir, formats, dpi)
+
+    # 03 — repository relationships, visually unchanged but with explicit audit CSVs.
+    _write_count_table(frame, "repository_relationship", out_dir, "03_repository_relationships")
+    outputs += count_plot(
+        frame, "repository_relationship", "Repository relationships",
+        metadata_caption(frame, "all accepted repository rows"), out_dir, "03_repository_relationships", formats, dpi,
+    )
+
+    # 04 — detection method x IDS-type matrix.
+    outputs += _detection_type_matrix(frame, out_dir, formats, dpi)
+
+    # 05 — activity bar chart, kept as before.
     frame["activity"] = frame["pushed_at"].map(_activity)
-    outputs += count_plot(frame, "activity", "Repository activity", metadata_caption(frame, "all accepted repositories; based on pushed_at at plot time"), out_dir, "07_activity", formats, dpi)
-    outputs += count_plot(frame, "language", "Primary languages", caption, out_dir, "08_languages", formats, dpi, top_n)
-    numeric = canonical.copy()
-    numeric["stars"] = pd.to_numeric(numeric["stars"], errors="coerce").fillna(0)
-    numeric["forks"] = pd.to_numeric(numeric["forks"], errors="coerce").fillna(0)
-    fig, ax = plt.subplots()
-    for index, (role, group) in enumerate(numeric.groupby("role")):
-        ax.scatter(group["stars"] + 1, group["forks"] + 1, label=str(role).replace("_", " "), alpha=.68, s=24, color=COLORS[index % len(COLORS)])
-    ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlabel("Stars + 1 (log)"); ax.set_ylabel("Forks + 1 (log)")
-    add_heading(fig, "Repository popularity—not relevance", metadata_caption(canonical, "canonical projects only; popularity never affects selection"))
-    ax.legend(title="System role", fontsize=7, ncol=2, frameon=False)
-    stamp(fig, metadata_caption(canonical, "canonical projects only; popularity never affects inclusion or canonical selection"))
-    write_table(numeric[["github_repo_id", "project_id", "full_name", "role", "stars", "forks"]], out_dir / "data", "09_popularity")
-    outputs += save_figure(fig, out_dir, "09_popularity", formats, dpi)
-    metadata_fields = ["html_url", "description", "topics", "license_spdx", "language", "pushed_at", "last_commit_sha", "last_commit_at"]
-    completeness = pd.DataFrame({"field": metadata_fields, "present": [((frame[field] != "") & (frame[field].str.casefold() != "unknown")).sum() if field in frame else 0 for field in metadata_fields]})
-    completeness["percent"] = completeness["present"] / max(1, len(frame)) * 100
-    write_table(completeness, out_dir / "data", "10_metadata_completeness")
-    fig, ax = plt.subplots(); ordered = completeness.iloc[::-1]
-    ax.barh(ordered["field"], ordered["percent"], color=COLORS[1]); ax.set_xlim(0, 100); ax.set_xlabel("Rows populated (%)")
-    add_heading(fig, "Repository metadata completeness", metadata_caption(frame, "all accepted roles"))
-    count_legend(ax, "Rows populated (%)", COLORS[1])
-    stamp(fig, metadata_caption(frame, "all accepted roles"))
-    outputs += save_figure(fig, out_dir, "10_metadata_completeness", formats, dpi)
+    _write_count_table(frame, "activity", out_dir, "05_activity")
+    outputs += count_plot(
+        frame, "activity", "Repository activity",
+        metadata_caption(frame, "all accepted repositories; based on pushed_at at plot time"),
+        out_dir, "05_activity", formats, dpi,
+    )
+
+    # 06 — expanded metadata completeness including GitHub topics/tags and taxonomy fields.
+    outputs += _metadata_completeness(frame, out_dir, formats, dpi)
+
+    # 07 — most common topics/tags.
+    outputs += _tag_counts(frame, out_dir, formats, dpi, top_n)
+
+    # 08 — discovery-source boxplot. Each source has a distribution of annual repository counts.
+    outputs += _discovery_source_boxplot(frame, out_dir, formats, dpi)
+
+    # 09 — deterministic filter band versus final model decision.
+    if classifications_path and classifications_path.is_file():
+        classifications = pd.read_csv(classifications_path, dtype=str, keep_default_na=False)
+        outputs += _classification_audit(classifications, out_dir, formats, dpi)
+    else:
+        outputs += _classification_audit(frame, out_dir, formats, dpi)
+
     outputs.append(write_index(out_dir, input_path, frame, outputs, [
-        "Role, relationship, activity, language, and completeness cover all accepted repository rows.",
-        "System types are deterministic rules from config/taxonomy/github_system_types.toml; data/00_system_type_definitions.csv records the exact definitions.",
-        "Scope/capability figures use canonical standalone detector projects; method figures also include canonical classifier models and platforms.",
-        "Popularity uses canonical projects only and never affects inclusion or canonical selection.",
-        "Multi-label plots may count one repository in more than one category.",
-        "The complete repository overview is data/00_repository_overview.csv; its rendered pages include every accepted entry.",
+        "00_repository_overview keeps the existing detailed repository feature matrix and exports every accepted row.",
+        "01_repository_timeline uses repository creation time on x, GitHub stars on y, and primary IDS type as color; every repository is named below its point.",
+        "02_role_type_matrix crosses roles such as standalone detector, framework, model, content, tooling, and demo with normalized IDS types such as NIDS/HIDS/PIDS.",
+        "03_repository_relationships retains the existing repository-relationship count view.",
+        "04_detection_method_type_matrix crosses detection methods with IDS types; both dimensions may be multi-label.",
+        "05_activity retains the existing pushed_at activity-age bar chart.",
+        "06_metadata_completeness includes GitHub topics/tags plus taxonomy and discovery metadata where available.",
+        "07_common_tags reports the most common GitHub topics/tags and the share of repositories carrying each tag.",
+        "08_discovery_sources uses annual per-source repository counts to form real boxplot distributions; creation year is used with pushed_at only as a fallback.",
+        "09_classification_audit requires candidate/borderline/reject filter bands and a final model/review decision. Pass classifications_path when excluded candidates are stored separately from the accepted catalogue.",
+        "Every plotted aggregate has a matching CSV under data/, and matrix/tag/discovery/classification figures also export row-level *_records.csv files for traceability.",
     ]))
     LOG.info("GitHub plot bundle complete files=%d output=%s", len(outputs), out_dir)
     return outputs
