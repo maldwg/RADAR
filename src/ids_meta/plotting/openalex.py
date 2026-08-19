@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 import re
+import textwrap
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
@@ -19,6 +20,13 @@ TYPE_COLORS = {
     "generator_framework": "#D1842F",
     "dataset_and_generator": "#7B5EA7",
     "unknown": "#6F7782",
+}
+
+DISCOVERY_COLORS = {
+    "Direct search": "#2F6F9F",
+    "Survey snowball": "#7B5EA7",
+    "Survey source": "#D1842F",
+    "Other": "#6F7782",
 }
 def artifact_label(value: object) -> str:
     """Format a normalized artifact type for display."""
@@ -129,50 +137,96 @@ def prepare_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def publication_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Plot one non-overlapping row per canonical resource on an exact-year timeline."""
+    """Render a true publication timeline; resources in the same year are stacked vertically."""
     dated = frame.dropna(subset=["publication_year_numeric"]).copy()
     dated = dated.sort_values(["publication_year_numeric", "resource_name", "openalex_id"], kind="stable")
     dated["publication_year"] = dated["publication_year_numeric"].astype(int)
+    dated["timeline_stack"] = dated.groupby("publication_year", sort=False).cumcount()
+    dated["timeline_stack_size"] = dated.groupby("publication_year", sort=False)["openalex_id"].transform("size")
+
     columns = [
-        "resource_name", "artifact_display_name", "artifact_name", "publication_year", "publication_date", "artifact_type", "paper_role", "catalogue_tier",
-        "citations", "citation_as_of", "provenance", "discovery_relations", "prefilter_score", "title", "doi", "openalex_id",
+        "resource_name", "artifact_display_name", "artifact_name", "publication_year", "publication_date",
+        "artifact_type", "domain", "data_form", "capture_environment", "labeling", "paper_role",
+        "catalogue_tier", "provenance", "discovery_relations", "prefilter_score", "title", "doi", "openalex_id",
+        "timeline_stack", "timeline_stack_size",
     ]
     for column in columns:
         if column not in dated:
             dated[column] = ""
+    # Row-level audit table: exactly the resources shown on the timeline and their metadata.
     write_table(dated[columns], out_dir / "data", "00_publication_timeline")
-    height = max(6.0, 2.0 + .34 * max(1, len(dated)))
-    fig, ax = plt.subplots(figsize=(13.5, height))
-    caption = metadata_caption(frame, "one row per canonical resource; color identifies resource type")
-    add_heading(fig, "IDS dataset and generator publication timeline", caption, top=.89)
-    fig.subplots_adjust(left=.29, right=.91)
+
+    max_stack = int(dated["timeline_stack"].max()) if not dated.empty else 0
+    height = max(6.3, 5.2 + .72 * max_stack)
+
+    # Give each calendar year substantially more horizontal room.  The timeline
+    # remains proportional in time (missing years still occupy their real gap),
+    # but long resource names no longer have to compete for the same few inches.
+    if dated.empty:
+        year_span = 1
+    else:
+        year_span = int(dated["publication_year"].max()) - int(dated["publication_year"].min()) + 1
+    figure_width = max(15.2, min(36.0, 1.15 * year_span))
+    fig, ax = plt.subplots(figsize=(figure_width, height))
+    caption = metadata_caption(
+        frame,
+        "x = publication year; y has no metric meaning; resources sharing a year are stacked vertically",
+    )
+    add_heading(fig, "IDS dataset and generator publication timeline", caption, top=.86)
+    fig.subplots_adjust(left=.07, right=.84, bottom=.16)
+
     if dated.empty:
         ax.axis("off")
         ax.text(.5, .5, "No dated canonical artifacts in the current catalogue", transform=ax.transAxes, ha="center", va="center")
-    else:
-        minimum_year = int(dated["publication_year"].min())
-        maximum_year = int(dated["publication_year"].max())
-        positions = list(range(len(dated)))
-        ax.hlines(positions, minimum_year - .45, dated["publication_year"], color="#DCE3E8", linewidth=1.0, zorder=1)
-        for artifact_type, group in dated.assign(_position=positions).groupby("artifact_type", sort=False):
-            ax.scatter(
-                group["publication_year"], group["_position"], s=52,
-                color=TYPE_COLORS.get(str(artifact_type), TYPE_COLORS["unknown"]), edgecolor="white", linewidth=1.0,
-                label=artifact_label(artifact_type), zorder=3,
-            )
-        ax.set_yticks(positions, dated["resource_name"])
-        ax.invert_yaxis()
-        ax.set_xlabel("Publication year")
-        ax.set_ylabel("")
-        ax.set_xlim(minimum_year - .6, maximum_year + 1.4)
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=12))
-        ax.grid(axis="y", visible=False)
-        for position, (_, row) in enumerate(dated.iterrows()):
-            ax.annotate(str(int(row["publication_year"])), (row["publication_year"], position), xytext=(7, 0), textcoords="offset points", va="center", fontsize=7, color="#56636F")
-        type_handles = [Patch(facecolor=color, label=artifact_label(name)) for name, color in TYPE_COLORS.items() if name in set(dated["artifact_type"])]
-        ax.legend(handles=type_handles, title="Resource type", loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=8)
-    return save_figure(fig, out_dir, "00_publication_timeline", formats, dpi)
+        return save_figure(fig, out_dir, "00_publication_timeline", formats, dpi)
 
+    # The vertical coordinate is deliberately only a layout coordinate. A small gap
+    # between stacked entries leaves room for the mandatory resource labels.
+    dated["timeline_y"] = dated["timeline_stack"].astype(float) * 1.35
+    minimum_year = int(dated["publication_year"].min())
+    maximum_year = int(dated["publication_year"].max())
+
+    # Timeline baseline plus a light stem for every occupied year.
+    ax.axhline(-.72, color="#AAB6BF", linewidth=1.2, zorder=1)
+    for year, group in dated.groupby("publication_year", sort=True):
+        ax.vlines(year, -.72, float(group["timeline_y"].max()) + .12, color="#DCE3E8", linewidth=1.1, zorder=1)
+
+    for artifact_type, group in dated.groupby("artifact_type", sort=False):
+        ax.scatter(
+            group["publication_year"], group["timeline_y"], s=68,
+            color=TYPE_COLORS.get(str(artifact_type), TYPE_COLORS["unknown"]),
+            edgecolor="white", linewidth=1.0, label=artifact_label(artifact_type), zorder=4,
+        )
+
+    # Names remain directly beneath their own point. Because same-year resources
+    # have different layout rows, these labels also stack instead of colliding.
+    for _, row in dated.iterrows():
+        ax.annotate(
+            textwrap.fill(str(row["resource_name"]), width=22),
+            (row["publication_year"], row["timeline_y"]),
+            xytext=(0, -10), textcoords="offset points",
+            ha="center", va="top", fontsize=6.7, color="#43505C", linespacing=.95,
+            annotation_clip=False, zorder=3,
+        )
+
+    ax.set_xlim(minimum_year - .65, maximum_year + .65)
+    ax.set_ylim(-1.0, float(dated["timeline_y"].max()) + .85)
+    ax.set_xlabel("Publication year")
+    ax.set_ylabel("")
+    ax.set_yticks([])
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=14))
+    ax.grid(axis="x", linewidth=.6, alpha=.45)
+    ax.grid(axis="y", visible=False)
+    for spine in ("left", "right", "top"):
+        ax.spines[spine].set_visible(False)
+
+    handles = [
+        Patch(facecolor=color, label=artifact_label(name))
+        for name, color in TYPE_COLORS.items()
+        if name in set(dated["artifact_type"])
+    ]
+    ax.legend(handles=handles, title="Resource type", loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=8)
+    return save_figure(fig, out_dir, "00_publication_timeline", formats, dpi)
 
 def citation_landscape(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Rank canonical resources by citations using a zero-safe axis with count-labelled ticks."""
@@ -208,35 +262,257 @@ def citation_landscape(frame: pd.DataFrame, out_dir: Path, formats: list[str], d
 
 
 def provenance_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Render artifact-level discovery paths alongside citation and score context."""
+    """Show discovery paths together with resource classification, domain, and provenance metadata."""
     view = frame.sort_values(["publication_year_numeric", "resource_name"], na_position="last", kind="stable").copy()
     relations = view["discovery_relations"].fillna("")
     view["direct_search"] = relations.str.split(";").map(lambda values: "direct_search" in values)
-    view["survey_snowball"] = relations.map(lambda value: any(item == "survey_reference" or item.startswith("survey_reference:") for item in value.split(";") if item))
+    view["survey_snowball"] = relations.map(
+        lambda value: any(item == "survey_reference" or item.startswith("survey_reference:") for item in value.split(";") if item)
+    )
     view["survey_source"] = relations.str.split(";").map(lambda values: "survey_search" in values)
-    columns = ["resource_name", "artifact_display_name", "artifact_name", "publication_year", "artifact_type", "citations", "citation_as_of", "prefilter_score", "direct_search", "survey_snowball", "survey_source", "provenance", "discovery_relations", "openalex_id"]
+    for column in ("domain", "artifact_type", "provenance", "prefilter_score", "paper_role", "catalogue_tier"):
+        if column not in view:
+            view[column] = ""
+
+    columns = [
+        "resource_name", "artifact_display_name", "artifact_name", "publication_year", "artifact_type", "domain",
+        "paper_role", "catalogue_tier", "direct_search", "survey_snowball", "survey_source", "provenance",
+        "discovery_relations", "prefilter_score", "data_form", "capture_environment", "labeling", "doi", "openalex_id",
+    ]
+    for column in columns:
+        if column not in view:
+            view[column] = ""
+    # This CSV is intentionally row-level so every plotted paper can be audited.
     write_table(view[columns], out_dir / "data", "02_discovery_provenance")
-    height = max(5.8, 2.0 + .32 * max(1, len(view)))
-    fig, ax = plt.subplots(figsize=(12.8, height))
-    caption = metadata_caption(frame, "filled cells mark observed discovery paths; numeric columns show exact values")
-    add_heading(fig, "Where each accepted base paper came from", caption, top=.89)
-    fig.subplots_adjust(left=.29, right=.97)
-    ax.set_xlim(-.5, 5.5)
+
+    height = max(6.0, 2.1 + .36 * max(1, len(view)))
+    fig, ax = plt.subplots(figsize=(16.8, height))
+    caption = metadata_caption(
+        frame,
+        "filled cells mark discovery paths; text columns expose resource type, domain, normalized provenance, and score",
+    )
+    add_heading(fig, "Discovery provenance and resource classification", caption, top=.89)
+    fig.subplots_adjust(left=.27, right=.985, top=.92)
+
+    if view.empty:
+        ax.axis("off")
+        ax.text(.5, .5, "No discovery-provenance data", transform=ax.transAxes, ha="center", va="center")
+        return save_figure(fig, out_dir, "02_discovery_provenance", formats, dpi)
+
     positions = list(range(len(view)))
+    x_positions = {
+        "direct_search": 0.0,
+        "survey_snowball": 1.0,
+        "survey_source": 2.0,
+        "artifact_type": 3.65,
+        "domain": 5.35,
+        "provenance": 7.25,
+        "prefilter_score": 8.8,
+    }
+    ax.set_xlim(-.55, 9.55)
     ax.set_ylim(len(view) - .4, -.7)
     ax.set_yticks(positions, view["resource_name"])
-    ax.set_xticks([0, 1, 2, 3.45, 4.85], ["Direct", "Survey\nsnowball", "Survey\nsource", "Citations", "Prefilter\nscore"])
+    ax.set_xticks(
+        list(x_positions.values()),
+        ["Direct search", "Survey\nsnowball", "Survey\nsource", "Resource\ntype", "Domain", "Provenance", "Prefilter\nscore"],
+    )
+    # Treat the x tick labels as table-style column headers and keep them at the
+    # top of the provenance view.  On tall figures, bottom-only labels are easy
+    # to miss and make the metadata columns appear unlabeled.
+    ax.xaxis.tick_top()
+    ax.tick_params(axis="x", which="both", top=False, bottom=False, labeltop=True, labelbottom=False, pad=9)
+    for tick_label in ax.get_xticklabels():
+        tick_label.set_fontweight("bold")
+        tick_label.set_color("#43505C")
     ax.grid(axis="y", visible=False)
+    ax.grid(axis="x", linewidth=.5, alpha=.25)
+
     for position, (_, row) in enumerate(view.iterrows()):
         color = TYPE_COLORS.get(str(row["artifact_type"]), TYPE_COLORS["unknown"])
-        for x, field in ((0, "direct_search"), (1, "survey_snowball"), (2, "survey_source")):
-            ax.scatter([x], [position], s=42, facecolor=color if bool(row[field]) else "white", edgecolor=color if bool(row[field]) else "#CDD5DB", linewidth=.9)
-        ax.text(3.45, position, f"{int(row['citations']):,}", ha="center", va="center", fontsize=7.2, color="#43505C")
-        ax.text(4.85, position, str(row.get("prefilter_score", "")) or "—", ha="center", va="center", fontsize=7.2, color="#43505C")
-    type_handles = [Patch(facecolor=color, label=artifact_label(name)) for name, color in TYPE_COLORS.items() if name in set(view["artifact_type"])]
-    ax.legend(handles=type_handles, title="Resource type", loc="lower right", bbox_to_anchor=(1, 1.005), ncol=max(1, len(type_handles)), frameon=False, fontsize=8)
+        for field in ("direct_search", "survey_snowball", "survey_source"):
+            active = bool(row[field])
+            ax.scatter(
+                [x_positions[field]], [position], s=46,
+                facecolor=color if active else "white",
+                edgecolor=color if active else "#CDD5DB", linewidth=.9, zorder=3,
+            )
+        ax.text(x_positions["artifact_type"], position, concise_text(artifact_label(row["artifact_type"]), 24), ha="center", va="center", fontsize=7.1, color="#43505C")
+        ax.text(x_positions["domain"], position, concise_text(row.get("domain", "") or "—", 28), ha="center", va="center", fontsize=7.1, color="#43505C")
+        ax.text(x_positions["provenance"], position, concise_text(row.get("provenance", "") or "—", 28), ha="center", va="center", fontsize=7.1, color="#43505C")
+        score = row.get("prefilter_score", "")
+        ax.text(x_positions["prefilter_score"], position, str(score) if str(score).strip() else "—", ha="center", va="center", fontsize=7.1, color="#43505C")
+
+    type_handles = [
+        Patch(facecolor=color, label=artifact_label(name))
+        for name, color in TYPE_COLORS.items()
+        if name in set(view["artifact_type"])
+    ]
+    if type_handles:
+        # Keep the legend away from the table-style column headers.
+        ax.legend(
+            handles=type_handles, title="Resource type", loc="upper center",
+            bbox_to_anchor=(.5, -.035), ncol=max(1, len(type_handles)),
+            frameon=False, fontsize=8,
+        )
     return save_figure(fig, out_dir, "02_discovery_provenance", formats, dpi)
 
+def type_domain_overview(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Show resource type (dataset/generator) against application domain as an annotated matrix."""
+    view = frame.copy()
+    for column in ("artifact_type", "domain"):
+        if column not in view:
+            view[column] = "unknown"
+        view[column] = view[column].fillna("").astype(str)
+
+    expanded = view[["artifact_type", "domain", "openalex_id"]].copy()
+    expanded["artifact_type"] = expanded["artifact_type"].replace("", "unknown")
+    expanded["domain"] = expanded["domain"].map(
+        lambda value: [item.strip() for item in value.split(";") if item.strip()] or ["unknown"]
+    )
+    expanded = expanded.explode("domain")
+    matrix = pd.crosstab(expanded["artifact_type"], expanded["domain"])
+
+    preferred_rows = ["dataset", "generator_framework", "dataset_and_generator", "unknown"]
+    row_order = [value for value in preferred_rows if value in matrix.index]
+    row_order += [value for value in matrix.index if value not in row_order]
+    if row_order:
+        matrix = matrix.reindex(row_order)
+    if not matrix.empty:
+        matrix = matrix.loc[:, matrix.sum(axis=0).sort_values(ascending=False).index]
+
+    table = matrix.stack().rename("count").reset_index() if not matrix.empty else pd.DataFrame(columns=["artifact_type", "domain", "count"])
+    if not table.empty:
+        row_totals = table.groupby("artifact_type")["count"].transform("sum").replace(0, 1)
+        table["percent_within_type"] = table["count"] / row_totals * 100
+    else:
+        table["percent_within_type"] = pd.Series(dtype=float)
+    write_table(table, out_dir / "data", "09_type_domain_overview")
+    detail_columns = ["resource_name", "artifact_name", "publication_year", "artifact_type", "domain", "data_form", "capture_environment", "labeling", "provenance", "discovery_relations", "openalex_id", "doi"]
+    detail = frame.copy()
+    for column in detail_columns:
+        if column not in detail:
+            detail[column] = ""
+    write_table(detail[detail_columns], out_dir / "data", "09_type_domain_overview_records")
+
+    display_matrix = matrix if not matrix.empty else pd.DataFrame([[0]], index=["no data"], columns=["no data"])
+    row_percentages = display_matrix.div(display_matrix.sum(axis=1).replace(0, 1), axis=0) * 100
+    fig_width = max(10.5, 6.5 + .75 * len(display_matrix.columns))
+    fig_height = max(5.0, 3.0 + .9 * len(display_matrix.index))
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    caption = metadata_caption(frame, "canonical resource families; cells show exact count and share within resource type")
+    add_heading(fig, "Resource type by application domain", caption, top=.84)
+    image = ax.imshow(display_matrix.values, cmap="Blues", aspect="auto", vmin=0)
+    maximum = max(1, int(display_matrix.to_numpy().max()))
+    for row_index in range(len(display_matrix.index)):
+        for column_index in range(len(display_matrix.columns)):
+            count = int(display_matrix.iloc[row_index, column_index])
+            percent = float(row_percentages.iloc[row_index, column_index])
+            color = "white" if count > maximum * .52 else "#263238"
+            ax.text(column_index, row_index, f"{count}\n{percent:.0f}%", ha="center", va="center", color=color, fontsize=8, fontweight="bold")
+    ax.set_xticks(range(len(display_matrix.columns)), [artifact_label(value) for value in display_matrix.columns], rotation=28, ha="right")
+    ax.set_yticks(range(len(display_matrix.index)), [artifact_label(value) for value in display_matrix.index])
+    ax.set_xlabel("Application domain")
+    ax.set_ylabel("Resource type")
+    ax.grid(False)
+    colorbar = fig.colorbar(image, ax=ax, pad=.02)
+    colorbar.set_label("Canonical resources")
+    colorbar.ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    return save_figure(fig, out_dir, "09_type_domain_overview", formats, dpi)
+
+
+def discovery_source_distribution(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Show the sheer number of works contributed by each discovery source as bars."""
+    sources = ["Direct search", "Survey snowball", "Survey source", "Other"]
+    records: list[dict[str, object]] = []
+
+    for _, row in frame.iterrows():
+        relations = {item.strip() for item in str(row.get("discovery_relations", "") or "").split(";") if item.strip()}
+        direct = "direct_search" in relations
+        snowball = any(item == "survey_reference" or item.startswith("survey_reference:") for item in relations)
+        survey = "survey_search" in relations
+        memberships: list[str] = []
+        if direct:
+            memberships.append("Direct search")
+        if snowball:
+            memberships.append("Survey snowball")
+        if survey:
+            memberships.append("Survey source")
+        if not memberships:
+            memberships.append("Other")
+
+        for source in memberships:
+            records.append({
+                "source": source,
+                "resource_name": row.get("resource_name", ""),
+                "artifact_name": row.get("artifact_name", ""),
+                "publication_year": row.get("publication_year", ""),
+                "artifact_type": row.get("artifact_type", ""),
+                "domain": row.get("domain", ""),
+                "provenance": row.get("provenance", ""),
+                "discovery_relations": row.get("discovery_relations", ""),
+                "prefilter_score": row.get("prefilter_score", ""),
+                "openalex_id": row.get("openalex_id", ""),
+                "doi": row.get("doi", ""),
+            })
+
+    contributions = pd.DataFrame(records)
+    if contributions.empty:
+        contributions = pd.DataFrame(columns=[
+            "source", "resource_name", "artifact_name", "publication_year", "artifact_type", "domain", "provenance",
+            "discovery_relations", "prefilter_score", "openalex_id", "doi",
+        ])
+    source_counts = contributions.groupby("source").size().reindex(sources, fill_value=0).rename("works_found").reset_index()
+    source_counts["percent_of_canonical_works"] = source_counts["works_found"] / max(1, len(frame)) * 100
+    source_counts["share_of_source_assignments_percent"] = source_counts["works_found"] / max(1, int(source_counts["works_found"].sum())) * 100
+
+    # Aggregate CSV corresponds exactly to the bars; the records CSV makes every bar auditable.
+    write_table(source_counts, out_dir / "data", "10_discovery_source_contribution")
+    write_table(contributions, out_dir / "data", "10_discovery_source_contribution_records")
+
+    fig, ax = plt.subplots(figsize=(10.8, 6.4))
+    caption = metadata_caption(
+        frame,
+        "bar height = works found; in-bar percentage = share of all canonical works; multi-path papers can contribute to more than one bar",
+    )
+    add_heading(fig, "Discovery-source contribution", caption, top=.84)
+
+    positions = list(range(len(source_counts)))
+    bar_colors = [DISCOVERY_COLORS.get(source, TYPE_COLORS["unknown"]) for source in source_counts["source"]]
+    bars = ax.bar(positions, source_counts["works_found"], width=.62, color=bar_colors, edgecolor="none")
+    ax.set_xticks(positions, source_counts["source"])
+    ax.set_ylabel("Works found")
+    ax.set_xlabel("Discovery source")
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.grid(axis="x", visible=False)
+
+    maximum = max(1, int(source_counts["works_found"].max()))
+    ax.set_ylim(0, maximum * 1.18 + .5)
+    for bar, (_, source_row) in zip(bars, source_counts.iterrows()):
+        count = int(source_row["works_found"])
+        share = float(source_row["percent_of_canonical_works"])
+        x_center = bar.get_x() + bar.get_width() / 2
+
+        # Keep the exact count above the bar and place the relative contribution
+        # inside it.  The percentage denominator is the number of unique canonical
+        # works; therefore multi-path discovery can make percentages sum above 100%.
+        if count > 0:
+            ax.text(
+                x_center, bar.get_height() + maximum * .025, f"n={count}",
+                ha="center", va="bottom", fontsize=8, color="#43505C",
+            )
+            ax.text(
+                x_center, bar.get_height() * .50, f"{share:.1f}%",
+                ha="center", va="center", fontsize=9, fontweight="bold", color="white",
+            )
+        else:
+            # A zero-height bar has no interior, so combine count and percentage
+            # in one baseline annotation instead of overlapping two labels.
+            ax.text(
+                x_center, .06 * maximum, "n=0 · 0.0%",
+                ha="center", va="bottom", fontsize=8, color="#56636F",
+            )
+
+    return save_figure(fig, out_dir, "10_discovery_source_contribution", formats, dpi)
 
 def cumulative_publications(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Plot cumulative artifact-family growth over time by artifact type."""
@@ -252,6 +528,12 @@ def cumulative_publications(frame: pd.DataFrame, out_dir: Path, formats: list[st
     else:
         yearly["cumulative_publications"] = pd.Series(dtype=int)
     write_table(yearly, out_dir / "data", "03_cumulative_publications")
+    detail_columns = ["resource_name", "artifact_name", "publication_year", "artifact_type", "domain", "provenance", "discovery_relations", "openalex_id", "doi"]
+    detail = dated.copy()
+    for column in detail_columns:
+        if column not in detail:
+            detail[column] = ""
+    write_table(detail[detail_columns], out_dir / "data", "03_cumulative_publications_records")
     fig, ax = plt.subplots(figsize=(11.5, 6.2))
     caption = metadata_caption(frame, "canonical artifact families; versions and alternate manifestations excluded")
     add_heading(fig, "Growth of the IDS data-resource landscape", caption, top=.84)
@@ -272,6 +554,13 @@ def relationship_heatmap(frame: pd.DataFrame, row_field: str, column_field: str,
     matrix = pd.crosstab(frame[row_field].replace("", "unknown"), frame[column_field].replace("", "unknown"))
     table = matrix.stack().rename("count").reset_index()
     write_table(table, out_dir / "data", stem)
+    detail_columns = ["resource_name", "artifact_name", "publication_year", "artifact_type", row_field, column_field, "domain", "provenance", "discovery_relations", "openalex_id", "doi"]
+    detail_columns = list(dict.fromkeys(detail_columns))
+    detail = frame.copy()
+    for column in detail_columns:
+        if column not in detail:
+            detail[column] = ""
+    write_table(detail[detail_columns], out_dir / "data", f"{stem}_records")
     if matrix.empty:
         matrix = pd.DataFrame([[0]], index=["no data"], columns=["no data"])
     fig, ax = plt.subplots(figsize=(11.5, max(5.5, 2.4 + .55 * max(1, len(matrix.index)))))
@@ -296,48 +585,113 @@ def relationship_heatmap(frame: pd.DataFrame, row_field: str, column_field: str,
 
 
 def metadata_lollipop(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Visualize catalogue metadata completeness as a lollipop chart."""
-    fields = ["doi", "authors", "venue", "publication_year", "primary_url", "pdf_url", "citation_as_of", "discovery_relations", "domain", "data_form", "capture_environment", "labeling"]
-    completeness = pd.DataFrame({
-        "field": fields,
-        "present": [((frame[field] != "") & (frame[field].str.casefold() != "unknown")).sum() if field in frame else 0 for field in fields],
-    })
-    completeness["percent"] = completeness["present"] / max(1, len(frame)) * 100
-    completeness = completeness.sort_values("percent")
+    """Visualize the percentage and exact count of papers with each metadata field available."""
+    fields = [
+        ("doi", "DOI"),
+        ("authors", "Authors"),
+        ("venue", "Venue"),
+        ("publication_year", "Publication year"),
+        ("primary_url", "Primary URL"),
+        ("pdf_url", "PDF URL"),
+        ("citation_as_of", "Citation timestamp"),
+        ("discovery_relations", "Discovery provenance"),
+        ("domain", "Application domain"),
+        ("data_form", "Data form"),
+        ("capture_environment", "Capture environment"),
+        ("labeling", "Labeling"),
+    ]
+    missing_tokens = {"", "unknown", "none", "nan", "n/a", "na", "null", "[]", "{}"}
+    rows: list[dict[str, object]] = []
+    total = len(frame)
+    for field, label in fields:
+        if field not in frame:
+            present = 0
+        else:
+            present = int(frame[field].map(lambda value: str(value).strip().casefold() not in missing_tokens).sum())
+        rows.append({"field": field, "label": label, "present": present, "total": total, "percent": present / max(1, total) * 100})
+    completeness = pd.DataFrame(rows).sort_values(["percent", "label"], ascending=[True, True], kind="stable")
     write_table(completeness, out_dir / "data", "06_metadata_completeness")
-    fig, ax = plt.subplots(figsize=(10.5, 6.4))
-    caption = metadata_caption(frame, "canonical base-paper metadata")
-    add_heading(fig, "Metadata completeness", caption, top=.84)
-    positions = range(len(completeness))
-    ax.hlines(positions, 0, completeness["percent"], color="#CDD7DE", linewidth=2)
-    ax.scatter(completeness["percent"], list(positions), s=58, color="#2A9D8F", edgecolor="white", zorder=3)
-    ax.set_yticks(list(positions), [artifact_label(value) for value in completeness["field"]])
-    ax.set_xlim(0, 105)
-    ax.set_xlabel("Rows populated (%)")
+    metadata_records = frame.copy()
+    audit_columns = ["resource_name", "artifact_name", "publication_year", "artifact_type", "domain", "openalex_id"]
+    for field, _ in fields:
+        if field not in metadata_records:
+            metadata_records[field] = ""
+        metadata_records[f"{field}_available"] = metadata_records[field].map(lambda value: str(value).strip().casefold() not in missing_tokens)
+        audit_columns.extend([field, f"{field}_available"])
+    audit_columns = list(dict.fromkeys(audit_columns))
+    for column in audit_columns:
+        if column not in metadata_records:
+            metadata_records[column] = ""
+    write_table(metadata_records[audit_columns], out_dir / "data", "06_metadata_completeness_records")
+
+    fig, ax = plt.subplots(figsize=(11.2, 7.1))
+    caption = metadata_caption(frame, "canonical base-paper metadata; availability means a non-empty, non-placeholder value")
+    add_heading(fig, "Metadata availability across papers", caption, top=.84)
+    positions = list(range(len(completeness)))
+    ax.barh(positions, [100] * len(completeness), height=.58, color="#EEF2F4", edgecolor="none", zorder=1)
+    ax.barh(positions, completeness["percent"], height=.58, color="#2F6F9F", edgecolor="none", zorder=2)
+    ax.set_yticks(positions, completeness["label"])
+    ax.set_xlim(0, 112)
+    ax.set_xlabel("Papers with metadata available (%)")
+    ax.set_ylabel("")
     ax.grid(axis="y", visible=False)
-    for position, percent in zip(positions, completeness["percent"]):
-        ax.text(percent + 1.5, position, f"{percent:.0f}%", va="center", fontsize=7.5, color="#43505C")
+    ax.set_xticks([0, 25, 50, 75, 100], ["0%", "25%", "50%", "75%", "100%"])
+    for position, (_, row) in zip(positions, completeness.iterrows()):
+        ax.text(
+            min(109, float(row["percent"]) + 1.4), position,
+            f"{float(row['percent']):.0f}%  ({int(row['present'])}/{int(row['total'])})",
+            va="center", fontsize=7.6, color="#43505C",
+        )
     return save_figure(fig, out_dir, "06_metadata_completeness", formats, dpi)
 
-
 def classification_audit(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Show how deterministic prefilter bands map to final LLM decisions using exact counts."""
+    """Map candidate/borderline/reject score bands to final acceptance/exclusion decisions."""
     view = frame.copy()
-    bands = [value for value in ("candidate", "borderline", "reject") if value in set(view["prefilter_band"])]
-    decisions = [value for value in ("accept", "accept_adjacent", "exclude", "uncertain", "error", "dry_run") if value in set(view["decision"])]
+    for column in ("prefilter_band", "decision", "prefilter_score"):
+        if column not in view:
+            view[column] = ""
+    view["prefilter_band"] = view["prefilter_band"].fillna("").astype(str).replace("", "unknown")
+    view["decision"] = view["decision"].fillna("").astype(str).replace("", "unknown")
+    view["prefilter_score_numeric"] = pd.to_numeric(view["prefilter_score"], errors="coerce")
+
+    preferred_bands = ["candidate", "borderline", "reject", "unknown"]
+    preferred_decisions = ["accept", "accept_adjacent", "exclude", "uncertain", "error", "dry_run", "unknown"]
+    observed_bands = list(dict.fromkeys(view["prefilter_band"].tolist()))
+    observed_decisions = list(dict.fromkeys(view["decision"].tolist()))
+    bands = [value for value in preferred_bands if value in observed_bands] + [value for value in observed_bands if value not in preferred_bands]
+    decisions = [value for value in preferred_decisions if value in observed_decisions] + [value for value in observed_decisions if value not in preferred_decisions]
+
     matrix = pd.crosstab(view["prefilter_band"], view["decision"]).reindex(index=bands, columns=decisions, fill_value=0)
     totals = matrix.sum(axis=1).replace(0, 1)
     percentages = matrix.div(totals, axis=0) * 100
+    score_summary = view.groupby("prefilter_band", dropna=False)["prefilter_score_numeric"].agg(["min", "median", "max"]).reindex(bands)
+
     table = matrix.stack().rename("count").reset_index()
     percentage_table = percentages.stack().rename("percent_within_prefilter_band").reset_index()
     table = table.merge(percentage_table, on=["prefilter_band", "decision"])
+    if not score_summary.empty:
+        score_table = score_summary.reset_index().rename(columns={"min": "score_min", "median": "score_median", "max": "score_max"})
+        table = table.merge(score_table, on="prefilter_band", how="left")
     write_table(table, out_dir / "data", "07_classification_audit")
+    classification_columns = [
+        "openalex_id", "resource_name", "title", "artifact_type", "domain", "paper_role", "prefilter_score",
+        "prefilter_band", "decision", "discovery_relations", "cited_by_count",
+    ]
+    classification_detail = view.copy()
+    for column in classification_columns:
+        if column not in classification_detail:
+            classification_detail[column] = ""
+    write_table(classification_detail[classification_columns], out_dir / "data", "07_classification_audit_records")
+
     if matrix.empty:
         matrix = pd.DataFrame([[0]], index=["no data"], columns=["no data"])
         percentages = matrix.astype(float)
-    fig, ax = plt.subplots(figsize=(10.8, max(5.5, 3.2 + .7 * len(matrix.index))))
-    caption = metadata_caption(view, "rows are deterministic prefilter bands; cells show count and row percentage")
-    add_heading(fig, "From keyword prefilter to LLM decision", caption)
+        score_summary = pd.DataFrame(index=matrix.index, columns=["min", "median", "max"], dtype=float)
+
+    fig_width = max(10.8, 6.8 + .85 * len(matrix.columns))
+    fig, ax = plt.subplots(figsize=(fig_width, max(5.5, 3.4 + .9 * len(matrix.index))))
+    caption = metadata_caption(view, "rows are deterministic score bands; cells show exact result count and row percentage")
+    add_heading(fig, "Acceptance / exclusion by prefilter score band", caption, top=.84)
     image = ax.imshow(percentages.values, cmap="Blues", aspect="auto", vmin=0, vmax=100)
     for row_index in range(len(matrix.index)):
         for column_index in range(len(matrix.columns)):
@@ -345,15 +699,23 @@ def classification_audit(frame: pd.DataFrame, out_dir: Path, formats: list[str],
             percent = float(percentages.iloc[row_index, column_index])
             color = "white" if percent >= 55 else "#263238"
             ax.text(column_index, row_index, f"{count}\n{percent:.0f}%", ha="center", va="center", color=color, fontsize=8, fontweight="bold")
+
+    row_labels: list[str] = []
+    for band in matrix.index:
+        label = artifact_label(band)
+        if band in score_summary.index:
+            summary = score_summary.loc[band]
+            if pd.notna(summary.get("min")) and pd.notna(summary.get("max")):
+                label += f"\nscore {summary['min']:g}–{summary['max']:g}; med {summary['median']:g}"
+        row_labels.append(label)
     ax.set_xticks(range(len(matrix.columns)), [artifact_label(value) for value in matrix.columns], rotation=25, ha="right")
-    ax.set_yticks(range(len(matrix.index)), [artifact_label(value) for value in matrix.index])
-    ax.set_xlabel("LLM decision")
-    ax.set_ylabel("Prefilter band")
+    ax.set_yticks(range(len(matrix.index)), row_labels)
+    ax.set_xlabel("Final LLM / review decision")
+    ax.set_ylabel("Prefilter classification and score range")
     ax.grid(False)
     colorbar = fig.colorbar(image, ax=ax, pad=.02)
     colorbar.set_label("Share within prefilter band (%)")
     return save_figure(fig, out_dir, "07_classification_audit", formats, dpi)
-
 
 def survey_source_landscape(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Compare selected survey sources in aligned score, citation, and reference-count panels."""
@@ -432,7 +794,9 @@ def build(
     outputs: list[Path] = []
     outputs += publication_timeline(canonical, out_dir, formats, dpi)
     outputs += citation_landscape(canonical, out_dir, formats, dpi)
+    outputs += type_domain_overview(canonical, out_dir, formats, dpi)
     outputs += provenance_matrix(canonical, out_dir, formats, dpi)
+    outputs += discovery_source_distribution(canonical, out_dir, formats, dpi)
     outputs += cumulative_publications(canonical, out_dir, formats, dpi)
     outputs += relationship_heatmap(canonical, "domain", "data_form", "Domain and data-form relationships", "04_domain_data_form", out_dir, formats, dpi)
     outputs += relationship_heatmap(canonical, "capture_environment", "labeling", "Capture environment and label availability", "05_capture_environment_labeling", out_dir, formats, dpi)
@@ -444,12 +808,14 @@ def build(
         surveys = load_frame(survey_sources_path, ("openalex_id", "title", "cited_by_count", "discovery_relations"))
         outputs += survey_source_landscape(surveys, out_dir, formats, dpi)
     outputs.append(write_index(out_dir, main_path, frame, outputs, [
-        "Timeline labels prefer the LLM-extracted concise resource name and use one row per resource, so labels cannot collide.",
+        "The timeline uses publication year on x only; the y coordinate is purely a stacking layout for resources published in the same year, and every dataset/generator is directly labelled.",
         "Citation counts are descriptive and never affect retrieval, inclusion, or canonical-base selection.",
-        "Discovery provenance distinguishes direct searches, survey-reference snowballing, combined discovery, and survey-source records.",
+        "Discovery provenance combines source-path indicators with resource type, application domain, normalized provenance, and prefilter-score metadata; source contribution is summarized as simple work-count bars.",
         "All artifact-level figures use canonical base papers; versions and alternate manifestations remain available in the processed CSV.",
-        "Every figure has an exact aggregate CSV under data/.",
-        "When classifications.csv is available, the classification audit reports exact counts and within-band percentages.",
+        "Every figure writes a corresponding CSV under data/; aggregate figures also write a *_records.csv audit table listing the contributing resources and metadata.",
+        "When classifications.csv is available, the classification audit pairs candidate/borderline/reject score bands with final acceptance/exclusion decisions, exact counts, percentages, and observed score ranges.",
+        "The type/domain matrix summarizes dataset vs generator coverage across application domains such as general, IoT, and automotive where present.",
+        "Metadata completeness reports both percentage and exact n/N availability for each tracked field.",
         "Survey-source scores, citations, and reference-list sizes use aligned panels rather than overloaded marker encodings.",
     ]))
     LOG.info("OpenAlex plot bundle complete canonical_artifacts=%d files=%d output=%s", len(canonical), len(outputs), out_dir)
