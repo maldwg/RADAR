@@ -53,6 +53,16 @@ Only field values present on a rated entity are compared. This permits decision-
 
 Profiles are validated before evaluation. A missing profile, wrong source/schema, missing or multiple selectors, duplicate selectors, ambiguous result matches, malformed field list, or unsupported decision fails the command instead of emitting misleading scores.
 
+### Balanced default benchmark
+
+The checked-in profiles are deliberately **stratified test sets**, not random samples and not estimates of how often each class occurs in the full discovery population. Both contain 24 rated entities split equally between 12 expected inclusions and 12 expected exclusions. This prevents accuracy from being dominated by whichever decision is most common.
+
+For GitHub, the positive half contains two repositories for each eligible role: standalone detector, platform/framework, classifier/model, rules/content, support tooling, and research demo. Together those positives cover every concrete observation scope and detection method in the configured taxonomy. The negative half contains three examples from each of four common boundary families: generic monitors, offensive/scanning tools, curated/tutorial content, and unrelated repositories whose names collide with IDS terminology.
+
+For OpenAlex, the positive half contains four original releases, four versioned releases, and four generator releases. The negative half contains three surveys, three downstream applications, three dataset analyses, and three unrelated high-overlap papers. Papers are chosen to vary domains, data forms, capture environments, and labeling, but those secondary fields are not forced to identical counts: some combinations are intrinsically rare or invalid, and fabricating symmetry there would make the ground truth less credible.
+
+`test_default_profiles_preserve_the_stratified_benchmark_design` locks the decision and role quotas and the intended taxonomy coverage. A profile edit that silently reintroduces class imbalance therefore fails the regression suite.
+
 ## Running evaluation
 
 Evaluate existing default classification files:
@@ -115,7 +125,7 @@ Each view reports TP, FP, TN, FN and:
 - ACC / accuracy = (TP + TN) / the view's denominator
 - specificity, negative predictive value, F1, and balanced accuracy
 
-The report also records exact decision accuracy, classification-field exact accuracy, per-field multi-label precision/recall/F1/Jaccard, retrieval coverage, classification coverage, definitive coverage, abstention rate, status counts, and the number of actual entities that were not in the rated set. Unrated actual rows are reported but do not enter rated-set metrics.
+The report also records exact decision accuracy, classification-field exact accuracy, per-field multi-label F1, retrieval coverage, classification coverage, definitive coverage, abstention rate, status counts, and the number of actual entities that were not in the rated set. Unrated actual rows are reported but do not enter rated-set metrics.
 
 ## Artifacts
 
@@ -128,7 +138,7 @@ Each evaluation directory contains:
 - `README.md`: compact human-readable headline values, metadata accuracy, metric semantics, and figure links.
 - `01_decision_performance.svg`/`.pdf`: operational, strict, and selective DR, precision, accuracy, F1, FPR, and FNR.
 - `02_decision_confusion.svg`/`.pdf`: exact expected-to-actual dispositions, retaining uncertain and unavailable outcomes.
-- `03_field_accuracy.svg`/`.pdf`: exact metadata accuracy per configured field plus multi-label F1 and Jaccard where applicable.
+- `03_field_accuracy.svg`/`.pdf`: exact metadata accuracy per configured field plus directly labeled multi-label F1 bars where applicable.
 - `04_coverage_and_status.svg`/`.pdf`: retrieval, classification, definitive-decision, abstention, and final-status summaries.
 - `plot_data/`: the exact aggregate CSVs behind the four figures.
 

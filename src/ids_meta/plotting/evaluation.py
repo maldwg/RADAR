@@ -107,16 +107,16 @@ def _decision_confusion(input_dir: Path, metrics: dict[str, Any], out_dir: Path,
 
 
 def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Plot exact metadata accuracy and optional multi-label similarity by field."""
+    """Plot exact metadata accuracy and readable multi-label F1 by field."""
     source = input_dir / "field_metrics.csv"
     frame = pd.read_csv(source, keep_default_na=False)
-    for column in ("comparisons", "exact_matches", "exact_accuracy", "label_f1", "mean_jaccard"):
+    for column in ("comparisons", "exact_matches", "exact_accuracy", "label_f1"):
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
     plot_frame = frame.copy()
     plot_frame["field_label"] = plot_frame["field"].astype(str).str.replace("_", " ").str.title()
     write_table(plot_frame.drop(columns=["field_label"]), out_dir / "plot_data", "03_field_accuracy")
 
-    fig, ax = plt.subplots(figsize=(11, max(5.2, .62 * max(1, len(plot_frame)) + 2.0)))
+    fig, ax = plt.subplots(figsize=(12.5, max(5.2, .72 * max(1, len(plot_frame)) + 2.0)))
     add_heading(
         fig, "Classification metadata accuracy",
         f"{metrics.get('classification_field_comparisons', 0)} rated field comparisons; exact agreement is shown for every configured field",
@@ -128,19 +128,33 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
     else:
         ordered = plot_frame.iloc[::-1].reset_index(drop=True)
         positions = list(range(len(ordered)))
-        exact_bars = ax.barh(positions, ordered["exact_accuracy"].fillna(0), height=.55, color=COLORS[0], label="Exact accuracy")
         multilabel = ordered["label_f1"].notna()
+        exact_positions = [position + .17 if multilabel.iloc[index] else position for index, position in enumerate(positions)]
+        exact_heights = [.28 if multilabel.iloc[index] else .52 for index in ordered.index]
+        exact_bars = ax.barh(
+            exact_positions, ordered["exact_accuracy"].fillna(0), height=exact_heights,
+            color=COLORS[0], label="Exact accuracy",
+        )
         if multilabel.any():
-            ax.scatter(ordered.loc[multilabel, "label_f1"], [positions[index] for index in ordered.index[multilabel]], marker="D", s=42, color=COLORS[2], label="Label F1", zorder=3)
-            ax.scatter(ordered.loc[multilabel, "mean_jaccard"], [positions[index] for index in ordered.index[multilabel]], marker="o", s=38, facecolor="white", edgecolor=COLORS[4], label="Mean Jaccard", zorder=3)
+            f1_positions = [positions[index] - .17 for index in ordered.index[multilabel]]
+            f1_bars = ax.barh(
+                f1_positions, ordered.loc[multilabel, "label_f1"], height=.28,
+                color=COLORS[2], label="Label F1",
+            )
+            for bar in f1_bars:
+                value = float(bar.get_width())
+                ax.text(
+                    value + .015, bar.get_y() + bar.get_height() / 2, f"F1 {value:.0%}",
+                    va="center", fontsize=8, fontweight="bold", color="#253746",
+                )
         ax.set_yticks(positions, labels=ordered["field_label"])
-        ax.set_xlim(0, 1.12)
+        ax.set_xlim(0, 1.25)
         ax.set_xlabel("Score")
         for bar, comparisons, matches in zip(exact_bars, ordered["comparisons"], ordered["exact_matches"]):
             value = float(bar.get_width())
             ax.text(value + .015, bar.get_y() + bar.get_height() / 2, f"{value:.0%}  ({int(matches)}/{int(comparisons)})", va="center", fontsize=8)
-        ax.legend(frameon=False, fontsize=8, loc="lower right")
-    stamp(fig, "Multi-label fields additionally show label-level F1 and set-level Jaccard similarity.")
+        ax.legend(frameon=False, fontsize=9, loc="lower right")
+    stamp(fig, "Multi-label fields additionally show label-level F1; every F1 bar is labeled directly.")
     return save_figure(fig, out_dir, "03_field_accuracy", formats, dpi)
 
 

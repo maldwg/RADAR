@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -10,6 +12,8 @@ from ids_meta.cli import _execute_github, _execute_openalex, _execution_paths, _
 from ids_meta.common.config import Settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
+from ids_meta.github.schema import METHODS, ROLES, SCOPES
+from ids_meta.openalex.schema import DOMAINS
 from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
 
@@ -31,6 +35,35 @@ class EvaluationTests(unittest.TestCase):
             encoding="utf-8",
         )
         return path
+
+    def test_default_profiles_preserve_the_stratified_benchmark_design(self) -> None:
+        """Keep decisions and primary semantic strata balanced as ratings evolve."""
+        with (ROOT / "config/evaluation/github.toml").open("rb") as handle:
+            github = tomllib.load(handle)["entities"]
+        self.assertEqual(len(github), 24)
+        self.assertEqual(Counter(row["decision"] for row in github), {"accept": 12, "exclude": 12})
+        accepted_repositories = [row for row in github if row["decision"] == "accept"]
+        self.assertEqual(Counter(row["role"] for row in accepted_repositories), {role: 2 for role in ROLES})
+        self.assertTrue((set(SCOPES) - {"unknown"}).issubset({value for row in accepted_repositories for value in row["observation_scopes"]}))
+        self.assertTrue((set(METHODS) - {"unknown"}).issubset({value for row in accepted_repositories for value in row["detection_methods"]}))
+        self.assertTrue(all(row["role"] == "out_of_scope" for row in github if row["decision"] == "exclude"))
+
+        with (ROOT / "config/evaluation/openalex.toml").open("rb") as handle:
+            openalex = tomllib.load(handle)["entities"]
+        self.assertEqual(len(openalex), 24)
+        self.assertEqual(Counter(row["decision"] for row in openalex), {"accept": 12, "exclude": 12})
+        self.assertEqual(
+            Counter(row["paper_role"] for row in openalex),
+            {
+                "original_release": 4, "versioned_release": 4, "generator_release": 4,
+                "survey": 3, "downstream_application": 3, "dataset_analysis": 3, "unrelated": 3,
+            },
+        )
+        accepted_papers = [row for row in openalex if row["decision"] == "accept"]
+        self.assertGreaterEqual(len({row["domain"] for row in accepted_papers} - {"unknown"}), 7)
+        self.assertGreaterEqual(len({row["data_form"] for row in accepted_papers} - {"unknown"}), 7)
+        self.assertEqual({row["capture_environment"] for row in accepted_papers}, {"real_world", "synthetic_lab", "hybrid"})
+        self.assertTrue({row["domain"] for row in openalex}.issubset(set(DOMAINS)))
 
     def test_github_metrics_penalize_boundary_and_missing_results_transparently(self) -> None:
         """Verify operational, strict, and selective matrices use their documented denominators."""
@@ -77,6 +110,10 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(metrics["unrated_actual_entities"], 1)
             self.assertAlmostEqual(metrics["classification_field_accuracy"], 1.0)
             self.assertEqual({item.name for item in (root / "evaluation").iterdir()}, {"metrics.json", "instances.csv", "decision_confusion.csv", "field_metrics.csv", "README.md"})
+            self.assertNotIn("mean_jaccard", result.field_metrics[0])
+            self.assertNotIn("label_precision", result.field_metrics[0])
+            self.assertNotIn("label_recall", result.field_metrics[0])
+            self.assertIn("label_f1", result.field_metrics[0])
             rows = {row["entity_id"]: row for row in read_csv(root / "evaluation/instances.csv")}
             self.assertEqual(rows["g5"]["status"], "not_classified")
 
@@ -158,6 +195,9 @@ class EvaluationTests(unittest.TestCase):
             self.assertIn("Interpreting the three views", readme)
             self.assertIn("definitive coverage and abstention rate", readme)
             self.assertIn("03_field_accuracy.svg", readme)
+            field_svg = (output_dir / "03_field_accuracy.svg").read_text(encoding="utf-8")
+            self.assertIn("Label F1", field_svg)
+            self.assertNotIn("Jaccard", field_svg)
 
     def test_rating_profiles_reject_duplicate_or_invalid_entities(self) -> None:
         """Reject ambiguous ground truth before producing misleading metrics."""

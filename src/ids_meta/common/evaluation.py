@@ -207,7 +207,7 @@ def evaluate_results(
     classified_count = 0
     matched_actual_ids: set[str] = set()
     field_state: dict[str, dict[str, Any]] = {
-        field: {"comparisons": 0, "exact": 0, "tp": 0, "fp": 0, "fn": 0, "jaccard": 0.0, "multilabel": field in MULTI_FIELDS[profile.source]}
+        field: {"comparisons": 0, "exact": 0, "tp": 0, "fp": 0, "fn": 0, "multilabel": field in MULTI_FIELDS[profile.source]}
         for field in profile.classification_fields
     }
 
@@ -265,8 +265,6 @@ def evaluate_results(
                 state["tp"] += len(expected_values & actual_values)
                 state["fp"] += len(actual_values - expected_values)
                 state["fn"] += len(expected_values - actual_values)
-                union = expected_values | actual_values
-                state["jaccard"] += _ratio(len(expected_values & actual_values), len(union)) if union else 1.0
         instances.append({
             "entity_id": entity_id, "name": display_name, "match_field": selector, "match_value": match_value, "status": status,
             "candidate_present": str(candidate_present).lower(), "classification_present": str(row is not None).lower(),
@@ -290,9 +288,7 @@ def evaluate_results(
         field_metrics.append({
             "field": field, "comparisons": comparisons, "exact_matches": state["exact"],
             "exact_accuracy": _ratio(state["exact"], comparisons),
-            "label_precision": precision, "label_recall": recall,
             "label_f1": _f1(precision, recall) if precision is not None and recall is not None else None,
-            "mean_jaccard": _ratio(state["jaccard"], comparisons) if multilabel else None,
         })
     operational_metrics = _binary_metrics(operational["tp"], operational["fp"], operational["tn"], operational["fn"], binary_total)
     strict_metrics = _binary_metrics(strict["tp"], strict["fp"], strict["tn"], strict["fn"], binary_total)
@@ -321,7 +317,7 @@ def evaluate_results(
     fields_path = output_dir / "field_metrics.csv"
     atomic_write_csv(instances_path, instances, instance_columns)
     atomic_write_csv(confusion_path, confusion, ["expected", "actual", "count"])
-    atomic_write_csv(fields_path, field_metrics, ["field", "comparisons", "exact_matches", "exact_accuracy", "label_precision", "label_recall", "label_f1", "mean_jaccard"])
+    atomic_write_csv(fields_path, field_metrics, ["field", "comparisons", "exact_matches", "exact_accuracy", "label_f1"])
     readme_path = output_dir / "README.md"
     readme_path.write_text(
         "# Classification evaluation\n\n"
