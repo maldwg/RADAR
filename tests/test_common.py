@@ -10,6 +10,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 from ids_meta.common.cache import PipelineCache
+from ids_meta.architecture import build as build_architecture
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.common.ensemble import ensemble_classifications
 from ids_meta.common.config import Settings
@@ -109,6 +110,26 @@ class CommonTests(unittest.TestCase):
         self.assertEqual(_pipeline_limits(args, {"collection_limit": 1000, "classification_limit": 100}), (250, None))
         with self.assertRaises(SystemExit):
             parser.parse_args(["openalex", "classify", "--classify-all", "--classify-limit", "25"])
+
+    def test_architecture_svg_exposes_data_transformations(self) -> None:
+        """Generate a standalone SVG with explicit input, operation, and output data."""
+        with tempfile.TemporaryDirectory() as directory:
+            outputs = build_architecture(Path(directory))
+            value = outputs[0].read_text(encoding="utf-8")
+        self.assertIn("Direct query sampler", value)
+        self.assertIn("SURVEY / REFERENCE BRANCH", value)
+        self.assertIn("INPUT", value)
+        self.assertIn("OUTPUT", value)
+        self.assertIn("voted tuple + field audit", value)
+        self.assertIn("Rated classification evaluation", value)
+        self.assertIn("metrics.json: DR, FPR, ACC, PREC, F1", value)
+        self.assertNotIn("Matplotlib", value)
+
+    def test_architecture_is_an_independent_cli_command(self) -> None:
+        """Expose architecture generation outside both source plotting commands."""
+        args = build_parser().parse_args(["architecture", "--output", "figures"])
+        self.assertEqual(args.command, "architecture")
+        self.assertEqual(args.output, Path("figures"))
 
     def test_profiles_contain_generic_query_types(self) -> None:
         """Verify both source profiles expose generic discovery queries."""

@@ -281,10 +281,10 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     start = date.fromisoformat(str(settings.get("created_from", "2008-01-01")))
     end = datetime.now(timezone.utc).date()
     minimum_stars = max(0, int(settings.get("minimum_stars", 100)))
-    max_results_per_query = max(1, int(settings.get("max_results_per_query", 100)))
-    native_search = max_results_per_query <= 1000
+    query_sample_size = max(1, int(settings.get("query_sample_size", 100)))
+    native_search = query_sample_size <= 1000
     strategy_kind = "native_best_match" if native_search else "date_shards"
-    search_strategy = f"github_{strategy_kind}_v3_stars_{minimum_stars}_cap_{max_results_per_query}"
+    search_strategy = f"github_{strategy_kind}_v3_stars_{minimum_stars}_cap_{query_sample_size}"
     seen: dict[str, dict[str, Any]] = {}
     matched: dict[str, set[str]] = {}
     best_match_rank: dict[str, int] = {}
@@ -296,28 +296,23 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
                 best_match_rank[key] = int(payload.get("best_match_rank") or 10**9)
     fetched_at = utc_now()
     incomplete_shards: set[tuple[str, str]] = set()
-    scan_multiplier = max(1.0, float(settings.get("search_scan_multiplier", 1.0)))
     queries = [str(query) for query in profile.get("search_queries", [])]
-    requested_scan_target = None if limit is None else max(limit, math.ceil(limit * scan_multiplier))
-    capacity = len(queries) * max_results_per_query
-    scan_target = capacity if requested_scan_target is None else min(requested_scan_target, capacity)
+    scan_target = len(queries) * query_sample_size
     qualified_queries = {query: f"{query} stars:>={minimum_stars}" for query in queries}
     LOG.info(
-        "starting GitHub collection queries=%d resume=%s limit=%s scan_target=%s minimum_stars=%d max_results_per_query=%d cached_search_candidates=%d ordering=github_best_match pacing=%.2fs/search=%.2fs authentication=%s",
-        len(queries), resume, limit or "none", scan_target or "all", minimum_stars, max_results_per_query, len(seen),
+        "starting GitHub collection queries=%d resume=%s sample_per_query=%d select_best=%s minimum_stars=%d cached_search_candidates=%d ordering=github_best_match pacing=%.2fs/search=%.2fs authentication=%s",
+        len(queries), resume, query_sample_size, limit or "all", minimum_stars, len(seen),
         float(settings.get("request_pause_seconds", 1.0)), float(settings.get("search_pause_seconds", 2.2)),
         "token" if client.authenticated else "anonymous",
     )
-    if not (resume and scan_target is not None and len(seen) >= scan_target):
+    if not (resume and limit is not None and len(seen) >= limit):
         if native_search:
             iterators = {query: iter(search_best_matches(client, qualified_queries[query], per_page)) for query in queries}
         else:
             iterators = {query: iter(search_shards(client, qualified_queries[query], start, end, per_page)) for query in queries}
         active = list(queries)
         query_positions = {query: 0 for query in queries}
-        per_query_target = min(
-            max_results_per_query, max(1, math.ceil(scan_target / max(1, len(queries)))),
-        )
+        per_query_target = query_sample_size
         while active:
             for query in list(active):
                 try:
@@ -353,7 +348,8 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     matched = {key: matched.get(key, set()) for key in selected_ids}
     cache.put_record("github.collection", "latest", {
         "repository_ids": selected_ids, "selected_at": fetched_at, "collection_limit": limit,
-        "ordering": "github_best_match", "scan_target": scan_target, "search_strategy": search_strategy,
+        "ordering": "github_best_match", "sample_size_per_query": query_sample_size,
+        "selection_size": limit, "search_strategy": search_strategy,
     }, fetched_at)
     progress_every = max(1, int(settings.get("progress_every", 25)))
     reused = 0

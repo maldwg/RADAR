@@ -5,6 +5,7 @@ from typing import Any, Protocol
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
+from ids_meta.common.ensemble import consensus_classification
 from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, verify_evidence
 from ids_meta.common.prompts import description_block, render_prompt
 from ids_meta.common.run import utc_now
@@ -104,6 +105,7 @@ def classify(
     candidates_path: Path, output: Path, cache: PipelineCache, ollama_config: dict[str, Any],
     limit: int | None = None, resume: bool = True, dry_run: bool = False, generator: Generator | None = None,
     prompt_config: dict[str, Any] | None = None, system_type_profile: dict[str, Any] | None = None,
+    consecutive_runs: int = 1, consensus_threshold: float = 0.5,
 ) -> list[dict[str, str]]:
     """Classify eligible repository candidates with resumable structured LLM calls."""
     rows = read_csv(candidates_path)
@@ -112,7 +114,9 @@ def classify(
     selected = shortlist_candidates(rows, "github_repo_id", limit)
     client = generator if generator is not None else (None if dry_run else OllamaClient(ollama_config))
     model = getattr(client, "model", str(ollama_config.get("model") or "dry-run"))
-    decision_config = {"prompt": prompt_config or {}, "system_types": system_type_profile or {}}
+    consecutive_runs = max(1, int(consecutive_runs))
+    decision_config = {"prompt": prompt_config or {}, "system_types": system_type_profile or {},
+                       "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold}
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)
     results: list[dict[str, str]] = []
     new_decisions = 0
@@ -137,12 +141,17 @@ def classify(
         if dry_run:
             result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})
         else:
-            try:
-                raw = client.generate(prompt(sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
-                verified, _ = verify_evidence(raw.get("evidence"), sections)
-                result.update(normalize_response(raw, verified, ollama_config, row.get("fork") == "true", system_type_profile))
-            except Exception as exc:
-                result.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+            votes: dict[str, dict[str, str]] = {}
+            for run_index in range(1, consecutive_runs + 1):
+                vote = dict(result)
+                try:
+                    raw = client.generate(prompt(sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
+                    verified, _ = verify_evidence(raw.get("evidence"), sections)
+                    vote.update(normalize_response(raw, verified, ollama_config, row.get("fork") == "true", system_type_profile))
+                except Exception as exc:
+                    vote.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+                votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
+            result = dict(consensus_classification("github", votes, consensus_threshold, system_type_profile, bool(ollama_config.get("require_verified_quote", True)))) if consecutive_runs > 1 else votes["run-1"]
         cache.put_decision("github.classification", key, profile_hash, evidence_hash, result, result["classified_at"])
         results.append(result)
         new_decisions += 1

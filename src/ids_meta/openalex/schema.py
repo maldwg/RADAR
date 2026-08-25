@@ -26,7 +26,7 @@ ENSEMBLE_COLUMNS = [
     "ensemble_models", "ensemble_model_decisions", "ensemble_representative_model", "ensemble_threshold", "ensemble_disposition",
     "ensemble_agreement", "ensemble_include_score", "ensemble_exclude_score",
     "ensemble_uncertain_score", "ensemble_unavailable_score", "ensemble_decision_counts",
-    "ensemble_vote_status",
+    "ensemble_vote_status", "consensus_field_audit", "consensus_validation_flags", "consensus_fallback_run",
 ]
 SURVEY_COLUMNS = METADATA_COLUMNS
 CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [

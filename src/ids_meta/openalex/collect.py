@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import math
 import time
 from typing import Any, Iterator
 
@@ -46,17 +45,24 @@ def normalize_work(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def is_survey_work(work: dict[str, Any]) -> bool:
-    """Return whether a work is a survey without an explicit resource release claim."""
+DEFAULT_SURVEY_TERMS = ("survey", "systematic review", "literature review", "dataset review", "mapping study")
+DEFAULT_RELEASE_TERMS = (
+    "new dataset", "present a dataset", "presents a dataset", "introduce a dataset", "introduces a dataset",
+    "release a dataset", "release the dataset", "released dataset", "public dataset", "publicly available",
+    "made available", "open source", "open-source", "dataset toolkit", "data generation framework",
+)
+
+
+def is_survey_work(
+    work: dict[str, Any], survey_terms: list[str] | tuple[str, ...] = DEFAULT_SURVEY_TERMS,
+    release_terms: list[str] | tuple[str, ...] = DEFAULT_RELEASE_TERMS,
+) -> bool:
+    """Return whether a work matches configured survey terms without a release claim."""
     text = f"{work.get('title', '')} {work.get('abstract', '')}"
     survey = str(work.get("work_type", "")).casefold() == "review" or any(
-        contains_concept(text, term) for term in ("survey", "systematic review", "literature review", "dataset review", "mapping study")
+        contains_concept(text, term) for term in survey_terms
     )
-    release = any(contains_concept(text, term) for term in (
-        "new dataset", "present a dataset", "presents a dataset", "introduce a dataset", "introduces a dataset",
-        "release a dataset", "release the dataset", "released dataset", "public dataset", "publicly available",
-        "made available", "open source", "open-source", "dataset toolkit", "data generation framework",
-    ))
+    release = any(contains_concept(text, term) for term in release_terms)
     return survey and not release
 
 
@@ -88,10 +94,31 @@ def metadata_quality(work: dict[str, Any]) -> int:
     return sum(bool(work.get(field)) for field in ("abstract", "doi", "authors", "venue", "publication_year", "publication_date"))
 
 
+def sample_query_results(
+    client: "OpenAlexClient", queries: list[str], sample_size: int, per_page: int, max_pages: int,
+) -> tuple[list[tuple[str, dict[str, Any]]], dict[str, int], set[str]]:
+    """Sample at most x native-ranked results independently from every query."""
+    scanned = {query: 0 for query in queries}
+    exhausted: set[str] = set()
+    results: list[tuple[str, dict[str, Any]]] = []
+    for query in queries:
+        iterator = iter(client.search(query, min(per_page, sample_size), max_pages))
+        for _index in range(sample_size):
+            try:
+                item = next(iterator)
+            except StopIteration:
+                exhausted.add(query)
+                break
+            scanned[query] += 1
+            results.append((query, item))
+    return results, scanned, exhausted
+
+
+
 def balanced_search(
     client: "OpenAlexClient", queries: list[str], per_page: int, max_pages: int, scan_budget: int,
 ) -> tuple[list[tuple[str, dict[str, Any]]], dict[str, int], set[str]]:
-    """Scan query iterators round-robin so no early query monopolizes retrieval."""
+    """Compatibility helper for bounded round-robin scans; collection no longer uses it."""
     iterators = {query: iter(client.search(query, per_page, max_pages)) for query in queries}
     active = list(queries)
     scanned = {query: 0 for query in queries}
@@ -104,12 +131,66 @@ def balanced_search(
             try:
                 item = next(iterators[query])
             except StopIteration:
-                active.remove(query)
-                exhausted.add(query)
-                continue
-            scanned[query] += 1
-            results.append((query, item))
+                active.remove(query); exhausted.add(query); continue
+            scanned[query] += 1; results.append((query, item))
     return results, scanned, exhausted
+
+def survey_query_candidates(
+    client: "OpenAlexClient", queries: list[str], sample_size: int, per_page: int, pages: int,
+    survey_terms: list[str], release_terms: list[str],
+) -> tuple[dict[str, dict[str, Any]], dict[str, set[str]], dict[str, int], set[str]]:
+    """Sample survey queries and return only configured survey matches."""
+    results, scanned, exhausted = sample_query_results(client, queries, sample_size, per_page, pages)
+    pool: dict[str, dict[str, Any]] = {}
+    matches: dict[str, set[str]] = {}
+    for query, item in results:
+        work = normalize_work(item)
+        key = str(work.get("openalex_id", ""))
+        if key and is_survey_work(work, survey_terms, release_terms):
+            pool[key] = work
+            matches.setdefault(key, set()).add(query)
+    return pool, matches, scanned, exhausted
+
+
+def direct_query_candidates(
+    client: "OpenAlexClient", queries: list[str], sample_size: int, per_page: int, pages: int,
+    minimum_citations: int,
+) -> tuple[dict[str, dict[str, Any]], dict[str, set[str]], dict[str, int], set[str]]:
+    """Sample direct queries and deduplicate eligible papers across them."""
+    results, scanned, exhausted = sample_query_results(client, queries, sample_size, per_page, pages)
+    pool: dict[str, dict[str, Any]] = {}
+    matches: dict[str, set[str]] = {}
+    for query, item in results:
+        work = normalize_work(item)
+        key = str(work.get("openalex_id", ""))
+        if key and int(work.get("cited_by_count") or 0) >= minimum_citations:
+            pool[key] = work
+            matches.setdefault(key, set()).add(query)
+    return pool, matches, scanned, exhausted
+
+
+def survey_reference_candidates(
+    client: "OpenAlexClient", reference_sources: dict[str, set[str]], sample_size: int,
+    works: dict[str, dict[str, Any]], cache: PipelineCache,
+) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """Resolve at most x survey references, preferring multi-survey consensus."""
+    reference_ids = sorted(reference_sources, key=lambda key: (-len(reference_sources[key]), key))[:sample_size]
+    pool: dict[str, dict[str, Any]] = {}
+    unresolved: list[str] = []
+    for reference_id in reference_ids:
+        cached = cache.get_record("openalex.work", reference_id)
+        if reference_id in works:
+            pool[reference_id] = works[reference_id]
+        elif cached and cached.get("work"):
+            pool[reference_id] = cached["work"]
+        else:
+            unresolved.append(reference_id)
+    if unresolved:
+        for item in client.works_by_ids(unresolved):
+            work = normalize_work(item)
+            if work.get("openalex_id"):
+                pool[str(work["openalex_id"])] = work
+    return pool, reference_ids
 
 
 def rank_work_pool(
@@ -223,9 +304,9 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     reference_limit = max(0, int(settings.get("max_reference_works_per_survey", 300)))
     reference_total_limit = max(0, int(settings.get("max_survey_reference_candidates_total", 1000)))
     reference_fraction = max(0.0, min(0.9, float(settings.get("survey_reference_fraction", .35))))
-    direct_scan_multiplier = max(1.0, float(settings.get("direct_scan_multiplier", 3.0)))
-    survey_scan_multiplier = max(1.0, float(settings.get("survey_scan_multiplier", 4.0)))
-    reference_scan_multiplier = max(1.0, float(settings.get("reference_scan_multiplier", 3.0)))
+    query_sample_size = max(1, int(settings.get("query_sample_size", 100)))
+    survey_query_sample_size = max(1, int(settings.get("survey_query_sample_size", query_sample_size)))
+    reference_sample_size = max(0, int(settings.get("reference_sample_size", reference_total_limit)))
     survey_consensus_threshold = max(2, int(settings.get("survey_consensus_threshold", 2)))
     minimum_score = float(settings.get("retrieval_minimum_score", 1.0))
     minimum_citations = max(0, int(settings.get("minimum_citations", 0)))
@@ -262,24 +343,19 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         return key
 
     LOG.info(
-        "starting OpenAlex collection direct_queries=%d survey_queries=%d limit=%s pacing=%.2fs survey_cap=%d reference_budget=%d direct_scan_multiplier=%.1f reference_scan_multiplier=%.1f",
-        len(profile.get("direct_queries", [])), len(profile.get("survey_queries", [])), limit or "none",
-        float(settings.get("request_pause_seconds", 0.5)), survey_cap, reference_budget,
-        direct_scan_multiplier, reference_scan_multiplier,
+        "starting OpenAlex collection direct_queries=%d survey_queries=%d sample_per_query=%d select_best=%s survey_cap=%d reference_budget=%d",
+        len(profile.get("direct_queries", [])), len(profile.get("survey_queries", [])), query_sample_size,
+        limit or "all", survey_cap, reference_budget,
     )
 
-    # Oversample all survey queries evenly, then choose useful reference sources without citation-based ranking.
+    # Sample x results per survey query, then select the best configured survey sources.
     survey_queries = [str(query) for query in profile.get("survey_queries", [])]
-    survey_scan_budget = max(len(survey_queries), math.ceil(max(1, survey_cap) * survey_scan_multiplier)) if survey_cap else 0
-    survey_results, survey_scanned, survey_exhausted = balanced_search(client, survey_queries, per_page, pages, survey_scan_budget) if survey_scan_budget else ([], {}, set())
-    survey_pool: dict[str, dict[str, Any]] = {}
-    survey_matches: dict[str, set[str]] = {}
-    for query, item in survey_results:
-        normalized = normalize_work(item)
-        key = str(normalized.get("openalex_id", ""))
-        if key and is_survey_work(normalized):
-            survey_pool[key] = normalized
-            survey_matches.setdefault(key, set()).add(query)
+    identification = profile.get("survey_identification", {})
+    survey_terms = [str(value) for value in identification.get("survey_terms", DEFAULT_SURVEY_TERMS)]
+    release_terms = [str(value) for value in identification.get("release_terms", DEFAULT_RELEASE_TERMS)]
+    survey_pool, survey_matches, survey_scanned, survey_exhausted = survey_query_candidates(
+        client, survey_queries, survey_query_sample_size, per_page, pages, survey_terms, release_terms,
+    ) if survey_cap else ({}, {}, {}, set())
     positive_profile = {"positive": profile.get("positive", {})}
     ranked_surveys, survey_scores = rank_work_pool(survey_pool, positive_profile, float("-inf"), minimum_title_tokens, title_weight)
     for rank, normalized in enumerate(ranked_surveys[:survey_cap], 1):
@@ -301,7 +377,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         status = "complete" if query in survey_exhausted else "bounded"
         cache.put_coverage("openalex", query, "survey_cursor", status, survey_scanned.get(query, 0), {
             "configured_page_cap": pages, "survey_pool_matches": sum(query in values for values in survey_matches.values()),
-            "surveys_selected": selected_count, "survey_cap": survey_cap, "balanced_scan_budget": survey_scan_budget,
+            "surveys_selected": selected_count, "survey_cap": survey_cap, "sample_size_per_query": survey_query_sample_size,
         }, utc_now())
         LOG.info("finished survey query=%r scanned=%d selected=%d coverage=%s", query, survey_scanned.get(query, 0), selected_count, status)
 
@@ -313,21 +389,12 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     reference_budget = min(reference_budget, len(reference_sources))
     LOG.info("survey discovery complete surveys=%d distinct_reference_candidates=%d reserved_reference_budget=%d", len(survey_ids), len(reference_sources), reference_budget)
 
-    # Oversample every direct query round-robin and retain the strongest generic evidence across the combined pool.
+    # Sample x per direct query, then select the best y from the deduplicated pool.
     direct_budget = None if limit is None else max(0, limit - reference_budget)
     direct_queries = [str(query) for query in profile.get("direct_queries", [])]
-    direct_capacity = per_page * pages * max(1, len(direct_queries))
-    desired_direct = direct_capacity if direct_budget is None else direct_budget
-    direct_scan_budget = min(direct_capacity, max(len(direct_queries), math.ceil(max(1, desired_direct) * direct_scan_multiplier))) if direct_queries else 0
-    direct_results, direct_scanned, direct_exhausted = balanced_search(client, direct_queries, per_page, pages, direct_scan_budget) if direct_scan_budget else ([], {}, set())
-    direct_pool: dict[str, dict[str, Any]] = {}
-    direct_matches: dict[str, set[str]] = {}
-    for query, item in direct_results:
-        normalized = normalize_work(item)
-        key = str(normalized.get("openalex_id", ""))
-        if key and int(normalized.get("cited_by_count") or 0) >= minimum_citations:
-            direct_pool[key] = normalized
-            direct_matches.setdefault(key, set()).add(query)
+    direct_pool, direct_matches, direct_scanned, direct_exhausted = direct_query_candidates(
+        client, direct_queries, query_sample_size, per_page, pages, minimum_citations,
+    )
     ranked_direct, direct_scores = rank_work_pool(direct_pool, profile, minimum_score, minimum_title_tokens, title_weight)
     selected_direct_ids: set[str] = set()
     for normalized in ranked_direct:
@@ -354,37 +421,21 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         status = "complete" if query in direct_exhausted else "bounded"
         cache.put_coverage("openalex", query, "direct_cursor", status, direct_scanned.get(query, 0), {
             "configured_page_cap": pages, "selected_results": selected_count,
-            "balanced_scan_budget": direct_scan_budget, "minimum_retrieval_score": minimum_score,
+            "sample_size_per_query": query_sample_size, "minimum_retrieval_score": minimum_score,
         }, utc_now())
         LOG.info("finished direct query=%r scanned=%d selected=%d coverage=%s", query, direct_scanned.get(query, 0), selected_count, status)
     if direct_budget is not None and len(selected_direct_ids) < direct_budget:
         LOG.warning("direct retrieval produced %d/%d retained candidate papers after generic quality ranking", len(selected_direct_ids), direct_budget)
 
-    # Prefer references cited by several selected surveys, resolve an oversampled pool, then rank their actual metadata.
+    # Prefer references cited by several selected surveys, sample x, then rank metadata.
     survey_reference_ids: set[str] = set()
     reference_edges = 0
-    reference_scan_budget = min(len(reference_sources), math.ceil(reference_budget * reference_scan_multiplier)) if reference_budget else 0
-    reference_ids = sorted(reference_sources, key=lambda key: (-len(reference_sources[key]), key))[:reference_scan_budget]
-    reference_pool: dict[str, dict[str, Any]] = {}
-    unresolved: list[str] = []
-    for reference_id in reference_ids:
-        if reference_id in works:
-            reference_pool[reference_id] = works[reference_id]
-            continue
-        cached = cache.get_record("openalex.work", reference_id)
-        if cached and cached.get("work"):
-            reference_pool[reference_id] = cached["work"]
-        else:
-            unresolved.append(reference_id)
-    if unresolved:
-        LOG.info("batch-resolving snowball pool unresolved=%d scan_budget=%d", len(unresolved), reference_scan_budget)
-        try:
-            for item in client.works_by_ids(unresolved):
-                normalized = normalize_work(item)
-                if normalized.get("openalex_id"):
-                    reference_pool[str(normalized["openalex_id"])] = normalized
-        except RuntimeError as exc:
-            LOG.warning("reference batch failed: %s", exc)
+    sampled_references = min(len(reference_sources), reference_sample_size)
+    try:
+        reference_pool, reference_ids = survey_reference_candidates(client, reference_sources, sampled_references, works, cache)
+    except RuntimeError as exc:
+        LOG.warning("reference batch failed: %s", exc)
+        reference_pool, reference_ids = {}, []
     reference_pool = {
         key: work for key, work in reference_pool.items()
         if int(work.get("cited_by_count") or 0) >= minimum_citations
@@ -464,7 +515,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         cache.put_coverage("openalex", f"references:{survey_id}", "reference_list", status, len(scanned_ids), {
             "available_references": len(available), "scanned_references": len(scanned_ids),
             "selected_references": len(selected_ids), "per_survey_limit": reference_limit,
-            "total_reference_budget": reference_budget, "reference_scan_budget": reference_scan_budget,
+            "total_reference_budget": reference_budget, "reference_sample_size": reference_sample_size,
         }, utc_now())
         LOG.info("finished survey snowball survey=%s scanned=%d selected=%d coverage=%s", survey_id, len(scanned_ids), len(selected_ids), status)
     LOG.info(
@@ -479,6 +530,6 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     return {
         "discovered": len(candidate_ids), "survey_sources": len(survey_ids), "auxiliary_cached_works": len(works) - len(candidate_ids),
         "direct_selected": len(selected_direct_ids), "survey_reference_works": len(new_reference_ids), "survey_reference_edges": reference_edges,
-        "survey_results_scanned": len(survey_results), "direct_results_scanned": len(direct_results),
+        "survey_results_scanned": sum(survey_scanned.values()), "direct_results_scanned": sum(direct_scanned.values()),
         "reference_results_scanned": len(reference_ids),
     }

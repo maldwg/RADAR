@@ -1,0 +1,206 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1240" viewBox="0 0 1800 1240" role="img" aria-labelledby="title description">
+<title id="title">IDS meta-study pipeline architecture</title>
+<desc id="description">Data-flow architecture for OpenAlex and GitHub discovery, classification consensus, validation, rated evaluation, reconciliation, and export.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#526979"/></marker>
+<style>
+text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
+.title { font-size: 27px; font-weight: 700; } .subtitle { font-size: 14px; fill: #60717d; }
+.section { stroke: #c4d0d8; stroke-width: 1.4; } .section-title { font-size: 18px; font-weight: 700; } .section-subtitle { font-size: 12px; fill: #647682; }
+.card { stroke: #607786; stroke-width: 1.35; } .card-title { font-size: 14px; font-weight: 700; } .card-text { font-size: 11.5px; }
+.tag { font-size: 9px; font-weight: 700; fill: #5b7180; letter-spacing: .4px; }
+.data-card { fill: #fffaf0; stroke: #b78a3c; stroke-width: 1.5; stroke-dasharray: 7 5; } .data-title { font-size: 14px; font-weight: 700; fill: #76551f; } .data-text { font-size: 11.5px; fill: #5b4a2d; }
+.flow { fill: none; stroke: #526979; stroke-width: 1.8; stroke-linejoin: round; } .flow-label-bg { fill: #ffffff; stroke: #d5dde2; stroke-width: .8; } .flow-label { font-size: 10.5px; fill: #526979; }
+.legend { font-size: 11px; fill: #60717d; }
+</style></defs>
+<text x="48" y="45" class="title" text-anchor="start">IDS meta-study pipeline architecture</text>
+<text x="48" y="72" class="subtitle" text-anchor="start">Components transform data; connectors name transferred records; dashed boxes mark persistent data boundaries.</text>
+<rect x="40" y="105" width="1260" height="400" rx="18" fill="#f5f9fc" class="section"/>
+<text x="60" y="134" class="section-title" text-anchor="start">OpenAlex discovery</text>
+<text x="60" y="155" class="section-subtitle" text-anchor="start">Direct retrieval and survey snowballing operate in parallel before candidate selection.</text>
+<text x="65" y="166" class="tag" text-anchor="start">DIRECT WORK BRANCH</text>
+<rect x="65" y="180" width="245" height="118" rx="12" class="card" fill="#e8f1f7"/>
+<text x="79" y="205" class="card-title" text-anchor="start">Direct query sampler</text>
+<text x="79" y="231" class="tag" text-anchor="start">INPUT</text>
+<text x="133" y="231" class="card-text" text-anchor="start">direct query strings</text>
+<text x="79" y="256" class="tag" text-anchor="start">DO</text>
+<text x="133" y="256" class="card-text" text-anchor="start">request top x per query</text>
+<text x="79" y="281" class="tag" text-anchor="start">OUTPUT</text>
+<text x="133" y="281" class="card-text" text-anchor="start">raw work metadata</text>
+<rect x="365" y="180" width="265" height="118" rx="12" class="card" fill="#e8f1f7"/>
+<text x="379" y="205" class="card-title" text-anchor="start">Direct eligibility + rank</text>
+<text x="379" y="231" class="tag" text-anchor="start">INPUT</text>
+<text x="433" y="231" class="card-text" text-anchor="start">raw work metadata</text>
+<text x="379" y="256" class="tag" text-anchor="start">DO</text>
+<text x="433" y="256" class="card-text" text-anchor="start">citation floor, score, dedupe</text>
+<text x="379" y="281" class="tag" text-anchor="start">OUTPUT</text>
+<text x="433" y="281" class="card-text" text-anchor="start">ranked direct work pool</text>
+<text x="65" y="324" class="tag" text-anchor="start">SURVEY / REFERENCE BRANCH</text>
+<rect x="65" y="338" width="245" height="118" rx="12" class="card" fill="#e8f1f7"/>
+<text x="79" y="363" class="card-title" text-anchor="start">Survey query sampler</text>
+<text x="79" y="389" class="tag" text-anchor="start">INPUT</text>
+<text x="133" y="389" class="card-text" text-anchor="start">queries + configured terms</text>
+<text x="79" y="414" class="tag" text-anchor="start">DO</text>
+<text x="133" y="414" class="card-text" text-anchor="start">sample x and identify surveys</text>
+<text x="79" y="439" class="tag" text-anchor="start">OUTPUT</text>
+<text x="133" y="439" class="card-text" text-anchor="start">survey works + reference IDs</text>
+<rect x="365" y="338" width="265" height="118" rx="12" class="card" fill="#e8f1f7"/>
+<text x="379" y="363" class="card-title" text-anchor="start">Reference resolver</text>
+<text x="379" y="389" class="tag" text-anchor="start">INPUT</text>
+<text x="433" y="389" class="card-text" text-anchor="start">reference IDs + source counts</text>
+<text x="379" y="414" class="tag" text-anchor="start">DO</text>
+<text x="433" y="414" class="card-text" text-anchor="start">prioritize shared IDs; batch fetch</text>
+<text x="379" y="439" class="tag" text-anchor="start">OUTPUT</text>
+<text x="433" y="439" class="card-text" text-anchor="start">resolved reference work pool</text>
+<rect x="700" y="258" width="270" height="118" rx="12" class="card" fill="#dcebf5"/>
+<text x="714" y="283" class="card-title" text-anchor="start">OpenAlex candidate selector</text>
+<text x="714" y="309" class="tag" text-anchor="start">INPUT</text>
+<text x="768" y="309" class="card-text" text-anchor="start">direct + reference work pools</text>
+<text x="714" y="334" class="tag" text-anchor="start">DO</text>
+<text x="768" y="334" class="card-text" text-anchor="start">reserve share, dedupe, select y</text>
+<text x="714" y="359" class="tag" text-anchor="start">OUTPUT</text>
+<text x="768" y="359" class="card-text" text-anchor="start">active work IDs + cached evidence</text>
+<rect x="1020" y="258" width="245" height="118" rx="12" class="card" fill="#dcebf5"/>
+<text x="1034" y="283" class="card-title" text-anchor="start">OpenAlex prefilter</text>
+<text x="1034" y="309" class="tag" text-anchor="start">INPUT</text>
+<text x="1088" y="309" class="card-text" text-anchor="start">active cached work evidence</text>
+<text x="1034" y="334" class="tag" text-anchor="start">DO</text>
+<text x="1088" y="334" class="card-text" text-anchor="start">score and assign candidate band</text>
+<text x="1034" y="359" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1088" y="359" class="card-text" text-anchor="start">paper_candidates.csv</text>
+<polyline points="310,239 365,239" class="flow" marker-end="url(#arrow)"/>
+<polyline points="310,397 365,397" class="flow" marker-end="url(#arrow)"/>
+<polyline points="630,239 665,239 665,300 700,300" class="flow" marker-end="url(#arrow)"/>
+<polyline points="630,397 665,397 665,334 700,334" class="flow" marker-end="url(#arrow)"/>
+<polyline points="970,317 1020,317" class="flow" marker-end="url(#arrow)"/>
+<rect x="40" y="530" width="1260" height="200" rx="18" fill="#f5faf6" class="section"/>
+<text x="60" y="559" class="section-title" text-anchor="start">GitHub discovery</text>
+<text x="60" y="580" class="section-subtitle" text-anchor="start">Native best-match results are selected before repository evidence is enriched and scored.</text>
+<rect x="65" y="590" width="245" height="118" rx="12" class="card" fill="#e8f4eb"/>
+<text x="79" y="615" class="card-title" text-anchor="start">Repository query sampler</text>
+<text x="79" y="641" class="tag" text-anchor="start">INPUT</text>
+<text x="133" y="641" class="card-text" text-anchor="start">queries + minimum-star floor</text>
+<text x="79" y="666" class="tag" text-anchor="start">DO</text>
+<text x="133" y="666" class="card-text" text-anchor="start">request native top x/query</text>
+<text x="79" y="691" class="tag" text-anchor="start">OUTPUT</text>
+<text x="133" y="691" class="card-text" text-anchor="start">repository stubs + query ranks</text>
+<rect x="365" y="590" width="245" height="118" rx="12" class="card" fill="#e8f4eb"/>
+<text x="379" y="615" class="card-title" text-anchor="start">GitHub candidate selector</text>
+<text x="379" y="641" class="tag" text-anchor="start">INPUT</text>
+<text x="433" y="641" class="card-text" text-anchor="start">stubs from every query</text>
+<text x="379" y="666" class="tag" text-anchor="start">DO</text>
+<text x="433" y="666" class="card-text" text-anchor="start">dedupe, rank, select best y</text>
+<text x="379" y="691" class="tag" text-anchor="start">OUTPUT</text>
+<text x="433" y="691" class="card-text" text-anchor="start">active repository IDs</text>
+<rect x="665" y="590" width="275" height="118" rx="12" class="card" fill="#dff0e3"/>
+<text x="679" y="615" class="card-title" text-anchor="start">Evidence enricher + cache</text>
+<text x="679" y="641" class="tag" text-anchor="start">INPUT</text>
+<text x="733" y="641" class="card-text" text-anchor="start">active repository IDs</text>
+<text x="679" y="666" class="tag" text-anchor="start">DO</text>
+<text x="733" y="666" class="card-text" text-anchor="start">fetch metadata, README, docs, commit</text>
+<text x="679" y="691" class="tag" text-anchor="start">OUTPUT</text>
+<text x="733" y="691" class="card-text" text-anchor="start">cached repository evidence</text>
+<rect x="995" y="590" width="270" height="118" rx="12" class="card" fill="#dff0e3"/>
+<text x="1009" y="615" class="card-title" text-anchor="start">GitHub prefilter</text>
+<text x="1009" y="641" class="tag" text-anchor="start">INPUT</text>
+<text x="1063" y="641" class="card-text" text-anchor="start">active cached repo evidence</text>
+<text x="1009" y="666" class="tag" text-anchor="start">DO</text>
+<text x="1063" y="666" class="card-text" text-anchor="start">score and assign candidate band</text>
+<text x="1009" y="691" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1063" y="691" class="card-text" text-anchor="start">candidates.csv</text>
+<polyline points="310,649 365,649" class="flow" marker-end="url(#arrow)"/>
+<polyline points="610,649 665,649" class="flow" marker-end="url(#arrow)"/>
+<polyline points="940,649 995,649" class="flow" marker-end="url(#arrow)"/>
+<rect x="1335" y="105" width="425" height="1085" rx="18" fill="#faf9f5" class="section"/>
+<text x="1355" y="134" class="section-title" text-anchor="start">Shared classification, reconciliation, and export</text>
+<text x="1355" y="155" class="section-subtitle" text-anchor="start">Both sources cross the same auditable data boundaries.</text>
+<rect x="1380" y="165" width="335" height="142" rx="12" class="data-card"/>
+<text x="1547.5" y="191" class="data-title" text-anchor="middle">Candidate evidence boundary</text>
+<text x="1398" y="218" class="data-text" text-anchor="start">• candidate CSV row</text>
+<text x="1398" y="238" class="data-text" text-anchor="start">• stable cache key</text>
+<text x="1398" y="258" class="data-text" text-anchor="start">• metadata / README / abstract sections</text>
+<rect x="1380" y="345" width="335" height="118" rx="12" class="card" fill="#fff2de"/>
+<text x="1394" y="370" class="card-title" text-anchor="start">Repeated LLM classification</text>
+<text x="1394" y="396" class="tag" text-anchor="start">INPUT</text>
+<text x="1448" y="396" class="card-text" text-anchor="start">candidate row + evidence sections</text>
+<text x="1394" y="421" class="tag" text-anchor="start">DO</text>
+<text x="1448" y="421" class="card-text" text-anchor="start">independent structured requests</text>
+<text x="1394" y="446" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1448" y="446" class="card-text" text-anchor="start">one normalized row per run</text>
+<rect x="1380" y="525" width="335" height="118" rx="12" class="card" fill="#fff2de"/>
+<text x="1394" y="550" class="card-title" text-anchor="start">Decision + field consensus</text>
+<text x="1394" y="576" class="tag" text-anchor="start">INPUT</text>
+<text x="1448" y="576" class="card-text" text-anchor="start">all normalized run rows</text>
+<text x="1394" y="601" class="tag" text-anchor="start">DO</text>
+<text x="1448" y="601" class="card-text" text-anchor="start">threshold-vote scalar + multi-label fields</text>
+<text x="1394" y="626" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1448" y="626" class="card-text" text-anchor="start">voted tuple + complete vote audit</text>
+<rect x="1380" y="705" width="335" height="118" rx="12" class="card" fill="#fff2de"/>
+<text x="1394" y="730" class="card-title" text-anchor="start">Cross-field validator</text>
+<text x="1394" y="756" class="tag" text-anchor="start">INPUT</text>
+<text x="1448" y="756" class="card-text" text-anchor="start">voted tuple + taxonomy rules</text>
+<text x="1394" y="781" class="tag" text-anchor="start">DO</text>
+<text x="1448" y="781" class="card-text" text-anchor="start">check coherence; use audited fallback</text>
+<text x="1394" y="806" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1448" y="806" class="card-text" text-anchor="start">validated or uncertain classification</text>
+<rect x="1380" y="885" width="335" height="118" rx="12" class="card" fill="#eeeaf7"/>
+<text x="1394" y="910" class="card-title" text-anchor="start">Reconcile + export</text>
+<text x="1394" y="936" class="tag" text-anchor="start">INPUT</text>
+<text x="1448" y="936" class="card-text" text-anchor="start">validated classification rows</text>
+<text x="1394" y="961" class="tag" text-anchor="start">DO</text>
+<text x="1448" y="961" class="card-text" text-anchor="start">group families and select canonical base</text>
+<text x="1394" y="986" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1448" y="986" class="card-text" text-anchor="start">accepted catalogues + audit rows</text>
+<rect x="1380" y="1050" width="335" height="122" rx="12" class="data-card"/>
+<text x="1547.5" y="1076" class="data-title" text-anchor="middle">Persisted outputs</text>
+<text x="1398" y="1103" class="data-text" text-anchor="start">• interim classifications / reconciled CSV</text>
+<text x="1398" y="1123" class="data-text" text-anchor="start">• processed OpenAlex and GitHub catalogues</text>
+<rect x="40" y="760" width="1260" height="430" rx="18" fill="#f8f6fb" class="section"/>
+<text x="60" y="789" class="section-title" text-anchor="start">Rated classification evaluation</text>
+<text x="60" y="810" class="section-subtitle" text-anchor="start">A separate offline branch compares stable source IDs against versioned human ratings.</text>
+<rect x="65" y="835" width="300" height="142" rx="12" class="data-card"/>
+<text x="215.0" y="861" class="data-title" text-anchor="middle">Central rating profiles</text>
+<text x="83" y="888" class="data-text" text-anchor="start">• config/evaluation/&lt;source&gt;.toml</text>
+<text x="83" y="908" class="data-text" text-anchor="start">• expected include / exclude decision</text>
+<text x="83" y="928" class="data-text" text-anchor="start">• expected normalized field values</text>
+<rect x="430" y="845" width="350" height="118" rx="12" class="card" fill="#eeeaf7"/>
+<text x="444" y="870" class="card-title" text-anchor="start">Result evaluator</text>
+<text x="444" y="896" class="tag" text-anchor="start">INPUT</text>
+<text x="498" y="896" class="card-text" text-anchor="start">ratings + classifications + candidates</text>
+<text x="444" y="921" class="tag" text-anchor="start">DO</text>
+<text x="498" y="921" class="card-text" text-anchor="start">join stable IDs; build three metric views</text>
+<text x="444" y="946" class="tag" text-anchor="start">OUTPUT</text>
+<text x="498" y="946" class="card-text" text-anchor="start">confusions + coverage + field scores</text>
+<rect x="850" y="825" width="410" height="142" rx="12" class="data-card"/>
+<text x="1055.0" y="851" class="data-title" text-anchor="middle">Evaluation artifacts per model / ensemble</text>
+<text x="868" y="878" class="data-text" text-anchor="start">• metrics.json: DR, FPR, ACC, PREC, F1</text>
+<text x="868" y="898" class="data-text" text-anchor="start">• instances.csv + decision_confusion.csv</text>
+<text x="868" y="918" class="data-text" text-anchor="start">• field_metrics.csv + readable README</text>
+<polyline points="1265,317 1325,317 1325,215 1380,215" class="flow" marker-end="url(#arrow)"/>
+<polyline points="1265,649 1325,649 1325,255 1380,255" class="flow" marker-end="url(#arrow)"/>
+<polyline points="1548,307 1548,345" class="flow" marker-end="url(#arrow)"/>
+<rect x="1464.6" y="316" width="166.8" height="20" rx="7" class="flow-label-bg"/>
+<text x="1548" y="331" class="flow-label" text-anchor="middle">candidate row + evidence</text>
+<polyline points="1548,463 1548,525" class="flow" marker-end="url(#arrow)"/>
+<rect x="1480.1" y="484" width="135.8" height="20" rx="7" class="flow-label-bg"/>
+<text x="1548" y="499" class="flow-label" text-anchor="middle">normalized run rows</text>
+<polyline points="1548,643 1548,705" class="flow" marker-end="url(#arrow)"/>
+<rect x="1461.5" y="664" width="173.0" height="20" rx="7" class="flow-label-bg"/>
+<text x="1548" y="679" class="flow-label" text-anchor="middle">voted tuple + field audit</text>
+<polyline points="1548,823 1548,885" class="flow" marker-end="url(#arrow)"/>
+<rect x="1464.6" y="844" width="166.8" height="20" rx="7" class="flow-label-bg"/>
+<text x="1548" y="859" class="flow-label" text-anchor="middle">validated classification</text>
+<polyline points="1380,775 1320,775 1320,904 780,904" class="flow" marker-end="url(#arrow)"/>
+<rect x="989.9" y="885" width="210.20000000000002" height="20" rx="7" class="flow-label-bg"/>
+<text x="1095" y="900" class="flow-label" text-anchor="middle">classification + candidate rows</text>
+<polyline points="365,904 430,904" class="flow" marker-end="url(#arrow)"/>
+<rect x="347.7" y="885" width="98.60000000000001" height="20" rx="7" class="flow-label-bg"/>
+<text x="397" y="900" class="flow-label" text-anchor="middle">human ratings</text>
+<polyline points="780,904 850,904" class="flow" marker-end="url(#arrow)"/>
+<rect x="756.4" y="885" width="117.2" height="20" rx="7" class="flow-label-bg"/>
+<text x="815" y="900" class="flow-label" text-anchor="middle">auditable scores</text>
+<polyline points="1548,1003 1548,1050" class="flow" marker-end="url(#arrow)"/>
+<rect x="1464.6" y="1015" width="166.8" height="20" rx="7" class="flow-label-bg"/>
+<text x="1548" y="1030" class="flow-label" text-anchor="middle">families + accepted rows</text>
+<text x="48" y="1218" class="legend" text-anchor="start">Solid cards transform data  •  Dashed cards persist or transfer data  •  x = per-query sample size  •  y = selected collection size</text>
+</svg>

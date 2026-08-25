@@ -10,6 +10,7 @@ interim_dir = "data/interim"
 processed_dir = "data/processed"
 plots_dir = "artifacts/plots"
 runs_dir = "artifacts/runs"
+evaluation_dir = "artifacts/evaluation"
 github_cache = "data/raw/github/cache.sqlite3"
 openalex_cache = "data/raw/openalex/cache.sqlite3"
 github_terms = "config/terms/github.toml"
@@ -17,6 +18,8 @@ openalex_terms = "config/terms/openalex.toml"
 github_prompts = "config/prompts/github.toml"
 openalex_prompts = "config/prompts/openalex.toml"
 github_system_types = "config/taxonomy/github_system_types.toml"
+github_ratings = "config/evaluation/github.toml"
+openalex_ratings = "config/evaluation/openalex.toml"
 
 [ollama]
 url = "http://192.168.175.151:11434"
@@ -37,16 +40,24 @@ models = ["gemma4:31b", "qwen3.6:27b"]
 # Agreement is divided by all selected members; ties and values below this threshold are uncertain.
 threshold = 0.5
 
+[evaluation]
+# Run rated-instance evaluation automatically after classification in a full run.
+# Explicit `github evaluate` and `openalex evaluate` commands always run.
+enabled = false
+
 [github]
 # Bound source discovery separately from the ranked LLM adjudication shortlist.
 # Use classification_limit = "all" to classify every candidate/borderline row.
 collection_limit = 1000
 # Keep GitHub native relevance ordering while bounding each query to reputable projects.
 minimum_stars = 100
-max_results_per_query = 100
-# Oversample across queries before selecting the active collection.
-search_scan_multiplier = 3.0
+# x: sample at most this many native best matches from each query.
+query_sample_size = 100
+# y is collection_limit above: select the best y after cross-query deduplication.
 classification_limit = 100
+# Repeat classification; vote decisions and normalized fields, then validate their combination.
+consecutive_runs = 3
+consensus_threshold = 0.66
 per_page = 100
 max_docs_files = 3
 created_from = "1990-01-01"
@@ -76,10 +87,11 @@ max_reference_works_per_survey = 300
 max_survey_reference_candidates_total = 1000
 # With --limit, reserve this fraction of candidate capacity for survey-reference snowballing.
 survey_reference_fraction = 0.35
-# Search every query fairly and rank an oversampled result pool before retaining works.
-survey_scan_multiplier = 4.0
-direct_scan_multiplier = 3.0
-reference_scan_multiplier = 3.0
+# x: sample independently per query; collection_limit above is y (best retained papers).
+query_sample_size = 100
+survey_query_sample_size = 100
+# Survey references are a ranked source list rather than a text query.
+reference_sample_size = 1000
 # References shared by this many selected surveys bypass the generic text-score floor.
 survey_consensus_threshold = 2
 # Generic evidence-quality floor; citations never contribute to retrieval ranking.
@@ -98,6 +110,9 @@ borderline_threshold = 4.0
 classify_borderline = true
 reconcile_with_llm = true
 canonical_ambiguity_margin = 2.0
+# Repeat classification; vote decisions and normalized fields, then validate their combination.
+consecutive_runs = 3
+consensus_threshold = 0.66
 
 [plots]
 formats = ["svg", "pdf"]

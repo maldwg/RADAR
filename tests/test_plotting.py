@@ -11,6 +11,7 @@ from ids_meta.plotting.github import build as build_github
 from ids_meta.plotting.openalex import build as build_openalex
 from ids_meta.plotting.compare import build as build_compare
 from ids_meta.plotting.compare import build_models
+from ids_meta.architecture import build as build_architecture
 
 
 class PlottingTests(unittest.TestCase):
@@ -65,6 +66,11 @@ class PlottingTests(unittest.TestCase):
             self.assertTrue((root / "openalex-plots/07_classification_audit.svg").is_file())
             self.assertTrue((root / "openalex-plots/08_survey_sources.svg").is_file())
             self.assertFalse(stale.exists())
+            architecture = build_architecture(root, ["svg"], 72)
+            self.assertTrue(architecture)
+            self.assertTrue((root / "pipeline_architecture.svg").is_file())
+            self.assertFalse((root / "github-plots/pipeline_sequence.svg").exists())
+            self.assertFalse((root / "openalex-plots/pipeline_sequence.svg").exists())
 
 
 if __name__ == "__main__":

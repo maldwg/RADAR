@@ -22,8 +22,13 @@ ROOT = Path(__file__).resolve().parents[1]
 class FakePaperModel:
     model = "fixture-model"
 
+    def __init__(self) -> None:
+        """Initialize the fixture model's invocation counter."""
+        self.calls = 0
+
     def generate(self, prompt: str, _schema: dict[str, Any]) -> dict[str, Any]:
         """Return deterministic release or downstream-paper classifications."""
+        self.calls += 1
         downstream = "classification accuracy" in prompt
         if downstream:
             return {
@@ -394,8 +399,11 @@ class OpenAlexPipelineTests(unittest.TestCase):
                 cache.put_record("openalex.work", downstream["openalex_id"], {"work": downstream, "discovery_relations": ["direct_search"], "matched_queries": ["intrusion detection dataset"]}, "2026-01-01T00:00:00+00:00")
                 rows = prefilter(settings.section("openalex"), profile, cache, candidates, "fixture-run")
                 self.assertEqual(len(rows), 2)
-                decisions = classify(candidates, classified, cache, settings.section("ollama"), generator=FakePaperModel(), prompt_config=prompts)
+                model = FakePaperModel()
+                decisions = classify(candidates, classified, cache, settings.section("ollama"), generator=model, prompt_config=prompts, consecutive_runs=3, consensus_threshold=.66)
+                self.assertEqual(model.calls, 6)
                 self.assertEqual({row["decision"] for row in decisions}, {"accept", "exclude"})
+                self.assertTrue(all(row["consensus_field_audit"] for row in decisions))
                 accepted_decision = next(row for row in decisions if row["decision"] == "accept")
                 self.assertEqual(accepted_decision["classification_validation_flags"], "")
                 self.assertEqual(accepted_decision["artifact_display_name"], "NAT Corpus")

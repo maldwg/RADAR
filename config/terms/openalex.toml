@@ -17,6 +17,16 @@ survey_queries = [
   "cyber attack datasets systematic review",
 ]
 
+[survey_identification]
+# A work is a survey when its type is review or it contains one of these terms.
+survey_terms = ["survey", "systematic review", "literature review", "dataset review", "mapping study"]
+# A matching release term prevents a survey false-positive for papers releasing resources.
+release_terms = [
+  "new dataset", "present a dataset", "presents a dataset", "introduce a dataset", "introduces a dataset",
+  "release a dataset", "release the dataset", "released dataset", "public dataset", "publicly available",
+  "made available", "open source", "open-source", "dataset toolkit", "data generation framework",
+]
+
 [positive.security_scope]
 weight = 4.0
 terms = ["intrusion detection", "network attack", "cyber attack", "malicious traffic", "security anomaly", "attack detection"]

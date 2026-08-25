@@ -1,0 +1,51 @@
+schema_version = "1.0"
+source = "github"
+classification_fields = ["role", "observation_scopes", "capabilities", "detection_methods"]
+
+# Starter ratings copied from representative saved pipeline rows so the format is executable.
+# Review these values manually before treating them as authoritative human ground truth.
+
+[[entities]]
+id = "5410234"
+name = "OISF/suricata"
+decision = "accept"
+role = "standalone_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "prevention", "monitoring"]
+detection_methods = ["signature_based", "rule_based", "protocol_analysis", "packet_analysis", "flow_analysis"]
+
+[[entities]]
+id = "27875223"
+name = "snort3/snort3"
+decision = "accept"
+role = "standalone_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "prevention"]
+detection_methods = ["signature_based", "rule_based", "packet_analysis", "protocol_analysis"]
+
+[[entities]]
+id = "4930716"
+name = "zeek/zeek"
+decision = "accept"
+role = "platform_framework"
+observation_scopes = ["network"]
+capabilities = ["monitoring", "detection"]
+detection_methods = ["protocol_analysis", "rule_based"]
+
+[[entities]]
+id = "40556106"
+name = "wazuh/wazuh"
+decision = "accept"
+role = "platform_framework"
+observation_scopes = ["host_endpoint", "network", "application", "database", "provenance"]
+capabilities = ["detection", "prevention", "response", "monitoring"]
+detection_methods = ["signature_based", "rule_based", "anomaly_based", "integrity_based", "log_analysis", "system_call_analysis", "threat_intelligence_based", "hybrid"]
+
+[[entities]]
+id = "1002266725"
+name = "Mmohet/EfficiencyTool"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["host_endpoint"]
+capabilities = ["monitoring"]
+detection_methods = ["unknown"]

@@ -1,0 +1,66 @@
+schema_version = "1.0"
+source = "openalex"
+classification_fields = ["paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"]
+
+# Starter ratings copied from representative saved pipeline rows so the format is executable.
+# Review these values manually before treating them as authoritative human ground truth.
+
+[[entities]]
+id = "https://openalex.org/W4310746777"
+name = "5G-NIDD"
+decision = "accept"
+paper_role = "original_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "wireless"
+data_form = "network_traffic"
+capture_environment = "synthetic_lab"
+labeling = "labeled"
+
+[[entities]]
+id = "https://openalex.org/W2474150305"
+name = "Intrusion Detection Dataset Toolkit (ID2T)"
+decision = "accept"
+paper_role = "generator_release"
+relevance_tier = "core"
+artifact_type = "generator_framework"
+domain = "general_network"
+data_form = "unknown"
+capture_environment = "synthetic_lab"
+labeling = "labeled"
+
+[[entities]]
+id = "https://openalex.org/W2789828921"
+name = "CSE-CIC-IDS2018"
+decision = "accept"
+paper_role = "original_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "general_network"
+data_form = "flow"
+capture_environment = "hybrid"
+labeling = "labeled"
+
+[[entities]]
+id = "https://openalex.org/W3016974523"
+name = "A Review of the Advancement in Intrusion Detection Datasets"
+decision = "exclude"
+paper_role = "survey"
+relevance_tier = "excluded"
+artifact_type = "unknown"
+domain = "general_network"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
+
+[[entities]]
+id = "https://openalex.org/W3176609646"
+name = "RoEduNet-SIMARGL2021"
+decision = "accept"
+paper_role = "original_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "general_network"
+data_form = "tabular_features"
+capture_environment = "hybrid"
+labeling = "labeled"

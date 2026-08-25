@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.ensemble import ensemble_classifications
+from ids_meta.common.evaluation import EvaluationResult, evaluate_results, load_rating_profile
 from ids_meta.common.config import ConfigError, Settings, load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from ids_meta.common.run import RunManifest
 from ids_meta.common.text import slug
@@ -26,24 +27,35 @@ from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS as OPENALEX_CLASSIFI
 LOG = logger("cli")
 
 
+def _path_with_default(settings: Settings, key: str, default: str) -> Path:
+    """Resolve an optional configured path while preserving older custom configs."""
+    value = settings.section("paths").get(key, default)
+    if not isinstance(value, str) or not value:
+        raise ConfigError(f"paths.{key} must be a non-empty string")
+    path = Path(value)
+    return path if path.is_absolute() else settings.root / path
+
+
 def _default_paths(settings: Settings, source: str) -> dict[str, Path]:
     """Build the default cache, CSV, plot, and comparison paths for a source."""
     interim = settings.path("interim_dir") / source
     processed = settings.path("processed_dir") / source
     plots = settings.path("plots_dir") / source
+    evaluation = _path_with_default(settings, "evaluation_dir", "artifacts/evaluation") / source
     if source == "github":
         return {
             "cache": settings.path("github_cache"), "candidates": interim / "candidates.csv",
             "classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv",
             "catalogue": processed / "repositories.csv",
-            "plots": plots, "comparison": settings.path("plots_dir") / "comparisons" / source,
+            "plots": plots, "evaluation": evaluation,
+            "comparison": settings.path("plots_dir") / "comparisons" / source,
         }
     return {
         "cache": settings.path("openalex_cache"), "candidates": interim / "paper_candidates.csv",
         "surveys": interim / "survey_sources.csv",
         "classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv",
         "catalogue": processed / "base_papers.csv",
-        "adjacent": processed / "adjacent_base_papers.csv", "plots": plots,
+        "adjacent": processed / "adjacent_base_papers.csv", "plots": plots, "evaluation": evaluation,
         "comparison": settings.path("plots_dir") / "comparisons" / source,
     }
 
@@ -112,7 +124,8 @@ def _variant_paths(settings: Settings, source: str, variant: Path) -> dict[str, 
     interim = settings.path("interim_dir") / source / variant
     processed = settings.path("processed_dir") / source / variant
     plots = settings.path("plots_dir") / source / variant
-    paths.update({"classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv", "plots": plots})
+    evaluation = _path_with_default(settings, "evaluation_dir", "artifacts/evaluation") / source / variant
+    paths.update({"classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv", "plots": plots, "evaluation": evaluation})
     if source == "github":
         paths["catalogue"] = processed / "repositories.csv"
     else:
@@ -130,8 +143,8 @@ def _execution_paths(settings: Settings, source: str, models: list[str]) -> dict
 
 def _reject_ambiguous_custom_paths(args: argparse.Namespace) -> None:
     """Reject a single custom path when an action emits or consumes many model files."""
-    output_is_ambiguous = getattr(args, "output", None) and args.action in {"classify", "reconcile", "export", "plot", "run"}
-    input_is_ambiguous = getattr(args, "input", None) and args.action in {"reconcile", "export", "plot"}
+    output_is_ambiguous = getattr(args, "output", None) and args.action in {"classify", "evaluate", "reconcile", "export", "plot", "run"}
+    input_is_ambiguous = getattr(args, "input", None) and args.action in {"evaluate", "reconcile", "export", "plot"}
     if output_is_ambiguous or input_is_ambiguous:
         raise ConfigError("custom paths for model-dependent outputs are unavailable in multi-model or ensemble mode")
 
@@ -181,6 +194,41 @@ def _shortlist_count(eligible: int, limit: int | None) -> int:
     return eligible if limit is None else min(eligible, limit)
 
 
+def _evaluation_enabled(settings: Settings) -> bool:
+    """Return whether full pipeline runs should execute the evaluation stage."""
+    enabled = settings.section("evaluation").get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ConfigError("evaluation.enabled must be true or false")
+    return enabled
+
+
+def _evaluation_candidates(args: argparse.Namespace, default: Path) -> Path:
+    """Resolve the candidate audit matching an explicit evaluation or full run."""
+    if getattr(args, "candidates", None):
+        return Path(args.candidates)
+    if args.action == "run" and getattr(args, "input", None):
+        return Path(args.input)
+    return default
+
+
+def _evaluate(
+    settings: Settings, source: str, classifications: Path, candidates: Path, output_dir: Path,
+) -> EvaluationResult:
+    """Evaluate one source/model result against its centrally configured ratings."""
+    profile = load_rating_profile(_path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml"), source)
+    return evaluate_results(profile, classifications, output_dir, candidates)
+
+
+def _record_evaluation(manifest: RunManifest, result: EvaluationResult, suffix: str = "") -> None:
+    """Record compact operational evaluation counts in a run manifest."""
+    label = f"_{suffix}" if suffix else ""
+    operational = result.metrics["operational"]
+    manifest.counts[f"evaluation_rated{label}"] = int(result.metrics["rated_entities"])
+    for name in ("tp", "fp", "tn", "fn"):
+        manifest.counts[f"evaluation_{name}{label}"] = int(operational[name])
+    manifest.counts[f"evaluation_files{label}"] = len(result.outputs)
+
+
 def _execute_github_models(args: argparse.Namespace, settings: Settings, models: list[str]) -> dict[str, int]:
     """Execute GitHub model variants plus an optional deterministic ensemble."""
     _reject_ambiguous_custom_paths(args)
@@ -218,12 +266,20 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
         if args.action in {"classify", "run"}:
             input_path = Path(args.input) if args.input else base_paths["candidates"]
             for model in models:
-                rows = classify_github(input_path, model_paths[model]["classifications"], cache, _model_ollama_config(settings, model), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile)
+                rows = classify_github(input_path, model_paths[model]["classifications"], cache, _model_ollama_config(settings, model), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)))
                 manifest.counts["classifications_" + labels[model]] = len(rows)
         if ensemble_enabled and args.action in {"classify", "reconcile", "run"}:
             selected = {model: model_paths[model]["classifications"] for model in ensemble_members}
             rows = ensemble_classifications("github", selected, ensemble_paths["classifications"], threshold, GITHUB_CLASSIFICATION_COLUMNS)
             manifest.counts["classifications_ensemble"] = len(rows)
+        if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
+            candidates_path = _evaluation_candidates(args, base_paths["candidates"])
+            for model in models:
+                result = _evaluate(settings, "github", model_paths[model]["classifications"], candidates_path, model_paths[model]["evaluation"])
+                _record_evaluation(manifest, result, labels[model])
+            if ensemble_enabled:
+                result = _evaluate(settings, "github", ensemble_paths["classifications"], candidates_path, ensemble_paths["evaluation"])
+                _record_evaluation(manifest, result, "ensemble")
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             for model in models:
                 rows = reconcile_github(model_paths[model]["classifications"], model_paths[model]["reconciled"], cache, _model_ollama_config(settings, model), config, args.dry_run, prompt_config=prompt_config)
@@ -293,8 +349,13 @@ def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, i
         if args.action in {"classify", "run"}:
             input_path = Path(args.input) if args.input else paths["candidates"]
             output_path = Path(args.output) if args.output and args.action == "classify" else paths["classifications"]
-            rows = classify_github(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile)
+            rows = classify_github(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)))
             manifest.counts["classifications"] = len(rows)
+        if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
+            classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
+            candidates_path = _evaluation_candidates(args, paths["candidates"])
+            output_dir = Path(args.output) if args.output and args.action == "evaluate" else paths["evaluation"]
+            _record_evaluation(manifest, _evaluate(settings, "github", classifications_path, candidates_path, output_dir))
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]
             output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]
@@ -357,12 +418,20 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
         if args.action in {"classify", "run"}:
             input_path = Path(args.input) if args.input else base_paths["candidates"]
             for model in models:
-                rows = classify_openalex(input_path, model_paths[model]["classifications"], cache, _model_ollama_config(settings, model), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, openalex_config=config)
+                rows = classify_openalex(input_path, model_paths[model]["classifications"], cache, _model_ollama_config(settings, model), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, openalex_config=config, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)))
                 manifest.counts["classifications_" + labels[model]] = len(rows)
         if ensemble_enabled and args.action in {"classify", "reconcile", "run"}:
             selected = {model: model_paths[model]["classifications"] for model in ensemble_members}
             rows = ensemble_classifications("openalex", selected, ensemble_paths["classifications"], threshold, OPENALEX_CLASSIFICATION_COLUMNS)
             manifest.counts["classifications_ensemble"] = len(rows)
+        if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
+            candidates_path = _evaluation_candidates(args, base_paths["candidates"])
+            for model in models:
+                result = _evaluate(settings, "openalex", model_paths[model]["classifications"], candidates_path, model_paths[model]["evaluation"])
+                _record_evaluation(manifest, result, labels[model])
+            if ensemble_enabled:
+                result = _evaluate(settings, "openalex", ensemble_paths["classifications"], candidates_path, ensemble_paths["evaluation"])
+                _record_evaluation(manifest, result, "ensemble")
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             for model in models:
                 rows = reconcile_openalex(model_paths[model]["classifications"], model_paths[model]["reconciled"], cache, _model_ollama_config(settings, model), config, args.dry_run, prompt_config=prompt_config)
@@ -436,8 +505,13 @@ def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str,
         if args.action in {"classify", "run"}:
             input_path = Path(args.input) if args.input else paths["candidates"]
             output_path = Path(args.output) if args.output and args.action == "classify" else paths["classifications"]
-            rows = classify_openalex(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, openalex_config=config)
+            rows = classify_openalex(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, openalex_config=config, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)))
             manifest.counts["classifications"] = len(rows)
+        if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
+            classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
+            candidates_path = _evaluation_candidates(args, paths["candidates"])
+            output_dir = Path(args.output) if args.output and args.action == "evaluate" else paths["evaluation"]
+            _record_evaluation(manifest, _evaluate(settings, "openalex", classifications_path, candidates_path, output_dir))
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]
             output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]
@@ -470,7 +544,7 @@ def build_parser() -> argparse.ArgumentParser:
     for source in ("github", "openalex"):
         source_parser = subparsers.add_parser(source)
         actions = source_parser.add_subparsers(dest="action", required=True)
-        for action in ("collect", "prefilter", "classify", "reconcile", "export", "plot", "run"):
+        for action in ("collect", "prefilter", "classify", "evaluate", "reconcile", "export", "plot", "run"):
             action_parser = actions.add_parser(action)
             action_parser.add_argument("--limit", type=int, help="legacy stage limit; for run, applies to both collection and classification")
             if action in {"collect", "run"}:
@@ -483,6 +557,10 @@ def build_parser() -> argparse.ArgumentParser:
             action_parser.add_argument("--dry-run", action="store_true")
             action_parser.add_argument("--input", type=Path)
             action_parser.add_argument("--output", type=Path)
+            if action == "evaluate":
+                action_parser.add_argument("--candidates", type=Path, help="candidate CSV used to distinguish not retrieved from not classified")
+    architecture = subparsers.add_parser("architecture")
+    architecture.add_argument("--output", type=Path, help="output directory; defaults to the repository root")
     comparison = subparsers.add_parser("compare")
     comparison.add_argument("source", choices=("github", "openalex"))
     comparison.add_argument("--input", type=Path)
@@ -507,6 +585,11 @@ def main(argv: list[str] | None = None) -> int:
             counts = _execute_github(args, settings)
         elif args.command == "openalex":
             counts = _execute_openalex(args, settings)
+        elif args.command == "architecture":
+            from ids_meta.architecture import build as build_architecture
+
+            files = build_architecture(args.output or settings.root)
+            counts = {"architecture_files": len(files)}
         else:
             from ids_meta.plotting.compare import build as build_comparison
             from ids_meta.plotting.compare import build_models as build_model_comparison

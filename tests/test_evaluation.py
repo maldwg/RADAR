@@ -1,0 +1,213 @@
+from __future__ import annotations
+
+import argparse
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from ids_meta.cli import _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
+from ids_meta.common.config import Settings
+from ids_meta.common.csvio import atomic_write_csv, read_csv
+from ids_meta.common.evaluation import evaluate_results, load_rating_profile
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class EvaluationTests(unittest.TestCase):
+    """Exercise centrally rated evaluation for both discovery sources."""
+
+    def _write_profile(self, path: Path, source: str, body: str) -> Path:
+        """Write a valid evaluation profile with caller-supplied entity tables."""
+        fields = (
+            '["role", "observation_scopes", "capabilities", "detection_methods"]'
+            if source == "github"
+            else '["paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"]'
+        )
+        path.write_text(
+            f'schema_version = "1.0"\nsource = "{source}"\nclassification_fields = {fields}\n\n{body}',
+            encoding="utf-8",
+        )
+        return path
+
+    def test_github_metrics_penalize_boundary_and_missing_results_transparently(self) -> None:
+        """Verify operational, strict, and selective matrices use their documented denominators."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            body = (
+                '[[entities]]\nid = "g1"\nname = "Correct detector"\ndecision = "accept"\n'
+                'role = "standalone_detector"\nobservation_scopes = ["network"]\n'
+                'capabilities = ["detection", "response"]\ndetection_methods = ["signature_based"]\n\n'
+                '[[entities]]\nid = "g2"\ndecision = "exclude"\n\n'
+                '[[entities]]\nid = "g3"\ndecision = "accept"\n\n'
+                '[[entities]]\nid = "g4"\ndecision = "exclude"\n\n'
+                '[[entities]]\nid = "g5"\ndecision = "accept"\n'
+            )
+            profile_path = self._write_profile(root / "github.toml", "github", body)
+            classifications = root / "classifications.csv"
+            atomic_write_csv(classifications, [
+                {"github_repo_id": "g1", "decision": "accept", "role": "standalone_detector", "observation_scopes": "network", "capabilities": "response;detection", "detection_methods": "signature_based"},
+                {"github_repo_id": "g2", "decision": "accept"},
+                {"github_repo_id": "g3", "decision": "exclude"},
+                {"github_repo_id": "g4", "decision": "uncertain"},
+                {"github_repo_id": "unrated", "decision": "accept"},
+            ], ["github_repo_id", "decision", "role", "observation_scopes", "capabilities", "detection_methods"])
+            candidates = root / "candidates.csv"
+            atomic_write_csv(candidates, [{"github_repo_id": f"g{index}"} for index in range(1, 6)], ["github_repo_id"])
+
+            result = evaluate_results(load_rating_profile(profile_path, "github"), classifications, root / "evaluation", candidates)
+            metrics = result.metrics
+            self.assertEqual(metrics["operational"]["tp"], 1)
+            self.assertEqual(metrics["operational"]["fp"], 1)
+            self.assertEqual(metrics["operational"]["tn"], 1)
+            self.assertEqual(metrics["operational"]["fn"], 2)
+            self.assertAlmostEqual(metrics["operational"]["DR"], 1 / 3)
+            self.assertAlmostEqual(metrics["operational"]["FPR"], 1 / 2)
+            self.assertAlmostEqual(metrics["operational"]["ACC"], 2 / 5)
+            self.assertAlmostEqual(metrics["operational"]["PREC"], 1 / 2)
+            self.assertEqual({key: metrics["strict"][key] for key in ("tp", "fp", "tn", "fn")}, {"tp": 1, "fp": 2, "tn": 0, "fn": 2})
+            self.assertEqual({key: metrics["selective"][key] for key in ("tp", "fp", "tn", "fn")}, {"tp": 1, "fp": 1, "tn": 0, "fn": 1})
+            self.assertEqual(metrics["status_counts"], {"classified": 3, "not_classified": 1, "uncertain": 1})
+            self.assertAlmostEqual(metrics["retrieval_coverage"], 1.0)
+            self.assertAlmostEqual(metrics["classification_coverage"], 4 / 5)
+            self.assertAlmostEqual(metrics["definitive_coverage"], 3 / 5)
+            self.assertAlmostEqual(metrics["abstention_rate"], 2 / 5)
+            self.assertEqual(metrics["unrated_actual_entities"], 1)
+            self.assertAlmostEqual(metrics["classification_field_accuracy"], 1.0)
+            self.assertEqual({item.name for item in (root / "evaluation").iterdir()}, {"metrics.json", "instances.csv", "decision_confusion.csv", "field_metrics.csv", "README.md"})
+            rows = {row["entity_id"]: row for row in read_csv(root / "evaluation/instances.csv")}
+            self.assertEqual(rows["g5"]["status"], "not_classified")
+
+    def test_openalex_metrics_compare_decisions_and_taxonomy_fields(self) -> None:
+        """Verify OpenAlex uses stable work IDs and evaluates normalized field values."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            body = (
+                '[[entities]]\nid = "https://openalex.org/W1"\ndecision = "accept"\n'
+                'paper_role = "original_release"\nrelevance_tier = "core"\nartifact_type = "dataset"\n'
+                'domain = "general_network"\ndata_form = "packet"\ncapture_environment = "synthetic_lab"\nlabeling = "labeled"\n\n'
+                '[[entities]]\nid = "https://openalex.org/W2"\ndecision = "exclude"\n'
+            )
+            profile_path = self._write_profile(root / "openalex.toml", "openalex", body)
+            actual = root / "classifications.csv"
+            atomic_write_csv(actual, [
+                {"openalex_id": "https://openalex.org/W1", "decision": "accept", "paper_role": "original_release", "relevance_tier": "core", "artifact_type": "dataset", "domain": "general_network", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled"},
+                {"openalex_id": "https://openalex.org/W2", "decision": "exclude"},
+            ], ["openalex_id", "decision", "paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"])
+            result = evaluate_results(load_rating_profile(profile_path, "openalex"), actual, root / "evaluation")
+            self.assertEqual(result.metrics["operational"]["ACC"], 1.0)
+            self.assertEqual(result.metrics["operational"]["DR"], 1.0)
+            self.assertEqual(result.metrics["classification_field_accuracy"], 1.0)
+            self.assertIsNone(result.metrics["retrieval_coverage"])
+            persisted = json.loads((root / "evaluation/metrics.json").read_text(encoding="utf-8"))
+            self.assertEqual(persisted["source"], "openalex")
+
+    def test_rating_profiles_reject_duplicate_or_invalid_entities(self) -> None:
+        """Reject ambiguous ground truth before producing misleading metrics."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            duplicate = self._write_profile(root / "duplicate.toml", "github", '[[entities]]\nid = "1"\ndecision = "accept"\n[[entities]]\nid = "1"\ndecision = "exclude"\n')
+            with self.assertRaisesRegex(ValueError, "duplicate evaluation entity"):
+                load_rating_profile(duplicate, "github")
+            invalid = self._write_profile(root / "invalid.toml", "openalex", '[[entities]]\nid = "W1"\ndecision = "maybe"\n')
+            with self.assertRaisesRegex(ValueError, "unsupported decision"):
+                load_rating_profile(invalid, "openalex")
+
+    def test_cli_exposes_evaluate_with_candidate_override(self) -> None:
+        """Expose a source-local evaluation command without requiring a pipeline rerun."""
+        args = build_parser().parse_args(["github", "evaluate", "--input", "actual.csv", "--output", "report", "--candidates", "candidates.csv"])
+        self.assertEqual(args.action, "evaluate")
+        self.assertEqual(args.input, Path("actual.csv"))
+        self.assertEqual(args.output, Path("report"))
+        self.assertEqual(args.candidates, Path("candidates.csv"))
+
+    def _settings(self, root: Path, github_ratings: Path, openalex_ratings: Path) -> Settings:
+        """Create a single-model offline settings fixture for CLI evaluation stages."""
+        return Settings(root, {
+            "paths": {
+                "interim_dir": str(root / "interim"), "processed_dir": str(root / "processed"),
+                "plots_dir": str(root / "plots"), "runs_dir": str(root / "runs"),
+                "evaluation_dir": str(root / "evaluation"),
+                "github_cache": str(root / "github.sqlite3"), "openalex_cache": str(root / "openalex.sqlite3"),
+                "github_terms": str(ROOT / "config/terms/github.toml"), "openalex_terms": str(ROOT / "config/terms/openalex.toml"),
+                "github_prompts": str(ROOT / "config/prompts/github.toml"), "openalex_prompts": str(ROOT / "config/prompts/openalex.toml"),
+                "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
+                "github_ratings": str(github_ratings), "openalex_ratings": str(openalex_ratings),
+            },
+            "logging": {"progress_every": 25},
+            "ollama": {"model": "fixture-model", "models": [], "temperature": 0.0, "seed": 42},
+            "ensemble": {"enabled": False, "models": [], "threshold": 0.5},
+            "evaluation": {"enabled": False},
+            "github": {"collection_limit": 10, "classification_limit": 10, "borderline_threshold": 4, "reconcile_with_llm": False},
+            "openalex": {"collection_limit": 10, "classification_limit": 10, "borderline_threshold": 4, "reconcile_with_llm": False},
+            "plots": {"formats": ["svg"], "dpi": 72, "top_n": 5},
+        })
+
+    def test_both_cli_evaluation_stages_write_metrics_and_manifest_counts(self) -> None:
+        """Run both source evaluation commands offline and record their confusion counts."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            github_profile = self._write_profile(root / "github.toml", "github", '[[entities]]\nid = "1"\ndecision = "accept"\n')
+            openalex_profile = self._write_profile(root / "openalex.toml", "openalex", '[[entities]]\nid = "W1"\ndecision = "exclude"\n')
+            settings = self._settings(root, github_profile, openalex_profile)
+            github_actual = root / "github-actual.csv"
+            github_candidates = root / "github-candidates.csv"
+            atomic_write_csv(github_actual, [{"github_repo_id": "1", "decision": "accept"}], ["github_repo_id", "decision"])
+            atomic_write_csv(github_candidates, [{"github_repo_id": "1"}], ["github_repo_id"])
+            openalex_actual = root / "openalex-actual.csv"
+            openalex_candidates = root / "openalex-candidates.csv"
+            atomic_write_csv(openalex_actual, [{"openalex_id": "W1", "decision": "exclude"}], ["openalex_id", "decision"])
+            atomic_write_csv(openalex_candidates, [{"openalex_id": "W1"}], ["openalex_id"])
+
+            common = {"limit": None, "collect_limit": None, "classify_limit": None, "classify_all": False, "resume": True, "dry_run": False}
+            github_counts = _execute_github(argparse.Namespace(action="evaluate", input=github_actual, output=root / "github-report", candidates=github_candidates, **common), settings)
+            openalex_counts = _execute_openalex(argparse.Namespace(action="evaluate", input=openalex_actual, output=root / "openalex-report", candidates=openalex_candidates, **common), settings)
+            self.assertEqual(github_counts["evaluation_tp"], 1)
+            self.assertEqual(openalex_counts["evaluation_tn"], 1)
+            self.assertTrue((root / "github-report/metrics.json").is_file())
+            self.assertTrue((root / "openalex-report/metrics.json").is_file())
+            manifests = list((root / "runs").glob("*.json"))
+            self.assertEqual(len(manifests), 2)
+
+    def test_multi_model_and_ensemble_evaluations_are_isolated_for_both_sources(self) -> None:
+        """Evaluate every configured model and ensemble in separate source directories."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            github_profile = self._write_profile(root / "github.toml", "github", '[[entities]]\nid = "1"\ndecision = "accept"\n')
+            openalex_profile = self._write_profile(root / "openalex.toml", "openalex", '[[entities]]\nid = "W1"\ndecision = "exclude"\n')
+            settings = self._settings(root, github_profile, openalex_profile)
+            settings.values["ollama"]["models"] = ["model-a", "model-b"]
+            settings.values["ensemble"] = {"enabled": True, "models": [], "threshold": 0.5}
+            models = ["model-a", "model-b"]
+            github_candidates = root / "interim/github/candidates.csv"
+            openalex_candidates = root / "interim/openalex/paper_candidates.csv"
+            atomic_write_csv(github_candidates, [{"github_repo_id": "1"}], ["github_repo_id"])
+            atomic_write_csv(openalex_candidates, [{"openalex_id": "W1"}], ["openalex_id"])
+            for model, decision in zip(models, ("accept", "exclude")):
+                target = _execution_paths(settings, "github", models)[model]["classifications"]
+                atomic_write_csv(target, [{"github_repo_id": "1", "decision": decision}], ["github_repo_id", "decision"])
+            github_ensemble = _variant_paths(settings, "github", Path("ensemble"))["classifications"]
+            atomic_write_csv(github_ensemble, [{"github_repo_id": "1", "decision": "uncertain"}], ["github_repo_id", "decision"])
+            for model, decision in zip(models, ("exclude", "accept")):
+                target = _execution_paths(settings, "openalex", models)[model]["classifications"]
+                atomic_write_csv(target, [{"openalex_id": "W1", "decision": decision}], ["openalex_id", "decision"])
+            openalex_ensemble = _variant_paths(settings, "openalex", Path("ensemble"))["classifications"]
+            atomic_write_csv(openalex_ensemble, [{"openalex_id": "W1", "decision": "uncertain"}], ["openalex_id", "decision"])
+
+            common = {"action": "evaluate", "limit": None, "collect_limit": None, "classify_limit": None, "classify_all": False, "resume": True, "dry_run": False, "input": None, "output": None, "candidates": None}
+            github_counts = _execute_github(argparse.Namespace(**common), settings)
+            openalex_counts = _execute_openalex(argparse.Namespace(**common), settings)
+            self.assertEqual(github_counts["evaluation_tp_model-a"], 1)
+            self.assertEqual(github_counts["evaluation_fn_model-b"], 1)
+            self.assertEqual(openalex_counts["evaluation_tn_model-a"], 1)
+            self.assertEqual(openalex_counts["evaluation_fp_model-b"], 1)
+            for source in ("github", "openalex"):
+                paths = _execution_paths(settings, source, models)
+                for model in models:
+                    self.assertTrue((paths[model]["evaluation"] / "metrics.json").is_file())
+                self.assertTrue((_variant_paths(settings, source, Path("ensemble"))["evaluation"] / "metrics.json").is_file())
+
+
+if __name__ == "__main__":
+    unittest.main()
