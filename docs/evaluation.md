@@ -9,7 +9,13 @@ The default profiles are:
 - `config/evaluation/github.toml`
 - `config/evaluation/openalex.toml`
 
-Each `[[entities]]` table identifies one rated entity with the exact stable ID stored in the pipeline CSV. `id` maps to `github_repo_id` for GitHub and `openalex_id` for OpenAlex. IDs must be unique.
+Each `[[entities]]` table uses exactly one matching selector:
+
+- GitHub: `repository = "owner/name"`. Matching uses the `full_name` saved in classifications and candidates.
+- OpenAlex: `openalex_url = "https://openalex.org/W..."` is recommended. `title = "Exact paper title"` is also supported when no OpenAlex link is available.
+- Legacy `id` selectors remain supported for existing custom profiles, but the default profiles no longer use them.
+
+Repository names and titles are matched exactly after trimming repeated whitespace and ignoring letter case. A trailing slash on an OpenAlex URL is ignored. If a selector matches multiple rows--most plausibly a duplicated paper title--evaluation stops with an ambiguity error instead of guessing. The resolved stable source ID remains visible in `instances.csv`.
 
 ```toml
 schema_version = "1.0"
@@ -17,24 +23,35 @@ source = "github"
 classification_fields = ["role", "observation_scopes", "capabilities", "detection_methods"]
 
 [[entities]]
-id = "123456789"
-name = "Optional readable label"
+repository = "OISF/suricata"
 decision = "accept"
 role = "standalone_detector"
 observation_scopes = ["network"]
-capabilities = ["detection", "response"]
-detection_methods = ["signature_based"]
+capabilities = ["detection", "prevention", "monitoring"]
+detection_methods = ["signature_based", "packet_analysis"]
 
 [[entities]]
-id = "987654321"
+repository = "sbilly/awesome-security"
 decision = "exclude"
+```
+
+```toml
+schema_version = "1.0"
+source = "openalex"
+
+[[entities]]
+openalex_url = "https://openalex.org/W2296509296"
+name = "UNSW-NB15"
+decision = "accept"
+paper_role = "original_release"
+artifact_type = "dataset"
 ```
 
 The supported decisions are `accept`, OpenAlex `accept_adjacent`, `exclude`, and `uncertain`. Binary metrics use only human-rated include and exclude entities; a human-rated `uncertain` entry remains in exact decision and field reports but is outside the binary confusion-matrix denominator.
 
 Only field values present on a rated entity are compared. This permits decision-only ratings and incrementally richer taxonomy ratings in the same file. Scalar comparisons trim whitespace and ignore case. Array and semicolon-separated multi-label values are compared as unordered sets. Empty and `unknown` remain distinct.
 
-Profiles are validated before evaluation. A missing profile, wrong source/schema, duplicate/blank ID, malformed field list, or unsupported decision fails the command instead of emitting misleading scores.
+Profiles are validated before evaluation. A missing profile, wrong source/schema, missing or multiple selectors, duplicate selectors, ambiguous result matches, malformed field list, or unsupported decision fails the command instead of emitting misleading scores.
 
 ## Running evaluation
 
@@ -77,6 +94,18 @@ The report provides three views so uncertainty and missing results cannot disapp
 - **Strict:** every non-definitive result is an error. On expected inclusions it is FN; on expected exclusions it is FP. Only explicit correct inclusion/exclusion decisions count as correct.
 - **Selective:** uses only actual definitive include/exclude decisions. It measures correctness where the system committed to a decision; coverage and abstention must be reported beside it.
 
+In plain language, the views answer different questions:
+
+| View | Question answered | Uncertain/missing when inclusion was expected | Uncertain/missing when exclusion was expected |
+|---|---|---:|---:|
+| Operational | What does the complete pipeline actually deliver in the final included set? | False negative | True negative |
+| Strict | What happens if every unresolved boundary case is considered wrong? | False negative | False positive |
+| Selective | How accurate is the system only where it made a definite decision? | Omitted | Omitted |
+
+For example, assume a repository should be excluded but the pipeline returns `uncertain`. Operational evaluation counts it as a true negative because it was not included. Strict evaluation counts it as a false positive because the required explicit exclusion was not produced. Selective evaluation removes it from its denominator. If an entity should instead be included, an uncertain or missing result is a false negative in both operational and strict evaluation and is omitted selectively.
+
+Selective results must always be read together with `definitive_coverage` and `abstention_rate`. Otherwise, a system could appear highly accurate simply by leaving difficult cases unresolved. Operational is the primary end-to-end screening view; strict is the conservative boundary-quality view; selective describes committed decisions only.
+
 Each view reports TP, FP, TN, FN and:
 
 - DR / recall / sensitivity = TP / (TP + FN)
@@ -93,7 +122,7 @@ The report also records exact decision accuracy, classification-field exact accu
 Each evaluation directory contains:
 
 - `metrics.json`: machine-readable summary and all three metric views.
-- `instances.csv`: one rated entity per row, progression status, expected/actual decision, exact field results, and full JSON snapshots.
+- `instances.csv`: one rated entity per row, configured selector and resolved stable ID, progression status, expected/actual decision, exact field results, and full JSON snapshots.
 - `decision_confusion.csv`: exact expected-to-actual disposition counts, including uncertain and unavailable.
 - `field_metrics.csv`: exact and multi-label metrics for every configured field.
 - `README.md`: compact human-readable headline values, metadata accuracy, metric semantics, and figure links.

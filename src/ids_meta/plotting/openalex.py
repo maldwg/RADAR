@@ -25,8 +25,6 @@ TYPE_COLORS = {
 DISCOVERY_COLORS = {
     "Direct search": "#2F6F9F",
     "Survey snowball": "#7B5EA7",
-    "Survey source": "#D1842F",
-    "Other": "#6F7782",
 }
 def artifact_label(value: object) -> str:
     """Format a normalized artifact type for display."""
@@ -44,9 +42,16 @@ def discovery_provenance(value: object) -> str:
         return "survey snowball"
     if direct:
         return "direct search"
-    if "survey_search" in relations:
-        return "survey source"
-    return "other"
+    return ""
+
+
+def citing_survey_count(value: object) -> int:
+    """Count distinct surveys citing a work, with a one-source fallback for legacy provenance."""
+    relations = {item.strip() for item in str(value or "").split(";") if item.strip()}
+    survey_ids = {item.split(":", 1)[1] for item in relations if item.startswith("survey_reference:") and item.split(":", 1)[1]}
+    if survey_ids:
+        return len(survey_ids)
+    return int("survey_reference" in relations)
 
 
 def concise_text(value: object, limit: int = 64) -> str:
@@ -269,14 +274,14 @@ def provenance_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dp
     view["survey_snowball"] = relations.map(
         lambda value: any(item == "survey_reference" or item.startswith("survey_reference:") for item in value.split(";") if item)
     )
-    view["survey_source"] = relations.str.split(";").map(lambda values: "survey_search" in values)
+    view["citing_surveys"] = relations.map(citing_survey_count)
     for column in ("domain", "artifact_type", "provenance", "prefilter_score", "paper_role", "catalogue_tier"):
         if column not in view:
             view[column] = ""
 
     columns = [
         "resource_name", "artifact_display_name", "artifact_name", "publication_year", "artifact_type", "domain",
-        "paper_role", "catalogue_tier", "direct_search", "survey_snowball", "survey_source", "provenance",
+        "paper_role", "catalogue_tier", "direct_search", "survey_snowball", "citing_surveys", "provenance",
         "discovery_relations", "prefilter_score", "data_form", "capture_environment", "labeling", "doi", "openalex_id",
     ]
     for column in columns:
@@ -303,7 +308,7 @@ def provenance_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dp
     x_positions = {
         "direct_search": 0.0,
         "survey_snowball": 1.0,
-        "survey_source": 2.0,
+        "citing_surveys": 2.0,
         "artifact_type": 3.65,
         "domain": 5.35,
         "provenance": 7.25,
@@ -314,7 +319,7 @@ def provenance_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dp
     ax.set_yticks(positions, view["resource_name"])
     ax.set_xticks(
         list(x_positions.values()),
-        ["Direct search", "Survey\nsnowball", "Survey\nsource", "Resource\ntype", "Domain", "Provenance", "Prefilter\nscore"],
+        ["Direct search", "Survey\nsnowball", "Citing\nsurveys", "Resource\ntype", "Domain", "Provenance", "Prefilter\nscore"],
     )
     # Treat the x tick labels as table-style column headers and keep them at the
     # top of the provenance view.  On tall figures, bottom-only labels are easy
@@ -329,13 +334,14 @@ def provenance_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dp
 
     for position, (_, row) in enumerate(view.iterrows()):
         color = TYPE_COLORS.get(str(row["artifact_type"]), TYPE_COLORS["unknown"])
-        for field in ("direct_search", "survey_snowball", "survey_source"):
+        for field in ("direct_search", "survey_snowball"):
             active = bool(row[field])
             ax.scatter(
                 [x_positions[field]], [position], s=46,
                 facecolor=color if active else "white",
                 edgecolor=color if active else "#CDD5DB", linewidth=.9, zorder=3,
             )
+        ax.text(x_positions["citing_surveys"], position, str(int(row["citing_surveys"])), ha="center", va="center", fontsize=7.1, color="#43505C", fontweight="bold")
         ax.text(x_positions["artifact_type"], position, concise_text(artifact_label(row["artifact_type"]), 24), ha="center", va="center", fontsize=7.1, color="#43505C")
         ax.text(x_positions["domain"], position, concise_text(row.get("domain", "") or "—", 28), ha="center", va="center", fontsize=7.1, color="#43505C")
         ax.text(x_positions["provenance"], position, concise_text(row.get("provenance", "") or "—", 28), ha="center", va="center", fontsize=7.1, color="#43505C")
@@ -422,23 +428,18 @@ def type_domain_overview(frame: pd.DataFrame, out_dir: Path, formats: list[str],
 
 def discovery_source_distribution(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Show the sheer number of works contributed by each discovery source as bars."""
-    sources = ["Direct search", "Survey snowball", "Survey source", "Other"]
+    sources = ["Direct search", "Survey snowball"]
     records: list[dict[str, object]] = []
 
     for _, row in frame.iterrows():
         relations = {item.strip() for item in str(row.get("discovery_relations", "") or "").split(";") if item.strip()}
         direct = "direct_search" in relations
         snowball = any(item == "survey_reference" or item.startswith("survey_reference:") for item in relations)
-        survey = "survey_search" in relations
         memberships: list[str] = []
         if direct:
             memberships.append("Direct search")
         if snowball:
             memberships.append("Survey snowball")
-        if survey:
-            memberships.append("Survey source")
-        if not memberships:
-            memberships.append("Other")
 
         for source in memberships:
             records.append({
@@ -810,7 +811,7 @@ def build(
     outputs.append(write_index(out_dir, main_path, frame, outputs, [
         "The timeline uses publication year on x only; the y coordinate is purely a stacking layout for resources published in the same year, and every dataset/generator is directly labelled.",
         "Citation counts are descriptive and never affect retrieval, inclusion, or canonical-base selection.",
-        "Discovery provenance combines source-path indicators with resource type, application domain, normalized provenance, and prefilter-score metadata; source contribution is summarized as simple work-count bars.",
+        "Discovery provenance shows direct and survey-snowball paths plus the exact number of distinct citing surveys; source contribution is summarized for those two catalogue-producing routes only.",
         "All artifact-level figures use canonical base papers; versions and alternate manifestations remain available in the processed CSV.",
         "Every figure writes a corresponding CSV under data/; aggregate figures also write a *_records.csv audit table listing the contributing resources and metadata.",
         "When classifications.csv is available, the classification audit pairs candidate/borderline/reject score bands with final acceptance/exclusion decisions, exact counts, percentages, and observed score ranges.",

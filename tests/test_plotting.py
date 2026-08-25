@@ -25,13 +25,13 @@ class PlottingTests(unittest.TestCase):
             atomic_write_csv(github_csv, [github_row], GITHUB_COLUMNS)
             outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg"], "dpi": 72, "top_n": 5})
             self.assertTrue(outputs)
-            self.assertTrue((root / "github-plots/data/01_role_counts.csv").is_file())
+            self.assertTrue((root / "github-plots/data/01_repository_timeline.csv").is_file())
             overview = root / "github-plots/data/00_repository_overview.csv"
             self.assertTrue(overview.is_file())
             self.assertIn("last_commit_at", overview.read_text(encoding="utf-8").splitlines()[0])
             self.assertIn("primary_system_type", overview.read_text(encoding="utf-8").splitlines()[0])
             self.assertTrue((root / "github-plots/data/00_system_type_definitions.csv").is_file())
-            self.assertTrue((root / "github-plots/data/02b_system_types.csv").is_file())
+            self.assertTrue((root / "github-plots/data/02_role_type_matrix.csv").is_file())
             self.assertTrue((root / "github-plots/00_repository_overview.svg").is_file())
             self.assertFalse((root / "github-plots/00_repository_overview_p01.svg").exists())
             comparison = build_compare("github", github_csv, root / "comparison", {"formats": ["svg"], "dpi": 72})
@@ -58,7 +58,14 @@ class PlottingTests(unittest.TestCase):
             provenance = root / "openalex-plots/data/02_discovery_provenance.csv"
             self.assertTrue(timeline.is_file())
             self.assertTrue(provenance.is_file())
-            self.assertIn("citations", timeline.read_text(encoding="utf-8").splitlines()[0])
+            provenance_header = provenance.read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("citing_surveys", provenance_header)
+            self.assertNotIn("survey_source", provenance_header)
+            contribution = (root / "openalex-plots/data/10_discovery_source_contribution.csv").read_text(encoding="utf-8")
+            self.assertNotIn("Survey source", contribution)
+            self.assertNotIn("Other", contribution)
+            citation_table = root / "openalex-plots/data/01_citation_landscape.csv"
+            self.assertIn("citations", citation_table.read_text(encoding="utf-8").splitlines()[0])
             self.assertIn("resource_name", timeline.read_text(encoding="utf-8").splitlines()[0])
             self.assertIn("survey_snowball", provenance.read_text(encoding="utf-8").splitlines()[0])
             self.assertTrue((root / "openalex-plots/00_publication_timeline.svg").is_file())

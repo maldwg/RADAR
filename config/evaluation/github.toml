@@ -6,8 +6,7 @@ classification_fields = ["role", "observation_scopes", "capabilities", "detectio
 # Review these values manually before treating them as authoritative human ground truth.
 
 [[entities]]
-id = "5410234"
-name = "OISF/suricata"
+repository = "OISF/suricata"
 decision = "accept"
 role = "standalone_detector"
 observation_scopes = ["network"]
@@ -15,8 +14,7 @@ capabilities = ["detection", "prevention", "monitoring"]
 detection_methods = ["signature_based", "rule_based", "protocol_analysis", "packet_analysis", "flow_analysis"]
 
 [[entities]]
-id = "27875223"
-name = "snort3/snort3"
+repository = "snort3/snort3"
 decision = "accept"
 role = "standalone_detector"
 observation_scopes = ["network"]
@@ -24,8 +22,7 @@ capabilities = ["detection", "prevention"]
 detection_methods = ["signature_based", "rule_based", "packet_analysis", "protocol_analysis"]
 
 [[entities]]
-id = "4930716"
-name = "zeek/zeek"
+repository = "zeek/zeek"
 decision = "accept"
 role = "platform_framework"
 observation_scopes = ["network"]
@@ -33,8 +30,7 @@ capabilities = ["monitoring", "detection"]
 detection_methods = ["protocol_analysis", "rule_based"]
 
 [[entities]]
-id = "40556106"
-name = "wazuh/wazuh"
+repository = "wazuh/wazuh"
 decision = "accept"
 role = "platform_framework"
 observation_scopes = ["host_endpoint", "network", "application", "database", "provenance"]
@@ -42,10 +38,65 @@ capabilities = ["detection", "prevention", "response", "monitoring"]
 detection_methods = ["signature_based", "rule_based", "anomaly_based", "integrity_based", "log_analysis", "system_call_analysis", "threat_intelligence_based", "hybrid"]
 
 [[entities]]
-id = "1002266725"
-name = "Mmohet/EfficiencyTool"
+repository = "Mmohet/EfficiencyTool"
 decision = "exclude"
 role = "out_of_scope"
 observation_scopes = ["host_endpoint"]
 capabilities = ["monitoring"]
 detection_methods = ["unknown"]
+
+[[entities]]
+repository = "ossec/ossec-hids"
+decision = "accept"
+role = "standalone_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "prevention", "response", "monitoring"]
+detection_methods = ["hybrid"]
+
+[[entities]]
+repository = "stamparm/maltrail"
+decision = "accept"
+role = "standalone_detector"
+observation_scopes = ["network"]
+capabilities = ["detection"]
+detection_methods = ["signature_based", "anomaly_based", "threat_intelligence_based", "hybrid"]
+
+[[entities]]
+repository = "Azure/Azure-Sentinel"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection"]
+detection_methods = ["query_based"]
+
+[[entities]]
+repository = "1N3/Sn1per"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = ["monitoring"]
+detection_methods = ["unknown"]
+
+[[entities]]
+repository = "sbilly/awesome-security"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+detection_methods = ["unknown"]
+
+[[entities]]
+repository = "bytedance/Elkeid"
+decision = "accept"
+role = "platform_framework"
+observation_scopes = ["host_endpoint", "application", "multi_scope"]
+capabilities = ["detection", "prevention", "response", "monitoring"]
+detection_methods = ["signature_based", "rule_based", "anomaly_based", "protocol_analysis", "hybrid"]
+
+[[entities]]
+repository = "Security-Onion-Solutions/securityonion"
+decision = "accept"
+role = "platform_framework"
+observation_scopes = ["network", "host_endpoint"]
+capabilities = ["detection", "monitoring"]
+detection_methods = ["signature_based", "rule_based", "packet_analysis", "log_analysis"]

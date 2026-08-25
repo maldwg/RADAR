@@ -85,10 +85,10 @@ class EvaluationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             body = (
-                '[[entities]]\nid = "https://openalex.org/W1"\ndecision = "accept"\n'
+                '[[entities]]\nopenalex_url = "https://openalex.org/W1/"\ndecision = "accept"\n'
                 'paper_role = "original_release"\nrelevance_tier = "core"\nartifact_type = "dataset"\n'
                 'domain = "general_network"\ndata_form = "packet"\ncapture_environment = "synthetic_lab"\nlabeling = "labeled"\n\n'
-                '[[entities]]\nid = "https://openalex.org/W2"\ndecision = "exclude"\n'
+                '[[entities]]\nopenalex_url = "https://openalex.org/W2"\ndecision = "exclude"\n'
             )
             profile_path = self._write_profile(root / "openalex.toml", "openalex", body)
             actual = root / "classifications.csv"
@@ -103,6 +103,25 @@ class EvaluationTests(unittest.TestCase):
             self.assertIsNone(result.metrics["retrieval_coverage"])
             persisted = json.loads((root / "evaluation/metrics.json").read_text(encoding="utf-8"))
             self.assertEqual(persisted["source"], "openalex")
+
+    def test_readable_selectors_resolve_and_ambiguous_titles_fail(self) -> None:
+        """Resolve repository names safely and reject non-unique paper titles."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile = load_rating_profile(self._write_profile(root / "github.toml", "github", '[[entities]]\nrepository = "Owner/Detector"\ndecision = "accept"\n'), "github")
+            actual = root / "github.csv"
+            atomic_write_csv(actual, [{"github_repo_id": "42", "full_name": "owner/detector", "decision": "accept"}], ["github_repo_id", "full_name", "decision"])
+            candidates = root / "github-candidates.csv"
+            atomic_write_csv(candidates, [{"github_repo_id": "42", "full_name": "Owner/Detector"}], ["github_repo_id", "full_name"])
+            result = evaluate_results(profile, actual, root / "github-evaluation", candidates)
+            self.assertEqual(result.instances[0]["entity_id"], "42")
+            self.assertEqual(result.instances[0]["match_field"], "repository")
+
+            title_profile = load_rating_profile(self._write_profile(root / "openalex.toml", "openalex", '[[entities]]\ntitle = "Repeated title"\ndecision = "exclude"\n'), "openalex")
+            duplicate_actual = root / "openalex.csv"
+            atomic_write_csv(duplicate_actual, [{"openalex_id": "W1", "title": "Repeated title", "decision": "exclude"}, {"openalex_id": "W2", "title": "repeated  title", "decision": "exclude"}], ["openalex_id", "title", "decision"])
+            with self.assertRaisesRegex(ValueError, "ambiguous evaluation selector"):
+                evaluate_results(title_profile, duplicate_actual, root / "openalex-evaluation")
 
     def test_evaluation_plot_bundle_visualizes_decisions_fields_and_coverage(self) -> None:
         """Render approachable decision, metadata, confusion, and coverage figures."""
@@ -136,6 +155,8 @@ class EvaluationTests(unittest.TestCase):
             )
             readme = (output_dir / "README.md").read_text(encoding="utf-8")
             self.assertIn("Metadata field accuracy", readme)
+            self.assertIn("Interpreting the three views", readme)
+            self.assertIn("definitive coverage and abstention rate", readme)
             self.assertIn("03_field_accuracy.svg", readme)
 
     def test_rating_profiles_reject_duplicate_or_invalid_entities(self) -> None:
