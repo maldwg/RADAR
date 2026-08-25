@@ -276,6 +276,8 @@ def evaluate_results(
         f"- Operational FPR: {operational_metrics['false_positive_rate']:.4f}\n"
         f"- Operational accuracy: {operational_metrics['accuracy']:.4f}\n"
         f"- Operational precision: {operational_metrics['precision']:.4f}\n"
+        f"- Metadata field accuracy: {metrics['classification_field_accuracy']:.4f} "
+        f"({metrics['classification_field_comparisons']} comparisons)\n"
         f"- Abstention rate: {metrics['abstention_rate']:.4f}\n\n"
         "Operational metrics treat every non-inclusion as a negative prediction. Strict metrics count every non-definitive result as an error; selective metrics cover definitive include/exclude decisions only.\n",
         encoding="utf-8",

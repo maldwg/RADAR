@@ -216,7 +216,15 @@ def _evaluate(
 ) -> EvaluationResult:
     """Evaluate one source/model result against its centrally configured ratings."""
     profile = load_rating_profile(_path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml"), source)
-    return evaluate_results(profile, classifications, output_dir, candidates)
+    result = evaluate_results(profile, classifications, output_dir, candidates)
+    from ids_meta.plotting.evaluation import build as build_evaluation_plots
+
+    plot_outputs = build_evaluation_plots(output_dir, settings.section("plots"))
+    plot_tables = sorted((output_dir / "plot_data").glob("*.csv"))
+    return EvaluationResult(
+        result.metrics, result.instances, result.field_metrics, result.confusion,
+        [*result.outputs, *plot_outputs, *plot_tables],
+    )
 
 
 def _record_evaluation(manifest: RunManifest, result: EvaluationResult, suffix: str = "") -> None:

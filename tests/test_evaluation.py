@@ -10,6 +10,7 @@ from ids_meta.cli import _execute_github, _execute_openalex, _execution_paths, _
 from ids_meta.common.config import Settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
+from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,6 +104,40 @@ class EvaluationTests(unittest.TestCase):
             persisted = json.loads((root / "evaluation/metrics.json").read_text(encoding="utf-8"))
             self.assertEqual(persisted["source"], "openalex")
 
+    def test_evaluation_plot_bundle_visualizes_decisions_fields_and_coverage(self) -> None:
+        """Render approachable decision, metadata, confusion, and coverage figures."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            body = (
+                '[[entities]]\nid = "g1"\ndecision = "accept"\nrole = "standalone_detector"\n'
+                'observation_scopes = ["network"]\ncapabilities = ["detection", "response"]\n'
+                'detection_methods = ["signature_based"]\n\n'
+                '[[entities]]\nid = "g2"\ndecision = "exclude"\nrole = "out_of_scope"\n'
+            )
+            profile = load_rating_profile(self._write_profile(root / "github.toml", "github", body), "github")
+            classifications = root / "classifications.csv"
+            atomic_write_csv(classifications, [
+                {"github_repo_id": "g1", "decision": "accept", "role": "standalone_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based"},
+                {"github_repo_id": "g2", "decision": "uncertain", "role": "uncertain"},
+            ], ["github_repo_id", "decision", "role", "observation_scopes", "capabilities", "detection_methods"])
+            candidates = root / "candidates.csv"
+            atomic_write_csv(candidates, [{"github_repo_id": "g1"}, {"github_repo_id": "g2"}], ["github_repo_id"])
+            output_dir = root / "evaluation"
+            evaluate_results(profile, classifications, output_dir, candidates)
+            outputs = build_evaluation_plots(output_dir, {"formats": ["svg"], "dpi": 72})
+            self.assertEqual([output.name for output in outputs], [
+                "01_decision_performance.svg", "02_decision_confusion.svg",
+                "03_field_accuracy.svg", "04_coverage_and_status.svg",
+            ])
+            self.assertTrue(all(output.is_file() and output.stat().st_size > 1000 for output in outputs))
+            self.assertEqual(
+                {item.name for item in (output_dir / "plot_data").iterdir()},
+                {"01_decision_performance.csv", "02_decision_confusion.csv", "03_field_accuracy.csv", "04_coverage_rates.csv", "04_status_counts.csv"},
+            )
+            readme = (output_dir / "README.md").read_text(encoding="utf-8")
+            self.assertIn("Metadata field accuracy", readme)
+            self.assertIn("03_field_accuracy.svg", readme)
+
     def test_rating_profiles_reject_duplicate_or_invalid_entities(self) -> None:
         """Reject ambiguous ground truth before producing misleading metrics."""
         with tempfile.TemporaryDirectory() as directory:
@@ -167,6 +202,8 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(openalex_counts["evaluation_tn"], 1)
             self.assertTrue((root / "github-report/metrics.json").is_file())
             self.assertTrue((root / "openalex-report/metrics.json").is_file())
+            self.assertTrue((root / "github-report/03_field_accuracy.svg").is_file())
+            self.assertTrue((root / "openalex-report/04_coverage_and_status.svg").is_file())
             manifests = list((root / "runs").glob("*.json"))
             self.assertEqual(len(manifests), 2)
 

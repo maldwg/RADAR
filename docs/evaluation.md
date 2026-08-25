@@ -96,9 +96,14 @@ Each evaluation directory contains:
 - `instances.csv`: one rated entity per row, progression status, expected/actual decision, exact field results, and full JSON snapshots.
 - `decision_confusion.csv`: exact expected-to-actual disposition counts, including uncertain and unavailable.
 - `field_metrics.csv`: exact and multi-label metrics for every configured field.
-- `README.md`: compact human-readable headline values and metric semantics.
+- `README.md`: compact human-readable headline values, metadata accuracy, metric semantics, and figure links.
+- `01_decision_performance.svg`/`.pdf`: operational, strict, and selective DR, precision, accuracy, F1, FPR, and FNR.
+- `02_decision_confusion.svg`/`.pdf`: exact expected-to-actual dispositions, retaining uncertain and unavailable outcomes.
+- `03_field_accuracy.svg`/`.pdf`: exact metadata accuracy per configured field plus multi-label F1 and Jaccard where applicable.
+- `04_coverage_and_status.svg`/`.pdf`: retrieval, classification, definitive-decision, abstention, and final-status summaries.
+- `plot_data/`: the exact aggregate CSVs behind the four figures.
 
-The run manifest additionally records the operational TP, FP, TN, FN, rated entity count, and artifact count. This makes recurring runs comparable without treating the rating profiles as inputs to the classifier itself.
+Figure formats and resolution use the shared `[plots]` `formats` and `dpi` settings. The run manifest additionally records the operational TP, FP, TN, FN, rated entity count, and artifact count. This makes recurring runs comparable without treating the rating profiles as inputs to the classifier itself.
 
 ## Regression tests
 

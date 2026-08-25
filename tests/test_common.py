@@ -123,6 +123,7 @@ class CommonTests(unittest.TestCase):
         self.assertIn("voted tuple + field audit", value)
         self.assertIn("Rated classification evaluation", value)
         self.assertIn("metrics.json: DR, FPR, ACC, PREC, F1", value)
+        self.assertIn("4 SVG/PDF figures + exact plot data", value)
         self.assertNotIn("Matplotlib", value)
 
     def test_architecture_is_an_independent_cli_command(self) -> None:
