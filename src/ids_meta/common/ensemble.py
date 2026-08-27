@@ -362,6 +362,11 @@ def ensemble_classifications(
             "ensemble_decision_counts": json.dumps(dict(sorted(exact_counts.items())), ensure_ascii=False, sort_keys=True),
             "ensemble_vote_status": vote_status,
         })
+        for field in (
+            "evidence_expansion_required", "evidence_expansion_attempted", "evidence_expansion_changed",
+            "evidence_expansion_improved", "evidence_expansion_resolved",
+        ):
+            combined[field] = str(any(_bool_text(row.get(field)) == "true" for _model, row in present)).lower()
         output_rows.append(combined)
     atomic_write_csv(output, output_rows, columns)
     return output_rows

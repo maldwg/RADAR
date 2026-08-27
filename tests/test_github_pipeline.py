@@ -300,6 +300,58 @@ class GitHubPipelineTests(unittest.TestCase):
         self.assertEqual(payload["last_commit_at"], "2025-05-06T07:08:09Z")
         self.assertEqual(payload["last_commit_sha"], "abc")
 
+    def test_uncertain_classification_retries_with_more_docs(self) -> None:
+        """Verify unresolved repository evidence triggers one broader docs fetch and retry."""
+        class Model:
+            model = "fixture-model"
+            def __init__(self) -> None:
+                """Initialize the model call count."""
+                self.calls = 0
+            def generate(self, prompt: str, _schema: dict[str, Any]) -> dict[str, Any]:
+                """Produce a below-threshold split before the expanded-evidence restart."""
+                self.calls += 1
+                expanded = "decisive runnable detector documentation" in prompt
+                accepted = expanded or self.calls <= 3
+                return {
+                    "role": "standalone_detector" if accepted else "out_of_scope",
+                    "observation_scopes": ["network"], "capabilities": ["detection"],
+                    "detection_methods": ["unknown"], "independent_fork": False,
+                    "direct_self_description": accepted, "runtime_observation": accepted,
+                    "runnable_detector": accepted, "offline_dataset_only": False,
+                    "upstream_full_name": "", "primary_reason": "fixture",
+                    "evidence": [{"source": "Documentation" if expanded else "README",
+                                  "quote": "decisive runnable detector documentation" if expanded else "ambiguous project"}],
+                }
+
+        class Enricher:
+            def enrich(self, _payload: dict[str, Any]) -> dict[str, str]:
+                """Return the decisive expanded documentation fixture."""
+                return {"docs_text": "decisive runnable detector documentation"}
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates, classified = root / "candidates.csv", root / "classified.csv"
+            row = {column: "" for column in CANDIDATE_COLUMNS}
+            row.update({"github_repo_id": "1", "full_name": "example/ambiguous",
+                        "prefilter_band": "candidate", "prefilter_score": "7", "evidence_hash": "old"})
+            atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
+            model = Model()
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("github.repository", "1", {
+                    "repository": {"full_name": "example/ambiguous"}, "readme_text": "ambiguous project",
+                }, "now")
+                decisions = classify(candidates, classified, cache, {"require_verified_quote": True},
+                                     generator=model, enricher=Enricher(),
+                                     prompt_config=load_prompt_profile(load_settings(ROOT / "config/default.toml"), "github"),
+                                     consecutive_runs=5, consensus_threshold=.8)
+            self.assertEqual(model.calls, 10, decisions)
+            self.assertEqual(decisions[0]["decision"], "accept")
+            self.assertEqual(decisions[0]["ensemble_vote_status"], "threshold_met")
+            self.assertEqual(decisions[0]["evidence_expansion_required"], "true")
+            self.assertEqual(decisions[0]["evidence_expansion_attempted"], "true")
+            self.assertEqual(decisions[0]["evidence_expansion_improved"], "true")
+            self.assertEqual(decisions[0]["evidence_expansion_resolved"], "true")
+
     def test_offline_pipeline_and_resume(self) -> None:
         """Verify the offline GitHub pipeline exports and resumes decisions."""
         settings = load_settings(ROOT / "config/default.toml")

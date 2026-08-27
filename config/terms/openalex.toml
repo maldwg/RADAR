@@ -27,6 +27,16 @@ release_terms = [
   "made available", "open source", "open-source", "dataset toolkit", "data generation framework",
 ]
 
+[survey_publishers]
+# Best-effort survey diversity targets. The first alias is also appended to survey
+# searches; all aliases are used to identify the publisher from source metadata.
+IEEE = ["IEEE"]
+ACM = ["Association for Computing Machinery", "ACM"]
+"Springer LNCS" = ["Springer", "Lecture Notes in Computer Science", "LNCS"]
+USENIX = ["USENIX"]
+Elsevier = ["Elsevier"]
+Wiley = ["Wiley", "John Wiley"]
+
 [positive.security_scope]
 weight = 4.0
 terms = ["intrusion detection", "network attack", "cyber attack", "malicious traffic", "security anomaly", "attack detection"]

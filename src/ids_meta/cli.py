@@ -274,7 +274,7 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
         if args.action in {"classify", "run"}:
             input_path = Path(args.input) if args.input else base_paths["candidates"]
             for model in models:
-                rows = classify_github(input_path, model_paths[model]["classifications"], cache, _model_ollama_config(settings, model), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)))
+                rows = classify_github(input_path, model_paths[model]["classifications"], cache, _model_ollama_config(settings, model), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)), github_config=config)
                 manifest.counts["classifications_" + labels[model]] = len(rows)
         if ensemble_enabled and args.action in {"classify", "reconcile", "run"}:
             selected = {model: model_paths[model]["classifications"] for model in ensemble_members}
@@ -309,10 +309,10 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
             comparison_inputs: dict[str, Path] = {}
             generated_count = 0
             for model in models:
-                generated_count += len(build_github_plots(model_paths[model]["catalogue"], model_paths[model]["plots"], settings.section("plots"), system_type_profile))
+                generated_count += len(build_github_plots(model_paths[model]["catalogue"], model_paths[model]["plots"], settings.section("plots"), system_type_profile, model_paths[model]["classifications"]))
                 comparison_inputs[model] = model_paths[model]["classifications"]
             if ensemble_enabled:
-                generated_count += len(build_github_plots(ensemble_paths["catalogue"], ensemble_paths["plots"], settings.section("plots"), system_type_profile))
+                generated_count += len(build_github_plots(ensemble_paths["catalogue"], ensemble_paths["plots"], settings.section("plots"), system_type_profile, ensemble_paths["classifications"]))
                 comparison_inputs["ensemble"] = ensemble_paths["classifications"]
             comparison_dir = base_paths["comparison"] / "models"
             generated_count += len(build_model_comparison("github", comparison_inputs, comparison_dir, settings.section("plots")))
@@ -357,7 +357,7 @@ def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, i
         if args.action in {"classify", "run"}:
             input_path = Path(args.input) if args.input else paths["candidates"]
             output_path = Path(args.output) if args.output and args.action == "classify" else paths["classifications"]
-            rows = classify_github(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)))
+            rows = classify_github(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)), github_config=config)
             manifest.counts["classifications"] = len(rows)
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
@@ -379,7 +379,8 @@ def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, i
 
             input_path = Path(args.input) if args.input else paths["catalogue"]
             output_path = Path(args.output) if args.output else paths["plots"]
-            generated = build_github_plots(input_path, output_path, settings.section("plots"), system_type_profile)
+            classifications_path = paths["classifications"] if paths["classifications"].is_file() else None
+            generated = build_github_plots(input_path, output_path, settings.section("plots"), system_type_profile, classifications_path)
             manifest.counts["plot_files"] = len(generated)
         manifest.coverage = cache.coverage_rows("github")
     manifest.status = "complete"; manifest.write()

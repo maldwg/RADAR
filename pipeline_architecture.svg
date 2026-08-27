@@ -17,7 +17,7 @@ text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
 <text x="48" y="72" class="subtitle" text-anchor="start">Components transform data; connectors name transferred records; dashed boxes mark persistent data boundaries.</text>
 <rect x="40" y="105" width="1260" height="400" rx="18" fill="#f5f9fc" class="section"/>
 <text x="60" y="134" class="section-title" text-anchor="start">OpenAlex discovery</text>
-<text x="60" y="155" class="section-subtitle" text-anchor="start">Direct retrieval and survey snowballing operate in parallel before candidate selection.</text>
+<text x="60" y="155" class="section-subtitle" text-anchor="start">Publisher-diverse survey and paper seeds drive convergent backward snowballing (configurable depth ≤ 10).</text>
 <text x="65" y="166" class="tag" text-anchor="start">DIRECT WORK BRANCH</text>
 <rect x="65" y="180" width="245" height="118" rx="12" class="card" fill="#e8f1f7"/>
 <text x="79" y="205" class="card-title" text-anchor="start">Direct query sampler</text>
@@ -37,21 +37,21 @@ text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
 <text x="433" y="281" class="card-text" text-anchor="start">ranked direct work pool</text>
 <text x="65" y="324" class="tag" text-anchor="start">SURVEY / REFERENCE BRANCH</text>
 <rect x="65" y="338" width="245" height="118" rx="12" class="card" fill="#e8f1f7"/>
-<text x="79" y="363" class="card-title" text-anchor="start">Survey query sampler</text>
+<text x="79" y="363" class="card-title" text-anchor="start">Diverse seed selector</text>
 <text x="79" y="389" class="tag" text-anchor="start">INPUT</text>
-<text x="133" y="389" class="card-text" text-anchor="start">queries + configured terms</text>
+<text x="133" y="389" class="card-text" text-anchor="start">queries + publisher targets</text>
 <text x="79" y="414" class="tag" text-anchor="start">DO</text>
-<text x="133" y="414" class="card-text" text-anchor="start">sample x and identify surveys</text>
+<text x="133" y="414" class="card-text" text-anchor="start">select surveys + top start papers</text>
 <text x="79" y="439" class="tag" text-anchor="start">OUTPUT</text>
-<text x="133" y="439" class="card-text" text-anchor="start">survey works + reference IDs</text>
+<text x="133" y="439" class="card-text" text-anchor="start">survey/paper seed frontier</text>
 <rect x="365" y="338" width="265" height="118" rx="12" class="card" fill="#e8f1f7"/>
-<text x="379" y="363" class="card-title" text-anchor="start">Reference resolver</text>
+<text x="379" y="363" class="card-title" text-anchor="start">Backward snowball traversal</text>
 <text x="379" y="389" class="tag" text-anchor="start">INPUT</text>
-<text x="433" y="389" class="card-text" text-anchor="start">reference IDs + source counts</text>
+<text x="433" y="389" class="card-text" text-anchor="start">frontier reference IDs</text>
 <text x="379" y="414" class="tag" text-anchor="start">DO</text>
-<text x="433" y="414" class="card-text" text-anchor="start">prioritize shared IDs; batch fetch</text>
+<text x="433" y="414" class="card-text" text-anchor="start">batch fetch; score; repeat to convergence</text>
 <text x="379" y="439" class="tag" text-anchor="start">OUTPUT</text>
-<text x="433" y="439" class="card-text" text-anchor="start">resolved reference work pool</text>
+<text x="433" y="439" class="card-text" text-anchor="start">relevant papers + auxiliary surveys</text>
 <rect x="700" y="258" width="270" height="118" rx="12" class="card" fill="#dcebf5"/>
 <text x="714" y="283" class="card-title" text-anchor="start">OpenAlex candidate selector</text>
 <text x="714" y="309" class="tag" text-anchor="start">INPUT</text>
@@ -124,9 +124,9 @@ text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
 <text x="1394" y="396" class="tag" text-anchor="start">INPUT</text>
 <text x="1448" y="396" class="card-text" text-anchor="start">candidate row + evidence sections</text>
 <text x="1394" y="421" class="tag" text-anchor="start">DO</text>
-<text x="1448" y="421" class="card-text" text-anchor="start">independent structured requests</text>
+<text x="1448" y="421" class="card-text" text-anchor="start">vote; enrich + restart unresolved round</text>
 <text x="1394" y="446" class="tag" text-anchor="start">OUTPUT</text>
-<text x="1448" y="446" class="card-text" text-anchor="start">one normalized row per run</text>
+<text x="1448" y="446" class="card-text" text-anchor="start">consensus + evidence-escalation audit</text>
 <rect x="1380" y="525" width="335" height="118" rx="12" class="card" fill="#fff2de"/>
 <text x="1394" y="550" class="card-title" text-anchor="start">Decision + field consensus</text>
 <text x="1394" y="576" class="tag" text-anchor="start">INPUT</text>
@@ -157,7 +157,7 @@ text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
 <text x="1398" y="1123" class="data-text" text-anchor="start">• processed OpenAlex and GitHub catalogues</text>
 <rect x="40" y="760" width="1260" height="430" rx="18" fill="#f8f6fb" class="section"/>
 <text x="60" y="789" class="section-title" text-anchor="start">Rated classification evaluation</text>
-<text x="60" y="810" class="section-subtitle" text-anchor="start">A separate offline branch compares stable source IDs against versioned human ratings.</text>
+<text x="60" y="810" class="section-subtitle" text-anchor="start">A separate offline branch resolves readable source selectors and compares results with versioned human ratings.</text>
 <rect x="65" y="835" width="300" height="142" rx="12" class="data-card"/>
 <text x="215.0" y="861" class="data-title" text-anchor="middle">Central rating profiles</text>
 <text x="83" y="888" class="data-text" text-anchor="start">• config/evaluation/&lt;source&gt;.toml</text>
@@ -168,14 +168,14 @@ text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
 <text x="444" y="896" class="tag" text-anchor="start">INPUT</text>
 <text x="498" y="896" class="card-text" text-anchor="start">ratings + classifications + candidates</text>
 <text x="444" y="921" class="tag" text-anchor="start">DO</text>
-<text x="498" y="921" class="card-text" text-anchor="start">join stable IDs; build three metric views</text>
+<text x="498" y="921" class="card-text" text-anchor="start">resolve readable selectors; score three metric views</text>
 <text x="444" y="946" class="tag" text-anchor="start">OUTPUT</text>
 <text x="498" y="946" class="card-text" text-anchor="start">confusions + coverage + field scores</text>
 <rect x="850" y="825" width="410" height="142" rx="12" class="data-card"/>
 <text x="1055.0" y="851" class="data-title" text-anchor="middle">Evaluation artifacts per model / ensemble</text>
 <text x="868" y="878" class="data-text" text-anchor="start">• metrics.json: DR, FPR, ACC, PREC, F1</text>
-<text x="868" y="898" class="data-text" text-anchor="start">• instances.csv + decision_confusion.csv</text>
-<text x="868" y="918" class="data-text" text-anchor="start">• field_metrics.csv + readable README</text>
+<text x="868" y="898" class="data-text" text-anchor="start">• instances + confusion + field metric CSVs</text>
+<text x="868" y="918" class="data-text" text-anchor="start">• 4 SVG/PDF figures + exact plot data</text>
 <polyline points="1265,317 1325,317 1325,215 1380,215" class="flow" marker-end="url(#arrow)"/>
 <polyline points="1265,649 1325,649 1325,255 1380,255" class="flow" marker-end="url(#arrow)"/>
 <polyline points="1548,307 1548,345" class="flow" marker-end="url(#arrow)"/>

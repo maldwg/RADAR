@@ -6,6 +6,7 @@ from typing import Any, Protocol
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.ensemble import consensus_classification
+from ids_meta.common.evidence import evidence_expansion_audit, merge_new_evidence, vote_round_needs_more_evidence
 from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, verify_evidence
 from ids_meta.common.prompts import description_block, render_prompt
 from ids_meta.common.run import utc_now
@@ -13,14 +14,21 @@ from ids_meta.common.scoring import score_evidence, shortlist_candidates
 from ids_meta.common.text import split_values, stable_hash
 from ids_meta.common.logging import logger
 from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, RESPONSE_SCHEMA, SCOPES, derive_system_types, normalize_response, system_type_names, validate_processed_row
+from ids_meta.github.enrich import GitHubEvidenceClient
 
-PROMPT_VERSION = "github-5"
+PROMPT_VERSION = "github-8"
 LOG = logger("github.pipeline")
 
 class Generator(Protocol):
     model: str
     def generate(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         """Return one structured model response for the supplied prompt."""
+        ...
+
+
+class EvidenceEnricher(Protocol):
+    def enrich(self, payload: dict[str, Any]) -> dict[str, str]:
+        """Return additional repository evidence."""
         ...
 
 
@@ -106,6 +114,7 @@ def classify(
     limit: int | None = None, resume: bool = True, dry_run: bool = False, generator: Generator | None = None,
     prompt_config: dict[str, Any] | None = None, system_type_profile: dict[str, Any] | None = None,
     consecutive_runs: int = 1, consensus_threshold: float = 0.5,
+    github_config: dict[str, Any] | None = None, enricher: EvidenceEnricher | None = None,
 ) -> list[dict[str, str]]:
     """Classify eligible repository candidates with resumable structured LLM calls."""
     rows = read_csv(candidates_path)
@@ -113,10 +122,18 @@ def classify(
     eligible = shortlist_candidates(rows, "github_repo_id", None)
     selected = shortlist_candidates(rows, "github_repo_id", limit)
     client = generator if generator is not None else (None if dry_run else OllamaClient(ollama_config))
+    enrichment_config = github_config or {}
+    evidence_client = enricher
+    if evidence_client is None and not dry_run and bool(enrichment_config.get("enrich_uncertain_evidence", False)):
+        evidence_client = GitHubEvidenceClient(enrichment_config)
     model = getattr(client, "model", str(ollama_config.get("model") or "dry-run"))
     consecutive_runs = max(1, int(consecutive_runs))
     decision_config = {"prompt": prompt_config or {}, "system_types": system_type_profile or {},
-                       "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold}
+                       "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold,
+                       "evidence_fallback": {
+                           "enabled": bool(enrichment_config.get("enrich_uncertain_evidence", False)),
+                           "max_docs_files": int(enrichment_config.get("uncertain_max_docs_files", 10)),
+                       }}
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)
     results: list[dict[str, str]] = []
     new_decisions = 0
@@ -141,17 +158,60 @@ def classify(
         if dry_run:
             result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})
         else:
-            votes: dict[str, dict[str, str]] = {}
-            for run_index in range(1, consecutive_runs + 1):
-                vote = dict(result)
+            def decide(
+                active_sections: list[EvidenceSection], stop_on_uncertain: bool = False,
+                initial_votes: dict[str, dict[str, str]] | None = None,
+            ) -> tuple[dict[str, str], dict[str, dict[str, str]], bool]:
+                """Run and normalize the configured repository-classification votes."""
+                votes = dict(initial_votes or {})
+                interrupted = False
+                for run_index in range(len(votes) + 1, consecutive_runs + 1):
+                    vote = dict(result)
+                    try:
+                        raw = client.generate(prompt(active_sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
+                        verified, _ = verify_evidence(raw.get("evidence"), active_sections)
+                        vote.update(normalize_response(raw, verified, ollama_config, row.get("fork") == "true", system_type_profile))
+                    except Exception as exc:
+                        vote.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+                    votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
+                    if stop_on_uncertain and vote.get("decision") == "uncertain":
+                        interrupted = True
+                        break
+                decision = dict(consensus_classification("github", votes, consensus_threshold, system_type_profile, bool(ollama_config.get("require_verified_quote", True)))) if consecutive_runs > 1 else votes["run-1"]
+                return decision, votes, interrupted
+
+            result, votes, interrupted = decide(sections, stop_on_uncertain=True)
+            initial_result = dict(result)
+            initial_votes = {label: dict(vote) for label, vote in votes.items()}
+            expansion_required = vote_round_needs_more_evidence(votes, result)
+            expansion_attempted = False
+            expansion_changed = False
+            final_votes = votes
+            round_restarted = False
+            if expansion_required and evidence_client is not None:
+                expansion_attempted = True
                 try:
-                    raw = client.generate(prompt(sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
-                    verified, _ = verify_evidence(raw.get("evidence"), sections)
-                    vote.update(normalize_response(raw, verified, ollama_config, row.get("fork") == "true", system_type_profile))
+                    discovered = evidence_client.enrich(payload)
                 except Exception as exc:
-                    vote.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
-                votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
-            result = dict(consensus_classification("github", votes, consensus_threshold, system_type_profile, bool(ollama_config.get("require_verified_quote", True)))) if consecutive_runs > 1 else votes["run-1"]
+                    LOG.warning("uncertain-repository evidence expansion failed repository=%s error=%s", row.get("full_name", key), exc)
+                    discovered = {}
+                expansion_changed = merge_new_evidence(payload, discovered)
+                if expansion_changed:
+                    cache.put_record("github.repository", key, payload, utc_now())
+                    sections = evidence_sections(payload)
+                    evidence_hash = stable_hash(format_evidence(sections, 30000))
+                    row["evidence_hash"] = evidence_hash
+                    atomic_write_csv(candidates_path, rows, CANDIDATE_COLUMNS)
+                    LOG.info("discarding initial vote round and restarting with expanded README/docs evidence repository=%s", row.get("full_name", key))
+                    result, final_votes, _interrupted = decide(sections)
+                    round_restarted = True
+            if interrupted and not round_restarted:
+                result, votes, _interrupted = decide(sections, initial_votes=votes)
+                final_votes = votes
+            result.update(evidence_expansion_audit(
+                initial_votes, initial_result, final_votes, result,
+                required=expansion_required, attempted=expansion_attempted, changed=expansion_changed,
+            ))
         cache.put_decision("github.classification", key, profile_hash, evidence_hash, result, result["classified_at"])
         results.append(result)
         new_decisions += 1

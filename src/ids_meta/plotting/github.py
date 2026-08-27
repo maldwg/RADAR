@@ -9,7 +9,7 @@ import matplotlib.dates as mdates
 from matplotlib.patches import FancyBboxPatch, Patch, Rectangle
 import pandas as pd
 
-from ids_meta.plotting.common import COLORS, add_heading, configure_style, count_legend, count_plot, explode_values, load_frame, metadata_caption, save_figure, stamp, write_index, write_table
+from ids_meta.plotting.common import COLORS, add_heading, configure_style, count_legend, count_plot, evidence_escalation_plot, explode_values, load_frame, metadata_caption, save_figure, stamp, write_index, write_table
 from ids_meta.common.logging import logger
 from ids_meta.github.schema import DEFAULT_SYSTEM_TYPE_PROFILE
 
@@ -724,8 +724,10 @@ def build(
     if classifications_path and classifications_path.is_file():
         classifications = pd.read_csv(classifications_path, dtype=str, keep_default_na=False)
         outputs += _classification_audit(classifications, out_dir, formats, dpi)
+        outputs += evidence_escalation_plot(classifications, out_dir, formats, dpi, "10_evidence_escalation", "GitHub")
     else:
         outputs += _classification_audit(frame, out_dir, formats, dpi)
+        outputs += evidence_escalation_plot(frame, out_dir, formats, dpi, "10_evidence_escalation", "GitHub")
 
     outputs.append(write_index(out_dir, input_path, frame, outputs, [
         "00_repository_overview keeps the existing detailed repository feature matrix and exports every accepted row.",
@@ -738,6 +740,7 @@ def build(
         "07_common_tags reports the most common GitHub topics/tags and the share of repositories carrying each tag.",
         "08_discovery_sources uses annual per-source repository counts to form real boxplot distributions; creation year is used with pushed_at only as a fallback.",
         "09_classification_audit requires candidate/borderline/reject filter bands and a final model/review decision. Pass classifications_path when excluded candidates are stored separately from the accepted catalogue.",
+        "10_evidence_escalation reports how often extra README/docs evidence was required, found, and beneficial; every bar states its denominator.",
         "Every plotted aggregate has a matching CSV under data/, and matrix/tag/discovery/classification figures also export row-level *_records.csv files for traceability.",
     ]))
     LOG.info("GitHub plot bundle complete files=%d output=%s", len(outputs), out_dir)

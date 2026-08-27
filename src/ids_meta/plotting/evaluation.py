@@ -144,17 +144,17 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
             for bar in f1_bars:
                 value = float(bar.get_width())
                 ax.text(
-                    value + .015, bar.get_y() + bar.get_height() / 2, f"F1 {value:.0%}",
+                    value + .015, bar.get_y() + bar.get_height() / 2, f"{value:.0%}",
                     va="center", fontsize=8, fontweight="bold", color="#253746",
                 )
         ax.set_yticks(positions, labels=ordered["field_label"])
         ax.set_xlim(0, 1.25)
         ax.set_xlabel("Score")
-        for bar, comparisons, matches in zip(exact_bars, ordered["comparisons"], ordered["exact_matches"]):
+        for bar in exact_bars:
             value = float(bar.get_width())
-            ax.text(value + .015, bar.get_y() + bar.get_height() / 2, f"{value:.0%}  ({int(matches)}/{int(comparisons)})", va="center", fontsize=8)
+            ax.text(value + .015, bar.get_y() + bar.get_height() / 2, f"{value:.0%}", va="center", fontsize=8)
         ax.legend(frameon=False, fontsize=9, loc="lower right")
-    stamp(fig, "Multi-label fields additionally show label-level F1; every F1 bar is labeled directly.")
+    stamp(fig, "Multi-label fields additionally show label-level F1; percentages are printed beside their bars.")
     return save_figure(fig, out_dir, "03_field_accuracy", formats, dpi)
 
 

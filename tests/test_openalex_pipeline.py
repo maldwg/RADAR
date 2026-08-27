@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import load_prompt_profile, load_settings, load_term_profile
-from ids_meta.openalex.collect import OpenAlexClient, balanced_search, collect, is_survey_work, normalize_work, rank_work_pool, reconstruct_abstract
+from ids_meta.openalex.collect import OpenAlexClient, balanced_search, collect, is_survey_work, normalize_work, publisher_diverse_surveys, rank_work_pool, reconstruct_abstract
 from ids_meta.openalex.pipeline import classify, export, export_survey_sources, prefilter
 from ids_meta.openalex.reconcile import reconcile
 from ids_meta.openalex.entities import canonicalize_artifact_ids
@@ -88,6 +88,19 @@ class OpenAlexPipelineTests(unittest.TestCase):
         )
         self.assertEqual(scores["W-ctu"][0].score, 0)
         self.assertEqual([row["openalex_id"] for row in ranked], ["W-ctu"])
+
+    def test_survey_selection_reserves_available_publisher_families(self) -> None:
+        """Verify publisher targets are represented before rank-only survey filling."""
+        ranked = [
+            {"openalex_id": "W1", "venue": "IEEE Access"},
+            {"openalex_id": "W2", "publisher": "Elsevier"},
+            {"openalex_id": "W3", "publisher": "IEEE"},
+        ]
+        selected, covered = publisher_diverse_surveys(
+            ranked, 2, {"IEEE": ["IEEE"], "Elsevier": ["Elsevier"]},
+        )
+        self.assertEqual({row["openalex_id"] for row in selected}, {"W1", "W2"})
+        self.assertEqual(covered, {"IEEE", "Elsevier"})
 
     def test_mixed_survey_and_release_work_remains_a_candidate(self) -> None:
         """Verify a survey section does not hide an explicit dataset-toolkit release."""
@@ -228,6 +241,52 @@ class OpenAlexPipelineTests(unittest.TestCase):
             self.assertNotIn("https://openalex.org/W1", active["work_ids"])
             self.assertEqual([row["openalex_id"] for row in survey_rows], ["https://openalex.org/W1"])
 
+    def test_backward_snowballing_repeats_until_convergence(self) -> None:
+        """Verify a relevant reference becomes the next frontier and exposes its references."""
+        def raw(work_id: str, title: str, work_type: str = "article", references: list[str] | None = None) -> dict[str, Any]:
+            """Build one raw work in the iterative reference-chain fixture."""
+            return {
+                "id": f"https://openalex.org/{work_id}", "title": title, "type": work_type,
+                "publication_year": 2020, "referenced_works": references or [], "open_access": {},
+            }
+
+        class Client:
+            authenticated = True
+            def __init__(self) -> None:
+                """Initialize the observed reference batches."""
+                self.batches: list[list[str]] = []
+            def search(self, query: str, _per_page: int, _max_pages: int):
+                """Yield one survey or one direct seed according to the query."""
+                if "survey" in query:
+                    yield raw("W1", "Survey of intrusion datasets", "review", ["https://openalex.org/W2"])
+                else:
+                    yield raw("W4", "Direct intrusion dataset paper")
+            def works_by_ids(self, ids: list[str]):
+                """Resolve a two-level chain while recording each batch."""
+                self.batches.append(ids)
+                for value in ids:
+                    key = value.rsplit("/", 1)[-1]
+                    refs = ["https://openalex.org/W3"] if key == "W2" else []
+                    yield raw(key, f"Relevant intrusion dataset {key}", references=refs)
+
+        with tempfile.TemporaryDirectory() as directory:
+            fake = Client()
+            with PipelineCache(Path(directory) / "cache.sqlite3") as cache:
+                counts = collect({
+                    "per_page": 10, "max_pages_per_query": 1, "max_surveys": 1,
+                    "max_reference_works_per_survey": 10, "max_survey_reference_candidates_total": 10,
+                    "survey_reference_fraction": .75, "reference_sample_size": 10,
+                    "snowball_start_papers": 1, "snowball_max_depth": 10,
+                    "retrieval_minimum_score": 0,
+                }, {"survey_queries": ["dataset survey"], "direct_queries": ["intrusion dataset"]},
+                    cache, limit=4, client=fake)  # type: ignore[arg-type]
+                latest = cache.get_record("openalex.collection", "latest")
+                depth_two = cache.get_record("openalex.work", "https://openalex.org/W3")
+            self.assertEqual(len(fake.batches), 2)
+            self.assertEqual(counts["snowball_reached_depth"], 2)
+            self.assertEqual(latest["snowball_reached_depth"], 2)
+            self.assertEqual(depth_two["snowball_depth"], 2)
+
     def test_prefilter_enriches_missing_abstract_before_scoring(self) -> None:
         """Verify an opaque survey reference gains evidence before prefilter scoring."""
         class Enricher:
@@ -327,6 +386,61 @@ class OpenAlexPipelineTests(unittest.TestCase):
             self.assertEqual(cached_work["abstract_source"], "Semantic Scholar")
             self.assertEqual(enriched_row["abstract_source"], "Semantic Scholar")
             self.assertNotEqual(enriched_row["evidence_hash"], "old-hash")
+
+    def test_uncertain_classification_retries_with_full_text(self) -> None:
+        """Verify an existing abstract is supplemented with full text after uncertainty."""
+        class Model:
+            model = "fixture-model"
+            def __init__(self) -> None:
+                """Initialize the model call count."""
+                self.calls = 0
+            def generate(self, prompt: str, _schema: dict[str, Any]) -> dict[str, Any]:
+                """Make only initial run three uncertain; accept the restarted round."""
+                self.calls += 1
+                expanded = "decisive full text release evidence" in prompt
+                accepted = expanded or self.calls != 3
+                return {
+                    "paper_role": "original_release" if accepted else "uncertain",
+                    "relevance_tier": "core" if accepted else "uncertain",
+                    "artifact_name": "Fixture Dataset" if accepted else "",
+                    "artifact_display_name": "Fixture Dataset" if accepted else "",
+                    "artifact_aliases": [], "artifact_type": "dataset" if accepted else "unknown",
+                    "domain": "unknown", "data_form": "unknown", "capture_environment": "unknown",
+                    "labeling": "unknown", "direct_release_evidence": accepted,
+                    "primary_reason": "fixture",
+                    "evidence": [{"source": "Full text" if expanded else "Abstract",
+                                  "quote": "decisive full text release evidence" if expanded else "ambiguous abstract"}],
+                }
+
+        class Enricher:
+            def enrich(self, _work: dict[str, Any]) -> dict[str, str]:
+                """Return the decisive open full-text fixture."""
+                return {"full_text": "decisive full text release evidence", "full_text_url": "https://example.invalid/paper.pdf"}
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates, classified = root / "candidates.csv", root / "classified.csv"
+            row = {column: "" for column in CANDIDATE_COLUMNS}
+            row.update({"openalex_id": "W-full", "title": "Ambiguous paper", "abstract": "ambiguous abstract",
+                        "prefilter_band": "candidate", "prefilter_score": "7", "evidence_hash": "old"})
+            atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
+            model = Model()
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("openalex.work", "W-full", {
+                    "work": {"openalex_id": "W-full", "title": "Ambiguous paper", "abstract": "ambiguous abstract"},
+                }, "now")
+                decisions = classify(candidates, classified, cache, {"require_verified_quote": True},
+                                     generator=model, enricher=Enricher(),
+                                     openalex_config={"enrich_uncertain_with_full_text": True},
+                                     prompt_config=load_prompt_profile(load_settings(ROOT / "config/default.toml"), "openalex"),
+                                     consecutive_runs=5, consensus_threshold=.66)
+            self.assertEqual(model.calls, 8, decisions)
+            self.assertEqual(decisions[0]["decision"], "accept")
+            self.assertNotIn("uncertain", decisions[0]["ensemble_model_decisions"])
+            self.assertEqual(decisions[0]["evidence_expansion_required"], "true")
+            self.assertEqual(decisions[0]["evidence_expansion_changed"], "true")
+            self.assertEqual(decisions[0]["evidence_expansion_improved"], "true")
+            self.assertEqual(decisions[0]["evidence_expansion_resolved"], "false")
 
     def test_classification_errors_are_not_cached_and_are_retried(self) -> None:
         """Verify a malformed model response cannot become a terminal cached decision."""

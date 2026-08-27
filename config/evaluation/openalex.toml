@@ -2,8 +2,15 @@ schema_version = "1.0"
 source = "openalex"
 classification_fields = ["paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"]
 
-# Starter ratings copied from representative saved pipeline rows so the format is executable.
-# Review these values manually before treating them as authoritative human ground truth.
+# Balanced benchmark design (24 entities):
+# - 12 expected inclusions and 12 expected exclusions.
+# - Four inclusions for each eligible release role.
+# - Three exclusions for each definitive exclusion role.
+# - Release papers span network, host, wireless, IoT/IIoT, ICS/SCADA,
+#   automotive, and malware/botnet domains plus varied data forms/environments.
+# This is a stratified accuracy benchmark, not an estimate of class prevalence.
+
+# Included: original dataset releases (4)
 
 [[entities]]
 openalex_url = "https://openalex.org/W4310746777"
@@ -18,6 +25,94 @@ capture_environment = "synthetic_lab"
 labeling = "labeled"
 
 [[entities]]
+openalex_url = "https://openalex.org/W3024012711"
+name = "LITNET-2020"
+decision = "accept"
+paper_role = "original_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "general_network"
+data_form = "flow"
+capture_environment = "real_world"
+labeling = "labeled"
+
+[[entities]]
+openalex_url = "https://openalex.org/W2167240430"
+name = "ADFA-LD"
+decision = "accept"
+paper_role = "original_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "host"
+data_form = "host_system_call"
+capture_environment = "synthetic_lab"
+labeling = "labeled"
+
+[[entities]]
+openalex_url = "https://openalex.org/W3112910139"
+name = "DReLAB"
+decision = "accept"
+paper_role = "original_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "malware_botnet"
+data_form = "flow"
+capture_environment = "hybrid"
+labeling = "labeled"
+
+# Included: materially versioned/extended releases (4)
+
+[[entities]]
+openalex_url = "https://openalex.org/W3132842072"
+name = "AWID3"
+decision = "accept"
+paper_role = "versioned_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "wireless"
+data_form = "packet"
+capture_environment = "synthetic_lab"
+labeling = "labeled"
+
+[[entities]]
+openalex_url = "https://openalex.org/W2099940443"
+name = "NSL-KDD"
+decision = "accept"
+paper_role = "versioned_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "general_network"
+data_form = "tabular_features"
+capture_environment = "synthetic_lab"
+labeling = "labeled"
+
+[[entities]]
+openalex_url = "https://openalex.org/W2468321486"
+name = "ADFA-WD and ADFA-WD:SAA"
+decision = "accept"
+paper_role = "versioned_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "host"
+data_form = "host_system_call"
+capture_environment = "synthetic_lab"
+labeling = "labeled"
+
+[[entities]]
+openalex_url = "https://openalex.org/W4313442820"
+name = "ToN-IoT-R"
+decision = "accept"
+paper_role = "versioned_release"
+relevance_tier = "core"
+artifact_type = "dataset"
+domain = "iot_iiot"
+data_form = "mixed"
+capture_environment = "hybrid"
+labeling = "labeled"
+
+# Included: reusable dataset generators/frameworks (4)
+
+[[entities]]
 openalex_url = "https://openalex.org/W2474150305"
 name = "Intrusion Detection Dataset Toolkit (ID2T)"
 decision = "accept"
@@ -30,20 +125,46 @@ capture_environment = "synthetic_lab"
 labeling = "labeled"
 
 [[entities]]
-openalex_url = "https://openalex.org/W2789828921"
-name = "CICIDS2017"
+openalex_url = "https://openalex.org/W3006926329"
+name = "Real-time IoT dataset generation framework"
 decision = "accept"
-paper_role = "original_release"
+paper_role = "generator_release"
 relevance_tier = "core"
-artifact_type = "dataset"
-domain = "general_network"
-data_form = "flow"
-capture_environment = "hybrid"
+artifact_type = "generator_framework"
+domain = "iot_iiot"
+data_form = "network_traffic"
+capture_environment = "synthetic_lab"
+labeling = "unknown"
+
+[[entities]]
+openalex_url = "https://openalex.org/W3021269664"
+name = "CAN-ADF"
+decision = "accept"
+paper_role = "generator_release"
+relevance_tier = "core"
+artifact_type = "generator_framework"
+domain = "automotive_can"
+data_form = "can"
+capture_environment = "real_world"
 labeling = "labeled"
 
 [[entities]]
+openalex_url = "https://openalex.org/W4389319183"
+name = "ERENO"
+decision = "accept"
+paper_role = "generator_release"
+relevance_tier = "core"
+artifact_type = "dataset_and_generator"
+domain = "ics_scada"
+data_form = "network_traffic"
+capture_environment = "synthetic_lab"
+labeling = "labeled"
+
+# Excluded: surveys/reviews (3)
+
+[[entities]]
 openalex_url = "https://openalex.org/W3016974523"
-name = "A Review of the Advancement in Intrusion Detection Datasets"
+name = "Intrusion detection dataset review"
 decision = "exclude"
 paper_role = "survey"
 relevance_tier = "excluded"
@@ -54,73 +175,139 @@ capture_environment = "unknown"
 labeling = "unknown"
 
 [[entities]]
-openalex_url = "https://openalex.org/W3176609646"
-name = "RoEduNet-SIMARGL2021"
-decision = "accept"
-paper_role = "original_release"
-relevance_tier = "core"
-artifact_type = "dataset"
-domain = "general_network"
-data_form = "tabular_features"
-capture_environment = "hybrid"
-labeling = "labeled"
-
-[[entities]]
-openalex_url = "https://openalex.org/W2099940443"
-name = "NSL-KDD"
-decision = "accept"
-paper_role = "original_release"
-relevance_tier = "core"
-artifact_type = "dataset"
-domain = "general_network"
-data_form = "tabular_features"
-capture_environment = "synthetic_lab"
-labeling = "labeled"
-
-[[entities]]
-openalex_url = "https://openalex.org/W2296509296"
-name = "UNSW-NB15"
-decision = "accept"
-paper_role = "original_release"
-relevance_tier = "core"
-artifact_type = "dataset"
-domain = "general_network"
-data_form = "mixed"
-capture_environment = "hybrid"
-labeling = "labeled"
-
-[[entities]]
-openalex_url = "https://openalex.org/W2982682021"
-name = "CICDDoS2019"
-decision = "accept"
-paper_role = "original_release"
-relevance_tier = "core"
-artifact_type = "dataset"
-domain = "general_network"
-data_form = "flow"
-capture_environment = "synthetic_lab"
-labeling = "labeled"
-
-[[entities]]
-openalex_url = "https://openalex.org/W3085955590"
-name = "TON_IoT"
-decision = "accept"
-paper_role = "original_release"
-relevance_tier = "core"
-artifact_type = "dataset"
+openalex_url = "https://openalex.org/W3043799819"
+name = "IoT IDS review"
+decision = "exclude"
+paper_role = "survey"
+relevance_tier = "excluded"
+artifact_type = "unknown"
 domain = "iot_iiot"
-data_form = "mixed"
-capture_environment = "synthetic_lab"
-labeling = "labeled"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
 
 [[entities]]
-openalex_url = "https://openalex.org/W1952056635"
-name = "DARPA 1998"
-decision = "accept"
-paper_role = "original_release"
-relevance_tier = "core"
-artifact_type = "dataset"
+openalex_url = "https://openalex.org/W2964262308"
+name = "Automotive CAN IDS review"
+decision = "exclude"
+paper_role = "survey"
+relevance_tier = "excluded"
+artifact_type = "unknown"
+domain = "automotive_can"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
+
+# Excluded: downstream classifier/application papers (3)
+
+[[entities]]
+openalex_url = "https://openalex.org/W3168771234"
+name = "Deep-learning NIDS application"
+decision = "exclude"
+paper_role = "downstream_application"
+relevance_tier = "excluded"
+artifact_type = "unknown"
 domain = "general_network"
 data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
+
+[[entities]]
+openalex_url = "https://openalex.org/W4377691173"
+name = "SD-IoT DDoS detection application"
+decision = "exclude"
+paper_role = "downstream_application"
+relevance_tier = "excluded"
+artifact_type = "unknown"
+domain = "iot_iiot"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
+
+[[entities]]
+openalex_url = "https://openalex.org/W4213137798"
+name = "Encrypted malicious traffic application"
+decision = "exclude"
+paper_role = "downstream_application"
+relevance_tier = "excluded"
+artifact_type = "unknown"
+domain = "encrypted_vpn_tor"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
+
+# Excluded: analyses/repairs of existing datasets (3)
+
+[[entities]]
+openalex_url = "https://openalex.org/W3180062783"
+name = "Troubleshooting CICIDS2017"
+decision = "exclude"
+paper_role = "dataset_analysis"
+relevance_tier = "excluded"
+artifact_type = "unknown"
+domain = "general_network"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
+
+[[entities]]
+openalex_url = "https://openalex.org/W2250670532"
+name = "KDD attribute analysis"
+decision = "exclude"
+paper_role = "dataset_analysis"
+relevance_tier = "excluded"
+artifact_type = "unknown"
+domain = "general_network"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
+
+[[entities]]
+openalex_url = "https://openalex.org/W2334853001"
+name = "UNSW-NB15 statistical analysis"
+decision = "exclude"
+paper_role = "dataset_analysis"
+relevance_tier = "excluded"
+artifact_type = "dataset"
+domain = "general_network"
+data_form = "mixed"
 capture_environment = "synthetic_lab"
 labeling = "labeled"
+
+# Excluded: unrelated high-overlap papers (3)
+
+[[entities]]
+openalex_url = "https://openalex.org/W2108598243"
+name = "ImageNet"
+decision = "exclude"
+paper_role = "unrelated"
+relevance_tier = "excluded"
+artifact_type = "dataset"
+domain = "unknown"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "labeled"
+
+[[entities]]
+openalex_url = "https://openalex.org/W2194775991"
+name = "Deep Residual Learning"
+decision = "exclude"
+paper_role = "unrelated"
+relevance_tier = "excluded"
+artifact_type = "unknown"
+domain = "unknown"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"
+
+[[entities]]
+openalex_url = "https://openalex.org/W2148143831"
+name = "SMOTE"
+decision = "exclude"
+paper_role = "unrelated"
+relevance_tier = "excluded"
+artifact_type = "unknown"
+domain = "unknown"
+data_form = "unknown"
+capture_environment = "unknown"
+labeling = "unknown"

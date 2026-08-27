@@ -1,0 +1,8 @@
+field,comparisons,exact_matches,exact_accuracy,label_f1
+paper_role,24,19,0.7916666666666666,
+relevance_tier,24,21,0.875,
+artifact_type,24,21,0.875,
+domain,24,21,0.875,
+data_form,24,21,0.875,
+capture_environment,24,20,0.8333333333333334,
+labeling,24,20,0.8333333333333334,

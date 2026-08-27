@@ -21,9 +21,9 @@ class PlottingTests(unittest.TestCase):
             root = Path(directory)
             github_csv = root / "github.csv"
             github_row = {column: "" for column in GITHUB_COLUMNS}
-            github_row.update({"schema_version": "1.0", "run_id": "run", "github_repo_id": "1", "project_id": "p1", "canonical_repo_id": "1", "repository_relationship": "canonical", "full_name": "example/repo", "role": "standalone_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", "system_type_names": "Network intrusion detection system", "language": "Python", "stars": "5", "forks": "1", "pushed_at": "2025-01-01T00:00:00Z", "html_url": "https://example.invalid", "evidence_json": "[]", "prefilter_band": "candidate", "prefilter_score": "10", "decision": "accept"})
+            github_row.update({"schema_version": "1.0", "run_id": "run", "github_repo_id": "1", "project_id": "p1", "canonical_repo_id": "1", "repository_relationship": "canonical", "full_name": "example/repo", "role": "standalone_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", "system_type_names": "Network intrusion detection system", "language": "Python", "stars": "5", "forks": "1", "pushed_at": "2025-01-01T00:00:00Z", "html_url": "https://example.invalid", "evidence_json": "[]", "prefilter_band": "candidate", "prefilter_score": "10", "decision": "accept", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true"})
             atomic_write_csv(github_csv, [github_row], GITHUB_COLUMNS)
-            outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg"], "dpi": 72, "top_n": 5})
+            outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg"], "dpi": 72, "top_n": 5}, classifications_path=github_csv)
             self.assertTrue(outputs)
             self.assertTrue((root / "github-plots/data/01_repository_timeline.csv").is_file())
             overview = root / "github-plots/data/00_repository_overview.csv"
@@ -33,6 +33,8 @@ class PlottingTests(unittest.TestCase):
             self.assertTrue((root / "github-plots/data/00_system_type_definitions.csv").is_file())
             self.assertTrue((root / "github-plots/data/02_role_type_matrix.csv").is_file())
             self.assertTrue((root / "github-plots/00_repository_overview.svg").is_file())
+            self.assertTrue((root / "github-plots/10_evidence_escalation.svg").is_file())
+            self.assertIn("denominator_scope", (root / "github-plots/data/10_evidence_escalation.csv").read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse((root / "github-plots/00_repository_overview_p01.svg").exists())
             comparison = build_compare("github", github_csv, root / "comparison", {"formats": ["svg"], "dpi": 72})
             self.assertTrue(comparison)
@@ -47,7 +49,7 @@ class PlottingTests(unittest.TestCase):
 
             openalex_csv = root / "openalex.csv"
             paper = {column: "" for column in OPENALEX_COLUMNS}
-            paper.update({"schema_version": "1.0", "run_id": "run", "openalex_id": "W1", "artifact_id": "a1", "artifact_name": "Fixture trace corpus", "artifact_display_name": "FTC", "publication_family_id": "f1", "canonical_openalex_id": "W1", "paper_relationship": "canonical_base", "artifact_type": "dataset", "publication_year": "2024", "domain": "general_network", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled", "cited_by_count": "42", "citation_as_of": "2026-08-07", "discovery_relations": "direct_search;survey_reference:W9", "prefilter_score": "11", "prefilter_band": "candidate", "decision": "accept", "paper_role": "original_release"})
+            paper.update({"schema_version": "1.0", "run_id": "run", "openalex_id": "W1", "artifact_id": "a1", "artifact_name": "Fixture trace corpus", "artifact_display_name": "FTC", "publication_family_id": "f1", "canonical_openalex_id": "W1", "paper_relationship": "canonical_base", "artifact_type": "dataset", "publication_year": "2024", "domain": "general_network", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled", "cited_by_count": "42", "citation_as_of": "2026-08-07", "discovery_relations": "direct_search;survey_reference:W9", "prefilter_score": "11", "prefilter_band": "candidate", "decision": "accept", "paper_role": "original_release", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true"})
             atomic_write_csv(openalex_csv, [paper], OPENALEX_COLUMNS)
             stale = root / "openalex-plots/08_publication_timeline.svg"
             stale.parent.mkdir(parents=True)
@@ -72,6 +74,8 @@ class PlottingTests(unittest.TestCase):
             self.assertTrue((root / "openalex-plots/01_citation_landscape.svg").is_file())
             self.assertTrue((root / "openalex-plots/07_classification_audit.svg").is_file())
             self.assertTrue((root / "openalex-plots/08_survey_sources.svg").is_file())
+            self.assertTrue((root / "openalex-plots/09_evidence_escalation.svg").is_file())
+            self.assertIn("denominator_scope", (root / "openalex-plots/data/09_evidence_escalation.csv").read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse(stale.exists())
             architecture = build_architecture(root, ["svg"], 72)
             self.assertTrue(architecture)

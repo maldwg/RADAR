@@ -1,0 +1,408 @@
+2026-08-19T06:26:22Z INFO    ids_meta.cli: loaded configuration /home/max/Doktorarbeit/dataset-and-ids-metastudy/config/default.toml
+2026-08-19T06:26:22Z INFO    ids_meta.cli: starting multi-model command source=openalex stage=plot run_id=2026-08-19-a7cc3ed84f models=gemma4:31b,qwen3.6:27b ensemble=True
+2026-08-19T06:26:22Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-08-19T06:26:22Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv rows=58 columns=75
+2026-08-19T06:26:22Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv rows=1 columns=75
+2026-08-19T06:26:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.svg
+2026-08-19T06:26:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.pdf
+2026-08-19T06:26:23Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.svg
+2026-08-19T06:26:23Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.pdf
+2026-08-19T06:26:23Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.svg
+2026-08-19T06:26:23Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.pdf
+2026-08-19T06:26:24Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.svg
+2026-08-19T06:26:24Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.pdf
+2026-08-19T06:26:24Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_distribution.svg
+2026-08-19T06:26:24Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_distribution.pdf
+2026-08-19T06:26:24Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_publications.svg
+2026-08-19T06:26:24Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_publications.pdf
+2026-08-19T06:26:24Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.svg
+2026-08-19T06:26:24Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.pdf
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.svg
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.pdf
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.svg
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.pdf
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=493 columns=67
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.svg
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.pdf
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.svg
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.pdf
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/README.md
+2026-08-19T06:26:25Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=53 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-08-19T06:26:25Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/base_papers.csv rows=44 columns=75
+2026-08-19T06:26:25Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/adjacent_base_papers.csv rows=0 columns=75
+2026-08-19T06:26:26Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/00_publication_timeline.svg
+2026-08-19T06:26:26Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/00_publication_timeline.pdf
+2026-08-19T06:26:26Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/01_citation_landscape.svg
+2026-08-19T06:26:26Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/01_citation_landscape.pdf
+2026-08-19T06:26:26Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/09_type_domain_overview.svg
+2026-08-19T06:26:26Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/09_type_domain_overview.pdf
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/02_discovery_provenance.svg
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/02_discovery_provenance.pdf
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/10_discovery_source_distribution.svg
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/10_discovery_source_distribution.pdf
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/03_cumulative_publications.svg
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/03_cumulative_publications.pdf
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/04_domain_data_form.svg
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/04_domain_data_form.pdf
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/05_capture_environment_labeling.svg
+2026-08-19T06:26:27Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/05_capture_environment_labeling.pdf
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/06_metadata_completeness.svg
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/06_metadata_completeness.pdf
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-6-27b/classifications.csv rows=493 columns=67
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/07_classification_audit.svg
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/07_classification_audit.pdf
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/08_survey_sources.svg
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/08_survey_sources.pdf
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/README.md
+2026-08-19T06:26:28Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=40 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b
+2026-08-19T06:26:28Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/base_papers.csv rows=43 columns=75
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/adjacent_base_papers.csv rows=0 columns=75
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/00_publication_timeline.svg
+2026-08-19T06:26:28Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/00_publication_timeline.pdf
+2026-08-19T06:26:29Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/01_citation_landscape.svg
+2026-08-19T06:26:29Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/01_citation_landscape.pdf
+2026-08-19T06:26:29Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/09_type_domain_overview.svg
+2026-08-19T06:26:29Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/09_type_domain_overview.pdf
+2026-08-19T06:26:29Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/02_discovery_provenance.svg
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/02_discovery_provenance.pdf
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/10_discovery_source_distribution.svg
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/10_discovery_source_distribution.pdf
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/03_cumulative_publications.svg
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/03_cumulative_publications.pdf
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/04_domain_data_form.svg
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/04_domain_data_form.pdf
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/05_capture_environment_labeling.svg
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/05_capture_environment_labeling.pdf
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/06_metadata_completeness.svg
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/06_metadata_completeness.pdf
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/ensemble/classifications.csv rows=493 columns=67
+2026-08-19T06:26:30Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/07_classification_audit.svg
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/07_classification_audit.pdf
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/08_survey_sources.svg
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/08_survey_sources.pdf
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/README.md
+2026-08-19T06:26:31Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=38 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=493 columns=67
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-6-27b/classifications.csv rows=493 columns=67
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/ensemble/classifications.csv rows=493 columns=67
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/01_model_decision_counts.svg
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/01_model_decision_counts.pdf
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/02_pairwise_agreement.svg
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/02_pairwise_agreement.pdf
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/03_disagreement_patterns.svg
+2026-08-19T06:26:31Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/03_disagreement_patterns.pdf
+2026-08-19T06:26:31Z INFO    ids_meta.plotting.compare: model comparison complete source=openalex models=3 disagreements=389 files=6
+2026-08-19T06:26:31Z INFO    ids_meta.run: wrote run manifest /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/runs/2026-08-19-a7cc3ed84f.json
+2026-08-19T06:26:31Z INFO    ids_meta.cli: completed multi-model command source=openalex stage=plot counts={'plot_files': 75}
+2026-08-19T06:26:31Z INFO    ids_meta.cli: command summary plot_files=75
+2026-08-19T06:41:45Z INFO    ids_meta.cli: loaded configuration /home/max/Doktorarbeit/dataset-and-ids-metastudy/config/default.toml
+2026-08-19T06:41:45Z INFO    ids_meta.cli: starting multi-model command source=openalex stage=plot run_id=2026-08-19-9f0303eae9 models=gemma4:31b,qwen3.6:27b ensemble=True
+2026-08-19T06:41:46Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-08-19T06:41:46Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv rows=58 columns=75
+2026-08-19T06:41:46Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv rows=1 columns=75
+2026-08-19T06:41:46Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.svg
+2026-08-19T06:41:46Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.pdf
+2026-08-19T06:41:46Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.svg
+2026-08-19T06:41:46Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.pdf
+2026-08-19T06:41:47Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.svg
+2026-08-19T06:41:47Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.pdf
+2026-08-19T06:41:47Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.svg
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.pdf
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_contribution.svg
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_contribution.pdf
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_publications.svg
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_publications.pdf
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.svg
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.pdf
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.svg
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.pdf
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.svg
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.pdf
+2026-08-19T06:41:48Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=493 columns=67
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.svg
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.pdf
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.svg
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.pdf
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/README.md
+2026-08-19T06:41:49Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=53 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-08-19T06:41:49Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/base_papers.csv rows=44 columns=75
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/adjacent_base_papers.csv rows=0 columns=75
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/00_publication_timeline.svg
+2026-08-19T06:41:49Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/00_publication_timeline.pdf
+2026-08-19T06:41:50Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/01_citation_landscape.svg
+2026-08-19T06:41:50Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/01_citation_landscape.pdf
+2026-08-19T06:41:50Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/09_type_domain_overview.svg
+2026-08-19T06:41:50Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/09_type_domain_overview.pdf
+2026-08-19T06:41:50Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/02_discovery_provenance.svg
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/02_discovery_provenance.pdf
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/10_discovery_source_contribution.svg
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/10_discovery_source_contribution.pdf
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/03_cumulative_publications.svg
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/03_cumulative_publications.pdf
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/04_domain_data_form.svg
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/04_domain_data_form.pdf
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/05_capture_environment_labeling.svg
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/05_capture_environment_labeling.pdf
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/06_metadata_completeness.svg
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/06_metadata_completeness.pdf
+2026-08-19T06:41:51Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-6-27b/classifications.csv rows=493 columns=67
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/07_classification_audit.svg
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/07_classification_audit.pdf
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/08_survey_sources.svg
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/08_survey_sources.pdf
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/README.md
+2026-08-19T06:41:52Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=40 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b
+2026-08-19T06:41:52Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/base_papers.csv rows=43 columns=75
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/adjacent_base_papers.csv rows=0 columns=75
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/00_publication_timeline.svg
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/00_publication_timeline.pdf
+2026-08-19T06:41:52Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/01_citation_landscape.svg
+2026-08-19T06:41:53Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/01_citation_landscape.pdf
+2026-08-19T06:41:53Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/09_type_domain_overview.svg
+2026-08-19T06:41:53Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/09_type_domain_overview.pdf
+2026-08-19T06:41:53Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/02_discovery_provenance.svg
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/02_discovery_provenance.pdf
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/10_discovery_source_contribution.svg
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/10_discovery_source_contribution.pdf
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/03_cumulative_publications.svg
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/03_cumulative_publications.pdf
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/04_domain_data_form.svg
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/04_domain_data_form.pdf
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/05_capture_environment_labeling.svg
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/05_capture_environment_labeling.pdf
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/06_metadata_completeness.svg
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/06_metadata_completeness.pdf
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/ensemble/classifications.csv rows=493 columns=67
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/07_classification_audit.svg
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/07_classification_audit.pdf
+2026-08-19T06:41:54Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/08_survey_sources.svg
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/08_survey_sources.pdf
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/README.md
+2026-08-19T06:41:55Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=38 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=493 columns=67
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-6-27b/classifications.csv rows=493 columns=67
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/ensemble/classifications.csv rows=493 columns=67
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/01_model_decision_counts.svg
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/01_model_decision_counts.pdf
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/02_pairwise_agreement.svg
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/02_pairwise_agreement.pdf
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/03_disagreement_patterns.svg
+2026-08-19T06:41:55Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/03_disagreement_patterns.pdf
+2026-08-19T06:41:55Z INFO    ids_meta.plotting.compare: model comparison complete source=openalex models=3 disagreements=389 files=6
+2026-08-19T06:41:55Z INFO    ids_meta.run: wrote run manifest /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/runs/2026-08-19-9f0303eae9.json
+2026-08-19T06:41:55Z INFO    ids_meta.cli: completed multi-model command source=openalex stage=plot counts={'plot_files': 75}
+2026-08-19T06:41:55Z INFO    ids_meta.cli: command summary plot_files=75
+2026-08-19T06:48:12Z INFO    ids_meta.cli: loaded configuration /home/max/Doktorarbeit/dataset-and-ids-metastudy/config/default.toml
+2026-08-19T06:48:12Z INFO    ids_meta.cli: starting multi-model command source=openalex stage=plot run_id=2026-08-19-36f62ba113 models=gemma4:31b,qwen3.6:27b ensemble=True
+2026-08-19T06:48:13Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-08-19T06:48:13Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv rows=58 columns=75
+2026-08-19T06:48:13Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv rows=1 columns=75
+2026-08-19T06:48:13Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.svg
+2026-08-19T06:48:13Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.pdf
+2026-08-19T06:48:13Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.svg
+2026-08-19T06:48:13Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.pdf
+2026-08-19T06:48:14Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.svg
+2026-08-19T06:48:14Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.pdf
+2026-08-19T06:48:14Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.svg
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.pdf
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_contribution.svg
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_contribution.pdf
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_publications.svg
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_publications.pdf
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.svg
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.pdf
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.svg
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.pdf
+2026-08-19T06:48:15Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.svg
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.pdf
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=493 columns=67
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.svg
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.pdf
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.svg
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.pdf
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/README.md
+2026-08-19T06:48:16Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=53 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-08-19T06:48:16Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/base_papers.csv rows=44 columns=75
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/adjacent_base_papers.csv rows=0 columns=75
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/00_publication_timeline.svg
+2026-08-19T06:48:16Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/00_publication_timeline.pdf
+2026-08-19T06:48:17Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/01_citation_landscape.svg
+2026-08-19T06:48:17Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/01_citation_landscape.pdf
+2026-08-19T06:48:17Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/09_type_domain_overview.svg
+2026-08-19T06:48:17Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/09_type_domain_overview.pdf
+2026-08-19T06:48:17Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/02_discovery_provenance.svg
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/02_discovery_provenance.pdf
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/10_discovery_source_contribution.svg
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/10_discovery_source_contribution.pdf
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/03_cumulative_publications.svg
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/03_cumulative_publications.pdf
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/04_domain_data_form.svg
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/04_domain_data_form.pdf
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/05_capture_environment_labeling.svg
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/05_capture_environment_labeling.pdf
+2026-08-19T06:48:18Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/06_metadata_completeness.svg
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/06_metadata_completeness.pdf
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-6-27b/classifications.csv rows=493 columns=67
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/07_classification_audit.svg
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/07_classification_audit.pdf
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/08_survey_sources.svg
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/08_survey_sources.pdf
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/README.md
+2026-08-19T06:48:19Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=40 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b
+2026-08-19T06:48:19Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/base_papers.csv rows=43 columns=75
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/adjacent_base_papers.csv rows=0 columns=75
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/00_publication_timeline.svg
+2026-08-19T06:48:19Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/00_publication_timeline.pdf
+2026-08-19T06:48:20Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/01_citation_landscape.svg
+2026-08-19T06:48:20Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/01_citation_landscape.pdf
+2026-08-19T06:48:20Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/09_type_domain_overview.svg
+2026-08-19T06:48:20Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/09_type_domain_overview.pdf
+2026-08-19T06:48:20Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/02_discovery_provenance.svg
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/02_discovery_provenance.pdf
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/10_discovery_source_contribution.svg
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/10_discovery_source_contribution.pdf
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/03_cumulative_publications.svg
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/03_cumulative_publications.pdf
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/04_domain_data_form.svg
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/04_domain_data_form.pdf
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/05_capture_environment_labeling.svg
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/05_capture_environment_labeling.pdf
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/06_metadata_completeness.svg
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/06_metadata_completeness.pdf
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/ensemble/classifications.csv rows=493 columns=67
+2026-08-19T06:48:21Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/07_classification_audit.svg
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/07_classification_audit.pdf
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/08_survey_sources.svg
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/08_survey_sources.pdf
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/README.md
+2026-08-19T06:48:22Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=38 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=493 columns=67
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-6-27b/classifications.csv rows=493 columns=67
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/ensemble/classifications.csv rows=493 columns=67
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/01_model_decision_counts.svg
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/01_model_decision_counts.pdf
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/02_pairwise_agreement.svg
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/02_pairwise_agreement.pdf
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/03_disagreement_patterns.svg
+2026-08-19T06:48:22Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/03_disagreement_patterns.pdf
+2026-08-19T06:48:22Z INFO    ids_meta.plotting.compare: model comparison complete source=openalex models=3 disagreements=389 files=6
+2026-08-19T06:48:22Z INFO    ids_meta.run: wrote run manifest /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/runs/2026-08-19-36f62ba113.json
+2026-08-19T06:48:22Z INFO    ids_meta.cli: completed multi-model command source=openalex stage=plot counts={'plot_files': 75}
+2026-08-19T06:48:22Z INFO    ids_meta.cli: command summary plot_files=75
+2026-08-19T06:51:01Z INFO    ids_meta.cli: loaded configuration /home/max/Doktorarbeit/dataset-and-ids-metastudy/config/default.toml
+2026-08-19T06:51:01Z INFO    ids_meta.cli: starting multi-model command source=openalex stage=plot run_id=2026-08-19-c50c444b4e models=gemma4:31b,qwen3.6:27b ensemble=True
+2026-08-19T06:51:01Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-08-19T06:51:01Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv rows=58 columns=75
+2026-08-19T06:51:01Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv rows=1 columns=75
+2026-08-19T06:51:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.svg
+2026-08-19T06:51:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.pdf
+2026-08-19T06:51:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.svg
+2026-08-19T06:51:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.pdf
+2026-08-19T06:51:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.svg
+2026-08-19T06:51:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.pdf
+2026-08-19T06:51:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.svg
+2026-08-19T06:51:03Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.pdf
+2026-08-19T06:51:03Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_contribution.svg
+2026-08-19T06:51:03Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_contribution.pdf
+2026-08-19T06:51:03Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_publications.svg
+2026-08-19T06:51:03Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_publications.pdf
+2026-08-19T06:51:03Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.svg
+2026-08-19T06:51:03Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.pdf
+2026-08-19T06:51:03Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.svg
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.pdf
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.svg
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.pdf
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=493 columns=67
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.svg
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.pdf
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.svg
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.pdf
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/README.md
+2026-08-19T06:51:04Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=53 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-08-19T06:51:04Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/base_papers.csv rows=44 columns=75
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/qwen3-6-27b/adjacent_base_papers.csv rows=0 columns=75
+2026-08-19T06:51:04Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/00_publication_timeline.svg
+2026-08-19T06:51:05Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/00_publication_timeline.pdf
+2026-08-19T06:51:05Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/01_citation_landscape.svg
+2026-08-19T06:51:05Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/01_citation_landscape.pdf
+2026-08-19T06:51:05Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/09_type_domain_overview.svg
+2026-08-19T06:51:05Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/09_type_domain_overview.pdf
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/02_discovery_provenance.svg
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/02_discovery_provenance.pdf
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/10_discovery_source_contribution.svg
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/10_discovery_source_contribution.pdf
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/03_cumulative_publications.svg
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/03_cumulative_publications.pdf
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/04_domain_data_form.svg
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/04_domain_data_form.pdf
+2026-08-19T06:51:06Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/05_capture_environment_labeling.svg
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/05_capture_environment_labeling.pdf
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/06_metadata_completeness.svg
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/06_metadata_completeness.pdf
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-6-27b/classifications.csv rows=493 columns=67
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/07_classification_audit.svg
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/07_classification_audit.pdf
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/08_survey_sources.svg
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/08_survey_sources.pdf
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b/README.md
+2026-08-19T06:51:07Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=40 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/qwen3-6-27b
+2026-08-19T06:51:07Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/base_papers.csv rows=43 columns=75
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/ensemble/adjacent_base_papers.csv rows=0 columns=75
+2026-08-19T06:51:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/00_publication_timeline.svg
+2026-08-19T06:51:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/00_publication_timeline.pdf
+2026-08-19T06:51:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/01_citation_landscape.svg
+2026-08-19T06:51:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/01_citation_landscape.pdf
+2026-08-19T06:51:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/09_type_domain_overview.svg
+2026-08-19T06:51:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/09_type_domain_overview.pdf
+2026-08-19T06:51:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/02_discovery_provenance.svg
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/02_discovery_provenance.pdf
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/10_discovery_source_contribution.svg
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/10_discovery_source_contribution.pdf
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/03_cumulative_publications.svg
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/03_cumulative_publications.pdf
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/04_domain_data_form.svg
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/04_domain_data_form.pdf
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/05_capture_environment_labeling.svg
+2026-08-19T06:51:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/05_capture_environment_labeling.pdf
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/06_metadata_completeness.svg
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/06_metadata_completeness.pdf
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/ensemble/classifications.csv rows=493 columns=67
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/07_classification_audit.svg
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/07_classification_audit.pdf
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=25 columns=28
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/08_survey_sources.svg
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/08_survey_sources.pdf
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble/README.md
+2026-08-19T06:51:10Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=38 files=23 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/ensemble
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=493 columns=67
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-6-27b/classifications.csv rows=493 columns=67
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/ensemble/classifications.csv rows=493 columns=67
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/01_model_decision_counts.svg
+2026-08-19T06:51:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/01_model_decision_counts.pdf
+2026-08-19T06:51:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/02_pairwise_agreement.svg
+2026-08-19T06:51:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/02_pairwise_agreement.pdf
+2026-08-19T06:51:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/03_disagreement_patterns.svg
+2026-08-19T06:51:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/comparisons/openalex/models/03_disagreement_patterns.pdf
+2026-08-19T06:51:11Z INFO    ids_meta.plotting.compare: model comparison complete source=openalex models=3 disagreements=389 files=6
+2026-08-19T06:51:11Z INFO    ids_meta.run: wrote run manifest /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/runs/2026-08-19-c50c444b4e.json
+2026-08-19T06:51:11Z INFO    ids_meta.cli: completed multi-model command source=openalex stage=plot counts={'plot_files': 75}
+2026-08-19T06:51:11Z INFO    ids_meta.cli: command summary plot_files=75

@@ -7,6 +7,7 @@ from typing import Any, Protocol
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.ensemble import consensus_classification
+from ids_meta.common.evidence import evidence_expansion_audit, merge_new_evidence, vote_round_needs_more_evidence
 from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, verify_evidence
 from ids_meta.common.prompts import description_block, render_prompt
 from ids_meta.common.run import utc_now
@@ -16,7 +17,7 @@ from ids_meta.common.logging import logger
 from ids_meta.openalex.enrich import ScholarlyEvidenceClient
 from ids_meta.openalex.schema import ARTIFACT_TYPES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, RESPONSE_SCHEMA, SURVEY_COLUMNS, TIERS, ensure_resource_name, normalize_response, validate_processed_row
 
-PROMPT_VERSION = "openalex-8"
+PROMPT_VERSION = "openalex-11"
 LOG = logger("openalex.pipeline")
 
 class Generator(Protocol):
@@ -55,7 +56,8 @@ def metadata_row(key: str, payload: dict[str, Any], fetched_at: str, run_id: str
     return {
         "schema_version": "1.0", "run_id": run_id, "openalex_id": key,
         "doi": work.get("doi", ""), "title": work.get("title", ""), "abstract": work.get("abstract", ""),
-        "authors": work.get("authors", ""), "venue": work.get("venue", ""), "publication_year": work.get("publication_year", ""),
+        "authors": work.get("authors", ""), "venue": work.get("venue", ""), "publisher": work.get("publisher", ""),
+        "publication_year": work.get("publication_year", ""),
         "publication_date": work.get("publication_date", ""), "work_type": work.get("work_type", ""),
         "primary_url": work.get("primary_url", ""), "pdf_url": work.get("pdf_url", ""), "is_oa": work.get("is_oa", "false"),
         "abstract_source": work.get("abstract_source", "OpenAlex" if work.get("abstract") else ""), "full_text_url": work.get("full_text_url", ""),
@@ -66,6 +68,7 @@ def metadata_row(key: str, payload: dict[str, Any], fetched_at: str, run_id: str
         "retrieval_rank_score": payload.get("retrieval_rank_score", ""), "retrieval_score": payload.get("retrieval_score", ""),
         "retrieval_title_score": payload.get("retrieval_title_score", ""),
         "retrieval_signals": ";".join(payload.get("retrieval_signals", [])), "survey_discovery_score": payload.get("survey_discovery_score", ""),
+        "snowball_depth": payload.get("snowball_depth", ""),
     }
 
 
@@ -179,7 +182,10 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
     client = generator if generator is not None else (None if dry_run else OllamaClient(ollama_config))
     enrichment_config = openalex_config or {}
     evidence_client = enricher
-    if evidence_client is None and not dry_run and bool(enrichment_config.get("enrich_missing_abstracts", False)):
+    if evidence_client is None and not dry_run and (
+        bool(enrichment_config.get("enrich_missing_abstracts", False))
+        or bool(enrichment_config.get("enrich_uncertain_with_full_text", False))
+    ):
         evidence_client = ScholarlyEvidenceClient(
             timeout=float(enrichment_config.get("evidence_lookup_timeout_seconds", 30)),
             api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY", ""),
@@ -190,6 +196,11 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, {
         "prompt": prompt_config or {}, "consecutive_runs": consecutive_runs,
         "consensus_threshold": consensus_threshold,
+        "evidence_fallback": {
+            "missing_abstract": bool(enrichment_config.get("enrich_missing_abstracts", False)),
+            "uncertain_full_text": bool(enrichment_config.get("enrich_uncertain_with_full_text", False)),
+            "max_full_text_chars": int(enrichment_config.get("max_enriched_full_text_chars", 30000)),
+        },
     })
     results: list[dict[str, str]] = []
     new_decisions = 0
@@ -247,19 +258,68 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         if dry_run:
             result.update({"decision": "dry_run", "paper_role": "", "relevance_tier": "", "artifact_id": "", "artifact_name": "", "artifact_display_name": "", "resource_name": "", "artifact_aliases": "", "artifact_type": "", "domain": "", "data_form": "", "capture_environment": "", "labeling": "", "direct_release_evidence": "", "primary_reason": "", "classification_validation_flags": "", "model_evidence_json": "", "evidence_json": "", "evidence_quote_verified": "false"})
         else:
-            votes: dict[str, dict[str, str]] = {}
-            for run_index in range(1, consecutive_runs + 1):
-                vote = dict(result)
+            def decide(
+                active_sections: list[EvidenceSection], stop_on_uncertain: bool = False,
+                initial_votes: dict[str, dict[str, str]] | None = None,
+            ) -> tuple[dict[str, str], dict[str, dict[str, str]], bool]:
+                """Run and normalize the configured paper-classification votes."""
+                votes = dict(initial_votes or {})
+                interrupted = False
+                for run_index in range(len(votes) + 1, consecutive_runs + 1):
+                    vote = dict(result)
+                    try:
+                        raw = client.generate(prompt(active_sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
+                        verified, _ = verify_evidence(raw.get("evidence"), active_sections)
+                        artifact_name = str(raw.get("artifact_name", "")).strip()
+                        artifact_id = f"{slug(artifact_name)}-{stable_hash(normalize_text(artifact_name), length=8)}" if artifact_name else ""
+                        vote.update(normalize_response(raw, verified, ollama_config, artifact_id))
+                    except Exception as exc:
+                        vote.update({"decision": "error", "paper_role": "", "relevance_tier": "", "artifact_id": "", "artifact_name": "", "artifact_display_name": "", "resource_name": "", "artifact_aliases": "", "artifact_type": "", "domain": "", "data_form": "", "capture_environment": "", "labeling": "", "direct_release_evidence": "", "primary_reason": "", "classification_validation_flags": "classification_error", "model_evidence_json": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+                    votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
+                    if stop_on_uncertain and vote.get("decision") == "uncertain":
+                        interrupted = True
+                        break
+                decision = dict(consensus_classification("openalex", votes, consensus_threshold, require_verified_quote=bool(ollama_config.get("require_verified_quote", True)))) if consecutive_runs > 1 else votes["run-1"]
+                return decision, votes, interrupted
+
+            result, votes, interrupted = decide(sections, stop_on_uncertain=True)
+            initial_result = dict(result)
+            initial_votes = {label: dict(vote) for label, vote in votes.items()}
+            expansion_required = vote_round_needs_more_evidence(votes, result)
+            expansion_attempted = False
+            expansion_changed = False
+            final_votes = votes
+            retry_uncertain = bool(enrichment_config.get("enrich_uncertain_with_full_text", True))
+            round_restarted = False
+            if retry_uncertain and expansion_required and evidence_client is not None and not work.get("full_text"):
+                expansion_attempted = True
                 try:
-                    raw = client.generate(prompt(sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
-                    verified, _ = verify_evidence(raw.get("evidence"), sections)
-                    artifact_name = str(raw.get("artifact_name", "")).strip()
-                    artifact_id = f"{slug(artifact_name)}-{stable_hash(normalize_text(artifact_name), length=8)}" if artifact_name else ""
-                    vote.update(normalize_response(raw, verified, ollama_config, artifact_id))
+                    discovered = evidence_client.enrich(work)
                 except Exception as exc:
-                    vote.update({"decision": "error", "paper_role": "", "relevance_tier": "", "artifact_id": "", "artifact_name": "", "artifact_display_name": "", "resource_name": "", "artifact_aliases": "", "artifact_type": "", "domain": "", "data_form": "", "capture_environment": "", "labeling": "", "direct_release_evidence": "", "primary_reason": "", "classification_validation_flags": "classification_error", "model_evidence_json": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
-                votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
-            result = dict(consensus_classification("openalex", votes, consensus_threshold, require_verified_quote=bool(ollama_config.get("require_verified_quote", True)))) if consecutive_runs > 1 else votes["run-1"]
+                    LOG.warning("uncertain-paper full-text enrichment failed title=%s error=%s", row.get("title", key), exc)
+                    discovered = {}
+                expansion_changed = merge_new_evidence(work, discovered)
+                if expansion_changed:
+                    payload["work"] = work
+                    cache.put_record("openalex.work", key, payload, utc_now())
+                    sections = evidence_sections(payload)
+                    evidence_hash = stable_hash(format_evidence(sections, 30000))
+                    row.update({
+                        "abstract": work.get("abstract", ""), "abstract_source": work.get("abstract_source", ""),
+                        "pdf_url": work.get("pdf_url", "") or work.get("full_text_url", ""),
+                        "full_text_url": work.get("full_text_url", ""), "evidence_hash": evidence_hash,
+                    })
+                    atomic_write_csv(candidates_path, rows, CANDIDATE_COLUMNS)
+                    LOG.info("discarding initial vote round and restarting with expanded abstract/full-text evidence title=%s", row.get("title", key))
+                    result, final_votes, _interrupted = decide(sections)
+                    round_restarted = True
+            if interrupted and not round_restarted:
+                result, votes, _interrupted = decide(sections, initial_votes=votes)
+                final_votes = votes
+            result.update(evidence_expansion_audit(
+                initial_votes, initial_result, final_votes, result,
+                required=expansion_required, attempted=expansion_attempted, changed=expansion_changed,
+            ))
         if result.get("decision") != "error":
             cache.put_decision("openalex.classification", key, profile_hash, evidence_hash, result, result["classified_at"])
         results.append(result)
@@ -278,8 +338,9 @@ def export(reconciled_path: Path, main_output: Path, adjacent_output: Path) -> t
     """Validate and export core and adjacent accepted-paper catalogues."""
     rows = read_csv(reconciled_path)
     require_columns(rows, ("decision", "paper_role", "openalex_id", "publication_family_id", "canonical_openalex_id", "paper_relationship"), reconciled_path)
-    main = [row for row in rows if row.get("decision") == "accept"]
-    adjacent = [row for row in rows if row.get("decision") == "accept_adjacent"]
+    dataset_types = {"dataset", "dataset_and_generator"}
+    main = [row for row in rows if row.get("decision") == "accept" and row.get("artifact_type") in dataset_types]
+    adjacent = [row for row in rows if row.get("decision") == "accept_adjacent" and row.get("artifact_type") in dataset_types]
     for row in main + adjacent:
         ensure_resource_name(row)
         validate_processed_row(row)

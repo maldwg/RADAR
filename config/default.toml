@@ -60,6 +60,9 @@ consecutive_runs = 3
 consensus_threshold = 0.66
 per_page = 100
 max_docs_files = 3
+# If classification remains uncertain, refresh the README and inspect more docs once.
+enrich_uncertain_evidence = true
+uncertain_max_docs_files = 10
 created_from = "1990-01-01"
 # GitHub search has a much smaller rate-limit bucket than normal REST calls.
 search_pause_seconds = 3
@@ -85,6 +88,10 @@ max_pages_per_query = 10
 max_surveys = 25
 max_reference_works_per_survey = 300
 max_survey_reference_candidates_total = 1000
+# Backward snowball from the selected surveys and this many strongest direct papers.
+# Traversal stops earlier at convergence and is protocol-capped at depth 10.
+snowball_start_papers = 20
+snowball_max_depth = 10
 # With --limit, reserve this fraction of candidate capacity for survey-reference snowballing.
 survey_reference_fraction = 0.35
 # x: sample independently per query; collection_limit above is y (best retained papers).
@@ -102,6 +109,8 @@ retrieval_title_weight = 0.5
 minimum_citations = 25
 # Enrich only papers whose OpenAlex abstract is missing; full text is best-effort.
 enrich_missing_abstracts = true
+# If abstract evidence still yields uncertainty, attempt open full text and retry once.
+enrich_uncertain_with_full_text = true
 evidence_lookup_timeout_seconds = 30
 max_enriched_full_text_chars = 30000
 request_pause_seconds = 1

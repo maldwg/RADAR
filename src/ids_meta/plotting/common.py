@@ -167,3 +167,75 @@ def count_plot(frame: pd.DataFrame, column: str, title: str, subtitle: str, out_
         count_legend(ax, "Entries")
     stamp(fig, subtitle)
     return save_figure(fig, out_dir, stem, formats, dpi)
+
+
+def evidence_escalation_plot(
+    frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int, stem: str, source_label: str,
+) -> list[Path]:
+    """Plot evidence-expansion demand, retrieval, improvement, and resolution rates."""
+    view = frame.copy()
+    flag_names = (
+        "evidence_expansion_required", "evidence_expansion_attempted", "evidence_expansion_changed",
+        "evidence_expansion_improved", "evidence_expansion_resolved",
+    )
+    audit_available = all(name in view for name in flag_names)
+    for name in flag_names:
+        values = view.get(name, pd.Series("false", index=view.index)).fillna("").astype(str).str.casefold()
+        view[name + "_flag"] = values.isin({"true", "1", "yes"})
+    total = len(view)
+    required = int(view["evidence_expansion_required_flag"].sum())
+    metrics = [
+        ("Required additional evidence", int(view["evidence_expansion_required_flag"].sum()), total, "all classified entities"),
+        ("Retrieval attempted", int((view["evidence_expansion_required_flag"] & view["evidence_expansion_attempted_flag"]).sum()), required, "entities requiring evidence"),
+        ("New evidence found", int((view["evidence_expansion_required_flag"] & view["evidence_expansion_changed_flag"]).sum()), required, "entities requiring evidence"),
+        ("Outcome / agreement improved", int((view["evidence_expansion_required_flag"] & view["evidence_expansion_improved_flag"]).sum()), required, "entities requiring evidence"),
+        ("Became definitive", int((view["evidence_expansion_required_flag"] & view["evidence_expansion_resolved_flag"]).sum()), required, "entities requiring evidence"),
+    ]
+    summary = pd.DataFrame([
+        {
+            "metric": label, "numerator": numerator, "denominator": denominator,
+            "percent": (100 * numerator / denominator) if denominator else 0.0,
+            "denominator_scope": scope,
+            "audit_available": audit_available,
+        }
+        for label, numerator, denominator, scope in metrics
+    ])
+    write_table(summary, out_dir / "data", stem)
+    record_columns = [
+        value for value in (
+            "github_repo_id", "full_name", "openalex_id", "title", "decision",
+            "evidence_expansion_required", "evidence_expansion_attempted", "evidence_expansion_changed",
+            "evidence_expansion_improved", "evidence_expansion_resolved", "evidence_initial_decision",
+            "evidence_initial_vote_status", "evidence_initial_agreement", "evidence_initial_votes",
+            "evidence_initial_uncertain_votes",
+            "ensemble_vote_status", "ensemble_agreement",
+        ) if value in view
+    ]
+    write_table(view[record_columns].copy(), out_dir / "data", stem + "_records")
+
+    plotted = summary.iloc[::-1]
+    fig, ax = plt.subplots(figsize=(11.2, 6.2))
+    add_heading(
+        fig, "Additional-evidence effectiveness",
+        metadata_caption(frame, f"{source_label} classifications; percentages use the denominator printed on each bar"),
+        top=.84,
+    )
+    if not audit_available:
+        ax.axis("off")
+        ax.text(
+            .5, .5, "Evidence-escalation audit unavailable\nRerun classification with the current pipeline version.",
+            transform=ax.transAxes, ha="center", va="center", color="#5f6c76",
+        )
+        return save_figure(fig, out_dir, stem, formats, dpi)
+    bars = ax.barh(plotted["metric"], plotted["percent"], color=[COLORS[1], COLORS[1], COLORS[0], COLORS[2], COLORS[2]])
+    ax.set_xlim(0, 112)
+    ax.set_xlabel("Entities (%)")
+    ax.set_xticks([0, 25, 50, 75, 100], ["0%", "25%", "50%", "75%", "100%"])
+    ax.grid(axis="y", visible=False)
+    for bar, (_, row) in zip(bars, plotted.iterrows()):
+        ax.text(
+            min(109, float(row["percent"]) + 1.5), bar.get_y() + bar.get_height() / 2,
+            f"{row['percent']:.1f}% ({int(row['numerator'])}/{int(row['denominator'])})",
+            va="center", fontsize=8, color="#43505C",
+        )
+    return save_figure(fig, out_dir, stem, formats, dpi)

@@ -7,6 +7,7 @@ from typing import Any, Iterator
 import requests
 
 from ids_meta.common.cache import PipelineCache
+from ids_meta.common.evidence import snowball_depth
 from ids_meta.common.run import utc_now
 from ids_meta.common.scoring import ScoreResult, score_evidence
 from ids_meta.common.text import contains_concept, normalize_text
@@ -38,6 +39,7 @@ def normalize_work(item: dict[str, Any]) -> dict[str, Any]:
         "openalex_id": item.get("id", ""), "doi": str(item.get("doi") or "").removeprefix("https://doi.org/"),
         "title": item.get("title") or item.get("display_name") or "", "abstract": reconstruct_abstract(item.get("abstract_inverted_index")),
         "authors": ";".join(authors), "venue": source.get("display_name", ""),
+        "publisher": source.get("host_organization_name") or source.get("publisher") or "",
         "publication_year": item.get("publication_year") or "", "publication_date": item.get("publication_date") or "",
         "work_type": item.get("type") or "", "primary_url": primary.get("landing_page_url") or item.get("doi") or item.get("id") or "",
         "pdf_url": best_oa.get("pdf_url") or primary.get("pdf_url") or "", "is_oa": str(bool(open_access.get("is_oa"))).lower(),
@@ -193,6 +195,41 @@ def survey_reference_candidates(
     return pool, reference_ids
 
 
+def publisher_for_work(work: dict[str, Any], publishers: dict[str, list[str]]) -> str:
+    """Resolve a work to the first configured publisher family using venue metadata."""
+    haystack = normalize_text(f"{work.get('publisher', '')} {work.get('venue', '')}")
+    for name, aliases in publishers.items():
+        if any(normalize_text(alias) in haystack for alias in aliases if normalize_text(alias)):
+            return str(name)
+    return ""
+
+
+def publisher_diverse_surveys(
+    ranked: list[dict[str, Any]], cap: int, publishers: dict[str, list[str]],
+) -> tuple[list[dict[str, Any]], set[str]]:
+    """Select one survey per requested publisher when available, then fill by rank."""
+    if cap <= 0:
+        return [], set()
+    chosen: list[dict[str, Any]] = []
+    chosen_ids: set[str] = set()
+    covered: set[str] = set()
+    for publisher in publishers:
+        match = next((work for work in ranked if publisher_for_work(work, publishers) == publisher), None)
+        if match is None:
+            continue
+        key = str(match.get("openalex_id", ""))
+        if key and key not in chosen_ids and len(chosen) < cap:
+            chosen.append(match); chosen_ids.add(key); covered.add(publisher)
+    for work in ranked:
+        key = str(work.get("openalex_id", ""))
+        if key and key not in chosen_ids and len(chosen) < cap:
+            chosen.append(work); chosen_ids.add(key)
+            publisher = publisher_for_work(work, publishers)
+            if publisher:
+                covered.add(publisher)
+    return chosen, covered
+
+
 def rank_work_pool(
     pool: dict[str, dict[str, Any]], profile: dict[str, Any], minimum_score: float, minimum_title_tokens: int,
     title_weight: float = 0.5, retain_below_minimum: set[str] | None = None,
@@ -308,12 +345,15 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     survey_query_sample_size = max(1, int(settings.get("survey_query_sample_size", query_sample_size)))
     reference_sample_size = max(0, int(settings.get("reference_sample_size", reference_total_limit)))
     survey_consensus_threshold = max(2, int(settings.get("survey_consensus_threshold", 2)))
+    max_depth = snowball_depth(settings)
+    start_papers = max(1, int(settings.get("snowball_start_papers", 20)))
     minimum_score = float(settings.get("retrieval_minimum_score", 1.0))
     minimum_citations = max(0, int(settings.get("minimum_citations", 0)))
     minimum_title_tokens = max(1, int(settings.get("retrieval_minimum_title_tokens", 3)))
     title_weight = max(0.0, float(settings.get("retrieval_title_weight", 0.5)))
     reference_budget = reference_total_limit if limit is None else min(reference_total_limit, int(limit * reference_fraction))
-    survey_cap = max_surveys if limit is None else min(max_surveys, max(1, limit // 10))
+    # Surveys are auxiliary traversal sources and do not consume the final candidate limit.
+    survey_cap = max_surveys
     works: dict[str, dict[str, Any]] = {}
     relations: dict[str, set[str]] = {}
     queries: dict[str, set[str]] = {}
@@ -335,7 +375,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
             "discovery_relations": sorted(set(existing.get("discovery_relations", [])) | relations[key]),
             "matched_queries": sorted(set(existing.get("matched_queries", [])) | queries.get(key, set())),
         }
-        for field in ("retrieval_rank_score", "retrieval_score", "retrieval_title_score", "retrieval_signals", "survey_discovery_score"):
+        for field in ("retrieval_rank_score", "retrieval_score", "retrieval_title_score", "retrieval_signals", "survey_discovery_score", "snowball_depth"):
             value = (attributes or {}).get(field, existing.get(field))
             if value is not None:
                 payload[field] = value
@@ -350,15 +390,27 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
 
     # Sample x results per survey query, then select the best configured survey sources.
     survey_queries = [str(query) for query in profile.get("survey_queries", [])]
+    configured_publishers = profile.get("survey_publishers", {})
+    publishers = {
+        str(name): [str(alias) for alias in aliases]
+        for name, aliases in configured_publishers.items()
+        if isinstance(aliases, list)
+    } if isinstance(configured_publishers, dict) else {}
+    publisher_queries = [
+        f"{query} {aliases[0]}" for query in survey_queries
+        for aliases in publishers.values() if aliases
+    ]
+    survey_search_queries = list(dict.fromkeys([*survey_queries, *publisher_queries]))
     identification = profile.get("survey_identification", {})
     survey_terms = [str(value) for value in identification.get("survey_terms", DEFAULT_SURVEY_TERMS)]
     release_terms = [str(value) for value in identification.get("release_terms", DEFAULT_RELEASE_TERMS)]
     survey_pool, survey_matches, survey_scanned, survey_exhausted = survey_query_candidates(
-        client, survey_queries, survey_query_sample_size, per_page, pages, survey_terms, release_terms,
+        client, survey_search_queries, survey_query_sample_size, per_page, pages, survey_terms, release_terms,
     ) if survey_cap else ({}, {}, {}, set())
     positive_profile = {"positive": profile.get("positive", {})}
     ranked_surveys, survey_scores = rank_work_pool(survey_pool, positive_profile, float("-inf"), minimum_title_tokens, title_weight)
-    for rank, normalized in enumerate(ranked_surveys[:survey_cap], 1):
+    selected_surveys, covered_publishers = publisher_diverse_surveys(ranked_surveys, survey_cap, publishers)
+    for rank, normalized in enumerate(selected_surveys, 1):
         key = str(normalized["openalex_id"])
         full_score, title_score = survey_scores[key]
         survey_rank_score = full_score.score + title_weight * title_score.score
@@ -372,7 +424,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
             int(normalized.get("cited_by_count") or 0), len(normalized.get("referenced_works") or []), normalized.get("title", key),
         )
     selected_survey_ids = set(survey_ids)
-    for query in survey_queries:
+    for query in survey_search_queries:
         selected_count = sum(query in survey_matches.get(key, set()) and key in selected_survey_ids for key in survey_pool)
         status = "complete" if query in survey_exhausted else "bounded"
         cache.put_coverage("openalex", query, "survey_cursor", status, survey_scanned.get(query, 0), {
@@ -380,13 +432,21 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
             "surveys_selected": selected_count, "survey_cap": survey_cap, "sample_size_per_query": survey_query_sample_size,
         }, utc_now())
         LOG.info("finished survey query=%r scanned=%d selected=%d coverage=%s", query, survey_scanned.get(query, 0), selected_count, status)
+    missing_publishers = set(publishers) - covered_publishers
+    cache.put_coverage("openalex", "survey_publishers", "publisher_targets",
+                       "complete" if not missing_publishers else "bounded", len(covered_publishers), {
+                           "requested_publishers": sorted(publishers),
+                           "covered_publishers": sorted(covered_publishers),
+                           "missing_publishers": sorted(missing_publishers),
+                       }, utc_now())
+    if missing_publishers:
+        LOG.warning("no matching survey found for configured publishers=%s", ",".join(sorted(missing_publishers)))
 
     reference_sources: dict[str, set[str]] = {}
     for survey_id in survey_ids:
         for reference_id in (works.get(survey_id, {}).get("referenced_works") or [])[:reference_limit]:
             if reference_id:
                 reference_sources.setdefault(str(reference_id), set()).add(survey_id)
-    reference_budget = min(reference_budget, len(reference_sources))
     LOG.info("survey discovery complete surveys=%d distinct_reference_candidates=%d reserved_reference_budget=%d", len(survey_ids), len(reference_sources), reference_budget)
 
     # Sample x per direct query, then select the best y from the deduplicated pool.
@@ -427,61 +487,98 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     if direct_budget is not None and len(selected_direct_ids) < direct_budget:
         LOG.warning("direct retrieval produced %d/%d retained candidate papers after generic quality ranking", len(selected_direct_ids), direct_budget)
 
-    # Prefer references cited by several selected surveys, sample x, then rank metadata.
+    # Traverse references from selected surveys and the strongest direct papers until
+    # convergence or the configured protocol depth. Relevant surveys remain traversal
+    # nodes only; non-survey papers may enter the candidate set.
     survey_reference_ids: set[str] = set()
-    reference_edges = 0
-    sampled_references = min(len(reference_sources), reference_sample_size)
-    try:
-        reference_pool, reference_ids = survey_reference_candidates(client, reference_sources, sampled_references, works, cache)
-    except RuntimeError as exc:
-        LOG.warning("reference batch failed: %s", exc)
-        reference_pool, reference_ids = {}, []
-    reference_pool = {
-        key: work for key, work in reference_pool.items()
-        if int(work.get("cited_by_count") or 0) >= minimum_citations
-    }
-    consensus_reference_ids = {
-        key for key in reference_pool
-        if len(reference_sources.get(key, set())) >= survey_consensus_threshold
-    }
-    ranked_references, reference_scores = rank_work_pool(
-        reference_pool, profile, minimum_score, minimum_title_tokens, title_weight,
-        retain_below_minimum=consensus_reference_ids,
-    )
-    ranked_references.sort(key=lambda work: (
-        -len(reference_sources.get(str(work.get("openalex_id", "")), set())),
-        -(reference_scores[str(work.get("openalex_id", ""))][0].score + title_weight * reference_scores[str(work.get("openalex_id", ""))][1].score),
-        str(work.get("openalex_id", "")),
-    ))
-    new_reference_works = 0
     new_reference_ids: set[str] = set()
-    for normalized in ranked_references:
-        key = str(normalized["openalex_id"])
-        if is_survey_work(normalized):
-            continue
-        is_new_candidate = key not in selected_direct_ids and key not in new_reference_ids
-        if is_new_candidate and new_reference_works >= reference_budget:
-            continue
-        full_score, title_score = reference_scores[key]
-        rank_score = full_score.score + title_weight * title_score.score
-        attributes = {
-            "retrieval_rank_score": rank_score,
-            "retrieval_score": full_score.score, "retrieval_title_score": title_score.score,
-            "retrieval_signals": list(full_score.signals),
+    reference_edges = 0
+    reference_ids: list[str] = []
+    examined_ids: set[str] = set(survey_ids) | set(selected_direct_ids)
+    direct_seed_ids = [
+        str(work.get("openalex_id", "")) for work in ranked_direct
+        if str(work.get("openalex_id", "")) in selected_direct_ids
+    ][:start_papers]
+    frontier = list(dict.fromkeys([*survey_ids, *direct_seed_ids]))
+    reached_depth = 0
+    for depth in range(1, max_depth + 1):
+        depth_sources: dict[str, set[str]] = {}
+        for parent_id in frontier:
+            parent = works.get(parent_id) or ((cache.get_record("openalex.work", parent_id) or {}).get("work") or {})
+            for reference_id in (parent.get("referenced_works") or [])[:reference_limit]:
+                child_id = str(reference_id)
+                if child_id and child_id not in examined_ids:
+                    depth_sources.setdefault(child_id, set()).add(parent_id)
+                    reference_sources.setdefault(child_id, set()).add(parent_id)
+                    reference_edges += 1
+        remaining_scan_budget = max(0, min(reference_sample_size, reference_total_limit) - len(reference_ids))
+        if not depth_sources or remaining_scan_budget <= 0:
+            break
+        try:
+            depth_pool, sampled_ids = survey_reference_candidates(
+                client, depth_sources, remaining_scan_budget, works, cache,
+            )
+        except RuntimeError as exc:
+            LOG.warning("snowball reference batch failed depth=%d error=%s", depth, exc)
+            break
+        reference_ids.extend(sampled_ids)
+        examined_ids.update(sampled_ids)
+        consensus_ids = {
+            key for key in depth_pool
+            if len(reference_sources.get(key, set())) >= survey_consensus_threshold
         }
-        store(normalized, "survey_reference", attributes=attributes)
-        for survey_id in sorted(reference_sources.get(key, set())):
-            store(normalized, f"survey_reference:{survey_id.rsplit('/', 1)[-1]}", attributes=attributes)
-            reference_edges += 1
-        survey_reference_ids.add(key)
-        if is_new_candidate:
-            new_reference_works += 1
-            new_reference_ids.add(key)
-        LOG.info(
-            "selected snowball paper rank=%d retrieval_rank_score=%.1f score=%.1f title_score=%.1f citations=%d survey_sources=%d provenance=survey_reference title=%s",
-            len(survey_reference_ids), rank_score, full_score.score, title_score.score, int(normalized.get("cited_by_count") or 0),
-            len(reference_sources.get(key, set())), normalized.get("title", key),
+        traversal_survey_ids = {
+            key for key, work in depth_pool.items()
+            if is_survey_work(work, survey_terms, release_terms)
+        }
+        ranked_references, reference_scores = rank_work_pool(
+            depth_pool, profile, minimum_score, minimum_title_tokens, title_weight,
+            retain_below_minimum=consensus_ids | traversal_survey_ids,
         )
+        next_frontier: list[str] = []
+        for normalized in ranked_references:
+            key = str(normalized["openalex_id"])
+            survey = is_survey_work(normalized, survey_terms, release_terms)
+            if not survey and int(normalized.get("cited_by_count") or 0) < minimum_citations:
+                continue
+            full_score, title_score = reference_scores[key]
+            rank_score = full_score.score + title_weight * title_score.score
+            attributes = {
+                "retrieval_rank_score": rank_score, "retrieval_score": full_score.score,
+                "retrieval_title_score": title_score.score, "retrieval_signals": list(full_score.signals),
+                "snowball_depth": depth,
+            }
+            parents = sorted(reference_sources.get(key, set()))
+            store(normalized, "backward_reference", attributes=attributes)
+            for parent_id in parents:
+                store(normalized, f"backward_reference:{parent_id.rsplit('/', 1)[-1]}", attributes=attributes)
+                if parent_id in set(survey_ids):
+                    store(normalized, "survey_reference", attributes=attributes)
+                    store(normalized, f"survey_reference:{parent_id.rsplit('/', 1)[-1]}", attributes=attributes)
+                    survey_reference_ids.add(key)
+            if survey:
+                if key not in survey_ids:
+                    survey_ids.append(key)
+                store(normalized, "snowball_survey", attributes=attributes)
+                next_frontier.append(key)
+                continue
+            next_frontier.append(key)
+            if key not in selected_direct_ids and len(new_reference_ids) < reference_budget:
+                new_reference_ids.add(key)
+            LOG.info(
+                "examined relevant snowball paper depth=%d score=%.1f citations=%d parents=%d candidate=%s title=%s",
+                depth, rank_score, int(normalized.get("cited_by_count") or 0), len(parents),
+                key in new_reference_ids, normalized.get("title", key),
+            )
+        reached_depth = depth
+        frontier = list(dict.fromkeys(next_frontier))
+        cache.put_coverage("openalex", f"snowball_depth:{depth}", "backward_references",
+                           "complete" if not frontier else "bounded", len(sampled_ids), {
+                               "frontier_in": len(depth_sources), "relevant_frontier_out": len(frontier),
+                               "configured_max_depth": max_depth,
+                           }, utc_now())
+        if not frontier:
+            break
 
     # Backfill unused snowball capacity with the next strongest direct candidates.
     candidate_ids = selected_direct_ids | new_reference_ids
@@ -526,10 +623,15 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         "work_ids": sorted(candidate_ids), "selected_at": fetched_at, "collection_limit": limit,
         "survey_ids": sorted(survey_ids), "direct_ids": sorted(selected_direct_ids),
         "survey_reference_ids": sorted(new_reference_ids),
+        "snowball_seed_paper_ids": direct_seed_ids, "snowball_max_depth": max_depth,
+        "snowball_reached_depth": reached_depth, "survey_publishers_covered": sorted(covered_publishers),
+        "survey_publishers_missing": sorted(missing_publishers),
     }, fetched_at)
     return {
         "discovered": len(candidate_ids), "survey_sources": len(survey_ids), "auxiliary_cached_works": len(works) - len(candidate_ids),
         "direct_selected": len(selected_direct_ids), "survey_reference_works": len(new_reference_ids), "survey_reference_edges": reference_edges,
         "survey_results_scanned": sum(survey_scanned.values()), "direct_results_scanned": sum(direct_scanned.values()),
         "reference_results_scanned": len(reference_ids),
+        "snowball_seed_papers": len(direct_seed_ids), "snowball_reached_depth": reached_depth,
+        "survey_publishers_covered": len(covered_publishers), "survey_publishers_missing": len(missing_publishers),
     }

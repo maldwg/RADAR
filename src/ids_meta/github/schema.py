@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from ids_meta.common.evidence import EVIDENCE_EXPANSION_COLUMNS
 from ids_meta.common.text import normalize_text, split_values
 
 ROLES = (
@@ -58,7 +59,7 @@ CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
     "independent_fork", "direct_self_description", "runtime_observation", "runnable_detector",
     "offline_dataset_only", "upstream_full_name", "classification_validation_flags", "primary_reason", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
-] + ENSEMBLE_COLUMNS
+] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS
 RECONCILIATION_COLUMNS = [
     "project_id", "canonical_repo_id", "canonical_full_name", "repository_relationship",
     "canonical_confidence", "canonical_reason", "canonical_resolution",

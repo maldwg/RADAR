@@ -1,0 +1,7 @@
+expected,actual,count
+exclude,exclude,10
+exclude,include,1
+exclude,uncertain,1
+include,include,7
+include,unavailable,4
+include,uncertain,1

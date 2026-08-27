@@ -1,8 +1,8 @@
-field,comparisons,exact_matches,exact_accuracy,label_precision,label_recall,label_f1,mean_jaccard
-paper_role,5,5,1.0,,,,
-relevance_tier,5,5,1.0,,,,
-artifact_type,5,5,1.0,,,,
-domain,5,4,0.8,,,,
-data_form,5,4,0.8,,,,
-capture_environment,5,4,0.8,,,,
-labeling,5,5,1.0,,,,
+field,comparisons,exact_matches,exact_accuracy,label_f1
+paper_role,24,21,0.875,
+relevance_tier,24,22,0.9166666666666666,
+artifact_type,24,21,0.875,
+domain,24,21,0.875,
+data_form,24,14,0.5833333333333334,
+capture_environment,24,19,0.7916666666666666,
+labeling,24,19,0.7916666666666666,
