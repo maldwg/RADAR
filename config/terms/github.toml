@@ -1,50 +1,109 @@
-# Generic concepts only. Named repositories, vendors, and products are forbidden.
-search_queries = [
-  "intrusion detection system",
-  "intrusion prevention system",
-  "network detection response",
-  "network security monitoring",
-  "host intrusion detection",
-  "wireless intrusion detection",
-  "database intrusion detection",
-  "malicious traffic detection",
-  "attack detection network traffic",
-  "security anomaly detection logs",
-  "IDS",
-  "Attack detection",
-  "Intrusion Prevention System",
-  "HIDS",
-  "NIDS",
-  "PIDS",
-  "DBIDS",
-  "ANIDS",
-  "NDR",
-  "EDR",
-  "XDR",
-  "Hybrid IDS",
-  "SIEM",
-  "Intrusion Detection System in:readme",
-  "Intrusion Prevention System in:readme",
+schema_version = "1.0"
+protocol_id = "ids-github-boolean-search-2026-08-28"
+protocol_scope = "Public GitHub repositories making a material contribution to any intrusion-detection or intrusion-prevention system type, including implementations, models, content, platforms, tooling, and research artifacts."
+query_language = "English"
+named_entity_seeding = false
 
+# Protocol search vocabulary. Keep this profile concept-based: named repositories,
+# vendors, products, datasets, and benchmark brands are intentionally excluded.
+# GitHub accepts OR between quoted phrases but does not reliably apply OpenAlex-style
+# parenthesized groups in repository search. These compact queries therefore use no
+# parentheses and stay below GitHub's query-length/operator constraints. Each query
+# searches name, description, topics, and README and is audited independently.
+search_queries = [
+  '"intrusion detection system" OR "intrusion prevention system" OR "intrusion detector" OR "attack detection system" in:name,description,topics,readme',
+  '"network IDS" OR "host IDS" OR "wireless IDS" OR "database IDS" OR "application IDS" OR "protocol IDS" in:name,description,topics,readme',
+  '"IoT intrusion detection" OR "industrial control intrusion detection" OR "automotive intrusion detection" OR "cloud intrusion detection" in:name,description,topics,readme',
+  '"endpoint intrusion detection" OR "container intrusion detection" OR "mobile intrusion detection" OR "provenance intrusion detection" in:name,description,topics,readme',
+  '"anomaly based intrusion detection" OR "signature based intrusion detection" OR "misuse detection" OR "behavior based intrusion detection" OR "specification based intrusion detection" in:name,description,topics,readme',
+  '"packet intrusion detection" OR "flow intrusion detection" OR "log intrusion detection" OR "system call intrusion detection" OR "file integrity monitoring" in:name,description,topics,readme',
+  '"hybrid intrusion detection" OR "distributed intrusion detection" OR "collaborative intrusion detection" OR "knowledge based intrusion detection" in:name,description,topics,readme',
+  '"intrusion detection framework" OR "intrusion detection implementation" OR "intrusion detection prototype" OR "intrusion detection model" in:name,description,topics,readme',
+  '"security detection rules" OR "intrusion detection rules" OR "intrusion detection signatures" OR "intrusion detection tooling" in:name,description,topics,readme',
+  '"network security monitoring" OR "security event detection engine" OR "network detection and response" OR "endpoint detection and response" in:name,description,topics,readme',
 ]
 
-[positive.security_scope]
+# A concept group contributes its weight once regardless of how often its terms occur.
+# The profile is recall-oriented: scores prioritize adjudication but never constitute
+# the final inclusion decision.
+[positive.security_intent]
 weight = 3.0
-terms = ["intrusion", "attack detection", "unauthorized behavior", "malicious", "bengin", "detection"]
+terms = [
+  "intrusion", "intrusive activity", "network attack", "cyber attack", "cyberattack",
+  "malicious activity", "malicious traffic", "unauthorized access", "security anomaly",
+  "threat detection", "attack detection", "adversarial behavior",
+]
 
 [positive.detector_identity]
 weight = 4.0
-terms = ["intrusion detection system", "intrusion prevention system", "network detection and response", "host intrusion detection", "network intrusion detection", "security sensor", "ndr", "edr", "xdr", "ids", "ips"]
+terms = [
+  "intrusion detection", "intrusion prevention", "intrusion detection system",
+  "intrusion prevention system", "intrusion detector", "attack detection system",
+  "network detection and response", "endpoint detection and response",
+  "extended detection and response", "security detection engine", "security sensor",
+  "detection rules", "ids", "ips", "nids", "hids", "wids", "dbids", "pids",
+  "apids", "anids", "hybrid ids", "ndr", "edr", "xdr",
+]
 
 [positive.observation]
 weight = 2.0
-terms = ["network traffic", "packet capture", "network flow", "audit log", "system call", "host event", "wireless traffic", "database query", "monitor", "observe", "check"]
+terms = [
+  "packet capture", "packet inspection", "network flow", "network traffic", "session data",
+  "audit log", "security log", "event log", "system call", "host event", "endpoint telemetry",
+  "file integrity", "wireless frame", "database query", "dns traffic", "provenance graph",
+  "industrial protocol", "vehicle network", "can bus", "cloud workload", "container event",
+  "mobile device", "application request",
+]
+
+[positive.detection_method]
+weight = 2.0
+terms = [
+  "signature based", "rule based", "anomaly based", "misuse detection", "behavior based",
+  "behaviour based", "specification based", "knowledge based", "statistical anomaly",
+  "protocol analysis", "stateful protocol analysis", "machine learning", "neural network", "deep learning",
+  "threat intelligence", "indicator matching",
+]
 
 [positive.operational]
 weight = 2.0
-terms = ["install", "deploy", "run", "daemon", "sensor", "engine", "container", "command line"]
+terms = [
+  "install", "installation", "deploy", "deployment", "run", "runtime", "real time",
+  "daemon", "service", "agent", "sensor", "engine", "command line", "cli", "container",
+]
 
-[negative.unrelated]
-weight = -4.0
-terms = ["vulnerability scanner", "secret scanner", "awesome list", "course assignment", "offensive tool", "exploit collection", "threat detection", "classifier", "notebook", "demo"]
+[positive.research_implementation]
+weight = 1.0
+terms = [
+  "source code", "implementation", "prototype", "proof of concept", "research code",
+  "trained model", "reproduce", "experimental framework",
+]
 
+# Negative evidence is deliberately split into narrow groups. Legitimate classifier,
+# notebook, prototype, and research-demo roles are not negative concepts.
+[negative.offensive_or_scanning_only]
+weight = -3.0
+terms = [
+  "vulnerability scanner", "secret scanner", "port scanner", "penetration testing toolkit",
+  "exploit collection", "exploit framework", "offensive security tool", "payload generator",
+]
+
+[negative.non_implementation]
+weight = -3.0
+terms = [
+  "awesome list", "curated list", "reading list", "paper list", "bibliography",
+  "course assignment", "lecture notes", "tutorial only",
+]
+
+[negative.dataset_only]
+weight = -2.0
+terms = [
+  "dataset only", "dataset repository", "dataset collection", "benchmark data only",
+  "pcap files only", "data files only",
+]
+
+[negative.generic_monitoring]
+weight = -2.0
+terms = [
+  "uptime monitor", "performance monitoring", "application performance monitoring",
+  "infrastructure observability", "network management system",
+]

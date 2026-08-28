@@ -27,10 +27,10 @@ model = "qwen3.6:27b"
 # Optional multi-model mode. An empty array keeps the scalar model behavior and legacy paths.
 models = ["gemma4:31b", "qwen3.6:27b"]
 timeout_seconds = 300
-retries = 2
+retries = 3
 temperature = 0.0
 seed = 42
-max_output_tokens = 900
+max_output_tokens = 1500
 require_verified_quote = true
 
 [ensemble]
@@ -38,32 +38,39 @@ require_verified_quote = true
 enabled = true
 models = ["gemma4:31b", "qwen3.6:27b"]
 # Agreement is divided by all selected members; ties and values below this threshold are uncertain.
-threshold = 0.5
+# With two configured models, require both to support the same disposition.
+threshold = 1.0
 
 [evaluation]
 # Run rated-instance evaluation automatically after classification in a full run.
 # Explicit `github evaluate` and `openalex evaluate` commands always run.
-enabled = false
+enabled = true
 
 [github]
 # Bound source discovery separately from the ranked LLM adjudication shortlist.
 # Use classification_limit = "all" to classify every candidate/borderline row.
-collection_limit = 1000
-# Keep GitHub native relevance ordering while bounding each query to reputable projects.
-minimum_stars = 100
-# x: sample at most this many native best matches from each query.
-query_sample_size = 100
+collection_limit = 5000
+# Popularity is descriptive, never an eligibility criterion. This prevents systematic
+# exclusion of new, niche, archived, or research-only implementations.
+minimum_stars = 0
+# GitHub exposes at most 1,000 search results per query. Sample the full reachable
+# native result window before cross-query deduplication.
+query_sample_size = 1000
+# GitHub supports best_match (relevance; recommended), stars, forks,
+# help-wanted-issues, and updated. search_order is ignored for best_match.
+search_sort = "best_match"
+search_order = "desc"
 # y is collection_limit above: select the best y after cross-query deduplication.
-classification_limit = 100
+classification_limit = "all"
 # Repeat classification; vote decisions and normalized fields, then validate their combination.
-consecutive_runs = 3
-consensus_threshold = 0.66
+consecutive_runs = 5
+consensus_threshold = 0.8
 per_page = 100
-max_docs_files = 3
+max_docs_files = 10
 # If classification remains uncertain, refresh the README and inspect more docs once.
 enrich_uncertain_evidence = true
-uncertain_max_docs_files = 10
-created_from = "1990-01-01"
+uncertain_max_docs_files = 25
+created_from = "2000-01-01"
 # GitHub search has a much smaller rate-limit bucket than normal REST calls.
 search_pause_seconds = 3
 request_pause_seconds = 2.0
@@ -72,7 +79,9 @@ rate_limit_max_wait_seconds = 3700
 rate_limit_fallback_wait_seconds = 60
 adaptive_rate_limit_pacing = true
 candidate_threshold = 7.0
-borderline_threshold = 4.0
+# The active collection is fully adjudicated. Keyword scores remain descriptive
+# prioritization evidence and cannot reject a discovered repository.
+borderline_threshold = -100.0
 classify_borderline = true
 reconcile_with_llm = true
 canonical_ambiguity_margin = 2.0
@@ -80,48 +89,51 @@ canonical_ambiguity_margin = 2.0
 [openalex]
 # Score the broad retrieval pool, then adjudicate only its strongest candidates.
 # Use classification_limit = "all" to classify every candidate/borderline row.
-collection_limit = 1000
-classification_limit = 100
+collection_limit = 5000
+classification_limit = "all"
 per_page = 100
 max_pages_per_query = 10
 # Auxiliary discovery sources; not counted toward collection_limit or classification_limit.
-max_surveys = 25
-max_reference_works_per_survey = 300
-max_survey_reference_candidates_total = 1000
+max_surveys = 50
+max_reference_works_per_survey = 500
+max_survey_reference_candidates_total = 10000
 # Backward snowball from the selected surveys and this many strongest direct papers.
 # Traversal stops earlier at convergence and is protocol-capped at depth 10.
-snowball_start_papers = 20
+snowball_start_papers = 50
 snowball_max_depth = 10
 # With --limit, reserve this fraction of candidate capacity for survey-reference snowballing.
-survey_reference_fraction = 0.35
+survey_reference_fraction = 0.5
 # x: sample independently per query; collection_limit above is y (best retained papers).
-query_sample_size = 100
-survey_query_sample_size = 100
+query_sample_size = 1000
+survey_query_sample_size = 500
 # Survey references are a ranked source list rather than a text query.
-reference_sample_size = 1000
+reference_sample_size = 5000
 # References shared by this many selected surveys bypass the generic text-score floor.
 survey_consensus_threshold = 2
 # Generic evidence-quality floor; citations never contribute to retrieval ranking.
-retrieval_minimum_score = 1.0
-retrieval_minimum_title_tokens = 3
+# Retain query and snowball hits regardless of keyword score; bounded source capacity,
+# title quality, deduplication, and later adjudication provide the explicit controls.
+retrieval_minimum_score = -100.0
+retrieval_minimum_title_tokens = 2
 retrieval_title_weight = 0.5
 # Hard eligibility floor for candidate papers; auxiliary survey sources are exempt.
-minimum_citations = 25
+minimum_citations = 0
 # Enrich only papers whose OpenAlex abstract is missing; full text is best-effort.
 enrich_missing_abstracts = true
 # If abstract evidence still yields uncertainty, attempt open full text and retry once.
 enrich_uncertain_with_full_text = true
 evidence_lookup_timeout_seconds = 30
-max_enriched_full_text_chars = 30000
+max_enriched_full_text_chars = 60000
 request_pause_seconds = 1
 candidate_threshold = 7.0
-borderline_threshold = 4.0
+# The active collection is fully adjudicated, preventing keyword-screen false negatives.
+borderline_threshold = -100.0
 classify_borderline = true
 reconcile_with_llm = true
 canonical_ambiguity_margin = 2.0
 # Repeat classification; vote decisions and normalized fields, then validate their combination.
-consecutive_runs = 3
-consensus_threshold = 0.66
+consecutive_runs = 5
+consensus_threshold = 0.8
 
 [plots]
 formats = ["svg", "pdf"]

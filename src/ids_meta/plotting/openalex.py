@@ -11,7 +11,7 @@ from matplotlib.ticker import MaxNLocator
 import pandas as pd
 
 from ids_meta.common.logging import logger
-from ids_meta.plotting.common import add_heading, configure_style, evidence_escalation_plot, load_frame, metadata_caption, save_figure, write_index, write_table
+from ids_meta.plotting.common import add_heading, configure_style, evidence_escalation_plot, load_frame, metadata_caption, save_figure, score_decision_plot, write_index, write_table
 
 LOG = logger("plotting.openalex")
 
@@ -806,6 +806,7 @@ def build(
         evaluated = load_frame(classifications_path, ("openalex_id", "prefilter_score", "prefilter_band", "decision", "paper_role", "cited_by_count", "discovery_relations"))
         outputs += classification_audit(evaluated, out_dir, formats, dpi)
         outputs += evidence_escalation_plot(evaluated, out_dir, formats, dpi, "09_evidence_escalation", "OpenAlex")
+        outputs += score_decision_plot(evaluated, out_dir, formats, dpi, "11_keyword_score_vs_decision", "OpenAlex")
     if survey_sources_path and survey_sources_path.is_file():
         surveys = load_frame(survey_sources_path, ("openalex_id", "title", "cited_by_count", "discovery_relations"))
         outputs += survey_source_landscape(surveys, out_dir, formats, dpi)
@@ -820,6 +821,7 @@ def build(
         "Metadata completeness reports both percentage and exact n/N availability for each tracked field.",
         "Survey-source scores, citations, and reference-list sizes use aligned panels rather than overloaded marker encodings.",
         "09_evidence_escalation reports how often extra abstract/full-text evidence was required, found, and beneficial; every bar states its denominator.",
+        "11_keyword_score_vs_decision directly compares every numeric keyword-prefilter score with its exact final LLM decision; the companion summary reports n, range, mean, median, and quartiles per decision.",
     ]))
     LOG.info("OpenAlex plot bundle complete canonical_artifacts=%d files=%d output=%s", len(canonical), len(outputs), out_dir)
     return outputs

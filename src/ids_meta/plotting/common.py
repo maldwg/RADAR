@@ -169,6 +169,86 @@ def count_plot(frame: pd.DataFrame, column: str, title: str, subtitle: str, out_
     return save_figure(fig, out_dir, stem, formats, dpi)
 
 
+def score_decision_plot(
+    frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int, stem: str, source_label: str,
+) -> list[Path]:
+    """Compare each numeric keyword-prefilter score with the exact final LLM decision."""
+    view = frame.copy()
+    if "prefilter_score" in view:
+        view["keyword_score"] = pd.to_numeric(view["prefilter_score"], errors="coerce")
+    else:
+        view["keyword_score"] = float("nan")
+    if "decision" in view:
+        view["llm_decision"] = view["decision"].fillna("").astype(str).str.strip().str.casefold().replace("", "unknown")
+    else:
+        view["llm_decision"] = "unknown"
+
+    preferred_order = ["accept", "accept_adjacent", "include", "exclude", "reject", "uncertain", "error", "dry_run", "unknown"]
+    observed = set(view["llm_decision"])
+    decisions = [value for value in preferred_order if value in observed]
+    decisions.extend(sorted(observed - set(decisions)))
+
+    summary_rows: list[dict[str, object]] = []
+    for decision in decisions:
+        rows = view[view["llm_decision"] == decision]
+        scores = rows["keyword_score"].dropna()
+        summary_rows.append({
+            "llm_decision": decision,
+            "count_total": len(rows),
+            "count_with_score": len(scores),
+            "score_min": scores.min() if not scores.empty else "",
+            "score_q1": scores.quantile(.25) if not scores.empty else "",
+            "score_median": scores.median() if not scores.empty else "",
+            "score_mean": scores.mean() if not scores.empty else "",
+            "score_q3": scores.quantile(.75) if not scores.empty else "",
+            "score_max": scores.max() if not scores.empty else "",
+        })
+    summary = pd.DataFrame(summary_rows, columns=[
+        "llm_decision", "count_total", "count_with_score", "score_min", "score_q1",
+        "score_median", "score_mean", "score_q3", "score_max",
+    ])
+    write_table(summary, out_dir / "data", stem)
+
+    identity_columns = [value for value in ("github_repo_id", "full_name", "openalex_id", "title") if value in view]
+    audit_columns = identity_columns + [
+        value for value in ("prefilter_score", "keyword_score", "prefilter_band", "decision", "llm_decision", "role", "paper_role", "primary_reason")
+        if value in view and value not in identity_columns
+    ]
+    write_table(view[audit_columns].copy(), out_dir / "data", stem + "_records")
+
+    scored = view.dropna(subset=["keyword_score"])
+    plotted_decisions = [value for value in decisions if not scored[scored["llm_decision"] == value].empty]
+    height = max(4.8, 2.8 + .7 * len(plotted_decisions))
+    fig, ax = plt.subplots(figsize=(10.8, height))
+    subtitle = metadata_caption(
+        frame,
+        f"{source_label}; each point is one classified entity; boxes show median and interquartile range",
+    )
+    add_heading(fig, "Keyword score versus final LLM decision", subtitle)
+    if not plotted_decisions:
+        ax.axis("off")
+        ax.text(.5, .5, "No rows contain both a numeric keyword score and a final decision", transform=ax.transAxes, ha="center", va="center", color="#5f6c76")
+    else:
+        distributions = [scored.loc[scored["llm_decision"] == decision, "keyword_score"].sort_values().tolist() for decision in plotted_decisions]
+        positions = list(range(len(plotted_decisions)))
+        boxes = ax.boxplot(distributions, orientation="horizontal", positions=positions, widths=.48, patch_artist=True, showfliers=False)
+        for index, box in enumerate(boxes["boxes"]):
+            box.set_facecolor(COLORS[index % len(COLORS)])
+            box.set_alpha(.20)
+            box.set_edgecolor(COLORS[index % len(COLORS)])
+        for index, scores in enumerate(distributions):
+            offsets = [((point % 9) - 4) * .025 for point in range(len(scores))]
+            ax.scatter(scores, [index + offset for offset in offsets], s=28, alpha=.68, color=COLORS[index % len(COLORS)], edgecolors="white", linewidths=.35, zorder=3)
+        counts = {row["llm_decision"]: int(row["count_with_score"]) for row in summary_rows}
+        ax.set_yticks(positions, [f"{decision.replace('_', ' ')} (n={counts[decision]})" for decision in plotted_decisions])
+        ax.set_xlabel("Deterministic keyword-prefilter score")
+        ax.set_ylabel("Final LLM decision")
+        ax.xaxis.grid(True)
+        ax.yaxis.grid(False)
+    stamp(fig, subtitle)
+    return save_figure(fig, out_dir, stem, formats, dpi)
+
+
 def evidence_escalation_plot(
     frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int, stem: str, source_label: str,
 ) -> list[Path]:

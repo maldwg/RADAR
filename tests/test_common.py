@@ -140,10 +140,10 @@ class CommonTests(unittest.TestCase):
         self.assertTrue(load_prompt_profile(settings, "github")["template"])
         self.assertTrue(load_prompt_profile(settings, "openalex")["template"])
         self.assertIn("NIDS", load_system_type_profile(settings, "github")["types"])
-        self.assertEqual(settings.section("github")["collection_limit"], 1000)
-        self.assertEqual(settings.section("github")["classification_limit"], 100)
-        self.assertEqual(settings.section("openalex")["collection_limit"], 1000)
-        self.assertEqual(settings.section("openalex")["classification_limit"], 100)
+        self.assertEqual(settings.section("github")["collection_limit"], 5000)
+        self.assertEqual(settings.section("github")["classification_limit"], "all")
+        self.assertEqual(settings.section("openalex")["collection_limit"], 5000)
+        self.assertEqual(settings.section("openalex")["classification_limit"], "all")
 
     def test_configured_prompts_describe_taxonomies_and_include_evidence(self) -> None:
         """Verify both source prompts render configurable taxonomy descriptions and supplied evidence."""

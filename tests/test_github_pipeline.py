@@ -12,6 +12,7 @@ from ids_meta.github.pipeline import classify, export, prefilter
 from ids_meta.github.reconcile import reconcile
 from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, derive_labels, derive_system_types, normalize_response
 from ids_meta.common.csvio import atomic_write_csv
+from ids_meta.common.text import stable_hash
 from ids_meta.github.collect import GitHubClient, _enrich, collect, search_shards
 
 
@@ -131,6 +132,16 @@ class GitHubPipelineTests(unittest.TestCase):
         params = get_json.call_args.args[1]
         self.assertEqual(params, {"q": "intrusion detection", "page": 2, "per_page": 50})
 
+    def test_search_supports_explicit_sort_and_order(self) -> None:
+        """Pass supported non-relevance ordering directly to GitHub repository search."""
+        client = GitHubClient(request_pause_seconds=0, search_pause_seconds=0)
+        with patch.object(client, "get_json", return_value={"items": []}) as get_json:
+            client.search("intrusion detection", 2, 50, "updated", "asc")
+        self.assertEqual(get_json.call_args.args[1], {
+            "q": "intrusion detection", "page": 2, "per_page": 50,
+            "sort": "updated", "order": "asc",
+        })
+
     def test_search_is_sharded_below_github_cap(self) -> None:
         """Verify overflowing GitHub searches split into retrievable shards."""
         class SearchClient:
@@ -182,7 +193,10 @@ class GitHubPipelineTests(unittest.TestCase):
             self.assertEqual(set(active["repository_ids"]), {"1", "2"})
             self.assertEqual(active["ordering"], "github_best_match")
             self.assertEqual(client.search_queries, ["first stars:>=100", "second stars:>=100"])
-            self.assertEqual(active["search_strategy"], "github_native_best_match_v3_stars_100_cap_100")
+            self.assertEqual(
+                active["search_strategy"],
+                f"github_native_best_match_v4_stars_100_cap_100_queries_{stable_hash('first', 'second')}",
+            )
 
     def test_collection_caps_each_query_at_one_hundred_results(self) -> None:
         """Verify default discovery enforces both the star qualifier and per-query cap."""
@@ -249,7 +263,7 @@ class GitHubPipelineTests(unittest.TestCase):
                     item = {"id": int(repo_id), "full_name": f"example/repo-{repo_id}"}
                     cache.put_record("github.search_candidate", repo_id, {
                         "item": item, "matched_queries": ["query"],
-                        "search_strategy": "github_native_best_match_v3_stars_100_cap_100",
+                        "search_strategy": f"github_native_best_match_v4_stars_100_cap_100_queries_{stable_hash('query')}",
                     }, "now")
                     cache.put_record("github.repository", repo_id, {"repository": item, "matched_queries": ["query"]}, "now")
                 counts = collect(
