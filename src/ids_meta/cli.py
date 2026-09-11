@@ -211,11 +211,21 @@ def _evaluation_candidates(args: argparse.Namespace, default: Path) -> Path:
     return default
 
 
+def _evaluation_output(args: argparse.Namespace, default: Path) -> Path:
+    """Keep an explicitly selected rating profile separate from the default report."""
+    if getattr(args, "output", None) and args.action == "evaluate":
+        return Path(args.output)
+    ratings = getattr(args, "ratings", None)
+    return default / Path(ratings).stem if ratings else default
+
+
 def _evaluate(
     settings: Settings, source: str, classifications: Path, candidates: Path, output_dir: Path,
+    ratings_path: Path | None = None,
 ) -> EvaluationResult:
     """Evaluate one source/model result against its centrally configured ratings."""
-    profile = load_rating_profile(_path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml"), source)
+    profile_path = ratings_path or _path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml")
+    profile = load_rating_profile(profile_path, source)
     result = evaluate_results(profile, classifications, output_dir, candidates)
     from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
@@ -283,10 +293,10 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             candidates_path = _evaluation_candidates(args, base_paths["candidates"])
             for model in models:
-                result = _evaluate(settings, "github", model_paths[model]["classifications"], candidates_path, model_paths[model]["evaluation"])
+                result = _evaluate(settings, "github", model_paths[model]["classifications"], candidates_path, _evaluation_output(args, model_paths[model]["evaluation"]), getattr(args, "ratings", None))
                 _record_evaluation(manifest, result, labels[model])
             if ensemble_enabled:
-                result = _evaluate(settings, "github", ensemble_paths["classifications"], candidates_path, ensemble_paths["evaluation"])
+                result = _evaluate(settings, "github", ensemble_paths["classifications"], candidates_path, _evaluation_output(args, ensemble_paths["evaluation"]), getattr(args, "ratings", None))
                 _record_evaluation(manifest, result, "ensemble")
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             for model in models:
@@ -362,8 +372,8 @@ def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, i
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
             candidates_path = _evaluation_candidates(args, paths["candidates"])
-            output_dir = Path(args.output) if args.output and args.action == "evaluate" else paths["evaluation"]
-            _record_evaluation(manifest, _evaluate(settings, "github", classifications_path, candidates_path, output_dir))
+            output_dir = _evaluation_output(args, paths["evaluation"])
+            _record_evaluation(manifest, _evaluate(settings, "github", classifications_path, candidates_path, output_dir, getattr(args, "ratings", None)))
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]
             output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]
@@ -436,10 +446,10 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             candidates_path = _evaluation_candidates(args, base_paths["candidates"])
             for model in models:
-                result = _evaluate(settings, "openalex", model_paths[model]["classifications"], candidates_path, model_paths[model]["evaluation"])
+                result = _evaluate(settings, "openalex", model_paths[model]["classifications"], candidates_path, _evaluation_output(args, model_paths[model]["evaluation"]), getattr(args, "ratings", None))
                 _record_evaluation(manifest, result, labels[model])
             if ensemble_enabled:
-                result = _evaluate(settings, "openalex", ensemble_paths["classifications"], candidates_path, ensemble_paths["evaluation"])
+                result = _evaluate(settings, "openalex", ensemble_paths["classifications"], candidates_path, _evaluation_output(args, ensemble_paths["evaluation"]), getattr(args, "ratings", None))
                 _record_evaluation(manifest, result, "ensemble")
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             for model in models:
@@ -519,8 +529,8 @@ def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str,
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
             candidates_path = _evaluation_candidates(args, paths["candidates"])
-            output_dir = Path(args.output) if args.output and args.action == "evaluate" else paths["evaluation"]
-            _record_evaluation(manifest, _evaluate(settings, "openalex", classifications_path, candidates_path, output_dir))
+            output_dir = _evaluation_output(args, paths["evaluation"])
+            _record_evaluation(manifest, _evaluate(settings, "openalex", classifications_path, candidates_path, output_dir, getattr(args, "ratings", None)))
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]
             output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]
@@ -568,6 +578,7 @@ def build_parser() -> argparse.ArgumentParser:
             action_parser.add_argument("--output", type=Path)
             if action == "evaluate":
                 action_parser.add_argument("--candidates", type=Path, help="candidate CSV used to distinguish not retrieved from not classified")
+                action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")
     architecture = subparsers.add_parser("architecture")
     architecture.add_argument("--output", type=Path, help="output directory; defaults to the repository root")
     comparison = subparsers.add_parser("compare")

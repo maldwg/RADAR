@@ -13,7 +13,7 @@ from ids_meta.common.config import Settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
 from ids_meta.github.schema import METHODS, ROLES, SCOPES
-from ids_meta.openalex.schema import DOMAINS
+from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING
 from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
 
@@ -64,6 +64,32 @@ class EvaluationTests(unittest.TestCase):
         self.assertGreaterEqual(len({row["data_form"] for row in accepted_papers} - {"unknown"}), 7)
         self.assertEqual({row["capture_environment"] for row in accepted_papers}, {"real_world", "synthetic_lab", "hybrid"})
         self.assertTrue({row["domain"] for row in openalex}.issubset(set(DOMAINS)))
+
+    def test_ashraf_2026_profile_preserves_every_published_table_2_dataset(self) -> None:
+        """Keep the survey-derived artifact benchmark complete and source-traceable."""
+        path = ROOT / "config/evaluation/openalex_ashraf_2026.toml"
+        with path.open("rb") as handle:
+            raw = tomllib.load(handle)
+        rows = raw["entities"]
+        self.assertEqual(raw["evaluation_unit"], "artifact")
+        self.assertEqual(raw["source_claimed_dataset_count"], 124)
+        self.assertEqual(raw["source_extracted_dataset_count"], 123)
+        self.assertEqual(raw["source_missing_row_numbers"], [122])
+        self.assertEqual(len(rows), 123)
+        self.assertEqual({row["survey_row"] for row in rows}, set(range(1, 125)) - {122})
+        self.assertTrue(all(row["decision"] == "accept" for row in rows))
+        self.assertTrue({row["artifact_type"] for row in rows}.issubset(set(ARTIFACT_TYPES)))
+        self.assertTrue({row["domain"] for row in rows}.issubset(set(DOMAINS)))
+        self.assertTrue({row["data_form"] for row in rows}.issubset(set(DATA_FORMS)))
+        self.assertTrue({row["capture_environment"] for row in rows}.issubset(set(ENVIRONMENTS)))
+        self.assertTrue({row["labeling"] for row in rows}.issubset(set(LABELING)))
+        by_name = {row["artifact"]: row for row in rows}
+        self.assertEqual(by_name["Kitsune Network"]["survey_category"], "Botnet")
+        self.assertEqual(by_name["Kitsune Network"]["domain"], "malware_botnet")
+        self.assertEqual(by_name["CIC-IDS 2017"]["aliases"], ["CICIDS2017", "CIC-IDS2017"])
+        self.assertEqual(by_name["TON-IOT"]["survey_category"], "IOT/IIOT")
+        self.assertIn("survey_reference", by_name["DARPA98"])
+        self.assertEqual(len(load_rating_profile(path, "openalex").entities), 123)
 
     def test_github_metrics_penalize_boundary_and_missing_results_transparently(self) -> None:
         """Verify operational, strict, and selective matrices use their documented denominators."""
@@ -141,6 +167,52 @@ class EvaluationTests(unittest.TestCase):
             persisted = json.loads((root / "evaluation/metrics.json").read_text(encoding="utf-8"))
             self.assertEqual(persisted["source"], "openalex")
 
+    def test_openalex_artifact_profile_matches_names_and_aliases(self) -> None:
+        """Evaluate dataset coverage independently of which paper represents the artifact."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile_path = root / "artifact-ratings.toml"
+            profile_path.write_text(
+                'schema_version = "1.0"\nsource = "openalex"\nevaluation_unit = "artifact"\n'
+                'classification_fields = ["artifact_type", "domain"]\n\n'
+                '[[entities]]\nartifact = "CIC-IDS 2017"\naliases = ["CICIDS2017"]\n'
+                'decision = "accept"\nartifact_type = "dataset"\ndomain = "general_network"\n\n'
+                '[[entities]]\nartifact = "Missing Fixture"\ndecision = "accept"\n'
+                'artifact_type = "dataset"\ndomain = "host"\n',
+                encoding="utf-8",
+            )
+            actual = root / "classifications.csv"
+            atomic_write_csv(actual, [
+                {
+                    "openalex_id": "W-version", "decision": "accept", "paper_role": "versioned_release",
+                    "relevance_tier": "adjacent", "artifact_name": "CICIDS2017",
+                    "artifact_display_name": "CICIDS2017", "artifact_aliases": "",
+                    "artifact_type": "dataset", "domain": "general_network",
+                },
+                {
+                    "openalex_id": "W-original", "decision": "accept", "paper_role": "original_release",
+                    "relevance_tier": "core", "artifact_name": "Canadian Institute for Cybersecurity IDS 2017",
+                    "artifact_display_name": "CICIDS2017", "artifact_aliases": "CIC-IDS 2017",
+                    "artifact_type": "dataset", "domain": "general_network",
+                },
+            ], [
+                "openalex_id", "decision", "paper_role", "relevance_tier", "artifact_name",
+                "artifact_display_name", "artifact_aliases", "artifact_type", "domain",
+            ])
+            candidates = root / "candidates.csv"
+            atomic_write_csv(candidates, [{"openalex_id": "W-original"}], ["openalex_id"])
+            result = evaluate_results(
+                load_rating_profile(profile_path, "openalex"), actual, root / "evaluation", candidates,
+            )
+            self.assertEqual(result.metrics["evaluation_unit"], "artifact")
+            self.assertEqual(result.metrics["operational"]["tp"], 1)
+            self.assertEqual(result.metrics["operational"]["fn"], 1)
+            self.assertEqual(result.metrics["status_counts"], {"classified": 1, "not_identified": 1})
+            self.assertAlmostEqual(result.metrics["classification_coverage"], .5)
+            self.assertAlmostEqual(result.metrics["abstention_rate"], .5)
+            self.assertIsNone(result.metrics["retrieval_coverage"])
+            self.assertEqual(result.instances[0]["entity_id"], "W-original")
+
     def test_readable_selectors_resolve_and_ambiguous_titles_fail(self) -> None:
         """Resolve repository names safely and reject non-unique paper titles."""
         with tempfile.TemporaryDirectory() as directory:
@@ -210,13 +282,17 @@ class EvaluationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsupported decision"):
                 load_rating_profile(invalid, "openalex")
 
-    def test_cli_exposes_evaluate_with_candidate_override(self) -> None:
+    def test_cli_exposes_evaluate_with_candidate_and_rating_overrides(self) -> None:
         """Expose a source-local evaluation command without requiring a pipeline rerun."""
-        args = build_parser().parse_args(["github", "evaluate", "--input", "actual.csv", "--output", "report", "--candidates", "candidates.csv"])
+        args = build_parser().parse_args([
+            "github", "evaluate", "--input", "actual.csv", "--output", "report",
+            "--candidates", "candidates.csv", "--ratings", "ratings.toml",
+        ])
         self.assertEqual(args.action, "evaluate")
         self.assertEqual(args.input, Path("actual.csv"))
         self.assertEqual(args.output, Path("report"))
         self.assertEqual(args.candidates, Path("candidates.csv"))
+        self.assertEqual(args.ratings, Path("ratings.toml"))
 
     def _settings(self, root: Path, github_ratings: Path, openalex_ratings: Path) -> Settings:
         """Create a single-model offline settings fixture for CLI evaluation stages."""

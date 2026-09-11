@@ -54,6 +54,14 @@ ids-meta openalex export
 ids-meta openalex plot
 ```
 
+The default OpenAlex ratings remain the balanced 24-paper screening benchmark. The survey-derived dataset benchmark is separate and can be run against existing classifications without collection or reclassification:
+
+```bash
+ids-meta openalex evaluate --ratings config/evaluation/openalex_ashraf_2026.toml
+```
+
+That profile contains the datasets and attributes published in Table 2 of Ashraf and Masoodi (2026), then crosswalks category, format, traffic origin, and label availability into this project’s OpenAlex taxonomy. It is a positive-reference dataset-recall benchmark; cited papers are retained only as provenance because several citations are analyses or documentation rather than original releases. The article states 124 datasets, but its published Table 2 contains 123 rows (1–124 with row 122 absent), which the fixture records explicitly rather than filling speculatively. Reports selected with `--ratings` are written below a profile-named subdirectory, keeping the default evaluation intact.
+
 `ids-meta run github` and `ids-meta run openalex` execute all stages. Collection and LLM adjudication have separate limits. The audit-oriented defaults retain at most 5,000 records per source and classify every retained row; keyword scores prioritize the work but do not reject an active record:
 
 ```bash
@@ -179,7 +187,7 @@ Central human ratings live in `config/evaluation/github.toml` and `config/evalua
 - `pipeline_architecture.svg`: the combined repository-level data-flow architecture, generated independently with `ids-meta architecture`. Each component states its input data, transformation, and output data.
 - `artifacts/runs/`: configuration fingerprints, source coverage, counts, and the explicit API-coverage limitation for each command.
 
-Popularity fields are descriptive metadata only. The default GitHub star and OpenAlex citation floors are both zero; citations and stars never determine eligibility, relevance, or canonical-family selection unless an alternate research protocol explicitly changes those settings.
+Popularity fields never determine eligibility or relevance. The default GitHub star and OpenAlex citation floors are both zero. Within an already verified OpenAlex artifact family, raw citation counts provide only a configurable, log-scaled, capped secondary signal for canonical-paper selection.
 
 The GitHub plot bundle starts with one tall, scrollable feature matrix of every accepted repository and a lossless `data/00_repository_overview.csv`. It groups repositories by normalized system family and shows role dots, system labels, methods, activity, stars, forks, canonical/variant status, and latest commit time. New collections obtain the exact latest commit timestamp; older cached records transparently use `pushed_at` and mark that fallback in the CSV.
 

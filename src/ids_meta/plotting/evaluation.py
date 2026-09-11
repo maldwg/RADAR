@@ -15,7 +15,8 @@ LOG = logger("plotting.evaluation")
 VIEW_LABELS = {"operational": "Operational", "strict": "Strict", "selective": "Selective"}
 STATUS_LABELS = {
     "classified": "Definitive", "uncertain": "Uncertain", "error": "Error",
-    "not_classified": "Not classified", "not_retrieved": "Not retrieved", "unavailable": "Unavailable",
+    "not_classified": "Not classified", "not_retrieved": "Not retrieved",
+    "not_identified": "Dataset not identified", "unavailable": "Unavailable",
 }
 
 
@@ -29,8 +30,13 @@ def _annotate_bars(ax: plt.Axes, bars: Any, *, percent: bool = True) -> None:
 
 def _decision_performance(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Plot quality and error rates for operational, strict, and selective views."""
-    quality = [("DR", "Detection rate"), ("PREC", "Precision"), ("ACC", "Accuracy"), ("f1", "F1")]
-    errors = [("FPR", "False-positive rate"), ("FNR", "False-negative rate")]
+    positive_only = metrics.get("benchmark_scope") == "positive_reference_set"
+    quality = [("DR", "Dataset recall")] if positive_only else [
+        ("DR", "Detection rate"), ("PREC", "Precision"), ("ACC", "Accuracy"), ("f1", "F1"),
+    ]
+    errors = [("FNR", "Miss rate")] if positive_only else [
+        ("FPR", "False-positive rate"), ("FNR", "False-negative rate"),
+    ]
     rows: list[dict[str, object]] = []
     for view in VIEW_LABELS:
         values = metrics.get(view, {})
@@ -41,8 +47,9 @@ def _decision_performance(metrics: dict[str, Any], out_dir: Path, formats: list[
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5.7), gridspec_kw={"width_ratios": [2, 1]})
     add_heading(
-        fig, "Rated decision performance",
-        f"n={metrics.get('rated_entities', 0)} rated entities; higher is better on the left, lower is better on the right",
+        fig, "Dataset coverage performance" if positive_only else "Rated decision performance",
+        f"n={metrics.get('rated_entities', 0)} positive reference datasets; FPR requires a separate negative set"
+        if positive_only else f"n={metrics.get('rated_entities', 0)} rated entities; higher is better on the left, lower is better on the right",
         top=.83,
     )
     colors = COLORS[:3]

@@ -9,6 +9,7 @@ from typing import Any
 
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.ensemble import decision_disposition
+from ids_meta.common.text import normalize_text, split_values
 
 
 MULTI_FIELDS = {
@@ -22,8 +23,9 @@ DEFAULT_FIELDS = {
 IDENTITY_FIELDS = {"github": "github_repo_id", "openalex": "openalex_id"}
 SELECTOR_FIELDS = {
     "github": {"repository": "full_name", "id": "github_repo_id"},
-    "openalex": {"openalex_url": "openalex_id", "title": "title", "id": "openalex_id"},
+    "openalex": {"openalex_url": "openalex_id", "title": "title", "id": "openalex_id", "artifact": "artifact_name"},
 }
+EVALUATION_UNITS = {"source_record", "artifact"}
 
 
 @dataclass(frozen=True)
@@ -31,6 +33,7 @@ class RatingProfile:
     """Validated centrally configured reference classifications for one source."""
 
     source: str
+    evaluation_unit: str
     classification_fields: list[str]
     entities: dict[str, dict[str, Any]]
     path: Path
@@ -67,6 +70,11 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
         raise ValueError(f"evaluation profile requires schema_version 1.0: {path}")
     if str(raw.get("source", "")) != source:
         raise ValueError(f"evaluation profile source must be {source!r}: {path}")
+    evaluation_unit = str(raw.get("evaluation_unit", "source_record")).strip()
+    if evaluation_unit not in EVALUATION_UNITS:
+        raise ValueError(f"unsupported evaluation_unit {evaluation_unit!r}: {path}")
+    if evaluation_unit == "artifact" and source != "openalex":
+        raise ValueError("artifact evaluation is supported only for OpenAlex profiles")
     fields = raw.get("classification_fields", DEFAULT_FIELDS[source])
     if not isinstance(fields, list) or any(not isinstance(field, str) or not field.strip() for field in fields):
         raise ValueError("classification_fields must be an array of non-empty strings")
@@ -75,7 +83,9 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
     if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
         raise ValueError("evaluation entities must be an array of tables")
     entities: dict[str, dict[str, Any]] = {}
-    selectors = SELECTOR_FIELDS[source]
+    selectors = dict(SELECTOR_FIELDS[source])
+    if evaluation_unit != "artifact":
+        selectors.pop("artifact", None)
     for index, row in enumerate(rows, 1):
         configured = [
             (selector, str(row.get(selector, "")).strip())
@@ -96,7 +106,7 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
         expected["_evaluation_selector"] = selector
         expected["_evaluation_match_value"] = value
         entities[key] = expected
-    return RatingProfile(source, fields, entities, path)
+    return RatingProfile(source, evaluation_unit, fields, entities, path)
 
 
 def _ratio(numerator: int | float, denominator: int | float) -> float:
@@ -134,8 +144,37 @@ def _index_rows(path: Path, identity: str) -> dict[str, dict[str, str]]:
 
 def _matching_row(
     rows: dict[str, dict[str, str]], source: str, selector: str, value: str, path: Path,
+    aliases: object = None,
 ) -> tuple[str | None, dict[str, str] | None]:
     """Resolve one configured selector to at most one result row."""
+    if source == "openalex" and selector == "artifact":
+        configured_aliases = aliases if isinstance(aliases, list) else split_values(aliases)
+        expected_names = {
+            normalize_text(name) for name in [value, *configured_aliases] if normalize_text(name)
+        }
+        matches: list[tuple[str, dict[str, str], bool]] = []
+        for identity, row in rows.items():
+            canonical = normalize_text(row.get("artifact_name", ""))
+            names = {
+                normalize_text(name) for name in [
+                    row.get("artifact_name", ""), row.get("artifact_display_name", ""),
+                    row.get("resource_name", ""), *split_values(row.get("artifact_aliases", "")),
+                ] if normalize_text(name)
+            }
+            if expected_names & names:
+                matches.append((identity, row, canonical in expected_names))
+        if not matches:
+            return None, None
+        role_rank = {"original_release": 0, "versioned_release": 1, "generator_release": 2}
+        matches.sort(key=lambda item: (
+            decision_disposition(item[1].get("decision")) != "include",
+            str(item[1].get("relevance_tier", "")) != "core",
+            str(item[1].get("paper_relationship", "")) != "canonical_base",
+            role_rank.get(str(item[1].get("paper_role", "")), 9),
+            not item[2],
+            str(item[0]),
+        ))
+        return matches[0][0], matches[0][1]
     result_field = SELECTOR_FIELDS[source][selector]
     target = _normalize_match_value(selector, value)
     matches = [
@@ -214,10 +253,14 @@ def evaluate_results(
     for _profile_key, expected in profile.entities.items():
         selector = str(expected["_evaluation_selector"])
         match_value = str(expected["_evaluation_match_value"])
-        actual_key, row = _matching_row(actual, profile.source, selector, match_value, classifications_path)
-        candidate_key, candidate_row = _matching_row(
-            candidate_rows, profile.source, selector, match_value, candidates_path or classifications_path,
-        )
+        aliases = expected.get("aliases", [])
+        actual_key, row = _matching_row(actual, profile.source, selector, match_value, classifications_path, aliases)
+        if profile.evaluation_unit == "artifact":
+            candidate_key, candidate_row = None, None
+        else:
+            candidate_key, candidate_row = _matching_row(
+                candidate_rows, profile.source, selector, match_value, candidates_path or classifications_path, aliases,
+            )
         candidate_present = candidate_row is not None
         if actual_key:
             matched_actual_ids.add(actual_key)
@@ -227,7 +270,9 @@ def evaluate_results(
         display_name = expected.get("name") or expected.get("repository") or expected.get("title") or match_value
         expected_disposition = decision_disposition(expected.get("decision"))
         actual_disposition = decision_disposition((row or {}).get("decision"))
-        status = _status(row, candidate_present, candidates_supplied)
+        status = "not_identified" if profile.evaluation_unit == "artifact" and row is None else _status(
+            row, candidate_present, candidates_supplied and profile.evaluation_unit != "artifact",
+        )
         status_counts[status] += 1
         confusion_counts[(expected_disposition, actual_disposition)] += 1
         decision_correct += int(expected_disposition == actual_disposition)
@@ -295,15 +340,20 @@ def evaluate_results(
     selective_metrics = _binary_metrics(selective["tp"], selective["fp"], selective["tn"], selective["fn"], definitive_total)
     rated = len(profile.entities)
     metrics: dict[str, Any] = {
-        "source": profile.source, "ratings_path": str(profile.path), "classifications_path": str(classifications_path),
+        "source": profile.source, "evaluation_unit": profile.evaluation_unit,
+        "benchmark_scope": "positive_reference_set" if profile.evaluation_unit == "artifact" else "screening_decisions",
+        "not_estimable_metrics": ["false_positive_rate", "specificity", "balanced_accuracy"]
+        if profile.evaluation_unit == "artifact" else [],
+        "ratings_path": str(profile.path), "classifications_path": str(classifications_path),
         "rated_entities": rated, "actual_entities": len(actual), "unrated_actual_entities": len(set(actual) - matched_actual_ids),
         "decision_accuracy": _ratio(decision_correct, rated),
         "classification_field_accuracy": _ratio(total_field_exact, total_field_comparisons),
         "classification_field_comparisons": total_field_comparisons,
-        "retrieval_coverage": _ratio(rated - status_counts["not_retrieved"], rated) if candidates_supplied else None,
+        "retrieval_coverage": _ratio(rated - status_counts["not_retrieved"], rated)
+        if candidates_supplied and profile.evaluation_unit != "artifact" else None,
         "classification_coverage": _ratio(classified_count, rated),
         "definitive_coverage": _ratio(status_counts["classified"], rated),
-        "abstention_rate": _ratio(sum(status_counts[name] for name in ("uncertain", "error", "not_retrieved", "not_classified", "unavailable")), rated),
+        "abstention_rate": _ratio(sum(status_counts[name] for name in ("uncertain", "error", "not_retrieved", "not_classified", "not_identified", "unavailable")), rated),
         "status_counts": dict(sorted(status_counts.items())),
         "operational": operational_metrics, "strict": strict_metrics, "selective": selective_metrics,
     }
@@ -319,22 +369,39 @@ def evaluate_results(
     atomic_write_csv(confusion_path, confusion, ["expected", "actual", "count"])
     atomic_write_csv(fields_path, field_metrics, ["field", "comparisons", "exact_matches", "exact_accuracy", "label_f1"])
     readme_path = output_dir / "README.md"
-    readme_path.write_text(
+    heading = (
         "# Classification evaluation\n\n"
-        f"- Source: `{profile.source}`\n- Rated entities: {rated}\n"
-        f"- Operational DR: {operational_metrics['detection_rate']:.4f}\n"
-        f"- Operational FPR: {operational_metrics['false_positive_rate']:.4f}\n"
-        f"- Operational accuracy: {operational_metrics['accuracy']:.4f}\n"
-        f"- Operational precision: {operational_metrics['precision']:.4f}\n"
+        f"- Source: `{profile.source}`\n- Evaluation unit: `{profile.evaluation_unit}`\n- Rated entities: {rated}\n"
+    )
+    field_summary = (
         f"- Metadata field accuracy: {metrics['classification_field_accuracy']:.4f} "
         f"({metrics['classification_field_comparisons']} comparisons)\n"
         f"- Abstention rate: {metrics['abstention_rate']:.4f}\n\n"
-        "## Interpreting the three views\n\n"
-        "- **Operational:** asks what the complete pipeline delivers. Every non-inclusion predicts negative.\n"
-        "- **Strict:** asks how performance looks when every unresolved boundary result is wrong.\n"
-        "- **Selective:** measures only definite include/exclude decisions. Always read it with definitive coverage and abstention rate.\n\n"
-        "Example: if exclusion was expected but the result is uncertain, operational counts a true negative, strict counts a false positive, and selective omits the entity. If inclusion was expected, the same unresolved result is a false negative operationally and strictly, and is omitted selectively.\n",
-        encoding="utf-8",
     )
+    if profile.evaluation_unit == "artifact":
+        body = (
+            f"- Dataset recall: {operational_metrics['detection_rate']:.4f}\n"
+            f"- Dataset miss rate: {operational_metrics['false_negative_rate']:.4f}\n"
+            + field_summary
+            + "This artifact fixture is a positive reference set. Metadata accuracy is end-to-end across the rated inventory, so an unidentified dataset also misses its expected metadata. False-positive rate, specificity, and balanced accuracy are not estimable because the profile contains no negative artifacts. Candidate-level retrieval coverage is omitted because raw paper candidates do not yet have classified artifact names.\n\n"
+            "## Interpreting the three views\n\n"
+            "- **Operational:** dataset recall across the complete positive reference set.\n"
+            "- **Strict:** identical here because every unresolved positive is a miss.\n"
+            "- **Selective:** recall only among datasets with definitive artifact decisions; read it with coverage and abstention.\n"
+        )
+    else:
+        body = (
+            f"- Operational DR: {operational_metrics['detection_rate']:.4f}\n"
+            f"- Operational FPR: {operational_metrics['false_positive_rate']:.4f}\n"
+            f"- Operational accuracy: {operational_metrics['accuracy']:.4f}\n"
+            f"- Operational precision: {operational_metrics['precision']:.4f}\n"
+            + field_summary
+            + "## Interpreting the three views\n\n"
+            "- **Operational:** asks what the complete pipeline delivers. Every non-inclusion predicts negative.\n"
+            "- **Strict:** asks how performance looks when every unresolved boundary result is wrong.\n"
+            "- **Selective:** measures only definite include/exclude decisions. Always read it with definitive coverage and abstention rate.\n\n"
+            "Example: if exclusion was expected but the result is uncertain, operational counts a true negative, strict counts a false positive, and selective omits the entity. If inclusion was expected, the same unresolved result is a false negative operationally and strictly, and is omitted selectively.\n"
+        )
+    readme_path.write_text(heading + body, encoding="utf-8")
     outputs = [metrics_path, instances_path, confusion_path, fields_path, readme_path]
     return EvaluationResult(metrics, instances, field_metrics, confusion, outputs)

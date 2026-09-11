@@ -1,0 +1,7 @@
+view,metric,metric_key,value
+Operational,Dataset recall,DR,0.2764227642276423
+Operational,Miss rate,FNR,0.7235772357723578
+Strict,Dataset recall,DR,0.2764227642276423
+Strict,Miss rate,FNR,0.7235772357723578
+Selective,Dataset recall,DR,0.7906976744186046
+Selective,Miss rate,FNR,0.20930232558139536
