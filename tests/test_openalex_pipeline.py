@@ -43,7 +43,7 @@ class FakePaperModel:
             "artifact_display_name": "NAT Corpus", "artifact_aliases": ["NAT Corpus"], "artifact_type": "dataset", "domain": "general_network",
             "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled",
             "direct_release_evidence": True, "primary_reason": "Introduces and releases attack traces.",
-            "evidence": [{"source": "Abstract", "quote": "introduce a new labeled intrusion detection dataset"}],
+            "evidence": [{"source": "Abstract", "quote": "introduce a new labeled intrusion detection dataset named NAT Corpus"}],
         }
 
 
@@ -151,8 +151,17 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     "artifact_display_name": "Generic Trace", "artifact_aliases": [], "artifact_type": artifact_type, "domain": "unknown", "data_form": "unknown",
                     "capture_environment": "unknown", "labeling": "unknown",
                     "direct_release_evidence": "release" in role, "primary_reason": "fixture",
-                }, [{"source": "Abstract", "quote": "fixture"}], config, "artifact-id")
+                }, [{"source": "Abstract", "quote": "We release Generic Trace Corpus."}], config, "artifact-id")
                 self.assertEqual(result["decision"], expected)
+
+        unsupported_identity = normalize_response({
+            "paper_role": "original_release", "relevance_tier": "core", "artifact_name": "CSE-CIC-IDS2018",
+            "artifact_display_name": "CSE-CIC-IDS2018", "artifact_aliases": [], "artifact_type": "dataset",
+            "domain": "general_network", "data_form": "flow", "capture_environment": "synthetic_lab",
+            "labeling": "labeled", "direct_release_evidence": True, "primary_reason": "Introduces a dataset.",
+        }, [{"source": "Abstract", "quote": "This paper produces a reliable intrusion detection dataset."}], config, "artifact-id")
+        self.assertEqual(unsupported_identity["decision"], "uncertain")
+        self.assertIn("artifact_identity_evidence_missing", unsupported_identity["classification_validation_flags"])
 
         mismatch = normalize_response({
             "paper_role": "generator_release", "relevance_tier": "core", "artifact_name": "Generic Toolkit",
@@ -174,6 +183,15 @@ class OpenAlexPipelineTests(unittest.TestCase):
         ]
         canonicalize_artifact_ids(rows)
         self.assertEqual(rows[0]["artifact_id"], rows[1]["artifact_id"])
+
+    def test_derived_resource_prefix_does_not_merge_artifact_families(self) -> None:
+        """Do not treat a derived NF resource as a spelling variant of its source dataset."""
+        rows = [
+            {"artifact_name": "CSE-CIC-IDS2018", "artifact_aliases": "", "artifact_id": "base"},
+            {"artifact_name": "NF-CSE-CIC-IDS2018", "artifact_aliases": "", "artifact_id": "derived"},
+        ]
+        canonicalize_artifact_ids(rows)
+        self.assertNotEqual(rows[0]["artifact_id"], rows[1]["artifact_id"])
 
     def test_resource_name_is_explicit_for_legacy_and_new_classifications(self) -> None:
         """Verify processed rows expose a concise resource name independently of the paper title."""
@@ -356,7 +374,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
             def enrich(self, _work: dict[str, Any]) -> dict[str, str]:
                 """Return deterministic external abstract evidence."""
                 return {
-                    "abstract": "We introduce a new labeled intrusion detection dataset containing network attack packet traces.",
+                    "abstract": "We introduce a new labeled intrusion detection dataset named NAT Corpus containing network attack packet traces.",
                     "abstract_source": "Semantic Scholar",
                 }
 
@@ -409,25 +427,25 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     "labeling": "unknown", "direct_release_evidence": accepted,
                     "primary_reason": "fixture",
                     "evidence": [{"source": "Full text" if expanded else "Abstract",
-                                  "quote": "decisive full text release evidence" if expanded else "ambiguous abstract"}],
+                                  "quote": "decisive full text release evidence for Fixture Dataset" if expanded else "ambiguous abstract naming Fixture Dataset"}],
                 }
 
         class Enricher:
             def enrich(self, _work: dict[str, Any]) -> dict[str, str]:
                 """Return the decisive open full-text fixture."""
-                return {"full_text": "decisive full text release evidence", "full_text_url": "https://example.invalid/paper.pdf"}
+                return {"full_text": "decisive full text release evidence for Fixture Dataset", "full_text_url": "https://example.invalid/paper.pdf"}
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidates, classified = root / "candidates.csv", root / "classified.csv"
             row = {column: "" for column in CANDIDATE_COLUMNS}
-            row.update({"openalex_id": "W-full", "title": "Ambiguous paper", "abstract": "ambiguous abstract",
+            row.update({"openalex_id": "W-full", "title": "Ambiguous paper", "abstract": "ambiguous abstract naming Fixture Dataset",
                         "prefilter_band": "candidate", "prefilter_score": "7", "evidence_hash": "old"})
             atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
             model = Model()
             with PipelineCache(root / "cache.sqlite3") as cache:
                 cache.put_record("openalex.work", "W-full", {
-                    "work": {"openalex_id": "W-full", "title": "Ambiguous paper", "abstract": "ambiguous abstract"},
+                    "work": {"openalex_id": "W-full", "title": "Ambiguous paper", "abstract": "ambiguous abstract naming Fixture Dataset"},
                 }, "now")
                 decisions = classify(candidates, classified, cache, {"require_verified_quote": True},
                                      generator=model, enricher=Enricher(),
@@ -464,7 +482,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
             row = {column: "" for column in CANDIDATE_COLUMNS}
             row.update({
                 "openalex_id": "W-retry", "title": "A New Intrusion Detection Dataset",
-                "abstract": "We introduce a new labeled intrusion detection dataset containing network attack packet traces.",
+                "abstract": "We introduce a new labeled intrusion detection dataset named NAT Corpus containing network attack packet traces.",
                 "cited_by_count": "50", "prefilter_score": "7", "prefilter_band": "candidate",
                 "evidence_hash": "retry-evidence",
             })
@@ -504,7 +522,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
             with PipelineCache(root / "cache.sqlite3") as cache:
                 base = {
                     "openalex_id": "https://openalex.org/W1", "doi": "10.1/example", "title": "A New Intrusion Detection Dataset",
-                    "abstract": "We introduce a new labeled intrusion detection dataset containing network attack packet traces.",
+                    "abstract": "We introduce a new labeled intrusion detection dataset named NAT Corpus containing network attack packet traces.",
                     "authors": "A Researcher", "venue": "Security Venue", "publication_year": 2024, "publication_date": "2024-01-01",
                     "work_type": "article", "primary_url": "https://doi.org/10.1/example", "pdf_url": "", "is_oa": "true", "cited_by_count": 50,
                 }
@@ -600,6 +618,32 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     self.assertEqual(relationships["https://openalex.org/W1"], "canonical_base")
                     self.assertEqual(relationships["https://openalex.org/W2"], "versioned_release")
             self.assertEqual(selections, [{"https://openalex.org/W1"}, {"https://openalex.org/W1"}])
+
+    def test_explicit_resource_release_title_can_beat_earlier_methodology_paper(self) -> None:
+        """Prefer an explicit dataset-release paper over a slightly earlier generic methodology paper."""
+        settings = load_settings(ROOT / "config/default.toml")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = []
+            for work_id, title, year in (
+                ("https://openalex.org/W-old", "Towards a Reliable Intrusion Detection Benchmark Dataset", "2017"),
+                ("https://openalex.org/W-release", "Toward Generating a New Intrusion Detection Dataset", "2018"),
+            ):
+                value = {column: "" for column in CLASSIFICATION_COLUMNS}
+                value.update({
+                    "openalex_id": work_id, "title": title, "publication_year": year,
+                    "decision": "accept", "paper_role": "original_release", "relevance_tier": "core",
+                    "artifact_id": "initial", "artifact_name": "CICIDS2017",
+                    "artifact_display_name": "CICIDS2017", "artifact_type": "dataset",
+                    "direct_release_evidence": "true",
+                    "evidence_json": "release evidence naming CICIDS2017",
+                })
+                rows.append(value)
+            source, output = root / "source.csv", root / "output.csv"
+            atomic_write_csv(source, rows, CLASSIFICATION_COLUMNS)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                result = reconcile(source, output, cache, settings.section("ollama"), settings.section("openalex"), dry_run=True)
+            self.assertEqual({item["canonical_openalex_id"] for item in result}, {"https://openalex.org/W-release"})
 
     def test_published_record_wins_over_duplicate_preprint_manifestation(self) -> None:
         """Verify a published record is canonical over its duplicate preprint."""

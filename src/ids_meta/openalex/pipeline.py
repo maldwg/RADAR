@@ -17,7 +17,7 @@ from ids_meta.common.logging import logger
 from ids_meta.openalex.enrich import ScholarlyEvidenceClient
 from ids_meta.openalex.schema import ARTIFACT_TYPES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, RESPONSE_SCHEMA, SURVEY_COLUMNS, TIERS, ensure_resource_name, normalize_response, validate_processed_row
 
-PROMPT_VERSION = "openalex-11"
+PROMPT_VERSION = "openalex-12"
 LOG = logger("openalex.pipeline")
 
 class Generator(Protocol):

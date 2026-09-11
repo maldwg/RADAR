@@ -578,6 +578,78 @@ def _discovery_source_boxplot(frame: pd.DataFrame, out_dir: Path, formats: list[
     return save_figure(fig, out_dir, "08_discovery_sources", formats, dpi)
 
 
+def _github_why_not_included(row: pd.Series) -> tuple[str, str, str]:
+    """Explain one excluded or unresolved repository in reader-facing language."""
+    decision = str(row.get("decision", "")).strip().casefold()
+    flags = [value.strip() for value in str(row.get("classification_validation_flags", "")).split(";") if value.strip()]
+    flag_meanings = {
+        "runtime_observation_missing": ("Could not verify live or operational input", "The evidence does not show the software processing live or continuously produced observations."),
+        "reproducible_execution_missing": ("Could not verify how to run or train it", "No concrete build, training, inference, service, command-line, or execution path was verified."),
+        "offline_dataset_only": ("Only works on saved datasets or captures", "The available execution path is limited to static datasets, saved logs, or saved packet captures."),
+        "detection_engine_implementation_missing": ("Could not verify its own detection logic", "The repository does not clearly implement the logic that decides whether activity is malicious or anomalous."),
+        "external_detector_required": ("Another IDS performs the actual detection", "The repository depends on an external detector to make the intrusion decision."),
+        "framework_architecture_conflict": ("Architecture is a framework, not one native detector", "The evidence describes a cohesive agent-manager or multi-subsystem framework rather than a single detector engine."),
+        "framework_architecture_missing": ("Could not verify a framework architecture", "The evidence does not establish a cohesive agent-manager or inseparable multi-subsystem detection system."),
+        "multiple_detector_integration_missing": ("Could not verify integration of multiple detectors", "The evidence does not show coordination of at least two independently usable detector engines."),
+        "research_basis_missing": ("No research basis could be verified", "No referenced paper, named IDS dataset, or direct research and reproducibility framing was verified."),
+        "direct_self_description_missing": ("Repository does not clearly describe its own contribution", "The available evidence does not explicitly say what this repository itself contributes."),
+        "independent_fork_evidence_missing": ("Could not verify that the fork is independently significant", "The fork lacks evidence of materially distinct functionality."),
+        "verified_evidence_missing": ("No supporting quotation could be verified", "The classification lacks a quotation that can be matched to the collected repository evidence."),
+        "decision_fields_conflict": ("Classification fields conflict", "The combined role and evidence fields do not support the ensemble decision."),
+    }
+    if decision == "error":
+        return "Processing failed", "Final decision is error", "The classification request failed, so no inclusion decision was available."
+    if decision == "uncertain":
+        if flags:
+            label, explanation = flag_meanings.get(flags[0], (flags[0].replace("_", " ").capitalize(), "A deterministic classification requirement was not satisfied."))
+            return label, f"Automatic validation check: {flags[0]}", explanation
+        vote_status = str(row.get("ensemble_vote_status", "")).strip()
+        if vote_status in {"tie", "below_threshold"}:
+            return "Models did not agree", f"Ensemble result: {vote_status}", "The configured models did not reach the agreement threshold for a definitive decision."
+        return "Not enough evidence for a decision", "Final decision is uncertain", "The collected repository evidence did not support either inclusion or exclusion."
+    reason = str(row.get("primary_reason", "")).casefold()
+    rules = (
+        ("Dataset files only — no runnable IDS approach", "The repository supplies data but no material trainable or runnable IDS implementation.", ("dataset-only", "dataset only", "only provides a dataset", "dataset rather than")),
+        ("Tutorial or lab only — no reusable implementation", "The repository documents learning, setup, or demonstration work without a reusable IDS contribution.", ("tutorial", "walkthrough", "learning project", "student project", "coursework", "lab setup", "hands-on lab", "how-to", "guide for")),
+        ("Reference list only — no implementation", "The repository is a bibliography or resource list rather than IDS software, detection content, or research code.", ("awesome list", "curated list", "resource list", "collection of links", "bibliography")),
+        ("Offensive or scanning tool — not an intrusion detector", "The repository attacks, scans, exploits, or evades systems but does not provide a defensive intrusion-detection contribution.", ("offensive-only", "offensive tool", "penetration testing", "scanner", "exploit", "evasion", "red team")),
+        ("Configuration or integration only — another system detects", "The repository configures, deploys, wraps, or uses an existing detector without supplying its own qualifying implementation or content.", ("existing third-party", "using an existing", "configuration for", "deployment of", "wrapper around", "integration with", "rather than implementing")),
+        ("Generic monitoring or security tool — not IDS-specific", "The contribution is generic monitoring, logging, or security functionality without a material intrusion-detection purpose.", ("generic monitor", "generic monitoring", "general-purpose monitoring", "logging tool", "security tool without", "not specific to intrusion")),
+        ("Unrelated project or IDS name collision", "The repository is unrelated to intrusion detection even though its name or text matched discovery terms.", ("unrelated", "name collision", "does not refer to intrusion", "not an intrusion")),
+    )
+    for label, explanation, keywords in rules:
+        match = next((keyword for keyword in keywords if keyword in reason), "")
+        if match:
+            return label, f"Model explanation contains: {match}", explanation
+    return "No concrete IDS contribution was established", "Model explanation did not match a narrower group", "The model excluded the repository, but its explanation did not fit one of the more specific reporting groups."
+
+
+def _why_repositories_not_included(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Plot plain-language repository exclusion reasons and preserve detailed evidence."""
+    decisions = frame.get("decision", pd.Series("", index=frame.index)).fillna("").astype(str).str.casefold()
+    view = frame[decisions.isin({"exclude", "uncertain", "error"})].copy()
+    details = [_github_why_not_included(row) for _, row in view.iterrows()]
+    view["why_not_included"] = [value[0] for value in details]
+    view["how_reason_was_assigned"] = [value[1] for value in details]
+    view["criterion_explanation"] = [value[2] for value in details]
+    columns = [
+        value for value in (
+            "github_repo_id", "full_name", "html_url", "decision", "role", "why_not_included",
+            "criterion_explanation", "how_reason_was_assigned", "classification_validation_flags",
+            "primary_reason", "evidence_json", "prefilter_band", "prefilter_score",
+            "ensemble_vote_status", "ensemble_agreement", "error",
+        ) if value in view
+    ]
+    write_table(view[columns].copy(), out_dir / "data", "12_why_not_included_records")
+    definitions = view[["why_not_included", "criterion_explanation"]].drop_duplicates().sort_values("why_not_included")
+    write_table(definitions, out_dir / "data", "12_why_not_included_definitions")
+    return count_plot(
+        view, "why_not_included", "Why repositories are not in the catalogue",
+        metadata_caption(view, "excluded, unresolved, and failed classifications; definitions and exact explanations are exported below"),
+        out_dir, "12_why_not_included", formats, dpi,
+    )
+
+
 def _classification_audit(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Cross deterministic candidate/borderline/reject bands with final model inclusion/exclusion decisions."""
     view = frame.copy()
@@ -737,10 +809,12 @@ def build(
         outputs += _classification_audit(classifications, out_dir, formats, dpi)
         outputs += evidence_escalation_plot(classifications, out_dir, formats, dpi, "10_evidence_escalation", "GitHub")
         outputs += score_decision_plot(classifications, out_dir, formats, dpi, "11_keyword_score_vs_decision", "GitHub")
+        outputs += _why_repositories_not_included(classifications, out_dir, formats, dpi)
     else:
         outputs += _classification_audit(frame, out_dir, formats, dpi)
         outputs += evidence_escalation_plot(frame, out_dir, formats, dpi, "10_evidence_escalation", "GitHub")
         outputs += score_decision_plot(frame, out_dir, formats, dpi, "11_keyword_score_vs_decision", "GitHub")
+        outputs += _why_repositories_not_included(frame, out_dir, formats, dpi)
 
     outputs.append(write_index(out_dir, input_path, frame, outputs, [
         "00_repository_overview keeps the existing detailed repository feature matrix and exports every accepted row.",
@@ -754,7 +828,8 @@ def build(
         "08_discovery_sources uses annual per-source repository counts to form real boxplot distributions; creation year is used with pushed_at only as a fallback.",
         "09_classification_audit requires candidate/borderline/reject filter bands and a final model/review decision. Pass classifications_path when excluded candidates are stored separately from the accepted catalogue.",
         "10_evidence_escalation reports how often extra README/docs evidence was required, found, and beneficial; every bar states its denominator.",
-        "11_keyword_score_vs_decision directly compares every numeric keyword-prefilter score with its exact final LLM decision; the companion summary reports n, range, mean, median, and quartiles per decision.",
+        "11_keyword_score_vs_decision shows every scored item as a dot by final decision; the box is the middle 50%, its line is the median, and whiskers reach the furthest non-outlier within 1.5 x IQR. Dots beyond the whiskers are valid outliers; the companion summary exports the fences, actual whisker endpoints, and outlier count.",
+        "12_why_not_included uses plain-language reasons for repositories absent from the catalogue; its definitions and records tables preserve each criterion, assignment basis, validation flag, exact model explanation, and evidence.",
         "Every plotted aggregate has a matching CSV under data/, and matrix/tag/discovery/classification figures also export row-level *_records.csv files for traceability.",
     ]))
     LOG.info("GitHub plot bundle complete files=%d output=%s", len(outputs), out_dir)

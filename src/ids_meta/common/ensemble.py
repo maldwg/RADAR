@@ -7,7 +7,7 @@ from typing import Any, Sequence
 
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.run import utc_now
-from ids_meta.common.text import stable_hash
+from ids_meta.common.text import normalize_text, split_values, stable_hash
 
 
 def decision_disposition(decision: object) -> str:
@@ -50,6 +50,30 @@ def _bool_text(value: object) -> str:
 def _split_labels(value: object) -> set[str]:
     """Split a semicolon-delimited normalized multi-label field."""
     return {item.strip() for item in str(value or "").split(";") if item.strip() and item.strip() != "unknown"}
+
+
+def _artifact_identity_keys(row: dict[str, str]) -> set[str]:
+    """Return punctuation-insensitive names and aliases for one classified resource."""
+    values = [
+        row.get("artifact_name", ""), row.get("artifact_display_name", ""),
+        *split_values(row.get("artifact_aliases", "")),
+    ]
+    return {normalize_text(value).replace(" ", "") for value in values if len(normalize_text(value).replace(" ", "")) >= 5}
+
+
+def _artifact_identity_audit(present: list[tuple[str, dict[str, str]]]) -> dict[str, Any]:
+    """Report whether independently accepted model outputs identify a shared resource."""
+    values = {model: sorted(_artifact_identity_keys(row)) for model, row in present}
+    considered = [
+        model for model, row in present
+        if decision_disposition(row.get("decision")) == "include" and values[model]
+    ]
+    named = [set(values[model]) for model in considered]
+    shared = set.intersection(*named) if named else set()
+    return {
+        "values": values, "considered_models": considered, "shared": sorted(shared),
+        "status": "compatible" if len(named) < 2 or shared else "conflict",
+    }
 
 
 def _vote_scalar(
@@ -102,6 +126,7 @@ def _openalex_field_consensus(
     for field in ("direct_release_evidence", "evidence_quote_verified"):
         value, details = _vote_scalar(votes, field, threshold, "false", _bool_text)
         combined[field], audit[field] = value, details
+    audit["artifact_identity"] = _artifact_identity_audit(list(votes.items()))
     return combined, audit
 
 
@@ -270,10 +295,14 @@ def consensus_classification(
         if source == "openalex":
             combined, field_audit = _openalex_field_consensus(combined, votes, threshold)
             final_decision, validation_flags = _validate_openalex_consensus(combined, disposition, require_verified_quote)
+            artifact_identity_conflict = field_audit["artifact_identity"]["status"] == "conflict"
+            if artifact_identity_conflict:
+                final_decision = "uncertain"
+                validation_flags.append("artifact_identity_consensus_conflict")
         else:
             combined, field_audit = _github_field_consensus(combined, votes, threshold)
             final_decision, validation_flags = _validate_github_consensus(combined, disposition, system_type_profile, require_verified_quote)
-        if validation_flags and disposition in {"include", "exclude"}:
+        if validation_flags and disposition in {"include", "exclude"} and not (source == "openalex" and artifact_identity_conflict):
             fallback = dict(representative)
             if source == "openalex":
                 fallback_decision, fallback_flags = _validate_openalex_consensus(fallback, disposition, require_verified_quote)
@@ -367,10 +396,18 @@ def ensemble_classifications(
         else:
             decision = "uncertain"
             exact = agreeing
+        identity_audit: dict[str, Any] = {}
+        identity_conflict = False
+        if source == "openalex" and disposition == "include":
+            identity_audit = _artifact_identity_audit(agreeing)
+            identity_conflict = identity_audit["status"] == "conflict"
+            if identity_conflict:
+                decision = "uncertain"
+                vote_status = "artifact_identity_conflict"
         representative_model, representative = (exact or agreeing or present)[0]
         combined: dict[str, object] = dict(representative)
         combined.update({
-            "pipeline_version": "ensemble-1",
+            "pipeline_version": "ensemble-2",
             "profile_hash": stable_hash(source, *models, threshold),
             "llm_model": "ensemble",
             "decision": decision,
@@ -389,6 +426,11 @@ def ensemble_classifications(
             "ensemble_decision_counts": json.dumps(dict(sorted(exact_counts.items())), ensure_ascii=False, sort_keys=True),
             "ensemble_vote_status": vote_status,
         })
+        if source == "openalex" and identity_audit:
+            combined["consensus_field_audit"] = json.dumps({"artifact_identity": identity_audit}, ensure_ascii=False, sort_keys=True)
+            if identity_conflict:
+                flags = [value for value in str(combined.get("consensus_validation_flags", "")).split(";") if value]
+                combined["consensus_validation_flags"] = ";".join(dict.fromkeys([*flags, "cross_model_artifact_identity_conflict"]))
         for field in (
             "evidence_expansion_required", "evidence_expansion_attempted", "evidence_expansion_changed",
             "evidence_expansion_improved", "evidence_expansion_resolved",

@@ -11,7 +11,7 @@ from matplotlib.ticker import MaxNLocator
 import pandas as pd
 
 from ids_meta.common.logging import logger
-from ids_meta.plotting.common import add_heading, configure_style, evidence_escalation_plot, load_frame, metadata_caption, save_figure, score_decision_plot, write_index, write_table
+from ids_meta.plotting.common import add_heading, configure_style, count_plot, evidence_escalation_plot, load_frame, metadata_caption, save_figure, score_decision_plot, write_index, write_table
 
 LOG = logger("plotting.openalex")
 
@@ -645,6 +645,76 @@ def metadata_lollipop(frame: pd.DataFrame, out_dir: Path, formats: list[str], dp
         )
     return save_figure(fig, out_dir, "06_metadata_completeness", formats, dpi)
 
+def _openalex_why_not_included(row: pd.Series) -> tuple[str, str, str]:
+    """Explain one excluded or unresolved paper in reader-facing language."""
+    decision = str(row.get("decision", "")).strip().casefold()
+    raw_flags = ";".join(filter(None, (
+        str(row.get("classification_validation_flags", "")),
+        str(row.get("consensus_validation_flags", "")),
+    )))
+    flags = [value.strip() for value in raw_flags.split(";") if value.strip()]
+    flag_meanings = {
+        "role_artifact_type_mismatch": ("Paper role and resource type conflict", "The claimed paper contribution is incompatible with the classified dataset or generator type."),
+        "tier_not_accepted_for_role": ("Relevance level does not qualify for this paper role", "The paper role and relevance level do not form an eligible catalogue contribution."),
+        "direct_release_evidence_missing": ("No evidence that the paper releases a resource", "The evidence does not directly show that the paper creates or releases the dataset or generator."),
+        "artifact_name_missing": ("Released resource could not be identified by name", "No concrete dataset or generator name could be established from the evidence."),
+        "artifact_identity_evidence_missing": ("Resource name was not supported by the quoted evidence", "The classifier supplied a dataset or generator name that does not occur in its verified evidence quotation."),
+        "artifact_identity_consensus_conflict": ("Repeated classifications identified different resources", "Repeated classifications of the paper assigned incompatible dataset or generator names."),
+        "cross_model_artifact_identity_conflict": ("Models identified different resources", "The agreeing models assigned incompatible dataset or generator names, so no label was selected silently."),
+        "verified_evidence_missing": ("No supporting quotation could be verified", "The classification lacks a quotation that can be matched to the collected paper evidence."),
+        "model_role_uncertain": ("Paper contribution could not be determined", "The model could not determine whether the paper releases, studies, or merely uses a resource."),
+        "decision_fields_conflict": ("Classification fields conflict", "The combined paper role and evidence fields do not support the ensemble decision."),
+    }
+    if decision == "error":
+        return "Processing failed", "Final decision is error", "The classification request failed, so no inclusion decision was available."
+    if decision == "uncertain":
+        if flags:
+            label, explanation = flag_meanings.get(flags[0], (flags[0].replace("_", " ").capitalize(), "A deterministic classification requirement was not satisfied."))
+            return label, f"Automatic validation check: {flags[0]}", explanation
+        vote_status = str(row.get("ensemble_vote_status", "")).strip()
+        if vote_status in {"tie", "below_threshold"}:
+            return "Models did not agree", f"Ensemble result: {vote_status}", "The configured models did not reach the agreement threshold for a definitive decision."
+        return "Not enough evidence for a decision", "Final decision is uncertain", "The collected paper evidence did not support either inclusion or exclusion."
+    role = str(row.get("paper_role", "")).strip().casefold()
+    categories = {
+        "survey": ("Survey only — no new dataset or generator", "The paper reviews existing resources but does not introduce an eligible new dataset or generator."),
+        "downstream_application": ("Uses an existing resource — does not release one", "The paper applies an existing dataset or generator rather than creating or releasing it."),
+        "dataset_analysis": ("Analyzes existing datasets — does not release one", "The paper studies or compares existing datasets without releasing an eligible resource."),
+        "unrelated": ("No eligible IDS dataset or generator contribution", "The paper does not make an eligible intrusion-detection dataset or generator contribution."),
+    }
+    if role in categories:
+        label, explanation = categories[role]
+        return label, f"Structured paper role: {role}", explanation
+    return "No eligible dataset or generator release was established", "Structured paper role did not match a narrower group", "The paper was excluded, but its structured role did not identify a more specific reason."
+
+
+def why_papers_not_included(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Plot plain-language paper exclusion reasons and preserve detailed evidence."""
+    decisions = frame.get("decision", pd.Series("", index=frame.index)).fillna("").astype(str).str.casefold()
+    view = frame[decisions.isin({"exclude", "uncertain", "error"})].copy()
+    details = [_openalex_why_not_included(row) for _, row in view.iterrows()]
+    view["why_not_included"] = [value[0] for value in details]
+    view["how_reason_was_assigned"] = [value[1] for value in details]
+    view["criterion_explanation"] = [value[2] for value in details]
+    columns = [
+        value for value in (
+            "openalex_id", "doi", "title", "decision", "paper_role", "relevance_tier",
+            "why_not_included", "criterion_explanation", "how_reason_was_assigned",
+            "classification_validation_flags", "primary_reason", "model_evidence_json",
+            "evidence_json", "prefilter_band", "prefilter_score", "discovery_relations",
+            "ensemble_vote_status", "ensemble_agreement", "error",
+        ) if value in view
+    ]
+    write_table(view[columns].copy(), out_dir / "data", "12_why_not_included_records")
+    definitions = view[["why_not_included", "criterion_explanation"]].drop_duplicates().sort_values("why_not_included")
+    write_table(definitions, out_dir / "data", "12_why_not_included_definitions")
+    return count_plot(
+        view, "why_not_included", "Why papers are not in the catalogue",
+        metadata_caption(view, "excluded, unresolved, and failed classifications; definitions and exact explanations are exported below"),
+        out_dir, "12_why_not_included", formats, dpi,
+    )
+
+
 def classification_audit(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Map candidate/borderline/reject score bands to final acceptance/exclusion decisions."""
     view = frame.copy()
@@ -807,6 +877,7 @@ def build(
         outputs += classification_audit(evaluated, out_dir, formats, dpi)
         outputs += evidence_escalation_plot(evaluated, out_dir, formats, dpi, "09_evidence_escalation", "OpenAlex")
         outputs += score_decision_plot(evaluated, out_dir, formats, dpi, "11_keyword_score_vs_decision", "OpenAlex")
+        outputs += why_papers_not_included(evaluated, out_dir, formats, dpi)
     if survey_sources_path and survey_sources_path.is_file():
         surveys = load_frame(survey_sources_path, ("openalex_id", "title", "cited_by_count", "discovery_relations"))
         outputs += survey_source_landscape(surveys, out_dir, formats, dpi)
@@ -821,7 +892,8 @@ def build(
         "Metadata completeness reports both percentage and exact n/N availability for each tracked field.",
         "Survey-source scores, citations, and reference-list sizes use aligned panels rather than overloaded marker encodings.",
         "09_evidence_escalation reports how often extra abstract/full-text evidence was required, found, and beneficial; every bar states its denominator.",
-        "11_keyword_score_vs_decision directly compares every numeric keyword-prefilter score with its exact final LLM decision; the companion summary reports n, range, mean, median, and quartiles per decision.",
+        "11_keyword_score_vs_decision shows every scored item as a dot by final decision; the box is the middle 50%, its line is the median, and whiskers reach the furthest non-outlier within 1.5 x IQR. Dots beyond the whiskers are valid outliers; the companion summary exports the fences, actual whisker endpoints, and outlier count.",
+        "12_why_not_included uses plain-language reasons for papers absent from the catalogue; its definitions and records tables preserve each criterion, structured paper role, assignment basis, validation flag, exact model explanation, and evidence.",
     ]))
     LOG.info("OpenAlex plot bundle complete canonical_artifacts=%d files=%d output=%s", len(canonical), len(outputs), out_dir)
     return outputs

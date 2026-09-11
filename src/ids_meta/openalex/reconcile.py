@@ -17,9 +17,13 @@ from ids_meta.openalex.entities import canonicalize_artifact_ids
 from ids_meta.openalex.schema import CATALOGUE_COLUMNS, ensure_resource_name
 
 LOG = logger("openalex.reconcile")
-PROMPT_VERSION = "openalex-reconcile-3"
+PROMPT_VERSION = "openalex-reconcile-4"
 
 ROLE_WEIGHT = {"original_release": 6, "generator_release": 6, "versioned_release": 2}
+TITLE_RELEASE_PHRASES = (
+    "introducing", "introduces", "generation of a new", "generating a new",
+    "new intrusion detection dataset", "new network dataset", "dataset release", "corpus release",
+)
 RESPONSE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -78,6 +82,12 @@ def _manifestation_quality(row: dict[str, str]) -> int:
     return score
 
 
+def _title_release_score(row: dict[str, str]) -> int:
+    """Reward titles that explicitly identify the paper as a resource release."""
+    title = normalize_text(row.get("title", ""))
+    return 3 if any(phrase in title for phrase in TITLE_RELEASE_PHRASES) else 0
+
+
 def _release_score(row: dict[str, str], earliest_year: int) -> float:
     """Score structural evidence that a paper is an artifact's base release."""
     score = ROLE_WEIGHT.get(row.get("paper_role", ""), 0) * 10.0
@@ -85,6 +95,7 @@ def _release_score(row: dict[str, str], earliest_year: int) -> float:
         score += 4
     if row.get("relevance_tier") == "core":
         score += 1
+    score += _title_release_score(row)
     # Earlier distinct releases are more likely to be the base. Citation counts are deliberately absent.
     year = _year(row)
     if year != 9999:
@@ -116,6 +127,7 @@ def _prompt(group: list[dict[str, str]], scores: dict[str, float], prompt_config
             f"artifact_name: {row.get('artifact_name', '')}",
             f"artifact_display_name: {row.get('artifact_display_name', '')}",
             f"reason: {row.get('primary_reason', '')[:500]}",
+            f"verified_release_evidence: {row.get('evidence_json', '')[:1000]}",
             f"deterministic_score: {scores.get(row.get('openalex_id', ''), 0):.1f}",
         )))
     return render_prompt(prompt_config, {}, "\n\n---\n\n".join(items), "reconciliation_template")

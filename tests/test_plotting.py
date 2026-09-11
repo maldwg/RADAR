@@ -7,8 +7,8 @@ from pathlib import Path
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.github.schema import CATALOGUE_COLUMNS as GITHUB_COLUMNS
 from ids_meta.openalex.schema import CATALOGUE_COLUMNS as OPENALEX_COLUMNS
-from ids_meta.plotting.github import OPERATIONAL_ROLES, build as build_github
-from ids_meta.plotting.openalex import build as build_openalex
+from ids_meta.plotting.github import OPERATIONAL_ROLES, _github_why_not_included, build as build_github
+from ids_meta.plotting.openalex import _openalex_why_not_included, build as build_openalex
 from ids_meta.plotting.compare import build as build_compare
 from ids_meta.plotting.compare import build_models
 from ids_meta.architecture import build as build_architecture
@@ -18,6 +18,27 @@ class PlottingTests(unittest.TestCase):
     def test_operational_reporting_roles_are_explicit(self) -> None:
         """Keep reporting limited to genuine operational approaches without hiding other roles."""
         self.assertEqual(OPERATIONAL_ROLES, {"native_detector", "classifier_engine", "detection_framework"})
+
+    def test_why_not_included_labels_are_plain_and_auditable(self) -> None:
+        """Use reader-facing reasons while retaining how each reason was assigned."""
+        repository_category, repository_basis, repository_explanation = _github_why_not_included({
+            "decision": "exclude", "primary_reason": "This is a tutorial for configuring an existing detector.",
+        })
+        self.assertEqual(repository_category, "Tutorial or lab only — no reusable implementation")
+        self.assertEqual(repository_basis, "Model explanation contains: tutorial")
+        self.assertIn("without a reusable IDS contribution", repository_explanation)
+        paper_category, paper_basis, paper_explanation = _openalex_why_not_included({
+            "decision": "exclude", "paper_role": "survey",
+        })
+        self.assertEqual(paper_category, "Survey only — no new dataset or generator")
+        self.assertEqual(paper_basis, "Structured paper role: survey")
+        self.assertIn("reviews existing resources", paper_explanation)
+        uncertain_category, uncertain_basis, uncertain_explanation = _github_why_not_included({
+            "decision": "uncertain", "classification_validation_flags": "framework_architecture_missing;verified_evidence_missing",
+        })
+        self.assertEqual(uncertain_category, "Could not verify a framework architecture")
+        self.assertEqual(uncertain_basis, "Automatic validation check: framework_architecture_missing")
+        self.assertIn("cohesive agent-manager", uncertain_explanation)
 
     def test_offline_plot_smoke_and_plot_data(self) -> None:
         """Verify both plot bundles render offline with matching data tables."""
@@ -40,7 +61,16 @@ class PlottingTests(unittest.TestCase):
             self.assertTrue((root / "github-plots/10_evidence_escalation.svg").is_file())
             self.assertIn("denominator_scope", (root / "github-plots/data/10_evidence_escalation.csv").read_text(encoding="utf-8").splitlines()[0])
             self.assertTrue((root / "github-plots/11_keyword_score_vs_decision.svg").is_file())
-            self.assertIn("score_median", (root / "github-plots/data/11_keyword_score_vs_decision.csv").read_text(encoding="utf-8").splitlines()[0])
+            self.assertTrue((root / "github-plots/12_why_not_included.svg").is_file())
+            self.assertTrue((root / "github-plots/data/12_why_not_included_records.csv").is_file())
+            github_reason_header = (root / "github-plots/data/12_why_not_included_records.csv").read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("primary_reason", github_reason_header)
+            self.assertIn("how_reason_was_assigned", github_reason_header)
+            github_score_header = (root / "github-plots/data/11_keyword_score_vs_decision.csv").read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("score_median", github_score_header)
+            self.assertIn("lower_whisker", github_score_header)
+            self.assertIn("upper_whisker", github_score_header)
+            self.assertIn("outlier_count", github_score_header)
             self.assertIn("llm_decision", (root / "github-plots/data/11_keyword_score_vs_decision_records.csv").read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse((root / "github-plots/00_repository_overview_p01.svg").exists())
             comparison = build_compare("github", github_csv, root / "comparison", {"formats": ["svg"], "dpi": 72})
@@ -84,7 +114,16 @@ class PlottingTests(unittest.TestCase):
             self.assertTrue((root / "openalex-plots/09_evidence_escalation.svg").is_file())
             self.assertIn("denominator_scope", (root / "openalex-plots/data/09_evidence_escalation.csv").read_text(encoding="utf-8").splitlines()[0])
             self.assertTrue((root / "openalex-plots/11_keyword_score_vs_decision.svg").is_file())
-            self.assertIn("score_median", (root / "openalex-plots/data/11_keyword_score_vs_decision.csv").read_text(encoding="utf-8").splitlines()[0])
+            self.assertTrue((root / "openalex-plots/12_why_not_included.svg").is_file())
+            self.assertTrue((root / "openalex-plots/data/12_why_not_included_records.csv").is_file())
+            paper_reason_header = (root / "openalex-plots/data/12_why_not_included_records.csv").read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("primary_reason", paper_reason_header)
+            self.assertIn("how_reason_was_assigned", paper_reason_header)
+            paper_score_header = (root / "openalex-plots/data/11_keyword_score_vs_decision.csv").read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("score_median", paper_score_header)
+            self.assertIn("lower_whisker", paper_score_header)
+            self.assertIn("upper_whisker", paper_score_header)
+            self.assertIn("outlier_count", paper_score_header)
             self.assertIn("llm_decision", (root / "openalex-plots/data/11_keyword_score_vs_decision_records.csv").read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse(stale.exists())
             architecture = build_architecture(root, ["svg"], 72)

@@ -12,7 +12,7 @@ from pathlib import Path
 from ids_meta.common.cache import PipelineCache
 from ids_meta.architecture import build as build_architecture
 from ids_meta.common.csvio import atomic_write_csv
-from ids_meta.common.ensemble import ensemble_classifications
+from ids_meta.common.ensemble import consensus_classification, ensemble_classifications
 from ids_meta.common.config import Settings
 from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from ids_meta.common.ollama import EvidenceSection, decision_profile, verify_evidence
@@ -230,6 +230,21 @@ class CommonTests(unittest.TestCase):
             self.assertEqual(paths["model/a"]["classifications"], root / "interim/github/models/model-a/classifications.csv")
             self.assertNotEqual(paths["model/a"]["classifications"], paths["model:b"]["classifications"])
 
+    def test_openalex_consensus_rejects_conflicting_resource_names(self) -> None:
+        """Do not silently select one resource identity when repeated runs disagree."""
+        votes = {}
+        for label, artifact_name in (("run-1", "CICIDS2017"), ("run-2", "CSE-CIC-IDS2018")):
+            votes[label] = {
+                "decision": "accept", "paper_role": "original_release", "relevance_tier": "core",
+                "artifact_type": "dataset", "artifact_name": artifact_name,
+                "artifact_display_name": artifact_name, "direct_release_evidence": "true",
+                "evidence_quote_verified": "true",
+            }
+        result = consensus_classification("openalex", votes, .5)
+        self.assertEqual(result["decision"], "uncertain")
+        self.assertIn("artifact_identity_consensus_conflict", result["consensus_validation_flags"])
+        self.assertEqual(json.loads(result["consensus_field_audit"])["artifact_identity"]["status"], "conflict")
+
     def test_ensemble_votes_include_exclude_uncertain_and_missing(self) -> None:
         """Verify majority votes, ties, thresholds, and missing results are auditable."""
         with tempfile.TemporaryDirectory() as directory:
@@ -279,6 +294,22 @@ class CommonTests(unittest.TestCase):
             self.assertEqual(openalex_rows[0]["decision"], "accept_adjacent")
             self.assertEqual(openalex_rows[0]["relevance_tier"], "adjacent")
             self.assertEqual(openalex_rows[0]["ensemble_representative_model"], "adjacent-model")
+
+            conflict_inputs: dict[str, Path] = {}
+            for model, artifact_name in (("cic-model", "CICIDS2017"), ("cse-model", "CSE-CIC-IDS2018")):
+                path = root / f"{model}.csv"
+                row = {column: "" for column in OPENALEX_CLASSIFICATION_COLUMNS}
+                row.update({
+                    "openalex_id": "W-conflict", "title": "A new intrusion dataset",
+                    "decision": "accept", "relevance_tier": "core", "paper_role": "original_release",
+                    "artifact_name": artifact_name, "artifact_display_name": artifact_name, "llm_model": model,
+                })
+                atomic_write_csv(path, [row], OPENALEX_CLASSIFICATION_COLUMNS)
+                conflict_inputs[model] = path
+            conflict = ensemble_classifications("openalex", conflict_inputs, root / "openalex-conflict.csv", .5, OPENALEX_CLASSIFICATION_COLUMNS)[0]
+            self.assertEqual(conflict["decision"], "uncertain")
+            self.assertEqual(conflict["ensemble_vote_status"], "artifact_identity_conflict")
+            self.assertIn("cross_model_artifact_identity_conflict", conflict["consensus_validation_flags"])
 
 
 if __name__ == "__main__":

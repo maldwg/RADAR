@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from ids_meta.common.evidence import EVIDENCE_EXPANSION_COLUMNS
+from ids_meta.common.text import normalize_text
 PAPER_ROLES = (
     "original_release", "versioned_release", "generator_release", "survey",
     "downstream_application", "dataset_analysis", "unrelated", "uncertain",
@@ -96,6 +97,15 @@ def normalize_response(raw: dict[str, Any], verified: list[dict[str, str]], conf
     direct = bool(raw.get("direct_release_evidence"))
     artifact_name = str(raw.get("artifact_name", "")).strip()
     artifact_display_name = str(raw.get("artifact_display_name", "")).strip()[:80]
+    aliases = raw.get("artifact_aliases") if isinstance(raw.get("artifact_aliases"), list) else []
+    identity_values = [artifact_name, artifact_display_name, *(str(value).strip() for value in aliases)]
+    identity_evidence = normalize_text(*(item.get("quote", "") for item in verified))
+    compact_evidence = identity_evidence.replace(" ", "")
+    identity_ok = any(
+        len(normalize_text(value).replace(" ", "")) >= 5
+        and normalize_text(value).replace(" ", "") in compact_evidence
+        for value in identity_values if value
+    )
     artifact_type = enum_value(raw.get("artifact_type"), ARTIFACT_TYPES, "unknown")
     role_artifact_ok = (
         role in ("original_release", "versioned_release") and artifact_type in ("dataset", "dataset_and_generator")
@@ -111,21 +121,22 @@ def normalize_response(raw: dict[str, Any], verified: list[dict[str, str]], conf
             validation_flags.append("direct_release_evidence_missing")
         if not artifact_name:
             validation_flags.append("artifact_name_missing")
+        elif not identity_ok:
+            validation_flags.append("artifact_identity_evidence_missing")
         if not quote_ok:
             validation_flags.append("verified_evidence_missing")
     elif role in ("survey", "downstream_application", "dataset_analysis", "unrelated") and not quote_ok:
         validation_flags.append("verified_evidence_missing")
     elif role == "uncertain":
         validation_flags.append("model_role_uncertain")
-    if role in ACCEPTED_ROLES and role_artifact_ok and tier == "core" and direct and artifact_name and quote_ok:
+    if role in ACCEPTED_ROLES and role_artifact_ok and tier == "core" and direct and artifact_name and identity_ok and quote_ok:
         decision = "accept"
-    elif role in ("original_release", "versioned_release") and role_artifact_ok and tier == "adjacent" and direct and artifact_name and quote_ok:
+    elif role in ("original_release", "versioned_release") and role_artifact_ok and tier == "adjacent" and direct and artifact_name and identity_ok and quote_ok:
         decision = "accept_adjacent"
     elif role in ("survey", "downstream_application", "dataset_analysis", "unrelated") and quote_ok:
         decision = "exclude"
     else:
         decision = "uncertain"
-    aliases = raw.get("artifact_aliases") if isinstance(raw.get("artifact_aliases"), list) else []
     result = {
         "decision": decision, "paper_role": role, "relevance_tier": tier,
         "artifact_id": artifact_id, "artifact_name": artifact_name,

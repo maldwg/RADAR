@@ -20,7 +20,7 @@ def _related(left: set[str], right: set[str]) -> bool:
         for second in right:
             second_tokens = set(second.split())
             token_overlap = len(first_tokens & second_tokens) / max(1, min(len(first_tokens), len(second_tokens)))
-            if token_overlap >= .75 and SequenceMatcher(None, first, second).ratio() >= .88:
+            if len(first_tokens) == len(second_tokens) and token_overlap >= .75 and SequenceMatcher(None, first, second).ratio() >= .88:
                 return True
     return False
 

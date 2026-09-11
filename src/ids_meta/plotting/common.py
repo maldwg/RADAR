@@ -192,20 +192,41 @@ def score_decision_plot(
     for decision in decisions:
         rows = view[view["llm_decision"] == decision]
         scores = rows["keyword_score"].dropna()
+        if scores.empty:
+            q1 = q3 = iqr = lower_fence = upper_fence = lower_whisker = upper_whisker = ""
+            outlier_count = 0
+        else:
+            q1 = scores.quantile(.25)
+            q3 = scores.quantile(.75)
+            iqr = q3 - q1
+            lower_fence = q1 - 1.5 * iqr
+            upper_fence = q3 + 1.5 * iqr
+            within_whiskers = scores[scores.between(lower_fence, upper_fence)]
+            lower_whisker = within_whiskers.min()
+            upper_whisker = within_whiskers.max()
+            outlier_count = int(((scores < lower_fence) | (scores > upper_fence)).sum())
         summary_rows.append({
             "llm_decision": decision,
             "count_total": len(rows),
             "count_with_score": len(scores),
             "score_min": scores.min() if not scores.empty else "",
-            "score_q1": scores.quantile(.25) if not scores.empty else "",
+            "score_q1": q1,
             "score_median": scores.median() if not scores.empty else "",
             "score_mean": scores.mean() if not scores.empty else "",
-            "score_q3": scores.quantile(.75) if not scores.empty else "",
+            "score_q3": q3,
             "score_max": scores.max() if not scores.empty else "",
+            "score_iqr": iqr,
+            "lower_outlier_fence": lower_fence,
+            "upper_outlier_fence": upper_fence,
+            "lower_whisker": lower_whisker,
+            "upper_whisker": upper_whisker,
+            "outlier_count": outlier_count,
         })
     summary = pd.DataFrame(summary_rows, columns=[
         "llm_decision", "count_total", "count_with_score", "score_min", "score_q1",
-        "score_median", "score_mean", "score_q3", "score_max",
+        "score_median", "score_mean", "score_q3", "score_max", "score_iqr",
+        "lower_outlier_fence", "upper_outlier_fence", "lower_whisker", "upper_whisker",
+        "outlier_count",
     ])
     write_table(summary, out_dir / "data", stem)
 
@@ -222,9 +243,10 @@ def score_decision_plot(
     fig, ax = plt.subplots(figsize=(10.8, height))
     subtitle = metadata_caption(
         frame,
-        f"{source_label}; each point is one classified entity; boxes show median and interquartile range",
+        f"{source_label}; dots are all classified entities; box = middle 50%, line = median; "
+        "whiskers end at the furthest score within 1.5 x IQR, so dots beyond them are valid outliers",
     )
-    add_heading(fig, "Keyword score versus final LLM decision", subtitle)
+    add_heading(fig, "Keyword-score distribution by final classification decision", subtitle)
     if not plotted_decisions:
         ax.axis("off")
         ax.text(.5, .5, "No rows contain both a numeric keyword score and a final decision", transform=ax.transAxes, ha="center", va="center", color="#5f6c76")
