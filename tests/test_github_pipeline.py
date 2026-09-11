@@ -10,7 +10,7 @@ from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from ids_meta.github.pipeline import classify, export, prefilter
 from ids_meta.github.reconcile import reconcile
-from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, derive_labels, derive_system_types, normalize_response
+from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, derive_system_types, normalize_response
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.common.text import stable_hash
 from ids_meta.github.collect import GitHubClient, _enrich, collect, search_shards
@@ -27,14 +27,14 @@ class FakeGitHubModel:
         self.calls = 0
 
     def generate(self, _prompt: str, _schema: dict[str, Any]) -> dict[str, Any]:
-        """Return a deterministic accepted standalone-detector response."""
+        """Return a deterministic accepted native-detector response."""
         self.calls += 1
         return {
-            "role": "standalone_detector",
+            "role": "native_detector",
             "observation_scopes": ["network"], "capabilities": ["detection", "response"],
             "detection_methods": ["signature_based", "packet_analysis"],
             "independent_fork": False, "direct_self_description": True,
-            "runtime_observation": True, "runnable_detector": True, "offline_dataset_only": False, "upstream_full_name": "",
+            "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": False, "research_basis": True, "upstream_full_name": "",
             "primary_reason": "The project directly describes a runnable network detector.",
             "evidence": [{"source": "README", "quote": "intruson detction system analyzes network traffic"}],
         }
@@ -85,7 +85,10 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_all_meaningful_roles_can_enter_combined_catalogue(self) -> None:
         """Verify every supported meaningful role can be accepted."""
+        self.assertEqual(ROLES, ("native_detector", "classifier_engine", "detection_framework", "detection_platform", "research_project", "demo", "rules_content", "support_tooling"))
         self.assertNotIn("confidence", RESPONSE_SCHEMA["properties"])
+        self.assertNotIn("runnable_detector", RESPONSE_SCHEMA["properties"])
+        self.assertNotIn("derived_labels", CLASSIFICATION_COLUMNS)
         self.assertNotIn("role_confidence", CLASSIFICATION_COLUMNS)
         config = {"require_verified_quote": True}
         for role in ROLES:
@@ -94,33 +97,52 @@ class GitHubPipelineTests(unittest.TestCase):
                     "role": role, "observation_scopes": ["unknown"],
                     "capabilities": [], "detection_methods": ["unknown"],
                     "independent_fork": False, "direct_self_description": True,
-            "runtime_observation": True, "runnable_detector": True, "offline_dataset_only": False, "upstream_full_name": "",
+                    "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": role == "detection_framework", "research_basis": True, "upstream_full_name": "",
                     "primary_reason": "fixture",
                 }, [{"source": "README", "quote": "fixture"}], config, False)
                 self.assertEqual(decision["decision"], "accept")
 
-    def test_standalone_detector_requires_runtime_and_runnable_evidence(self) -> None:
-        """Verify static-dataset classifiers cannot pass as standalone detectors."""
+    def test_native_detector_requires_independent_runtime_engine_evidence(self) -> None:
+        """Verify static or externally delegated implementations cannot pass as native detectors."""
         decision = normalize_response({
-            "role": "standalone_detector", "observation_scopes": ["network"],
+            "role": "native_detector", "observation_scopes": ["network"],
             "capabilities": ["detection"], "detection_methods": ["ml_based"],
             "independent_fork": False, "direct_self_description": True,
-            "runtime_observation": False, "runnable_detector": False,
-            "offline_dataset_only": True, "upstream_full_name": "", "primary_reason": "fixture",
+            "runtime_observation": False, "reproducible_execution": False,
+            "offline_dataset_only": True, "implements_detection_engine": False, "requires_external_detector": False, "integrates_multiple_detectors": False, "cohesive_framework_architecture": False, "research_basis": False, "upstream_full_name": "", "primary_reason": "fixture",
         }, [{"source": "README", "quote": "evaluated on a static dataset"}], {}, False)
         self.assertEqual(decision["decision"], "uncertain")
         self.assertEqual(
             decision["classification_validation_flags"],
-            "runtime_observation_missing;runnable_detector_missing;offline_dataset_only",
+            "runtime_observation_missing;reproducible_execution_missing;offline_dataset_only;detection_engine_implementation_missing",
         )
+
+    def test_cohesive_agent_manager_system_is_a_framework_not_native_detector(self) -> None:
+        """Keep OSSEC- and Wazuh-style distributed systems on the framework side of the boundary."""
+        evidence = [{"source": "README", "quote": "full platform with manager agents log analysis alerting and active response"}]
+        raw = {
+            "role": "native_detector", "observation_scopes": ["host_endpoint"],
+            "capabilities": ["detection", "response"], "detection_methods": ["log_analysis", "integrity_based"],
+            "independent_fork": False, "direct_self_description": True,
+            "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False,
+            "implements_detection_engine": True, "requires_external_detector": False,
+            "integrates_multiple_detectors": False, "cohesive_framework_architecture": True,
+            "research_basis": False, "upstream_full_name": "", "primary_reason": "fixture",
+        }
+        native = normalize_response(raw, evidence, {}, False)
+        self.assertEqual(native["decision"], "uncertain")
+        self.assertIn("framework_architecture_conflict", native["classification_validation_flags"])
+        framework = normalize_response({**raw, "role": "detection_framework"}, evidence, {}, False)
+        self.assertEqual(framework["decision"], "accept")
+        self.assertEqual(framework["classification_validation_flags"], "")
 
     def test_derivative_fork_requires_independence_evidence(self) -> None:
         """Verify derivative forks need evidence of independent significance."""
         decision = normalize_response({
-            "role": "standalone_detector", "observation_scopes": ["network"],
+            "role": "native_detector", "observation_scopes": ["network"],
             "capabilities": ["detection"], "detection_methods": ["signature_based"],
             "independent_fork": False, "direct_self_description": True,
-            "runtime_observation": True, "runnable_detector": True, "offline_dataset_only": False, "upstream_full_name": "", "primary_reason": "fixture",
+            "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": False, "research_basis": True, "upstream_full_name": "", "primary_reason": "fixture",
         }, [{"source": "README", "quote": "fixture"}], {}, True)
         self.assertEqual(decision["decision"], "uncertain")
 
@@ -275,7 +297,6 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_derived_taxonomy(self) -> None:
         """Verify normalized dimensions deterministically produce display labels."""
-        self.assertEqual(derive_labels(["network"], ["detection", "response"]), ["NIDS", "NDR"])
         self.assertIn("XDR", derive_system_types(["multi_scope"], ["detection", "response"]))
 
     def test_configured_system_types_are_extensible_and_unambiguous(self) -> None:
@@ -327,11 +348,13 @@ class GitHubPipelineTests(unittest.TestCase):
                 expanded = "decisive runnable detector documentation" in prompt
                 accepted = expanded or self.calls <= 3
                 return {
-                    "role": "standalone_detector" if accepted else "out_of_scope",
+                    "role": "native_detector" if accepted else "out_of_scope",
                     "observation_scopes": ["network"], "capabilities": ["detection"],
                     "detection_methods": ["unknown"], "independent_fork": False,
                     "direct_self_description": accepted, "runtime_observation": accepted,
-                    "runnable_detector": accepted, "offline_dataset_only": False,
+                    "reproducible_execution": accepted, "offline_dataset_only": False,
+                    "implements_detection_engine": accepted, "requires_external_detector": False,
+                    "integrates_multiple_detectors": False, "cohesive_framework_architecture": False, "research_basis": False,
                     "upstream_full_name": "", "primary_reason": "fixture",
                     "evidence": [{"source": "Documentation" if expanded else "README",
                                   "quote": "decisive runnable detector documentation" if expanded else "ambiguous project"}],
@@ -396,7 +419,7 @@ class GitHubPipelineTests(unittest.TestCase):
                 self.assertEqual(first[0]["decision"], "accept")
                 self.assertTrue(first[0]["consensus_field_audit"])
                 self.assertEqual(first[0]["consensus_validation_flags"], "")
-                self.assertIn("NDR", first[0]["derived_labels"])
+                self.assertIn("NDR", first[0]["system_types"])
                 self.assertEqual(first[0]["primary_system_type"], "NIDS")
                 self.assertIn("Network intrusion detection system", first[0]["system_type_names"])
                 classify(candidates, classified, cache, settings.section("ollama"), generator=model, prompt_config=prompts, system_type_profile=system_types, consecutive_runs=3, consensus_threshold=.66)
@@ -404,12 +427,13 @@ class GitHubPipelineTests(unittest.TestCase):
                 reconcile(classified, reconciled, cache, settings.section("ollama"), settings.section("github"), dry_run=True)
                 final = export(reconciled, catalogue, system_types)
                 self.assertEqual(len(final), 1)
-                self.assertEqual(final[0]["role"], "standalone_detector")
-                self.assertEqual(final[0]["repository_relationship"], "standalone_project")
+                self.assertEqual(final[0]["role"], "native_detector")
+                self.assertEqual(final[0]["repository_relationship"], "canonical")
+                self.assertEqual(final[0]["canonical_resolution"], "singleton_project")
                 self.assertEqual(final[0]["canonical_margin"], "")
                 self.assertEqual(final[0]["canonical_confidence"], "")
                 self.assertIn("margin n/a", final[0]["canonical_reason"])
-                self.assertIn("role=", final[0]["canonical_score_breakdown"])
+                self.assertNotIn("role=", final[0]["canonical_score_breakdown"])
 
     def test_classification_limit_includes_cached_ranked_rows(self) -> None:
         """Verify resume keeps the same bounded score-ranked shortlist."""
@@ -446,7 +470,7 @@ class GitHubPipelineTests(unittest.TestCase):
                 value = {column: "" for column in CLASSIFICATION_COLUMNS}
                 value.update({
                     "github_repo_id": repo_id, "full_name": f"example/{name}", "owner": "example", "name": name,
-                    "decision": "accept", "role": "standalone_detector", "fork": "false",
+                    "decision": "accept", "role": "native_detector", "fork": "false",
                     "direct_self_description": "true", "last_commit_sha": "sha", "stars": "0",
                 })
                 return value
@@ -472,7 +496,7 @@ class GitHubPipelineTests(unittest.TestCase):
             base = {column: "" for column in CLASSIFICATION_COLUMNS}
             base.update({
                 "github_repo_id": "1", "full_name": "OISF/suricata", "owner": "OISF", "name": "suricata",
-                "decision": "accept", "role": "standalone_detector", "fork": "false",
+                "decision": "accept", "role": "native_detector", "fork": "false",
                 "direct_self_description": "true", "last_commit_sha": "sha",
             })
             variant = {column: "" for column in CLASSIFICATION_COLUMNS}
@@ -490,6 +514,34 @@ class GitHubPipelineTests(unittest.TestCase):
             self.assertEqual(values["2"]["canonical_full_name"], "OISF/suricata")
             self.assertEqual(values["1"]["canonical_margin"], "")
             self.assertNotIn("-9", values["1"]["canonical_reason"])
+
+    def test_canonical_selection_does_not_prefer_one_repository_role(self) -> None:
+        """Let lineage evidence beat role labels when selecting a project family base."""
+        settings = load_settings(ROOT / "config/default.toml")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output = root / "source.csv", root / "output.csv"
+            native = {column: "" for column in CLASSIFICATION_COLUMNS}
+            native.update({
+                "github_repo_id": "1", "full_name": "example/detector-core", "owner": "example", "name": "detector-core",
+                "decision": "accept", "role": "native_detector", "fork": "false",
+                "direct_self_description": "true", "last_commit_sha": "sha",
+            })
+            framework = {column: "" for column in CLASSIFICATION_COLUMNS}
+            framework.update({
+                "github_repo_id": "2", "full_name": "example/framework-suite", "owner": "example", "name": "framework-suite",
+                "decision": "accept", "role": "detection_framework", "fork": "false",
+                "direct_self_description": "true", "last_commit_sha": "sha",
+            })
+            atomic_write_csv(source, [native, framework], CLASSIFICATION_COLUMNS)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("github.repository", "1", {"readme_text": "Canonical project: https://github.com/example/framework-suite", "docs_text": ""}, "now")
+                cache.put_record("github.repository", "2", {"readme_text": "", "docs_text": ""}, "now")
+                result = reconcile(source, output, cache, settings.section("ollama"), settings.section("github"), dry_run=True)
+            by_id = {row["github_repo_id"]: row for row in result}
+            self.assertEqual(by_id["1"]["canonical_repo_id"], "2")
+            self.assertEqual(by_id["2"]["repository_relationship"], "canonical")
+            self.assertNotIn("role=", by_id["2"]["canonical_score_breakdown"])
 
     def test_derivative_only_family_reports_missing_base(self) -> None:
         """Verify a lone packaging repository is not called canonical."""

@@ -152,7 +152,7 @@ class CommonTests(unittest.TestCase):
         openalex_config = load_prompt_profile(settings, "openalex")
         github = github_prompt([EvidenceSection("README", "repository fixture evidence")], github_config)
         openalex = openalex_prompt([EvidenceSection("Abstract", "paper fixture evidence")], openalex_config)
-        self.assertIn("standalone_detector", github)
+        self.assertIn("native_detector", github)
         self.assertIn("repository fixture evidence", github)
         self.assertIn("dataset_and_generator", openalex)
         self.assertIn("paper fixture evidence", openalex)

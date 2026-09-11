@@ -25,7 +25,7 @@ classification_fields = ["role", "observation_scopes", "capabilities", "detectio
 [[entities]]
 repository = "OISF/suricata"
 decision = "accept"
-role = "standalone_detector"
+role = "native_detector"
 observation_scopes = ["network"]
 capabilities = ["detection", "prevention", "monitoring"]
 detection_methods = ["signature_based", "packet_analysis"]

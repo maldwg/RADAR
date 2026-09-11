@@ -22,7 +22,7 @@ github_ratings = "config/evaluation/github.toml"
 openalex_ratings = "config/evaluation/openalex.toml"
 
 [ollama]
-url = "http://192.168.175.151:11434"
+url = "http://10.20.31.1:11434"
 model = "qwen3.6:27b"
 # Optional multi-model mode. An empty array keeps the scalar model behavior and legacy paths.
 models = ["gemma4:31b", "qwen3.6:27b"]

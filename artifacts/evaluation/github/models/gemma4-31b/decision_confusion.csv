@@ -1,5 +1,5 @@
 expected,actual,count
-exclude,exclude,10
-exclude,include,2
-include,include,8
-include,unavailable,4
+exclude,exclude,3
+exclude,unavailable,9
+include,include,7
+include,unavailable,5

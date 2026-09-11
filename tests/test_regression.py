@@ -12,8 +12,8 @@ class RegressionEvaluationTests(unittest.TestCase):
 
     def test_github_dict_regression_metrics(self) -> None:
         """Compare GitHub decisions and roles with a hand-rated dictionary."""
-        expected = {"1": {"decision": "accept", "role": "standalone_detector"}, "2": {"decision": "exclude", "role": "demo"}}
-        actual = {"1": {"decision": "accept", "role": "standalone_detector"}, "2": {"decision": "uncertain", "role": "demo"}}
+        expected = {"1": {"decision": "accept", "role": "native_detector"}, "2": {"decision": "exclude", "role": "demo"}}
+        actual = {"1": {"decision": "accept", "role": "native_detector"}, "2": {"decision": "uncertain", "role": "demo"}}
         result = evaluate_github_regression(expected, actual)
         self.assertEqual(result.metrics["accuracy"], .5)
         self.assertEqual(result.metrics["detection_rate"], 1.0)
@@ -53,14 +53,14 @@ class RegressionEvaluationTests(unittest.TestCase):
 
     def test_github_multilabel_consensus_recomputes_system_types(self) -> None:
         """Vote GitHub labels independently and derive system types from the result."""
-        base = {"decision": "accept", "role": "standalone_detector", "independent_fork": "false", "direct_self_description": "true", "runtime_observation": "true", "runnable_detector": "true", "offline_dataset_only": "false", "evidence_quote_verified": "true", "fork": "false", "upstream_full_name": ""}
+        base = {"decision": "accept", "role": "native_detector", "independent_fork": "false", "direct_self_description": "true", "runtime_observation": "true", "reproducible_execution": "true", "offline_dataset_only": "false", "implements_detection_engine": "true", "requires_external_detector": "false", "integrates_multiple_detectors": "false", "cohesive_framework_architecture": "false", "research_basis": "false", "evidence_quote_verified": "true", "fork": "false", "upstream_full_name": ""}
         votes = {
             "run-1": {**base, "observation_scopes": "network", "capabilities": "detection;response", "detection_methods": "packet_analysis"},
             "run-2": {**base, "observation_scopes": "network", "capabilities": "detection;response", "detection_methods": "packet_analysis"},
             "run-3": {**base, "role": "support_tooling", "observation_scopes": "host_endpoint", "capabilities": "detection", "detection_methods": "log_analysis"},
         }
         result = consensus_classification("github", votes, .66)
-        self.assertEqual(result["role"], "standalone_detector")
+        self.assertEqual(result["role"], "native_detector")
         self.assertEqual(result["observation_scopes"], "network")
         self.assertEqual(result["capabilities"], "detection;response")
         self.assertEqual(result["primary_system_type"], "NIDS")

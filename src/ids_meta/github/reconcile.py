@@ -16,7 +16,7 @@ from ids_meta.common.text import normalize_text, stable_hash
 from ids_meta.github.schema import CATALOGUE_COLUMNS
 
 LOG = logger("github.reconcile")
-PROMPT_VERSION = "github-reconcile-3"
+PROMPT_VERSION = "github-reconcile-5"
 GITHUB_LINK_RE = re.compile(r"https?://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)", re.I)
 
 VARIANT_TOKENS = {
@@ -34,13 +34,8 @@ RELATIONSHIP_TOKENS = (
     ("legacy_version", {"legacy", "deprecated", "archive"}),
     ("mirror", {"mirror"}),
     ("wrapper", {"wrapper", "sdk"}),
-    ("research_demo", {"examples", "demo"}),
+    ("demo", {"examples", "demo"}),
 )
-ROLE_WEIGHT = {
-    "standalone_detector": 6, "platform_framework": 5, "classifier_model": 4,
-    "rules_content": 3, "support_tooling": 2, "research_demo": 1,
-}
-
 RESPONSE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -101,9 +96,9 @@ def _relationship(row: dict[str, str], canonical: dict[str, str]) -> str:
         if tokens & candidates:
             return label
     role = row.get("role", "")
-    if role in {"rules_content", "research_demo"}:
+    if role in {"rules_content", "research_project", "demo"}:
         return role
-    if role in {"support_tooling", "classifier_model", "platform_framework"}:
+    if role in {"support_tooling", "classifier_engine", "detection_framework", "detection_platform"}:
         return role
     return "related_repository"
 
@@ -111,7 +106,6 @@ def _relationship(row: dict[str, str], canonical: dict[str, str]) -> str:
 def _score_parts(row: dict[str, str], inbound_links: int) -> dict[str, float]:
     """Return named structural canonical-ranking components."""
     return {
-        "role": ROLE_WEIGHT.get(row.get("role", ""), 0) * 10.0,
         "nonfork": 5.0 if row.get("fork") != "true" else 0.0,
         "self_description": 4.0 if row.get("direct_self_description") == "true" else 0.0,
         "nonvariant": 4.0 if not _variant_tokens(row) else 0.0,
@@ -253,7 +247,10 @@ def reconcile(
             if canonical is None:
                 relationship = "base_repository_missing"
             elif len(group) == 1:
-                relationship = "standalone_project"
+                # A singleton is still the observed base of its project family. Keep
+                # singleton_project in canonical_resolution to record that no competing
+                # repository was compared.
+                relationship = "canonical"
             else:
                 relationship = _relationship(row, canonical)
             reconciled_fields[row.get("github_repo_id", "")] = {

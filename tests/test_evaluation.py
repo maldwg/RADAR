@@ -40,8 +40,8 @@ class EvaluationTests(unittest.TestCase):
         """Keep decisions and primary semantic strata balanced as ratings evolve."""
         with (ROOT / "config/evaluation/github.toml").open("rb") as handle:
             github = tomllib.load(handle)["entities"]
-        self.assertEqual(len(github), 24)
-        self.assertEqual(Counter(row["decision"] for row in github), {"accept": 12, "exclude": 12})
+        self.assertEqual(len(github), 28)
+        self.assertEqual(Counter(row["decision"] for row in github), {"accept": 16, "exclude": 12})
         accepted_repositories = [row for row in github if row["decision"] == "accept"]
         self.assertEqual(Counter(row["role"] for row in accepted_repositories), {role: 2 for role in ROLES})
         self.assertTrue((set(SCOPES) - {"unknown"}).issubset({value for row in accepted_repositories for value in row["observation_scopes"]}))
@@ -71,7 +71,7 @@ class EvaluationTests(unittest.TestCase):
             root = Path(directory)
             body = (
                 '[[entities]]\nid = "g1"\nname = "Correct detector"\ndecision = "accept"\n'
-                'role = "standalone_detector"\nobservation_scopes = ["network"]\n'
+                'role = "native_detector"\nobservation_scopes = ["network"]\n'
                 'capabilities = ["detection", "response"]\ndetection_methods = ["signature_based"]\n\n'
                 '[[entities]]\nid = "g2"\ndecision = "exclude"\n\n'
                 '[[entities]]\nid = "g3"\ndecision = "accept"\n\n'
@@ -81,7 +81,7 @@ class EvaluationTests(unittest.TestCase):
             profile_path = self._write_profile(root / "github.toml", "github", body)
             classifications = root / "classifications.csv"
             atomic_write_csv(classifications, [
-                {"github_repo_id": "g1", "decision": "accept", "role": "standalone_detector", "observation_scopes": "network", "capabilities": "response;detection", "detection_methods": "signature_based"},
+                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "capabilities": "response;detection", "detection_methods": "signature_based"},
                 {"github_repo_id": "g2", "decision": "accept"},
                 {"github_repo_id": "g3", "decision": "exclude"},
                 {"github_repo_id": "g4", "decision": "uncertain"},
@@ -165,7 +165,7 @@ class EvaluationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             body = (
-                '[[entities]]\nid = "g1"\ndecision = "accept"\nrole = "standalone_detector"\n'
+                '[[entities]]\nid = "g1"\ndecision = "accept"\nrole = "native_detector"\n'
                 'observation_scopes = ["network"]\ncapabilities = ["detection", "response"]\n'
                 'detection_methods = ["signature_based"]\n\n'
                 '[[entities]]\nid = "g2"\ndecision = "exclude"\nrole = "out_of_scope"\n'
@@ -173,7 +173,7 @@ class EvaluationTests(unittest.TestCase):
             profile = load_rating_profile(self._write_profile(root / "github.toml", "github", body), "github")
             classifications = root / "classifications.csv"
             atomic_write_csv(classifications, [
-                {"github_repo_id": "g1", "decision": "accept", "role": "standalone_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based"},
+                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based"},
                 {"github_repo_id": "g2", "decision": "uncertain", "role": "uncertain"},
             ], ["github_repo_id", "decision", "role", "observation_scopes", "capabilities", "detection_methods"])
             candidates = root / "candidates.csv"

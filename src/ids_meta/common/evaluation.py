@@ -12,7 +12,7 @@ from ids_meta.common.ensemble import decision_disposition
 
 
 MULTI_FIELDS = {
-    "github": {"observation_scopes", "capabilities", "detection_methods", "system_types", "derived_labels"},
+    "github": {"observation_scopes", "capabilities", "detection_methods", "system_types"},
     "openalex": {"artifact_aliases"},
 }
 DEFAULT_FIELDS = {

@@ -2,20 +2,20 @@ schema_version = "1.0"
 source = "github"
 classification_fields = ["role", "observation_scopes", "capabilities", "detection_methods"]
 
-# Balanced benchmark design (24 entities):
-# - 12 expected inclusions and 12 expected exclusions.
+# Stratified benchmark design (28 entities):
+# - 16 expected inclusions and 12 expected exclusions.
 # - Two inclusions for each eligible repository role.
 # - Every concrete observation scope and detection method occurs at least once.
 # - Exclusions are split into four three-item boundary families: generic monitors,
 #   offensive/scanning tools, curated/tutorial content, and name collisions.
 # This is a stratified accuracy benchmark, not an estimate of class prevalence.
 
-# Included: standalone detectors (2)
+# Included: native detectors (2)
 
 [[entities]]
 repository = "OISF/suricata"
 decision = "accept"
-role = "standalone_detector"
+role = "native_detector"
 observation_scopes = ["network"]
 capabilities = ["detection", "prevention", "monitoring"]
 detection_methods = ["signature_based", "rule_based", "protocol_analysis", "packet_analysis", "flow_analysis"]
@@ -23,35 +23,35 @@ detection_methods = ["signature_based", "rule_based", "protocol_analysis", "pack
 [[entities]]
 repository = "riverloopsec/beekeeperwids"
 decision = "accept"
-role = "standalone_detector"
+role = "native_detector"
 observation_scopes = ["wireless"]
 capabilities = ["detection", "monitoring"]
 detection_methods = ["signature_based", "rule_based", "packet_analysis"]
 
-# Included: platforms/frameworks (2)
+# Included: detection frameworks (2)
 
 [[entities]]
 repository = "wazuh/wazuh"
 decision = "accept"
-role = "platform_framework"
+role = "detection_framework"
 observation_scopes = ["host_endpoint", "network", "application", "multi_scope"]
 capabilities = ["detection", "prevention", "response", "monitoring"]
 detection_methods = ["signature_based", "rule_based", "anomaly_based", "integrity_based", "log_analysis", "system_call_analysis", "threat_intelligence_based", "hybrid"]
 
 [[entities]]
-repository = "cossacklabs/acra"
+repository = "ossec/ossec-hids"
 decision = "accept"
-role = "platform_framework"
-observation_scopes = ["database", "application"]
-capabilities = ["detection", "prevention", "monitoring"]
-detection_methods = ["rule_based", "anomaly_based", "query_based"]
+role = "detection_framework"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "prevention", "response", "monitoring"]
+detection_methods = ["signature_based", "rule_based", "integrity_based", "log_analysis"]
 
-# Included: reusable classifier/model implementations (2)
+# Included: classifier engines (2)
 
 [[entities]]
 repository = "cstub/ml-ids"
 decision = "accept"
-role = "classifier_model"
+role = "classifier_engine"
 observation_scopes = ["network"]
 capabilities = ["detection"]
 detection_methods = ["ml_based", "flow_analysis"]
@@ -59,7 +59,7 @@ detection_methods = ["ml_based", "flow_analysis"]
 [[entities]]
 repository = "thisisaramide/ids-cnn-lstm"
 decision = "accept"
-role = "classifier_model"
+role = "classifier_engine"
 observation_scopes = ["network"]
 capabilities = ["detection"]
 detection_methods = ["dnn_based", "flow_analysis", "hybrid"]
@@ -78,7 +78,7 @@ detection_methods = ["rule_based", "log_analysis"]
 repository = "Azure/Azure-Sentinel"
 decision = "accept"
 role = "rules_content"
-observation_scopes = ["multi_scope"]
+observation_scopes = ["network", "host_endpoint", "database", "application", "multi_scope"]
 capabilities = ["detection"]
 detection_methods = ["query_based"]
 
@@ -100,12 +100,12 @@ observation_scopes = ["network"]
 capabilities = ["monitoring"]
 detection_methods = ["unknown"]
 
-# Included: research demonstrations (2)
+# Included: research projects (2)
 
 [[entities]]
 repository = "mudgalabhay/Intrusion-Detection-System"
 decision = "accept"
-role = "research_demo"
+role = "research_project"
 observation_scopes = ["network"]
 capabilities = ["detection"]
 detection_methods = ["ml_based", "ann_based"]
@@ -113,10 +113,46 @@ detection_methods = ["ml_based", "ann_based"]
 [[entities]]
 repository = "ubc-provenance/PIDSMaker"
 decision = "accept"
-role = "research_demo"
+role = "research_project"
 observation_scopes = ["provenance"]
 capabilities = ["detection"]
 detection_methods = ["dnn_based"]
+
+# Included: detection platforms (2)
+
+[[entities]]
+repository = "telekom-security/tpotce"
+decision = "accept"
+role = "detection_platform"
+observation_scopes = ["network", "host_endpoint", "multi_scope"]
+capabilities = ["detection", "monitoring"]
+detection_methods = ["signature_based", "rule_based", "anomaly_based", "packet_analysis", "flow_analysis", "log_analysis", "hybrid"]
+
+[[entities]]
+repository = "cisagov/Malcolm"
+decision = "accept"
+role = "detection_platform"
+observation_scopes = ["network", "multi_scope"]
+capabilities = ["detection", "monitoring"]
+detection_methods = ["signature_based", "rule_based", "protocol_analysis", "packet_analysis", "flow_analysis", "log_analysis", "hybrid"]
+
+# Included: demos (2)
+
+[[entities]]
+repository = "hamim23z/Intrusion_Detection_System_with_Snort_380"
+decision = "accept"
+role = "demo"
+observation_scopes = ["network"]
+capabilities = ["detection"]
+detection_methods = ["signature_based", "rule_based", "packet_analysis"]
+
+[[entities]]
+repository = "iimohtasimd/CodeAlpha_NIDS-SetupUsingSnort-"
+decision = "accept"
+role = "demo"
+observation_scopes = ["network"]
+capabilities = ["detection"]
+detection_methods = ["signature_based", "rule_based", "packet_analysis"]
 
 # Excluded: generic monitors/visibility tools (3)
 

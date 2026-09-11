@@ -7,7 +7,7 @@ from pathlib import Path
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.github.schema import CATALOGUE_COLUMNS as GITHUB_COLUMNS
 from ids_meta.openalex.schema import CATALOGUE_COLUMNS as OPENALEX_COLUMNS
-from ids_meta.plotting.github import build as build_github
+from ids_meta.plotting.github import OPERATIONAL_ROLES, build as build_github
 from ids_meta.plotting.openalex import build as build_openalex
 from ids_meta.plotting.compare import build as build_compare
 from ids_meta.plotting.compare import build_models
@@ -15,13 +15,17 @@ from ids_meta.architecture import build as build_architecture
 
 
 class PlottingTests(unittest.TestCase):
+    def test_operational_reporting_roles_are_explicit(self) -> None:
+        """Keep reporting limited to genuine operational approaches without hiding other roles."""
+        self.assertEqual(OPERATIONAL_ROLES, {"native_detector", "classifier_engine", "detection_framework"})
+
     def test_offline_plot_smoke_and_plot_data(self) -> None:
         """Verify both plot bundles render offline with matching data tables."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             github_csv = root / "github.csv"
             github_row = {column: "" for column in GITHUB_COLUMNS}
-            github_row.update({"schema_version": "1.0", "run_id": "run", "github_repo_id": "1", "project_id": "p1", "canonical_repo_id": "1", "repository_relationship": "canonical", "full_name": "example/repo", "role": "standalone_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", "system_type_names": "Network intrusion detection system", "language": "Python", "stars": "5", "forks": "1", "pushed_at": "2025-01-01T00:00:00Z", "html_url": "https://example.invalid", "evidence_json": "[]", "prefilter_band": "candidate", "prefilter_score": "10", "decision": "accept", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true"})
+            github_row.update({"schema_version": "1.0", "run_id": "run", "github_repo_id": "1", "project_id": "p1", "canonical_repo_id": "1", "repository_relationship": "canonical", "full_name": "example/repo", "role": "native_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", "system_type_names": "Network intrusion detection system", "language": "Python", "stars": "5", "forks": "1", "pushed_at": "2025-01-01T00:00:00Z", "html_url": "https://example.invalid", "evidence_json": "[]", "prefilter_band": "candidate", "prefilter_score": "10", "decision": "accept", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true"})
             atomic_write_csv(github_csv, [github_row], GITHUB_COLUMNS)
             outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg"], "dpi": 72, "top_n": 5}, classifications_path=github_csv)
             self.assertTrue(outputs)

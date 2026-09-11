@@ -2,12 +2,12 @@
 
 - Source: `github`
 - Rated entities: 24
-- Operational DR: 0.5833
-- Operational FPR: 0.0833
+- Operational DR: 0.5000
+- Operational FPR: 0.0000
 - Operational accuracy: 0.7500
-- Operational precision: 0.8750
-- Metadata field accuracy: 0.6979 (96 comparisons)
-- Abstention rate: 0.2083
+- Operational precision: 1.0000
+- Metadata field accuracy: 0.3333 (96 comparisons)
+- Abstention rate: 0.5833
 
 ## Interpreting the three views
 

@@ -6,10 +6,10 @@ Operational,F1,f1,0.9090909090909091
 Operational,False-positive rate,FPR,0.0
 Operational,False-negative rate,FNR,0.16666666666666666
 Strict,Detection rate,DR,0.8333333333333334
-Strict,Precision,PREC,0.5882352941176471
-Strict,Accuracy,ACC,0.625
-Strict,F1,f1,0.6896551724137931
-Strict,False-positive rate,FPR,0.5833333333333334
+Strict,Precision,PREC,0.7142857142857143
+Strict,Accuracy,ACC,0.75
+Strict,F1,f1,0.7692307692307692
+Strict,False-positive rate,FPR,0.3333333333333333
 Strict,False-negative rate,FNR,0.16666666666666666
 Selective,Detection rate,DR,1.0
 Selective,Precision,PREC,1.0

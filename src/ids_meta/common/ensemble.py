@@ -112,7 +112,7 @@ def _github_field_consensus(
     audit: dict[str, Any] = {}
     value, details = _vote_scalar(votes, "role", threshold, "uncertain")
     combined["role"], audit["role"] = value, details
-    for field in ("independent_fork", "direct_self_description", "runtime_observation", "runnable_detector", "offline_dataset_only", "evidence_quote_verified"):
+    for field in ("independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution", "offline_dataset_only", "implements_detection_engine", "requires_external_detector", "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "evidence_quote_verified"):
         value, details = _vote_scalar(votes, field, threshold, "false", _bool_text)
         combined[field], audit[field] = value, details
     for field, fallback in (("observation_scopes", "unknown"), ("capabilities", ""), ("detection_methods", "unknown")):
@@ -167,19 +167,47 @@ def _validate_github_consensus(
     role = str(row.get("role", "uncertain"))
     self_description = _bool_text(row.get("direct_self_description")) == "true"
     runtime = _bool_text(row.get("runtime_observation")) == "true"
-    runnable = _bool_text(row.get("runnable_detector")) == "true"
+    runnable = _bool_text(row.get("reproducible_execution")) == "true"
     offline = _bool_text(row.get("offline_dataset_only")) == "true"
+    implements_engine = _bool_text(row.get("implements_detection_engine")) == "true"
+    requires_external = _bool_text(row.get("requires_external_detector")) == "true"
+    integrates_multiple = _bool_text(row.get("integrates_multiple_detectors")) == "true"
+    framework_architecture = _bool_text(row.get("cohesive_framework_architecture")) == "true"
+    research_basis = _bool_text(row.get("research_basis")) == "true"
     independent = _bool_text(row.get("independent_fork")) == "true"
     quote = _bool_text(row.get("evidence_quote_verified")) == "true"
     is_fork = _bool_text(row.get("fork")) == "true"
     flags: list[str] = []
-    if role == "standalone_detector":
+    if role == "native_detector":
         if not runtime:
             flags.append("runtime_observation_missing")
         if not runnable:
-            flags.append("runnable_detector_missing")
+            flags.append("reproducible_execution_missing")
         if offline:
             flags.append("offline_dataset_only")
+        if not implements_engine:
+            flags.append("detection_engine_implementation_missing")
+        if requires_external:
+            flags.append("external_detector_required")
+        if framework_architecture:
+            flags.append("framework_architecture_conflict")
+    elif role in {"classifier_engine", "detection_framework"}:
+        if not runnable:
+            flags.append("reproducible_execution_missing")
+        if not implements_engine:
+            flags.append("detection_engine_implementation_missing")
+        if role == "detection_framework" and not framework_architecture:
+            flags.append("framework_architecture_missing")
+    elif role == "detection_platform":
+        if not runnable:
+            flags.append("reproducible_execution_missing")
+        if not integrates_multiple:
+            flags.append("multiple_detector_integration_missing")
+    elif role == "research_project":
+        if not runnable:
+            flags.append("reproducible_execution_missing")
+        if not research_basis:
+            flags.append("research_basis_missing")
     if role in ROLES:
         if not self_description:
             flags.append("direct_self_description_missing")
@@ -195,7 +223,6 @@ def _validate_github_consensus(
         "primary_system_type": codes[0] if codes else "unknown",
         "system_types": ";".join(codes) if codes else "unknown",
         "system_type_names": ";".join(system_type_names(codes, system_type_profile)) if codes else "Unknown",
-        "derived_labels": ";".join(codes),
     })
     if role in ROLES and not flags:
         derived = "accept"

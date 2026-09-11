@@ -16,19 +16,34 @@ from ids_meta.github.schema import DEFAULT_SYSTEM_TYPE_PROFILE
 LOG = logger("plotting.github")
 
 ROLE_LABELS = {
-    "standalone_detector": "Standalone detector", "platform_framework": "Platform/framework",
-    "classifier_model": "Classifier/model", "rules_content": "Rules/content",
-    "support_tooling": "Support tooling", "research_demo": "Research demo",
+    "native_detector": "Native detector", "classifier_engine": "Classifier engine",
+    "detection_framework": "Detection framework", "detection_platform": "Detection platform",
+    "research_project": "Research project", "demo": "Demo",
+    "rules_content": "Rules/content", "support_tooling": "Support tooling",
 }
 ROLE_MATRIX = [
-    ("standalone_detector", "Det.", "Standalone detector", "#2A9D8F"),
-    ("platform_framework", "Plat.", "Platform/framework", "#7B5EA7"),
-    ("classifier_model", "Class.", "Classifier/model", "#D1842F"),
+    ("native_detector", "Native", "Native detector", "#2A9D8F"),
+    ("classifier_engine", "Class.", "Classifier engine", "#D1842F"),
+    ("detection_framework", "Frame", "Detection framework", "#7B5EA7"),
+    ("detection_platform", "Plat.", "Detection platform", "#4C78A8"),
+    ("research_project", "Res.", "Research project", "#9A7D0A"),
+    ("demo", "Demo", "Demo", "#B59B6A"),
     ("rules_content", "Rules", "Rules/content", "#2F6F9F"),
     ("support_tooling", "Supp.", "Support tooling", "#6F7782"),
-    ("research_demo", "Demo", "Research demo", "#9A7D0A"),
 ]
+OPERATIONAL_ROLES = {"native_detector", "classifier_engine", "detection_framework"}
 FAMILY_COLORS = ["#2F6F9F", "#2A9D8F", "#D1842F", "#7B5EA7", "#C94F4F", "#5B8F3A", "#6F7782"]
+CANONICAL_RELATIONSHIPS = {"canonical"}
+
+
+def _canonical_mask(frame: pd.DataFrame) -> pd.Series:
+    """Select canonical project representatives."""
+    return frame["repository_relationship"].isin(CANONICAL_RELATIONSHIPS)
+
+
+def _operational_mask(frame: pd.DataFrame) -> pd.Series:
+    """Select the configured operational reporting roles."""
+    return _canonical_mask(frame) & frame["role"].isin(OPERATIONAL_ROLES)
 
 
 def _activity(value: str) -> str:
@@ -46,7 +61,7 @@ def _primary_family(row: pd.Series) -> str:
     primary = str(row.get("primary_system_type", "")).strip()
     if primary and primary != "unknown":
         return primary
-    labels = [value for value in str(row.get("system_types", "") or row.get("derived_labels", "")).split(";") if value and value != "unknown"]
+    labels = [value for value in str(row.get("system_types", "")).split(";") if value and value != "unknown"]
     if labels:
         return labels[0]
     scopes = [value for value in str(row.get("observation_scopes", "")).split(";") if value and value != "unknown"]
@@ -78,7 +93,7 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
     view["forks_numeric"] = pd.to_numeric(view["forks"], errors="coerce").fillna(0)
     family_order = list(dict.fromkeys(view["overview_family"]))
     view["family_order"] = view["overview_family"].map({value: index for index, value in enumerate(family_order)})
-    view["variant_order"] = (view["repository_relationship"] != "canonical").astype(int)
+    view["variant_order"] = (~_canonical_mask(view)).astype(int)
     view = view.sort_values(["family_order", "variant_order", "role", "stars_numeric", "full_name"], ascending=[True, True, True, False, True], kind="stable")
 
     group_count = view["overview_family"].nunique() if not view.empty else 1
@@ -90,7 +105,7 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
     headers = [(1.3, "Repository"), (20.5, "System"), (30.5, "Detection method(s)"), (68.5, "Activity"), (75, "Stars"), (84.2, "Forks"), (91.2, "Last commit")]
     for x, label in headers:
         ax.text(x, 2.25, label, fontsize=8, color="#59636F", va="center")
-    role_x = [51.2, 54.2, 57.2, 60.2, 63.2, 66.2]
+    role_x = [47.0 + index * 2.8 for index in range(len(ROLE_MATRIX))]
     for x, (_role, abbreviation, full, _color) in zip(role_x, ROLE_MATRIX):
         ax.text(x, 2.25, abbreviation, fontsize=7.2, color="#59636F", ha="center", va="center")
         ax.text(x, 2.58, full, fontsize=.01, alpha=0)  # Retains the semantic label in vector output.
@@ -113,10 +128,10 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
         for _, row in group.iterrows():
             if row_index % 2 == 0:
                 ax.add_patch(Rectangle((.8, cursor), 98.4, .72, facecolor="#F7F9FA", edgecolor="none"))
-            canonical = row.get("repository_relationship") == "canonical"
+            canonical = row.get("repository_relationship") in CANONICAL_RELATIONSHIPS
             ax.scatter([1.15], [cursor + .36], s=13, marker="o", facecolor="#2F6F9F" if canonical else "white", edgecolor="#2F6F9F" if canonical else "#9AA5AE", linewidth=.8, zorder=3)
             ax.text(1.55, cursor + .36, _short(row.get("full_name", ""), 34), fontsize=7.2, color="#263238", va="center")
-            system = str(row.get("system_types", "") or row.get("derived_labels", "")) or str(row.get("observation_scopes", ""))
+            system = str(row.get("system_types", "")) or str(row.get("observation_scopes", ""))
             ax.text(20.5, cursor + .36, _short(system, 18), fontsize=7, color="#43505C", va="center")
             ax.text(30.5, cursor + .36, _short(row.get("detection_methods", ""), 34), fontsize=7, color="#43505C", va="center")
             for x, (role, _abbreviation, _full, role_color) in zip(role_x, ROLE_MATRIX):
@@ -202,10 +217,7 @@ def _display_system_type(value: object) -> str:
 
 def _primary_system_type_series(frame: pd.DataFrame) -> pd.Series:
     """Return one primary IDS type per row with deterministic fallbacks."""
-    system_types = frame.get(
-        "system_types",
-        frame.get("derived_labels", pd.Series("unknown", index=frame.index)),
-    ).fillna("").astype(str)
+    system_types = frame.get("system_types", pd.Series("unknown", index=frame.index)).fillna("").astype(str)
     primary = frame.get("primary_system_type", pd.Series("", index=frame.index)).fillna("").astype(str)
     fallback = system_types.map(lambda value: (_clean_values(value) or ["unknown"])[0])
     return primary.where(primary.str.strip() != "", fallback).replace("", "unknown")
@@ -219,7 +231,7 @@ def _system_type_colors(values: list[str]) -> dict[str, str]:
 
 def _repository_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Plot repository creation time on x, GitHub stars on y, and IDS type as color."""
-    canonical = frame[frame["repository_relationship"] == "canonical"].copy()
+    canonical = frame[_operational_mask(frame)].copy()
     canonical["primary_system_type"] = _primary_system_type_series(canonical)
     canonical["stars_numeric"] = pd.to_numeric(canonical.get("stars", 0), errors="coerce").fillna(0).clip(lower=0)
 
@@ -246,7 +258,7 @@ def _repository_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str],
     add_heading(
         fig,
         "IDS repository timeline",
-        metadata_caption(canonical, "canonical projects; x = repository creation date; y = GitHub stars; color = primary IDS type"),
+        metadata_caption(canonical, "canonical operational systems; x = repository creation date; y = GitHub stars; color = primary IDS type"),
         top=.84,
     )
     fig.subplots_adjust(left=.09, right=.84, bottom=.22)
@@ -295,11 +307,9 @@ def _repository_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str],
 
 
 def _role_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Cross repository roles (standalone/demo/etc.) with normalized IDS types."""
-    canonical = frame[frame["repository_relationship"] == "canonical"].copy()
-    canonical["system_types"] = canonical.get(
-        "system_types", canonical.get("derived_labels", pd.Series("unknown", index=canonical.index))
-    ).fillna("").astype(str)
+    """Cross all accepted repository roles with normalized IDS types."""
+    canonical = frame[_canonical_mask(frame)].copy()
+    canonical["system_types"] = canonical.get("system_types", pd.Series("unknown", index=canonical.index)).fillna("").astype(str)
     records: list[dict[str, object]] = []
     for _, row in canonical.iterrows():
         types = _clean_values(row.get("system_types", "")) or ["unknown"]
@@ -338,11 +348,11 @@ def _role_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dp
 
 
 def _detection_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Cross detection methods with normalized IDS types."""
-    canonical = frame[frame["repository_relationship"] == "canonical"].copy()
+    """Cross detection methods with normalized IDS types for operational systems."""
+    canonical = frame[_operational_mask(frame)].copy()
     records: list[dict[str, object]] = []
     for _, row in canonical.iterrows():
-        types = _clean_values(row.get("system_types", row.get("derived_labels", ""))) or ["unknown"]
+        types = _clean_values(row.get("system_types", "")) or ["unknown"]
         methods = _clean_values(row.get("detection_methods", "")) or ["unknown"]
         for system_type in types:
             for method in methods:
@@ -361,7 +371,7 @@ def _detection_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str
 
     display = matrix if not matrix.empty else pd.DataFrame([[0]], index=["no data"], columns=["no data"])
     fig, ax = plt.subplots(figsize=(max(10.5, 6.5 + .8 * len(display.columns)), max(5.8, 3.0 + .55 * len(display.index))))
-    add_heading(fig, "Detection method by IDS type", metadata_caption(canonical, "canonical projects; methods and IDS types are multi-label"), top=.84)
+    add_heading(fig, "Detection method by IDS type", metadata_caption(canonical, "canonical operational systems; methods and IDS types are multi-label"), top=.84)
     image = ax.imshow(display.values, cmap="Blues", aspect="auto", vmin=0)
     maximum = max(1, int(display.to_numpy().max()))
     for r in range(len(display.index)):
@@ -660,7 +670,7 @@ def build(
 
     # 00 — keep the existing detailed repository overview unchanged.
     exact_commit = frame.get("last_commit_at", pd.Series("", index=frame.index)).fillna("")
-    type_values = frame.get("system_types", frame.get("derived_labels", pd.Series("unknown", index=frame.index))).replace("", "unknown")
+    type_values = frame.get("system_types", pd.Series("unknown", index=frame.index)).replace("", "unknown")
     primary_types = _primary_system_type_series(frame)
     overview = pd.DataFrame({
         "repository": frame["full_name"],
@@ -672,13 +682,14 @@ def build(
         "capabilities": frame["capabilities"],
         "methods": frame["detection_methods"],
         "relationship": frame["repository_relationship"],
+        "reporting_segment": frame["role"].map(lambda role: "operational_system" if role in OPERATIONAL_ROLES else "other_relevant_type"),
         "stars": frame["stars"],
         "forks": frame["forks"],
         "last_commit_at": exact_commit.where(exact_commit != "", frame["pushed_at"]),
         "last_commit_time_source": exact_commit.map(lambda value: "commit_metadata" if value else "repository_pushed_at_fallback"),
         "repository_url": frame.get("html_url", pd.Series("", index=frame.index)),
     })
-    overview["_canonical"] = (overview["relationship"] != "canonical").astype(int)
+    overview["_canonical"] = (~overview["relationship"].isin(CANONICAL_RELATIONSHIPS)).astype(int)
     overview = overview.sort_values(["_canonical", "system_role", "repository"], kind="stable").drop(columns="_canonical")
     write_table(overview, out_dir / "data", "00_repository_overview")
     write_table(_system_type_definitions(system_type_profile), out_dir / "data", "00_system_type_definitions")
@@ -733,10 +744,10 @@ def build(
 
     outputs.append(write_index(out_dir, input_path, frame, outputs, [
         "00_repository_overview keeps the existing detailed repository feature matrix and exports every accepted row.",
-        "01_repository_timeline uses repository creation time on x, GitHub stars on y, and primary IDS type as color; every repository is named below its point.",
-        "02_role_type_matrix crosses roles such as standalone detector, framework, model, content, tooling, and demo with normalized IDS types such as NIDS/HIDS/PIDS.",
+        "01_repository_timeline reports operational systems (native detectors, classifier engines, and detection frameworks) using repository creation time on x, GitHub stars on y, and primary IDS type as color; every repository is named below its point.",
+        "02_role_type_matrix reports every accepted role and crosses native detectors, classifier engines, frameworks, platforms, research projects, demos, content, and tooling with normalized IDS types such as NIDS/HIDS/PIDS.",
         "03_repository_relationships retains the existing repository-relationship count view.",
-        "04_detection_method_type_matrix crosses detection methods with IDS types; both dimensions may be multi-label.",
+        "04_detection_method_type_matrix covers operational systems only and crosses detection methods with IDS types; both dimensions may be multi-label.",
         "05_activity retains the existing pushed_at activity-age bar chart.",
         "06_metadata_completeness includes GitHub topics/tags plus taxonomy and discovery metadata where available.",
         "07_common_tags reports the most common GitHub topics/tags and the share of repositories carrying each tag.",

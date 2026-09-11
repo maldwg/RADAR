@@ -6,8 +6,8 @@
 - Operational FPR: 0.0000
 - Operational accuracy: 0.8750
 - Operational precision: 1.0000
-- Metadata field accuracy: 0.9048 (168 comparisons)
-- Abstention rate: 0.3750
+- Metadata field accuracy: 0.7560 (168 comparisons)
+- Abstention rate: 0.2917
 
 ## Interpreting the three views
 

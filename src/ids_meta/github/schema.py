@@ -7,8 +7,8 @@ from ids_meta.common.evidence import EVIDENCE_EXPANSION_COLUMNS
 from ids_meta.common.text import normalize_text, split_values
 
 ROLES = (
-    "standalone_detector", "platform_framework", "classifier_model",
-    "rules_content", "support_tooling", "research_demo",
+    "native_detector", "classifier_engine", "detection_framework", "detection_platform",
+    "research_project", "demo", "rules_content", "support_tooling",
 )
 AUDIT_ROLES = ROLES + ("out_of_scope", "uncertain")
 SCOPES = ("network", "host_endpoint", "wireless", "database", "provenance", "application", "multi_scope", "unknown")
@@ -55,9 +55,10 @@ ENSEMBLE_COLUMNS = [
 CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
     "pipeline_version", "profile_hash", "llm_model", "decision", "role",
     "observation_scopes", "capabilities", "detection_methods", "primary_system_type",
-    "system_types", "system_type_names", "derived_labels",
-    "independent_fork", "direct_self_description", "runtime_observation", "runnable_detector",
-    "offline_dataset_only", "upstream_full_name", "classification_validation_flags", "primary_reason", "evidence_json",
+    "system_types", "system_type_names",
+    "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution",
+    "offline_dataset_only", "implements_detection_engine", "requires_external_detector",
+    "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "classification_validation_flags", "primary_reason", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
 ] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS
 RECONCILIATION_COLUMNS = [
@@ -78,15 +79,20 @@ RESPONSE_SCHEMA: dict[str, Any] = {
         "independent_fork": {"type": "boolean"},
         "direct_self_description": {"type": "boolean"},
         "runtime_observation": {"type": "boolean"},
-        "runnable_detector": {"type": "boolean"},
+        "reproducible_execution": {"type": "boolean"},
         "offline_dataset_only": {"type": "boolean"},
+        "implements_detection_engine": {"type": "boolean"},
+        "requires_external_detector": {"type": "boolean"},
+        "integrates_multiple_detectors": {"type": "boolean"},
+        "cohesive_framework_architecture": {"type": "boolean"},
+        "research_basis": {"type": "boolean"},
         "upstream_full_name": {"type": "string"},
         "primary_reason": {"type": "string"},
         "evidence": {"type": "array", "maxItems": 4, "items": {"type": "object", "properties": {
             "source": {"type": "string"}, "quote": {"type": "string"}
         }, "required": ["source", "quote"]}},
     },
-    "required": ["role", "observation_scopes", "capabilities", "detection_methods", "independent_fork", "direct_self_description", "runtime_observation", "runnable_detector", "offline_dataset_only", "upstream_full_name", "primary_reason", "evidence"],
+    "required": ["role", "observation_scopes", "capabilities", "detection_methods", "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution", "offline_dataset_only", "implements_detection_engine", "requires_external_detector", "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "primary_reason", "evidence"],
 }
 
 
@@ -170,11 +176,6 @@ def system_type_names(codes: list[str], profile: dict[str, Any] | None = None) -
     return [str(types.get(code, {}).get("name", code)) for code in codes]
 
 
-def derive_labels(scopes: list[str], capabilities: list[str]) -> list[str]:
-    """Preserve the legacy derived-label interface using the default system taxonomy."""
-    return derive_system_types(scopes, capabilities)
-
-
 def normalize_response(
     raw: dict[str, Any], verified: list[dict[str, str]], config: dict[str, Any], is_fork: bool,
     system_type_profile: dict[str, Any] | None = None,
@@ -189,24 +190,57 @@ def normalize_response(
     independent = bool(raw.get("independent_fork"))
     self_description = bool(raw.get("direct_self_description"))
     runtime_observation = bool(raw.get("runtime_observation"))
-    runnable_detector = bool(raw.get("runnable_detector"))
+    reproducible_execution = bool(raw.get("reproducible_execution"))
     offline_dataset_only = bool(raw.get("offline_dataset_only"))
+    implements_engine = bool(raw.get("implements_detection_engine"))
+    requires_external = bool(raw.get("requires_external_detector"))
+    integrates_multiple = bool(raw.get("integrates_multiple_detectors"))
+    framework_architecture = bool(raw.get("cohesive_framework_architecture"))
+    research_basis = bool(raw.get("research_basis"))
     upstream_full_name = str(raw.get("upstream_full_name", "")).strip().strip("/")
     verified_text = normalize_text(" ".join(item.get("quote", "") for item in verified))
     if upstream_full_name and (upstream_full_name.count("/") != 1 or normalize_text(upstream_full_name) not in verified_text):
         upstream_full_name = ""
-    standalone_flags: list[str] = []
-    if role == "standalone_detector":
+    validation_flags: list[str] = []
+    if role == "native_detector":
         if not runtime_observation:
-            standalone_flags.append("runtime_observation_missing")
-        if not runnable_detector:
-            standalone_flags.append("runnable_detector_missing")
+            validation_flags.append("runtime_observation_missing")
+        if not reproducible_execution:
+            validation_flags.append("reproducible_execution_missing")
         if offline_dataset_only:
-            standalone_flags.append("offline_dataset_only")
-    standalone_ok = not standalone_flags
+            validation_flags.append("offline_dataset_only")
+        if not implements_engine:
+            validation_flags.append("detection_engine_implementation_missing")
+        if requires_external:
+            validation_flags.append("external_detector_required")
+        if framework_architecture:
+            validation_flags.append("framework_architecture_conflict")
+    elif role == "classifier_engine":
+        if not reproducible_execution:
+            validation_flags.append("reproducible_execution_missing")
+        if not implements_engine:
+            validation_flags.append("detection_engine_implementation_missing")
+    elif role == "detection_framework":
+        if not reproducible_execution:
+            validation_flags.append("reproducible_execution_missing")
+        if not implements_engine:
+            validation_flags.append("detection_engine_implementation_missing")
+        if not framework_architecture:
+            validation_flags.append("framework_architecture_missing")
+    elif role == "detection_platform":
+        if not reproducible_execution:
+            validation_flags.append("reproducible_execution_missing")
+        if not integrates_multiple:
+            validation_flags.append("multiple_detector_integration_missing")
+    elif role == "research_project":
+        if not reproducible_execution:
+            validation_flags.append("reproducible_execution_missing")
+        if not research_basis:
+            validation_flags.append("research_basis_missing")
+    role_ok = not validation_flags
     require_quote = bool(config.get("require_verified_quote", True))
     evidence_ok = bool(verified) or not require_quote
-    if role in ROLES and self_description and evidence_ok and (not is_fork or independent) and standalone_ok:
+    if role in ROLES and self_description and evidence_ok and (not is_fork or independent) and role_ok:
         decision = "accept"
     elif role == "out_of_scope" and evidence_ok:
         decision = "exclude"
@@ -221,14 +255,18 @@ def normalize_response(
         "primary_system_type": type_codes[0] if type_codes else "unknown",
         "system_types": ";".join(type_codes) if type_codes else "unknown",
         "system_type_names": ";".join(system_type_names(type_codes, system_type_profile)) if type_codes else "Unknown",
-        "derived_labels": ";".join(type_codes),
         "independent_fork": str(independent).lower(),
         "direct_self_description": str(self_description).lower(),
         "runtime_observation": str(runtime_observation).lower(),
-        "runnable_detector": str(runnable_detector).lower(),
+        "reproducible_execution": str(reproducible_execution).lower(),
         "offline_dataset_only": str(offline_dataset_only).lower(),
+        "implements_detection_engine": str(implements_engine).lower(),
+        "requires_external_detector": str(requires_external).lower(),
+        "integrates_multiple_detectors": str(integrates_multiple).lower(),
+        "cohesive_framework_architecture": str(framework_architecture).lower(),
+        "research_basis": str(research_basis).lower(),
         "upstream_full_name": upstream_full_name,
-        "classification_validation_flags": ";".join(standalone_flags),
+        "classification_validation_flags": ";".join(validation_flags),
         "primary_reason": str(raw.get("primary_reason", "")).strip()[:1000],
         "evidence_json": json.dumps(verified, ensure_ascii=False),
         "evidence_quote_verified": str(bool(verified)).lower(),

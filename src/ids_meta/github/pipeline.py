@@ -16,7 +16,7 @@ from ids_meta.common.logging import logger
 from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, RESPONSE_SCHEMA, SCOPES, derive_system_types, normalize_response, system_type_names, validate_processed_row
 from ids_meta.github.enrich import GitHubEvidenceClient
 
-PROMPT_VERSION = "github-8"
+PROMPT_VERSION = "github-10"
 LOG = logger("github.pipeline")
 
 class Generator(Protocol):
@@ -156,7 +156,7 @@ def classify(
         result.update({"pipeline_version": PROMPT_VERSION, "profile_hash": profile_hash, "llm_model": model, "classified_at": utc_now(), "error": ""})
         LOG.info("classifying rank=%d/%d score=%s band=%s %s", rank, len(selected), row.get("prefilter_score", ""), row.get("prefilter_band", ""), row.get("full_name", key))
         if dry_run:
-            result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})
+            result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "reproducible_execution": "", "offline_dataset_only": "", "implements_detection_engine": "", "requires_external_detector": "", "integrates_multiple_detectors": "", "cohesive_framework_architecture": "", "research_basis": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})
         else:
             def decide(
                 active_sections: list[EvidenceSection], stop_on_uncertain: bool = False,
@@ -172,7 +172,7 @@ def classify(
                         verified, _ = verify_evidence(raw.get("evidence"), active_sections)
                         vote.update(normalize_response(raw, verified, ollama_config, row.get("fork") == "true", system_type_profile))
                     except Exception as exc:
-                        vote.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "derived_labels": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "runnable_detector": "", "offline_dataset_only": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+                        vote.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "reproducible_execution": "", "offline_dataset_only": "", "implements_detection_engine": "", "requires_external_detector": "", "integrates_multiple_detectors": "", "cohesive_framework_architecture": "", "research_basis": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
                     votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
                     if stop_on_uncertain and vote.get("decision") == "uncertain":
                         interrupted = True
@@ -241,7 +241,6 @@ def export(
             "primary_system_type": codes[0] if codes else "unknown",
             "system_types": ";".join(codes) if codes else "unknown",
             "system_type_names": ";".join(system_type_names(codes, system_type_profile)) if codes else "Unknown",
-            "derived_labels": ";".join(codes),
         })
         validate_processed_row(row, system_type_profile)
     accepted.sort(key=lambda row: (row.get("role", ""), row.get("full_name", "").casefold()))
