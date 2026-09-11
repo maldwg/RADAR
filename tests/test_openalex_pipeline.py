@@ -619,8 +619,23 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     self.assertEqual(relationships["https://openalex.org/W2"], "versioned_release")
             self.assertEqual(selections, [{"https://openalex.org/W1"}, {"https://openalex.org/W1"}])
 
-    def test_explicit_resource_release_title_can_beat_earlier_methodology_paper(self) -> None:
-        """Prefer an explicit dataset-release paper over a slightly earlier generic methodology paper."""
+    def test_ambiguous_release_pair_is_adjudicated_from_evidence(self) -> None:
+        """Use evidence adjudication rather than fixed title phrases for close release candidates."""
+        class ReleaseAdjudicator:
+            model = "fixture-reconciler"
+
+            def __init__(self) -> None:
+                """Capture the prompt supplied to the fixture adjudicator."""
+                self.prompt = ""
+
+            def generate(self, prompt: str, _schema: dict[str, Any]) -> dict[str, Any]:
+                """Select the release paper based on its supplied evidence."""
+                self.prompt = prompt
+                return {
+                    "canonical_openalex_id": "https://openalex.org/W-release",
+                    "reason": "The verified evidence identifies this work as the resource release.",
+                }
+
         settings = load_settings(ROOT / "config/default.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -641,9 +656,43 @@ class OpenAlexPipelineTests(unittest.TestCase):
                 rows.append(value)
             source, output = root / "source.csv", root / "output.csv"
             atomic_write_csv(source, rows, CLASSIFICATION_COLUMNS)
+            model = ReleaseAdjudicator()
             with PipelineCache(root / "cache.sqlite3") as cache:
-                result = reconcile(source, output, cache, settings.section("ollama"), settings.section("openalex"), dry_run=True)
+                result = reconcile(
+                    source, output, cache, settings.section("ollama"), settings.section("openalex"), generator=model,
+                    prompt_config=load_prompt_profile(settings, "openalex"),
+                )
             self.assertEqual({item["canonical_openalex_id"] for item in result}, {"https://openalex.org/W-release"})
+            self.assertTrue(all(item["canonical_resolution"] == "llm_group_adjudication" for item in result))
+            self.assertIn("verified_release_evidence", model.prompt)
+
+    def test_raw_citations_are_a_configurable_capped_canonical_signal(self) -> None:
+        """Let citations resolve close candidates without age normalization or overriding release evidence."""
+        settings = load_settings(ROOT / "config/default.toml")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = []
+            for work_id, title, citations in (
+                ("https://openalex.org/W1", "Initial collection methodology", "5"),
+                ("https://openalex.org/W2", "Official benchmark release", "5000"),
+            ):
+                value = {column: "" for column in CLASSIFICATION_COLUMNS}
+                value.update({
+                    "openalex_id": work_id, "title": title,
+                    "publication_year": "2020", "cited_by_count": citations,
+                    "decision": "accept", "paper_role": "original_release", "relevance_tier": "core",
+                    "artifact_id": "initial", "artifact_name": "Generic Trace Corpus",
+                    "artifact_type": "dataset", "direct_release_evidence": "true",
+                })
+                rows.append(value)
+            source, output = root / "source.csv", root / "output.csv"
+            atomic_write_csv(source, rows, CLASSIFICATION_COLUMNS)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                result = reconcile(
+                    source, output, cache, settings.section("ollama"), settings.section("openalex"), dry_run=True,
+                )
+            self.assertEqual({item["canonical_openalex_id"] for item in result}, {"https://openalex.org/W2"})
+            self.assertIn("citations=2.0 from 5000 citations", result[0]["canonical_reason"])
 
     def test_published_record_wins_over_duplicate_preprint_manifestation(self) -> None:
         """Verify a published record is canonical over its duplicate preprint."""

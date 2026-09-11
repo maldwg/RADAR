@@ -22,6 +22,20 @@ TYPE_COLORS = {
     "unknown": "#6F7782",
 }
 
+DOMAIN_COLORS = {
+    "general_network": "#2F6F9F", "iot_iiot": "#D1842F", "ics_scada": "#7B5EA7",
+    "automotive_can": "#3F8F83", "host": "#B04A5A", "wireless": "#8A6D3B",
+    "dns": "#55A868", "encrypted_vpn_tor": "#C76EAF", "web_application": "#4C72B0",
+    "malware_botnet": "#CCB974", "multi_domain": "#64B5CD", "unknown": "#6F7782",
+}
+
+DOMAIN_LABELS = {
+    "general_network": "General network", "iot_iiot": "IoT / IIoT", "ics_scada": "ICS / SCADA",
+    "automotive_can": "Automotive / CAN", "host": "Host", "wireless": "Wireless", "dns": "DNS",
+    "encrypted_vpn_tor": "Encrypted / VPN / Tor", "web_application": "Web application",
+    "malware_botnet": "Malware / botnet", "multi_domain": "Multiple domains", "unknown": "Unknown",
+}
+
 DISCOVERY_COLORS = {
     "Direct search": "#2F6F9F",
     "Survey snowball": "#7B5EA7",
@@ -29,6 +43,12 @@ DISCOVERY_COLORS = {
 def artifact_label(value: object) -> str:
     """Format a normalized artifact type for display."""
     return str(value or "unknown").replace("_", " ")
+
+
+def domain_label(value: object) -> str:
+    """Format a normalized security domain for display."""
+    normalized = str(value or "unknown")
+    return DOMAIN_LABELS.get(normalized, normalized.replace("_", " "))
 
 
 def discovery_provenance(value: object) -> str:
@@ -515,39 +535,96 @@ def discovery_source_distribution(frame: pd.DataFrame, out_dir: Path, formats: l
 
     return save_figure(fig, out_dir, "10_discovery_source_contribution", formats, dpi)
 
+def _cumulative_dimension(
+    dated: pd.DataFrame, dimension: str, preferred_order: list[str],
+) -> tuple[pd.DataFrame, list[int], list[str], pd.DataFrame]:
+    """Build complete annual and cumulative counts for one categorical dimension."""
+    columns = [
+        "publication_year", "dimension", "category", "category_label",
+        "new_resources", "cumulative_resources", "cumulative_all_resources",
+    ]
+    if dated.empty:
+        return pd.DataFrame(columns=columns), [], [], pd.DataFrame()
+    first_year = int(dated["publication_year"].min())
+    last_year = int(dated["publication_year"].max())
+    years = list(range(first_year, last_year + 1))
+    observed = set(dated[dimension].fillna("unknown").replace("", "unknown").astype(str))
+    categories = [value for value in preferred_order if value in observed]
+    categories.extend(sorted(observed - set(categories)))
+    source = dated.assign(**{dimension: dated[dimension].fillna("unknown").replace("", "unknown")})
+    annual = source.groupby(["publication_year", dimension]).size().unstack(fill_value=0)
+    annual = annual.reindex(index=years, columns=categories, fill_value=0).astype(int)
+    cumulative = annual.cumsum()
+    labeler = artifact_label if dimension == "artifact_type" else domain_label
+    rows = []
+    for year in years:
+        total = int(cumulative.loc[year].sum())
+        for category in categories:
+            rows.append({
+                "publication_year": year,
+                "dimension": "resource_type" if dimension == "artifact_type" else "security_domain",
+                "category": category, "category_label": labeler(category),
+                "new_resources": int(annual.at[year, category]),
+                "cumulative_resources": int(cumulative.at[year, category]),
+                "cumulative_all_resources": total,
+            })
+    return pd.DataFrame(rows, columns=columns), years, categories, cumulative
+
+
 def cumulative_publications(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Plot cumulative artifact-family growth over time by artifact type."""
+    """Plot cumulative canonical-resource growth by resource type and security domain."""
     dated = frame.dropna(subset=["publication_year_numeric"]).copy()
     dated["publication_year"] = dated["publication_year_numeric"].astype(int)
-    yearly = dated.groupby(["publication_year", "artifact_type"]).size().rename("new_publications").reset_index()
-    if not yearly.empty:
-        years = range(int(yearly["publication_year"].min()), int(yearly["publication_year"].max()) + 1)
-        grid = pd.MultiIndex.from_product([years, sorted(yearly["artifact_type"].unique())], names=["publication_year", "artifact_type"]).to_frame(index=False)
-        yearly = grid.merge(yearly, how="left").fillna({"new_publications": 0})
-        yearly["new_publications"] = yearly["new_publications"].astype(int)
-        yearly["cumulative_publications"] = yearly.groupby("artifact_type")["new_publications"].cumsum()
-    else:
-        yearly["cumulative_publications"] = pd.Series(dtype=int)
-    write_table(yearly, out_dir / "data", "03_cumulative_publications")
+    type_order = list(TYPE_COLORS)
+    domain_order = list(DOMAIN_COLORS)
+    type_table, type_years, type_categories, type_cumulative = _cumulative_dimension(dated, "artifact_type", type_order)
+    domain_table, domain_years, domain_categories, domain_cumulative = _cumulative_dimension(dated, "domain", domain_order)
+    cumulative_table = pd.concat([type_table, domain_table], ignore_index=True)
+    stem = "03_cumulative_growth_by_type_and_domain"
+    write_table(cumulative_table, out_dir / "data", stem)
     detail_columns = ["resource_name", "artifact_name", "publication_year", "artifact_type", "domain", "provenance", "discovery_relations", "openalex_id", "doi"]
     detail = dated.copy()
     for column in detail_columns:
         if column not in detail:
             detail[column] = ""
-    write_table(detail[detail_columns], out_dir / "data", "03_cumulative_publications_records")
-    fig, ax = plt.subplots(figsize=(11.5, 6.2))
-    caption = metadata_caption(frame, "canonical artifact families; versions and alternate manifestations excluded")
-    add_heading(fig, "Growth of the IDS data-resource landscape", caption, top=.84)
-    for artifact_type, group in yearly.groupby("artifact_type", sort=False):
-        ax.step(group["publication_year"], group["cumulative_publications"], where="post", linewidth=2.3, color=TYPE_COLORS.get(str(artifact_type), TYPE_COLORS["unknown"]), label=artifact_label(artifact_type))
-        ax.scatter(group["publication_year"], group["cumulative_publications"], s=18, color=TYPE_COLORS.get(str(artifact_type), TYPE_COLORS["unknown"]))
-    ax.set_xlabel("Publication year")
-    ax.set_ylabel("Cumulative canonical artifacts")
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=12))
-    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-    if not yearly.empty:
-        ax.legend(title="Artifact type", frameon=False)
-    return save_figure(fig, out_dir, "03_cumulative_publications", formats, dpi)
+    write_table(detail[detail_columns], out_dir / "data", stem + "_records")
+
+    fig, axes = plt.subplots(2, 1, figsize=(14.2, 10.0), sharex=True)
+    caption = metadata_caption(
+        frame,
+        "canonical resource families; each coloured band is cumulative and the full stacked height equals all resources",
+    )
+    add_heading(fig, "Cumulative catalogue growth by resource type and security domain", caption, top=.90)
+    fig.subplots_adjust(left=.09, right=.76, bottom=.09, top=.82, hspace=.28)
+    panels = (
+        (axes[0], type_years, type_categories, type_cumulative, TYPE_COLORS, artifact_label, "Resource type"),
+        (axes[1], domain_years, domain_categories, domain_cumulative, DOMAIN_COLORS, domain_label, "Security domain"),
+    )
+    for ax, years, categories, cumulative, colors, labeler, legend_title in panels:
+        if not years or not categories:
+            ax.axis("off")
+            ax.text(.5, .5, "No dated canonical resources", transform=ax.transAxes, ha="center", va="center")
+            continue
+        values = [cumulative[category].to_numpy() for category in categories]
+        legend_labels = [
+            f"{labeler(category)} (n={int(cumulative[category].iloc[-1])})"
+            for category in categories
+        ]
+        ax.stackplot(
+            years, *values, labels=legend_labels,
+            colors=[colors.get(category, colors["unknown"]) for category in categories],
+            alpha=.82, step="post",
+        )
+        total = cumulative.sum(axis=1)
+        ax.step(years, total, where="post", color="#26333D", linewidth=1.5, label="All resources")
+        ax.scatter(years, total, color="#26333D", s=13, zorder=4)
+        ax.set_title(legend_title, loc="left", fontsize=11, fontweight="bold")
+        ax.set_ylabel("Cumulative canonical resources")
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.legend(title=legend_title, loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=8)
+    axes[1].set_xlabel("Publication year")
+    axes[1].xaxis.set_major_locator(MaxNLocator(integer=True, nbins=12))
+    return save_figure(fig, out_dir, stem, formats, dpi)
 
 
 def relationship_heatmap(frame: pd.DataFrame, row_field: str, column_field: str, title: str, stem: str, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
@@ -883,6 +960,7 @@ def build(
         outputs += survey_source_landscape(surveys, out_dir, formats, dpi)
     outputs.append(write_index(out_dir, main_path, frame, outputs, [
         "The timeline uses publication year on x only; the y coordinate is purely a stacking layout for resources published in the same year, and every dataset/generator is directly labelled.",
+        "03_cumulative_growth_by_type_and_domain uses cumulative stacked bands for resource type and security domain; at every year the full stacked height and dark outline equal the number of canonical resources published up to that year.",
         "Citation counts are descriptive and never affect retrieval, inclusion, or canonical-base selection.",
         "Discovery provenance shows direct and survey-snowball paths plus the exact number of distinct citing surveys; source contribution is summarized for those two catalogue-producing routes only.",
         "All artifact-level figures use canonical base papers; versions and alternate manifestations remain available in the processed CSV.",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from difflib import SequenceMatcher
+from math import log1p
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -17,13 +18,7 @@ from ids_meta.openalex.entities import canonicalize_artifact_ids
 from ids_meta.openalex.schema import CATALOGUE_COLUMNS, ensure_resource_name
 
 LOG = logger("openalex.reconcile")
-PROMPT_VERSION = "openalex-reconcile-4"
-
-ROLE_WEIGHT = {"original_release": 6, "generator_release": 6, "versioned_release": 2}
-TITLE_RELEASE_PHRASES = (
-    "introducing", "introduces", "generation of a new", "generating a new",
-    "new intrusion detection dataset", "new network dataset", "dataset release", "corpus release",
-)
+PROMPT_VERSION = "openalex-reconcile-6"
 RESPONSE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -82,25 +77,47 @@ def _manifestation_quality(row: dict[str, str]) -> int:
     return score
 
 
-def _title_release_score(row: dict[str, str]) -> int:
-    """Reward titles that explicitly identify the paper as a resource release."""
-    title = normalize_text(row.get("title", ""))
-    return 3 if any(phrase in title for phrase in TITLE_RELEASE_PHRASES) else 0
+def _citation_count(row: dict[str, str]) -> int:
+    """Parse a non-negative OpenAlex citation count."""
+    try:
+        return max(0, int(row.get("cited_by_count") or 0))
+    except ValueError:
+        return 0
 
 
-def _release_score(row: dict[str, str], earliest_year: int) -> float:
-    """Score structural evidence that a paper is an artifact's base release."""
-    score = ROLE_WEIGHT.get(row.get("paper_role", ""), 0) * 10.0
-    if row.get("direct_release_evidence") == "true":
-        score += 4
-    if row.get("relevance_tier") == "core":
-        score += 1
-    score += _title_release_score(row)
-    # Earlier distinct releases are more likely to be the base. Citation counts are deliberately absent.
+def _release_score(
+    row: dict[str, str],
+    earliest_year: int,
+    manifestation_citations: int,
+    maximum_citations: int,
+    reconciliation_config: dict[str, Any],
+) -> tuple[float, dict[str, float]]:
+    """Score release evidence plus a weak, capped citation signal."""
+    role_scores = reconciliation_config.get("canonical_role_scores", {})
+    components = {
+        "role": float(role_scores.get(row.get("paper_role", ""), 0.0)),
+        "direct_release": (
+            float(reconciliation_config.get("canonical_direct_release_score", 0.0))
+            if row.get("direct_release_evidence") == "true" else 0.0
+        ),
+        "core_relevance": (
+            float(reconciliation_config.get("canonical_core_relevance_score", 0.0))
+            if row.get("relevance_tier") == "core" else 0.0
+        ),
+        "publication_timing": 0.0,
+        "citations": 0.0,
+    }
     year = _year(row)
     if year != 9999:
-        score += max(0, min(8, year - earliest_year) * -1 + 8)
-    return score
+        initial_year_score = float(reconciliation_config.get("canonical_earliest_year_score", 0.0))
+        annual_penalty = float(reconciliation_config.get("canonical_year_distance_penalty", 0.0))
+        distance_cap = max(0, int(reconciliation_config.get("canonical_year_distance_cap", 0)))
+        year_distance = min(distance_cap, max(0, year - earliest_year))
+        components["publication_timing"] = max(0.0, initial_year_score - year_distance * annual_penalty)
+    citation_weight = max(0.0, float(reconciliation_config.get("canonical_citation_weight", 0.0)))
+    if citation_weight and manifestation_citations > 0 and maximum_citations > 0:
+        components["citations"] = citation_weight * log1p(manifestation_citations) / log1p(maximum_citations)
+    return sum(components.values()), components
 
 
 def _relationship(row: dict[str, str], canonical: dict[str, str]) -> str:
@@ -126,6 +143,8 @@ def _prompt(group: list[dict[str, str]], scores: dict[str, float], prompt_config
             f"paper_role: {row.get('paper_role', '')}",
             f"artifact_name: {row.get('artifact_name', '')}",
             f"artifact_display_name: {row.get('artifact_display_name', '')}",
+            f"cited_by_count: {row.get('cited_by_count', '')}",
+            f"citation_as_of: {row.get('citation_as_of', '')}",
             f"reason: {row.get('primary_reason', '')[:500]}",
             f"verified_release_evidence: {row.get('evidence_json', '')[:1000]}",
             f"deterministic_score: {scores.get(row.get('openalex_id', ''), 0):.1f}",
@@ -154,7 +173,11 @@ def reconcile(
     LOG.info("reconciling OpenAlex catalogue accepted=%d artifact_families=%d", len(accepted), len(groups))
 
     model_client = generator
-    profile_hash = decision_profile(generator.model, PROMPT_VERSION, ollama_config, {"reconciliation_template": (prompt_config or {}).get("reconciliation_template", "")}) if generator else ""
+    profile = {
+        "reconciliation_template": (prompt_config or {}).get("reconciliation_template", ""),
+        "reconciliation_config": reconciliation_config,
+    }
+    profile_hash = decision_profile(generator.model, PROMPT_VERSION, ollama_config, profile) if generator else ""
     ambiguity_margin = float(reconciliation_config.get("canonical_ambiguity_margin", 2.0))
     use_llm = bool(reconciliation_config.get("reconcile_with_llm", True)) and not dry_run
     reconciled_fields: dict[str, dict[str, str]] = {}
@@ -167,7 +190,21 @@ def reconcile(
             sorted(cluster, key=lambda row: (-_manifestation_quality(row), row.get("openalex_id", "")))[0]
             for cluster in manifestation_groups
         ]
-        scores = {row["openalex_id"]: _release_score(row, earliest_year) for row in group}
+        manifestation_citation_counts: dict[str, int] = {}
+        for cluster in manifestation_groups:
+            cluster_citations = max((_citation_count(row) for row in cluster), default=0)
+            for row in cluster:
+                manifestation_citation_counts[row["openalex_id"]] = cluster_citations
+        maximum_citations = max(manifestation_citation_counts.values(), default=0)
+        scored = {
+            row["openalex_id"]: _release_score(
+                row, earliest_year, manifestation_citation_counts[row["openalex_id"]], maximum_citations,
+                reconciliation_config,
+            )
+            for row in group
+        }
+        scores = {work_id: value[0] for work_id, value in scored.items()}
+        score_components = {work_id: value[1] for work_id, value in scored.items()}
         ordered = sorted(
             representatives,
             key=lambda row: (-scores[row["openalex_id"]], -_manifestation_quality(row), row.get("openalex_id", "")),
@@ -175,7 +212,14 @@ def reconcile(
         canonical = ordered[0]
         margin = scores[canonical["openalex_id"]] - (scores[ordered[1]["openalex_id"]] if len(ordered) > 1 else 999)
         resolution = "deterministic"
-        reason = f"highest structural release score {scores[canonical['openalex_id']]:.1f}; margin {margin:.1f}"
+        components = score_components[canonical["openalex_id"]]
+        reason = (
+            f"highest canonical release score {scores[canonical['openalex_id']]:.1f} "
+            f"(role={components['role']:.1f}, direct_release={components['direct_release']:.1f}, "
+            f"core_relevance={components['core_relevance']:.1f}, "
+            f"publication_timing={components['publication_timing']:.1f}, citations={components['citations']:.1f} "
+            f"from {manifestation_citation_counts[canonical['openalex_id']]} citations); margin {margin:.1f}"
+        )
         adjudicated = False
         if len(manifestation_groups) > 1 and margin < ambiguity_margin and use_llm:
             group_key = stable_hash(*sorted(row["openalex_id"] for row in group))
@@ -183,7 +227,7 @@ def reconcile(
             try:
                 if model_client is None:
                     model_client = OllamaClient(ollama_config)
-                    profile_hash = decision_profile(model_client.model, PROMPT_VERSION, ollama_config, {"reconciliation_template": (prompt_config or {}).get("reconciliation_template", "")})
+                    profile_hash = decision_profile(model_client.model, PROMPT_VERSION, ollama_config, profile)
                 cached = cache.get_decision("openalex.reconciliation", group_key, profile_hash, evidence_hash) if cache else None
                 raw = cached or model_client.generate(_prompt(group, scores, prompt_config), RESPONSE_SCHEMA)
                 selected = str(raw.get("canonical_openalex_id", ""))

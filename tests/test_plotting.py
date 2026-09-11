@@ -4,11 +4,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pandas as pd
+
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.github.schema import CATALOGUE_COLUMNS as GITHUB_COLUMNS
 from ids_meta.openalex.schema import CATALOGUE_COLUMNS as OPENALEX_COLUMNS
 from ids_meta.plotting.github import OPERATIONAL_ROLES, _github_why_not_included, build as build_github
-from ids_meta.plotting.openalex import _openalex_why_not_included, build as build_openalex
+from ids_meta.plotting.openalex import _cumulative_dimension, _openalex_why_not_included, build as build_openalex
 from ids_meta.plotting.compare import build as build_compare
 from ids_meta.plotting.compare import build_models
 from ids_meta.architecture import build as build_architecture
@@ -39,6 +41,26 @@ class PlottingTests(unittest.TestCase):
         self.assertEqual(uncertain_category, "Could not verify a framework architecture")
         self.assertEqual(uncertain_basis, "Automatic validation check: framework_architecture_missing")
         self.assertIn("cohesive agent-manager", uncertain_explanation)
+
+    def test_cumulative_timeline_adds_categories_over_time(self) -> None:
+        """Cumulative type and domain series must sum to the catalogue total each year."""
+        dated = pd.DataFrame([
+            {"publication_year": 2020, "artifact_type": "dataset", "domain": "general_network"},
+            {"publication_year": 2022, "artifact_type": "dataset_and_generator", "domain": "iot_iiot"},
+        ])
+        type_table, years, categories, cumulative = _cumulative_dimension(
+            dated, "artifact_type", ["dataset", "dataset_and_generator"],
+        )
+        self.assertEqual(years, [2020, 2021, 2022])
+        self.assertEqual(categories, ["dataset", "dataset_and_generator"])
+        self.assertEqual(int(cumulative.loc[2021].sum()), 1)
+        self.assertEqual(int(cumulative.loc[2022].sum()), 2)
+        self.assertEqual(set(type_table["dimension"]), {"resource_type"})
+        domain_table, _, _, domain_cumulative = _cumulative_dimension(
+            dated, "domain", ["general_network", "iot_iiot"],
+        )
+        self.assertEqual(int(domain_cumulative.loc[2022].sum()), 2)
+        self.assertEqual(set(domain_table["dimension"]), {"security_domain"})
 
     def test_offline_plot_smoke_and_plot_data(self) -> None:
         """Verify both plot bundles render offline with matching data tables."""
@@ -109,6 +131,11 @@ class PlottingTests(unittest.TestCase):
             self.assertIn("survey_snowball", provenance.read_text(encoding="utf-8").splitlines()[0])
             self.assertTrue((root / "openalex-plots/00_publication_timeline.svg").is_file())
             self.assertTrue((root / "openalex-plots/01_citation_landscape.svg").is_file())
+            self.assertTrue((root / "openalex-plots/03_cumulative_growth_by_type_and_domain.svg").is_file())
+            cumulative_data = (root / "openalex-plots/data/03_cumulative_growth_by_type_and_domain.csv").read_text(encoding="utf-8")
+            self.assertIn("cumulative_all_resources", cumulative_data.splitlines()[0])
+            self.assertIn("resource_type", cumulative_data)
+            self.assertIn("security_domain", cumulative_data)
             self.assertTrue((root / "openalex-plots/07_classification_audit.svg").is_file())
             self.assertTrue((root / "openalex-plots/08_survey_sources.svg").is_file())
             self.assertTrue((root / "openalex-plots/09_evidence_escalation.svg").is_file())
