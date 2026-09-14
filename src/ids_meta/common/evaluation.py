@@ -255,8 +255,27 @@ def evaluate_results(
         match_value = str(expected["_evaluation_match_value"])
         aliases = expected.get("aliases", [])
         actual_key, row = _matching_row(actual, profile.source, selector, match_value, classifications_path, aliases)
+        match_method = (
+            "artifact_name_or_alias" if row is not None else ""
+        ) if profile.evaluation_unit == "artifact" else selector
+        reference_url = str(expected.get("survey_reference_openalex_url", "")).strip()
+        reference_actual_key: str | None = None
+        reference_row: dict[str, str] | None = None
+        reference_candidate_row: dict[str, str] | None = None
         if profile.evaluation_unit == "artifact":
             candidate_key, candidate_row = None, None
+            if reference_url:
+                reference_actual_key, reference_row = _matching_row(
+                    actual, profile.source, "openalex_url", reference_url, classifications_path,
+                )
+                if candidates_supplied:
+                    _reference_candidate_key, reference_candidate_row = _matching_row(
+                        candidate_rows, profile.source, "openalex_url", reference_url,
+                        candidates_path or classifications_path,
+                    )
+            if row is None and reference_row is not None and decision_disposition(reference_row.get("decision")) == "include":
+                actual_key, row = reference_actual_key, reference_row
+                match_method = "accepted_survey_reference"
         else:
             candidate_key, candidate_row = _matching_row(
                 candidate_rows, profile.source, selector, match_value, candidates_path or classifications_path, aliases,
@@ -270,9 +289,24 @@ def evaluate_results(
         display_name = expected.get("name") or expected.get("repository") or expected.get("title") or match_value
         expected_disposition = decision_disposition(expected.get("decision"))
         actual_disposition = decision_disposition((row or {}).get("decision"))
-        status = "not_identified" if profile.evaluation_unit == "artifact" and row is None else _status(
-            row, candidate_present, candidates_supplied and profile.evaluation_unit != "artifact",
-        )
+        if profile.evaluation_unit != "artifact" or row is not None:
+            status = _status(row, candidate_present, candidates_supplied and profile.evaluation_unit != "artifact")
+        elif not reference_url:
+            status = "survey_reference_unresolved"
+        elif reference_row is not None:
+            reference_disposition = decision_disposition(reference_row.get("decision"))
+            if str(reference_row.get("decision", "")).strip().casefold() == "error" or reference_row.get("error"):
+                status = "survey_reference_classification_error"
+            elif reference_disposition == "uncertain":
+                status = "survey_reference_classification_uncertain"
+            else:
+                status = "survey_reference_classified_nonrelease"
+        elif reference_candidate_row is not None:
+            status = "survey_reference_retrieved_not_classified"
+        elif candidates_supplied:
+            status = "survey_reference_not_retrieved"
+        else:
+            status = "survey_reference_not_observable"
         status_counts[status] += 1
         confusion_counts[(expected_disposition, actual_disposition)] += 1
         decision_correct += int(expected_disposition == actual_disposition)
@@ -311,8 +345,14 @@ def evaluate_results(
                 state["fp"] += len(actual_values - expected_values)
                 state["fn"] += len(expected_values - actual_values)
         instances.append({
-            "entity_id": entity_id, "name": display_name, "match_field": selector, "match_value": match_value, "status": status,
+            "entity_id": entity_id, "name": display_name, "match_field": selector, "match_value": match_value,
+            "match_method": match_method, "status": status,
             "candidate_present": str(candidate_present).lower(), "classification_present": str(row is not None).lower(),
+            "survey_reference_openalex_url": reference_url,
+            "survey_reference_candidate_present": str(reference_candidate_row is not None).lower(),
+            "survey_reference_classification_present": str(reference_row is not None).lower(),
+            "survey_reference_actual_decision": (reference_row or {}).get("decision", "missing"),
+            "survey_reference_actual_disposition": decision_disposition((reference_row or {}).get("decision")),
             "expected_decision": expected.get("decision", ""), "expected_disposition": expected_disposition,
             "actual_decision": (row or {}).get("decision", "missing"), "actual_disposition": actual_disposition,
             "decision_correct": str(expected_disposition == actual_disposition).lower(),
@@ -352,8 +392,17 @@ def evaluate_results(
         "retrieval_coverage": _ratio(rated - status_counts["not_retrieved"], rated)
         if candidates_supplied and profile.evaluation_unit != "artifact" else None,
         "classification_coverage": _ratio(classified_count, rated),
+        "unresolved_artifact_rate": 1.0 - _ratio(classified_count, rated)
+        if profile.evaluation_unit == "artifact" else None,
         "definitive_coverage": _ratio(status_counts["classified"], rated),
-        "abstention_rate": _ratio(sum(status_counts[name] for name in ("uncertain", "error", "not_retrieved", "not_classified", "not_identified", "unavailable")), rated),
+        "abstention_rate": _ratio(
+            sum(status_counts[name] for name in (
+                ("uncertain", "error", "survey_reference_classification_uncertain", "survey_reference_classification_error")
+                if profile.evaluation_unit == "artifact"
+                else ("uncertain", "error", "not_retrieved", "not_classified", "unavailable")
+            )),
+            rated,
+        ),
         "status_counts": dict(sorted(status_counts.items())),
         "operational": operational_metrics, "strict": strict_metrics, "selective": selective_metrics,
     }
@@ -361,7 +410,14 @@ def evaluate_results(
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = output_dir / "metrics.json"
     metrics_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    instance_columns = ["entity_id", "name", "match_field", "match_value", "status", "candidate_present", "classification_present", "expected_decision", "expected_disposition", "actual_decision", "actual_disposition", "decision_correct", "field_results_json", "expected_json", "actual_json"]
+    instance_columns = [
+        "entity_id", "name", "match_field", "match_value", "match_method", "status",
+        "candidate_present", "classification_present", "survey_reference_openalex_url",
+        "survey_reference_candidate_present", "survey_reference_classification_present",
+        "survey_reference_actual_decision", "survey_reference_actual_disposition",
+        "expected_decision", "expected_disposition", "actual_decision", "actual_disposition",
+        "decision_correct", "field_results_json", "expected_json", "actual_json",
+    ]
     instances_path = output_dir / "instances.csv"
     confusion_path = output_dir / "decision_confusion.csv"
     fields_path = output_dir / "field_metrics.csv"
@@ -376,14 +432,15 @@ def evaluate_results(
     field_summary = (
         f"- Metadata field accuracy: {metrics['classification_field_accuracy']:.4f} "
         f"({metrics['classification_field_comparisons']} comparisons)\n"
-        f"- Abstention rate: {metrics['abstention_rate']:.4f}\n\n"
     )
     if profile.evaluation_unit == "artifact":
         body = (
             f"- Dataset recall: {operational_metrics['detection_rate']:.4f}\n"
             f"- Dataset miss rate: {operational_metrics['false_negative_rate']:.4f}\n"
             + field_summary
-            + "This artifact fixture is a positive reference set. Metadata accuracy is end-to-end across the rated inventory, so an unidentified dataset also misses its expected metadata. False-positive rate, specificity, and balanced accuracy are not estimable because the profile contains no negative artifacts. Candidate-level retrieval coverage is omitted because raw paper candidates do not yet have classified artifact names.\n\n"
+            + f"- Classifier abstention rate: {metrics['abstention_rate']:.4f}\n"
+            f"- Unresolved artifact rate: {metrics['unresolved_artifact_rate']:.4f}\n\n"
+            "This artifact fixture is a positive reference set. Exact artifact names and aliases are matched first; an accepted release paper cited by the survey is a traceable fallback match. Other cited-paper outcomes remain diagnostics rather than being treated as artifact decisions, because a survey citation may be an analysis or documentation paper. Metadata accuracy is end-to-end across the rated inventory. False-positive rate, specificity, and balanced accuracy are not estimable because the profile contains no negative artifacts.\n\n"
             "## Interpreting the three views\n\n"
             "- **Operational:** dataset recall across the complete positive reference set.\n"
             "- **Strict:** identical here because every unresolved positive is a miss.\n"
@@ -396,6 +453,7 @@ def evaluate_results(
             f"- Operational accuracy: {operational_metrics['accuracy']:.4f}\n"
             f"- Operational precision: {operational_metrics['precision']:.4f}\n"
             + field_summary
+            + f"- Abstention rate: {metrics['abstention_rate']:.4f}\n\n"
             + "## Interpreting the three views\n\n"
             "- **Operational:** asks what the complete pipeline delivers. Every non-inclusion predicts negative.\n"
             "- **Strict:** asks how performance looks when every unresolved boundary result is wrong.\n"

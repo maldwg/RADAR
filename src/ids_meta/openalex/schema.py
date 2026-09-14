@@ -12,7 +12,10 @@ PAPER_ROLES = (
 ACCEPTED_ROLES = ("original_release", "versioned_release", "generator_release")
 TIERS = ("core", "adjacent", "excluded", "uncertain")
 ARTIFACT_TYPES = ("dataset", "generator_framework", "dataset_and_generator", "unknown")
-DOMAINS = ("general_network", "iot_iiot", "ics_scada", "automotive_can", "host", "wireless", "dns", "encrypted_vpn_tor", "web_application", "malware_botnet", "multi_domain", "unknown")
+DOMAINS = (
+    "general_network", "host_endpoint", "iot_iiot", "cloud", "mobile_android",
+    "electrical_smartgrid", "uav", "vpn", "unknown",
+)
 DATA_FORMS = ("packet", "flow", "network_traffic", "telemetry", "host_system_call", "log", "tabular_features", "can", "wireless", "mixed", "unknown")
 ENVIRONMENTS = ("real_world", "synthetic_lab", "hybrid", "unknown")
 LABELING = ("labeled", "partially_labeled", "unlabeled", "unknown")

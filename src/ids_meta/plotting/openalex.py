@@ -23,17 +23,16 @@ TYPE_COLORS = {
 }
 
 DOMAIN_COLORS = {
-    "general_network": "#2F6F9F", "iot_iiot": "#D1842F", "ics_scada": "#7B5EA7",
-    "automotive_can": "#3F8F83", "host": "#B04A5A", "wireless": "#8A6D3B",
-    "dns": "#55A868", "encrypted_vpn_tor": "#C76EAF", "web_application": "#4C72B0",
-    "malware_botnet": "#CCB974", "multi_domain": "#64B5CD", "unknown": "#6F7782",
+    "general_network": "#2F6F9F", "host_endpoint": "#B04A5A", "iot_iiot": "#D1842F",
+    "cloud": "#7B5EA7", "mobile_android": "#3F8F83", "electrical_smartgrid": "#CCB974",
+    "uav": "#8A6D3B", "vpn": "#C76EAF", "unknown": "#6F7782",
 }
 
 DOMAIN_LABELS = {
-    "general_network": "General network", "iot_iiot": "IoT / IIoT", "ics_scada": "ICS / SCADA",
-    "automotive_can": "Automotive / CAN", "host": "Host", "wireless": "Wireless", "dns": "DNS",
-    "encrypted_vpn_tor": "Encrypted / VPN / Tor", "web_application": "Web application",
-    "malware_botnet": "Malware / botnet", "multi_domain": "Multiple domains", "unknown": "Unknown",
+    "general_network": "General network", "host_endpoint": "Host / endpoint",
+    "iot_iiot": "IoT / IIoT", "cloud": "Cloud", "mobile_android": "Mobile / Android",
+    "electrical_smartgrid": "Electrical / smart grid", "uav": "UAV", "vpn": "VPN",
+    "unknown": "Unknown",
 }
 
 DISCOVERY_COLORS = {

@@ -219,6 +219,37 @@ def _evaluation_output(args: argparse.Namespace, default: Path) -> Path:
     return default / Path(ratings).stem if ratings else default
 
 
+def _evaluation_jobs(
+    settings: Settings, source: str, args: argparse.Namespace, default_output: Path,
+) -> list[tuple[Path, Path, str]]:
+    """Resolve the rating profiles, isolated outputs, and manifest labels for evaluation."""
+    primary = _path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml")
+    explicit = getattr(args, "ratings", None)
+    if args.action == "evaluate" and explicit:
+        return [(Path(explicit), _evaluation_output(args, default_output), "")]
+
+    raw_additional = settings.section("evaluation").get(f"{source}_additional_ratings", [])
+    if not isinstance(raw_additional, list) or any(not isinstance(value, str) or not value.strip() for value in raw_additional):
+        raise ConfigError(f"evaluation.{source}_additional_ratings must be an array of non-empty paths")
+    base_output = _evaluation_output(args, default_output)
+    jobs = [(primary, base_output, "")]
+    seen_paths = {primary.resolve()}
+    seen_labels: set[str] = set()
+    for value in raw_additional:
+        path = Path(value)
+        path = path if path.is_absolute() else settings.root / path
+        resolved = path.resolve()
+        if resolved in seen_paths:
+            continue
+        label = slug(path.stem)
+        if label in seen_labels:
+            raise ConfigError(f"additional {source} evaluation profiles must have distinct filename stems")
+        seen_paths.add(resolved)
+        seen_labels.add(label)
+        jobs.append((path, base_output / path.stem, label))
+    return jobs
+
+
 def _evaluate(
     settings: Settings, source: str, classifications: Path, candidates: Path, output_dir: Path,
     ratings_path: Path | None = None,
@@ -293,11 +324,13 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             candidates_path = _evaluation_candidates(args, base_paths["candidates"])
             for model in models:
-                result = _evaluate(settings, "github", model_paths[model]["classifications"], candidates_path, _evaluation_output(args, model_paths[model]["evaluation"]), getattr(args, "ratings", None))
-                _record_evaluation(manifest, result, labels[model])
+                for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "github", args, model_paths[model]["evaluation"]):
+                    result = _evaluate(settings, "github", model_paths[model]["classifications"], candidates_path, output_dir, ratings_path)
+                    _record_evaluation(manifest, result, "_".join(filter(None, (labels[model], profile_label))))
             if ensemble_enabled:
-                result = _evaluate(settings, "github", ensemble_paths["classifications"], candidates_path, _evaluation_output(args, ensemble_paths["evaluation"]), getattr(args, "ratings", None))
-                _record_evaluation(manifest, result, "ensemble")
+                for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "github", args, ensemble_paths["evaluation"]):
+                    result = _evaluate(settings, "github", ensemble_paths["classifications"], candidates_path, output_dir, ratings_path)
+                    _record_evaluation(manifest, result, "_".join(filter(None, ("ensemble", profile_label))))
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             for model in models:
                 rows = reconcile_github(model_paths[model]["classifications"], model_paths[model]["reconciled"], cache, _model_ollama_config(settings, model), config, args.dry_run, prompt_config=prompt_config)
@@ -372,8 +405,9 @@ def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, i
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
             candidates_path = _evaluation_candidates(args, paths["candidates"])
-            output_dir = _evaluation_output(args, paths["evaluation"])
-            _record_evaluation(manifest, _evaluate(settings, "github", classifications_path, candidates_path, output_dir, getattr(args, "ratings", None)))
+            for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "github", args, paths["evaluation"]):
+                result = _evaluate(settings, "github", classifications_path, candidates_path, output_dir, ratings_path)
+                _record_evaluation(manifest, result, profile_label)
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]
             output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]
@@ -446,11 +480,13 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             candidates_path = _evaluation_candidates(args, base_paths["candidates"])
             for model in models:
-                result = _evaluate(settings, "openalex", model_paths[model]["classifications"], candidates_path, _evaluation_output(args, model_paths[model]["evaluation"]), getattr(args, "ratings", None))
-                _record_evaluation(manifest, result, labels[model])
+                for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "openalex", args, model_paths[model]["evaluation"]):
+                    result = _evaluate(settings, "openalex", model_paths[model]["classifications"], candidates_path, output_dir, ratings_path)
+                    _record_evaluation(manifest, result, "_".join(filter(None, (labels[model], profile_label))))
             if ensemble_enabled:
-                result = _evaluate(settings, "openalex", ensemble_paths["classifications"], candidates_path, _evaluation_output(args, ensemble_paths["evaluation"]), getattr(args, "ratings", None))
-                _record_evaluation(manifest, result, "ensemble")
+                for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "openalex", args, ensemble_paths["evaluation"]):
+                    result = _evaluate(settings, "openalex", ensemble_paths["classifications"], candidates_path, output_dir, ratings_path)
+                    _record_evaluation(manifest, result, "_".join(filter(None, ("ensemble", profile_label))))
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             for model in models:
                 rows = reconcile_openalex(model_paths[model]["classifications"], model_paths[model]["reconciled"], cache, _model_ollama_config(settings, model), config, args.dry_run, prompt_config=prompt_config)
@@ -529,8 +565,9 @@ def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str,
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
             candidates_path = _evaluation_candidates(args, paths["candidates"])
-            output_dir = _evaluation_output(args, paths["evaluation"])
-            _record_evaluation(manifest, _evaluate(settings, "openalex", classifications_path, candidates_path, output_dir, getattr(args, "ratings", None)))
+            for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "openalex", args, paths["evaluation"]):
+                result = _evaluate(settings, "openalex", classifications_path, candidates_path, output_dir, ratings_path)
+                _record_evaluation(manifest, result, profile_label)
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]
             output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]

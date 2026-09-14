@@ -16,7 +16,14 @@ VIEW_LABELS = {"operational": "Operational", "strict": "Strict", "selective": "S
 STATUS_LABELS = {
     "classified": "Definitive", "uncertain": "Uncertain", "error": "Error",
     "not_classified": "Not classified", "not_retrieved": "Not retrieved",
-    "not_identified": "Dataset not identified", "unavailable": "Unavailable",
+    "survey_reference_classified_nonrelease": "Survey reference classified as non-release",
+    "survey_reference_classification_uncertain": "Survey reference classification uncertain",
+    "survey_reference_classification_error": "Survey reference classification error",
+    "survey_reference_retrieved_not_classified": "Survey reference retrieved, not classified",
+    "survey_reference_not_retrieved": "Survey reference not retrieved",
+    "survey_reference_not_observable": "Survey-reference retrieval unavailable",
+    "survey_reference_unresolved": "Survey reference has no OpenAlex ID",
+    "unavailable": "Unavailable",
 }
 
 
@@ -167,10 +174,19 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
 
 def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Plot pipeline coverage percentages and mutually exclusive entity statuses."""
-    coverage_specs = [
-        ("retrieval_coverage", "Retrieved"), ("classification_coverage", "Classification present"),
-        ("definitive_coverage", "Definitive decision"), ("abstention_rate", "Abstention"),
-    ]
+    artifact_profile = metrics.get("evaluation_unit") == "artifact"
+    coverage_specs = (
+        [
+            ("classification_coverage", "Dataset identified"),
+            ("definitive_coverage", "Definitive artifact decision"),
+            ("abstention_rate", "Classifier abstention"),
+            ("unresolved_artifact_rate", "Dataset unresolved"),
+        ]
+        if artifact_profile else [
+            ("retrieval_coverage", "Retrieved"), ("classification_coverage", "Classification present"),
+            ("definitive_coverage", "Definitive decision"), ("abstention_rate", "Abstention"),
+        ]
+    )
     coverage_rows = [
         {"measure": label, "key": key, "value": metrics.get(key)}
         for key, label in coverage_specs if metrics.get(key) is not None
@@ -210,7 +226,11 @@ def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: i
         for bar in bars:
             axes[1].text(bar.get_width() + .06, bar.get_y() + bar.get_height() / 2, str(int(bar.get_width())), va="center", fontsize=8)
     axes[1].set_title("Final status", loc="left", fontweight="bold")
-    stamp(fig, "Candidate input distinguishes not retrieved from retrieved-but-not-classified entities.")
+    stamp(
+        fig,
+        "Survey-reference diagnostics distinguish name matches, accepted release fallbacks, retrieval gaps, and unresolved references."
+        if artifact_profile else "Candidate input distinguishes not retrieved from retrieved-but-not-classified entities.",
+    )
     return save_figure(fig, out_dir, "04_coverage_and_status", formats, dpi)
 
 
