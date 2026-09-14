@@ -30,7 +30,7 @@ Papers applying, comparing, cleaning, relabeling, balancing, transforming, or ev
 
 Use core only when the resource itself was created for intrusion, attack, malicious-behavior, or security-anomaly research. Use adjacent only for an original or versioned neutral traffic, log, telemetry, or trace release that is demonstrably reusable for IDS research but did not claim security intent. Generic non-security datasets are unrelated, not adjacent. A generator-only contribution cannot be adjacent under this protocol.
 
-For artifact_name, extract the canonical dataset, corpus, toolkit, or generator name rather than copying the publication title. For artifact_display_name, return the shortest explicit name or acronym used for that artifact. Never invent an acronym. If no compact proper name is stated, return a concise evidence-grounded descriptor of at most six words. Put other stated variants in artifact_aliases.
+For artifact_name, extract the canonical dataset, corpus, toolkit, or generator name rather than copying the publication title. For artifact_display_name, return the shortest explicit name or acronym used for that artifact. Never invent an acronym. If no compact proper name is stated, return a concise evidence-grounded descriptor of at most six words. Put other stated variants in artifact_aliases. The domain taxonomy is intentionally limited to the configured dataset types; use unknown when a resource belongs to none of them rather than inventing or borrowing a removed category.
 
 Every claimed release must include a verbatim quote supporting both the paper’s creation/release contribution and the extracted resource identity. The artifact_name, artifact_display_name, or one artifact_alias must occur in that quoted evidence. If the supplied evidence does not support a concrete resource identity, choose uncertain; never infer the identity from the year, authors, or a similar known dataset. Evidence that a dataset was used is not release evidence. Set each quote source to exactly "OpenAlex metadata", "Abstract", or "Full text", matching the supplied section. Prefer the most specific available evidence; do not let a vague abstract override explicit full-text statements. Missing evidence is not evidence of exclusion: choose uncertain when the paper appears potentially eligible but contribution, availability, security intent, or artifact identity cannot be established. Do not infer unsupported metadata; use unknown. Return only JSON matching the schema.
 
@@ -67,16 +67,13 @@ unknown = "Resource form is not established by the evidence."
 
 [domains]
 general_network = "General-purpose enterprise or network intrusion traffic."
+host_endpoint = "Host or endpoint operating-system, process, file, system-call, or endpoint-event data."
 iot_iiot = "IoT or industrial-IoT devices and networks."
-ics_scada = "Industrial-control or SCADA environments."
-automotive_can = "Vehicle networks or CAN-bus systems."
-host = "Endpoint, operating-system, process, file, or system-call activity."
-wireless = "Wireless LAN, sensor, radio, or mobile networks."
-dns = "Domain Name System queries, responses, or behavior."
-encrypted_vpn_tor = "Encrypted, VPN, Tor, or anonymity-network traffic."
-web_application = "Web applications, HTTP services, APIs, or application attacks."
-malware_botnet = "Malware, botnet, command-and-control, or infected-host activity."
-multi_domain = "Materially spans multiple domain categories."
+cloud = "Cloud-computing infrastructure, services, virtualized workloads, or cloud-network data."
+mobile_android = "Mobile-device or Android application, system, malware, or network data."
+electrical_smartgrid = "Electrical infrastructure, power-system, or smart-grid data."
+uav = "Unmanned aerial vehicle, drone, ground-control, or UAV-network data."
+vpn = "VPN or explicitly VPN-versus-non-VPN traffic data."
 unknown = "Security domain is not established."
 
 [data_forms]

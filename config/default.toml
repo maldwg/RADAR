@@ -25,7 +25,7 @@ openalex_ratings = "config/evaluation/openalex.toml"
 url = "http://10.20.31.1:11434"
 model = "qwen3.6:27b"
 # Optional multi-model mode. An empty array keeps the scalar model behavior and legacy paths.
-models = ["gemma4:31b", "qwen3.6:27b"]
+models = ["gemma4:31b", "gpt-oss:20b", "qwen3.8:27b", "gpt-oss:120b", "qwen3:235b"]
 timeout_seconds = 300
 retries = 3
 temperature = 0.0
@@ -36,7 +36,7 @@ require_verified_quote = true
 [ensemble]
 # When enabled, models may be an empty array (all ollama.models) or a selected subset.
 enabled = true
-models = ["gemma4:31b", "qwen3.6:27b"]
+models = ["gemma4:31b", "gpt-oss:20b", "qwen3.8:27b", "gpt-oss:120b", "qwen3:235b"]
 # Agreement is divided by all selected members; ties and values below this threshold are uncertain.
 # With two configured models, require both to support the same disposition.
 threshold = 1.0
@@ -45,6 +45,9 @@ threshold = 1.0
 # Run rated-instance evaluation automatically after classification in a full run.
 # Explicit `github evaluate` and `openalex evaluate` commands always run.
 enabled = true
+# Run these additional rating profiles during a full source run or an evaluate
+# command without --ratings. Each report is isolated below a profile-named directory.
+openalex_additional_ratings = ["config/evaluation/openalex_ashraf_2026.toml"]
 
 [github]
 # Bound source discovery separately from the ranked LLM adjudication shortlist.
