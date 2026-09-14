@@ -249,7 +249,13 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
             LOG.info("retrying cached paper classification error rank=%d/%d title=%s", rank, len(selected), row.get("title", key))
         sections = evidence_sections(payload)
         result = dict(row)
-        result.update({"pipeline_version": PROMPT_VERSION, "profile_hash": profile_hash, "llm_model": model, "classified_at": utc_now(), "error": ""})
+        result.update({
+            "pipeline_version": PROMPT_VERSION, "profile_hash": profile_hash, "llm_model": model,
+            "classifier_method": "llm", "classifier_id": model,
+            "classifier_profile_hash": profile_hash, "classifier_supported_fields": "*",
+            "classifier_evidence_source": "raw_cache",
+            "classified_at": utc_now(), "error": "",
+        })
         LOG.info(
             "classifying paper rank=%d/%d score=%s band=%s retrieval_rank_score=%s citations=%s provenance=%s title=%s",
             rank, len(selected), row.get("prefilter_score", ""), row.get("prefilter_band", ""),

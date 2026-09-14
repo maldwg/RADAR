@@ -142,6 +142,25 @@ def _index_rows(path: Path, identity: str) -> dict[str, dict[str, str]]:
     return indexed
 
 
+def _classifier_contract(rows: dict[str, dict[str, str]]) -> tuple[dict[str, str], set[str] | None]:
+    """Read one classifier identity and its declared output fields from a result file."""
+    metadata: dict[str, str] = {}
+    for column in ("classifier_method", "classifier_id", "classifier_profile_hash"):
+        values = {str(row.get(column, "")).strip() for row in rows.values() if str(row.get(column, "")).strip()}
+        if len(values) > 1:
+            raise ValueError(f"evaluation input mixes multiple {column} values: {', '.join(sorted(values))}")
+        metadata[column] = next(iter(values), "")
+    declarations = {
+        str(row.get("classifier_supported_fields", "")).strip()
+        for row in rows.values() if str(row.get("classifier_supported_fields", "")).strip()
+    }
+    if len(declarations) > 1:
+        raise ValueError("evaluation input mixes incompatible classifier_supported_fields declarations")
+    if not declarations or "*" in declarations:
+        return metadata, None
+    return metadata, _values(next(iter(declarations)))
+
+
 def _matching_row(
     rows: dict[str, dict[str, str]], source: str, selector: str, value: str, path: Path,
     aliases: object = None,
@@ -234,6 +253,7 @@ def evaluate_results(
     """Compare actual classifications with central ratings and write evaluation artifacts."""
     identity = IDENTITY_FIELDS[profile.source]
     actual = _index_rows(classifications_path, identity)
+    classifier_metadata, supported_fields = _classifier_contract(actual)
     candidate_rows = _index_rows(candidates_path, identity) if candidates_path and candidates_path.is_file() else {}
     candidates_supplied = bool(candidates_path and candidates_path.is_file())
     confusion_counts: Counter[tuple[str, str]] = Counter()
@@ -246,7 +266,11 @@ def evaluate_results(
     classified_count = 0
     matched_actual_ids: set[str] = set()
     field_state: dict[str, dict[str, Any]] = {
-        field: {"comparisons": 0, "exact": 0, "tp": 0, "fp": 0, "fn": 0, "multilabel": field in MULTI_FIELDS[profile.source]}
+        field: {
+            "supported": supported_fields is None or field.casefold() in supported_fields,
+            "comparisons": 0, "exact": 0, "tp": 0, "fp": 0, "fn": 0,
+            "multilabel": field in MULTI_FIELDS[profile.source],
+        }
         for field in profile.classification_fields
     }
 
@@ -330,6 +354,8 @@ def evaluate_results(
                     selective["fp" if actual_disposition == "include" else "tn"] += 1
         field_results: dict[str, bool] = {}
         for field in profile.classification_fields:
+            if not field_state[field]["supported"]:
+                continue
             if field not in expected:
                 continue
             expected_values = _values(expected[field])
@@ -371,8 +397,9 @@ def evaluate_results(
         precision = _ratio(state["tp"], state["tp"] + state["fp"]) if multilabel else None
         recall = _ratio(state["tp"], state["tp"] + state["fn"]) if multilabel else None
         field_metrics.append({
-            "field": field, "comparisons": comparisons, "exact_matches": state["exact"],
-            "exact_accuracy": _ratio(state["exact"], comparisons),
+            "field": field, "supported": str(bool(state["supported"])).lower(),
+            "comparisons": comparisons, "exact_matches": state["exact"],
+            "exact_accuracy": _ratio(state["exact"], comparisons) if comparisons else None,
             "label_f1": _f1(precision, recall) if precision is not None and recall is not None else None,
         })
     operational_metrics = _binary_metrics(operational["tp"], operational["fp"], operational["tn"], operational["fn"], binary_total)
@@ -385,9 +412,15 @@ def evaluate_results(
         "not_estimable_metrics": ["false_positive_rate", "specificity", "balanced_accuracy"]
         if profile.evaluation_unit == "artifact" else [],
         "ratings_path": str(profile.path), "classifications_path": str(classifications_path),
+        **classifier_metadata,
+        "classifier_supported_fields": "*" if supported_fields is None else sorted(supported_fields),
+        "classifier_evidence_source_counts": dict(sorted(Counter(
+            str(row.get("classifier_evidence_source", "")).strip() or "unspecified"
+            for row in actual.values()
+        ).items())),
         "rated_entities": rated, "actual_entities": len(actual), "unrated_actual_entities": len(set(actual) - matched_actual_ids),
         "decision_accuracy": _ratio(decision_correct, rated),
-        "classification_field_accuracy": _ratio(total_field_exact, total_field_comparisons),
+        "classification_field_accuracy": _ratio(total_field_exact, total_field_comparisons) if total_field_comparisons else None,
         "classification_field_comparisons": total_field_comparisons,
         "retrieval_coverage": _ratio(rated - status_counts["not_retrieved"], rated)
         if candidates_supplied and profile.evaluation_unit != "artifact" else None,
@@ -423,7 +456,7 @@ def evaluate_results(
     fields_path = output_dir / "field_metrics.csv"
     atomic_write_csv(instances_path, instances, instance_columns)
     atomic_write_csv(confusion_path, confusion, ["expected", "actual", "count"])
-    atomic_write_csv(fields_path, field_metrics, ["field", "comparisons", "exact_matches", "exact_accuracy", "label_f1"])
+    atomic_write_csv(fields_path, field_metrics, ["field", "supported", "comparisons", "exact_matches", "exact_accuracy", "label_f1"])
     readme_path = output_dir / "README.md"
     heading = (
         "# Classification evaluation\n\n"
@@ -432,6 +465,8 @@ def evaluate_results(
     field_summary = (
         f"- Metadata field accuracy: {metrics['classification_field_accuracy']:.4f} "
         f"({metrics['classification_field_comparisons']} comparisons)\n"
+        if metrics["classification_field_accuracy"] is not None
+        else "- Metadata field accuracy: N/A (classifier does not emit rated taxonomy fields)\n"
     )
     if profile.evaluation_unit == "artifact":
         body = (

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from ids_meta.common.baselines import CLASSIFIER_COLUMNS, KEYWORD_AUDIT_COLUMNS
 from ids_meta.common.evidence import EVIDENCE_EXPANSION_COLUMNS
 from ids_meta.common.text import normalize_text
 PAPER_ROLES = (
@@ -34,13 +35,13 @@ ENSEMBLE_COLUMNS = [
     "ensemble_vote_status", "consensus_field_audit", "consensus_validation_flags", "consensus_fallback_run",
 ]
 SURVEY_COLUMNS = METADATA_COLUMNS
-CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
+CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + CLASSIFIER_COLUMNS + [
     "pipeline_version", "profile_hash", "llm_model", "decision", "paper_role", "relevance_tier",
     "artifact_id", "artifact_name", "artifact_display_name", "resource_name", "artifact_aliases", "artifact_type", "domain", "data_form",
     "capture_environment", "labeling", "direct_release_evidence",
     "primary_reason", "classification_validation_flags", "model_evidence_json", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
-] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS
+] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS + KEYWORD_AUDIT_COLUMNS
 RECONCILIATION_COLUMNS = [
     "publication_family_id", "canonical_openalex_id", "canonical_doi", "canonical_title",
     "paper_relationship", "canonical_confidence", "canonical_reason", "canonical_resolution",

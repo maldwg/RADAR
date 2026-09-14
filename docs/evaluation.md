@@ -51,6 +51,8 @@ The supported decisions are `accept`, OpenAlex `accept_adjacent`, `exclude`, and
 
 Only field values present on a rated entity are compared. This permits decision-only ratings and incrementally richer taxonomy ratings in the same file. Scalar comparisons trim whitespace and ignore case. Array and semicolon-separated multi-label values are compared as unordered sets. Empty and `unknown` remain distinct.
 
+Classification files can declare their output contract through `classifier_supported_fields`. `*` means the classifier emits the complete source taxonomy; a decision-only baseline uses `decision`. Fields outside that contract remain visible in `field_metrics.csv` with `supported=false`, zero comparisons, and N/A scores. They are not silently counted as incorrect taxonomy predictions.
+
 Profiles are validated before evaluation. A missing profile, wrong source/schema, missing or multiple selectors, duplicate selectors, ambiguous result matches, malformed field list, or unsupported decision fails the command instead of emitting misleading scores.
 
 ### Balanced default benchmark
@@ -70,6 +72,13 @@ Evaluate existing default classification files:
 ```bash
 ids-meta github evaluate
 ids-meta openalex evaluate
+```
+
+The keyword baseline command creates its classification file and immediately evaluates it against the same profiles without calling an LLM:
+
+```bash
+ids-meta github baseline
+ids-meta openalex baseline
 ```
 
 Use other classification and candidate files or another artifact directory:
@@ -134,7 +143,7 @@ Each evaluation directory contains:
 - `metrics.json`: machine-readable summary and all three metric views.
 - `instances.csv`: one rated entity per row, configured selector and resolved stable ID, progression status, expected/actual decision, exact field results, and full JSON snapshots.
 - `decision_confusion.csv`: exact expected-to-actual disposition counts, including uncertain and unavailable.
-- `field_metrics.csv`: exact and multi-label metrics for every configured field.
+- `field_metrics.csv`: support status plus exact and multi-label metrics for every configured field; unsupported baseline fields are N/A.
 - `README.md`: compact human-readable headline values, metadata accuracy, metric semantics, and figure links.
 - `01_decision_performance.svg`/`.pdf`: operational, strict, and selective DR, precision, accuracy, F1, FPR, and FNR.
 - `02_decision_confusion.svg`/`.pdf`: exact expected-to-actual dispositions, retaining uncertain and unavailable outcomes.

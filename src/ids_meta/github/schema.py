@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from ids_meta.common.baselines import CLASSIFIER_COLUMNS, KEYWORD_AUDIT_COLUMNS
 from ids_meta.common.evidence import EVIDENCE_EXPANSION_COLUMNS
 from ids_meta.common.text import normalize_text, split_values
 
@@ -52,7 +53,7 @@ ENSEMBLE_COLUMNS = [
     "ensemble_uncertain_score", "ensemble_unavailable_score", "ensemble_decision_counts",
     "ensemble_vote_status", "consensus_field_audit", "consensus_validation_flags", "consensus_fallback_run",
 ]
-CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
+CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + CLASSIFIER_COLUMNS + [
     "pipeline_version", "profile_hash", "llm_model", "decision", "role",
     "observation_scopes", "capabilities", "detection_methods", "primary_system_type",
     "system_types", "system_type_names",
@@ -60,7 +61,7 @@ CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + [
     "offline_dataset_only", "implements_detection_engine", "requires_external_detector",
     "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "classification_validation_flags", "primary_reason", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
-] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS
+] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS + KEYWORD_AUDIT_COLUMNS
 RECONCILIATION_COLUMNS = [
     "project_id", "canonical_repo_id", "canonical_full_name", "repository_relationship",
     "canonical_confidence", "canonical_reason", "canonical_resolution",

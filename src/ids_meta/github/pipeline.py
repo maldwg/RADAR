@@ -153,7 +153,13 @@ def classify(
             raise ValueError(f"raw GitHub evidence is missing for repository id {key}")
         sections = evidence_sections(payload)
         result = dict(row)
-        result.update({"pipeline_version": PROMPT_VERSION, "profile_hash": profile_hash, "llm_model": model, "classified_at": utc_now(), "error": ""})
+        result.update({
+            "pipeline_version": PROMPT_VERSION, "profile_hash": profile_hash, "llm_model": model,
+            "classifier_method": "llm", "classifier_id": model,
+            "classifier_profile_hash": profile_hash, "classifier_supported_fields": "*",
+            "classifier_evidence_source": "raw_cache",
+            "classified_at": utc_now(), "error": "",
+        })
         LOG.info("classifying rank=%d/%d score=%s band=%s %s", rank, len(selected), row.get("prefilter_score", ""), row.get("prefilter_band", ""), row.get("full_name", key))
         if dry_run:
             result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "reproducible_execution": "", "offline_dataset_only": "", "implements_detection_engine": "", "requires_external_detector": "", "integrates_multiple_detectors": "", "cohesive_framework_architecture": "", "research_basis": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})

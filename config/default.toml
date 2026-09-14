@@ -49,6 +49,22 @@ enabled = true
 # command without --ratings. Each report is isolated below a profile-named directory.
 openalex_additional_ratings = ["config/evaluation/openalex_ashraf_2026.toml"]
 
+[baselines]
+# Baselines are evaluation variants and are not reconciled into the production catalogues.
+# This switch is reserved for the later full-run integration; explicit baseline commands run regardless.
+# NLI will be added to this list after its inference backend and hypotheses are implemented.
+enabled = true
+methods = ["keyword"]
+
+[baselines.keyword.github]
+# These decision thresholds are independent of the recall-oriented discovery bands below.
+accept_threshold = 7.0
+uncertain_threshold = 4.0
+
+[baselines.keyword.openalex]
+accept_threshold = 7.0
+uncertain_threshold = 4.0
+
 [github]
 # Bound source discovery separately from the ranked LLM adjudication shortlist.
 # Use classification_limit = "all" to classify every candidate/borderline row.

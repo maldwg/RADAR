@@ -1,0 +1,209 @@
+from __future__ import annotations
+
+import argparse
+import tempfile
+import unittest
+from pathlib import Path
+
+from ids_meta.cli import _execute_github, build_parser
+from ids_meta.common.baselines import (
+    KeywordBaselineConfig,
+    classify_keyword_baseline,
+    configured_baseline_methods,
+    load_keyword_baseline_config,
+)
+from ids_meta.common.cache import PipelineCache
+from ids_meta.common.config import ConfigError, Settings
+from ids_meta.common.csvio import atomic_write_csv, read_csv
+from ids_meta.common.evaluation import evaluate_results, load_rating_profile
+from ids_meta.github.schema import CANDIDATE_COLUMNS
+from ids_meta.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
+
+
+class BaselineTests(unittest.TestCase):
+    """Exercise generic classifier metadata and the deterministic keyword baseline."""
+
+    def _settings(self, root: Path) -> Settings:
+        """Build a minimal baseline-only configuration rooted in a temporary directory."""
+        terms = root / "github-terms.toml"
+        terms.write_text(
+            '[positive.strong]\nweight = 7\nterms = ["alpha detector"]\n\n'
+            '[positive.weak]\nweight = 5\nterms = ["beta research"]\n',
+            encoding="utf-8",
+        )
+        ratings = root / "github-ratings.toml"
+        ratings.write_text(
+            'schema_version = "1.0"\nsource = "github"\n'
+            'classification_fields = ["role", "observation_scopes"]\n\n'
+            '[[entities]]\nid = "1"\ndecision = "accept"\n'
+            'role = "native_detector"\nobservation_scopes = ["network"]\n',
+            encoding="utf-8",
+        )
+        values = {
+            "paths": {
+                "interim_dir": str(root / "interim"),
+                "processed_dir": str(root / "processed"),
+                "plots_dir": str(root / "plots"),
+                "runs_dir": str(root / "runs"),
+                "evaluation_dir": str(root / "evaluation"),
+                "github_cache": str(root / "github.sqlite3"),
+                "github_terms": str(terms),
+                "github_ratings": str(ratings),
+            },
+            "logging": {"progress_every": 1},
+            "baselines": {
+                "enabled": True,
+                "methods": ["keyword"],
+                "keyword": {"github": {"accept_threshold": 7, "uncertain_threshold": 4}},
+            },
+            "plots": {"formats": ["svg"], "dpi": 72},
+        }
+        return Settings(root, values)
+
+    def test_baseline_configuration_is_validated_and_future_methods_are_reserved(self) -> None:
+        """Validate keyword thresholds while reserving the CLI interface for later NLI support."""
+        with tempfile.TemporaryDirectory() as directory:
+            settings = self._settings(Path(directory))
+            self.assertEqual(configured_baseline_methods(settings), ["keyword"])
+            self.assertEqual(
+                load_keyword_baseline_config(settings, "github"), KeywordBaselineConfig(7.0, 4.0),
+            )
+            with self.assertRaisesRegex(ConfigError, "not implemented yet"):
+                configured_baseline_methods(settings, "nli")
+            invalid = dict(settings.values)
+            invalid["baselines"] = {
+                "keyword": {"github": {"accept_threshold": 4, "uncertain_threshold": 4}},
+            }
+            with self.assertRaisesRegex(ConfigError, "greater than"):
+                load_keyword_baseline_config(Settings(settings.root, invalid), "github")
+
+    def test_keyword_baseline_scores_all_bands_and_invalidates_cache_by_profile(self) -> None:
+        """Classify candidate, boundary, and rejected evidence with fingerprinted decisions."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates = root / "candidates.csv"
+            output = root / "classifications.csv"
+            rows = []
+            for identifier, text, discovery_band in (
+                ("1", "alpha detector", "candidate"),
+                ("2", "beta research", "borderline"),
+                ("3", "unrelated material", "reject"),
+            ):
+                row = {column: "" for column in CANDIDATE_COLUMNS}
+                row.update({
+                    "github_repo_id": identifier,
+                    "full_name": f"fixture/repo-{identifier}",
+                    "prefilter_band": discovery_band,
+                    "evidence_hash": "stale-candidate-hash",
+                })
+                rows.append(row)
+            atomic_write_csv(candidates, rows, CANDIDATE_COLUMNS)
+            profile = {
+                "positive": {
+                    "strong": {"weight": 7, "terms": ["alpha detector"]},
+                    "weak": {"weight": 5, "terms": ["beta research"]},
+                },
+            }
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                for identifier, text, _band in (
+                    ("1", "alpha detector", "candidate"),
+                    ("2", "beta research", "borderline"),
+                    ("3", "unrelated material", "reject"),
+                ):
+                    cache.put_record(
+                        "github.repository", identifier,
+                        {"repository": {"full_name": f"fixture/repo-{identifier}"}, "readme_text": text},
+                        "now",
+                    )
+                first = classify_keyword_baseline(
+                    "github", candidates, output, cache, profile, KeywordBaselineConfig(7, 4),
+                )
+                resumed = classify_keyword_baseline(
+                    "github", candidates, output, cache, profile, KeywordBaselineConfig(7, 4),
+                )
+                changed = classify_keyword_baseline(
+                    "github", candidates, output, cache, profile, KeywordBaselineConfig(8, 4),
+                )
+            self.assertEqual([row["decision"] for row in first], ["accept", "uncertain", "exclude"])
+            self.assertEqual(first[0]["classified_at"], resumed[0]["classified_at"])
+            self.assertNotEqual(first[0]["classifier_profile_hash"], changed[0]["classifier_profile_hash"])
+            self.assertEqual(changed[0]["decision"], "uncertain")
+            self.assertEqual(first[0]["classifier_method"], "keyword")
+            self.assertEqual(first[0]["classifier_supported_fields"], "decision")
+            self.assertNotEqual(first[0]["evidence_hash"], "stale-candidate-hash")
+
+    def test_keyword_evaluation_marks_taxonomy_as_unsupported(self) -> None:
+        """Report decision quality while leaving unsupported metadata metrics as N/A."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = self._settings(root)
+            classifications = root / "keyword.csv"
+            atomic_write_csv(classifications, [{
+                "github_repo_id": "1", "decision": "accept",
+                "classifier_method": "keyword", "classifier_id": "keyword-score",
+                "classifier_profile_hash": "profile", "classifier_supported_fields": "decision",
+            }], [
+                "github_repo_id", "decision", "classifier_method", "classifier_id",
+                "classifier_profile_hash", "classifier_supported_fields",
+            ])
+            profile = load_rating_profile(settings.path("github_ratings"), "github")
+            result = evaluate_results(profile, classifications, root / "evaluation")
+            self.assertEqual(result.metrics["operational"]["ACC"], 1.0)
+            self.assertIsNone(result.metrics["classification_field_accuracy"])
+            self.assertEqual(result.metrics["classification_field_comparisons"], 0)
+            self.assertTrue(all(row["supported"] == "false" for row in result.field_metrics))
+
+    def test_keyword_baseline_audits_candidate_evidence_fallback(self) -> None:
+        """Continue transparently from an OpenAlex audit when its raw cache is unavailable."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates = root / "papers.csv"
+            output = root / "keyword.csv"
+            row = {column: "" for column in OPENALEX_CANDIDATE_COLUMNS}
+            row.update({
+                "openalex_id": "https://openalex.org/W1", "title": "Released corpus",
+                "abstract": "We release an alpha detector dataset.", "evidence_hash": "old",
+            })
+            atomic_write_csv(candidates, [row], OPENALEX_CANDIDATE_COLUMNS)
+            profile = {"positive": {"release": {"weight": 7, "terms": ["release"]}}}
+            with PipelineCache(root / "empty.sqlite3") as cache:
+                results = classify_keyword_baseline(
+                    "openalex", candidates, output, cache, profile, KeywordBaselineConfig(7, 4),
+                )
+            self.assertEqual(results[0]["decision"], "accept")
+            self.assertEqual(results[0]["classifier_evidence_source"], "candidate_csv")
+
+    def test_baseline_cli_runs_keyword_classification_and_evaluation(self) -> None:
+        """Run the baseline command without loading Ollama configuration or invoking an LLM."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = self._settings(root)
+            candidate_path = root / "interim/github/candidates.csv"
+            row = {column: "" for column in CANDIDATE_COLUMNS}
+            row.update({
+                "github_repo_id": "1", "full_name": "fixture/repo-1",
+                "prefilter_band": "candidate", "evidence_hash": "candidate-hash",
+            })
+            atomic_write_csv(candidate_path, [row], CANDIDATE_COLUMNS)
+            with PipelineCache(root / "github.sqlite3") as cache:
+                cache.put_record(
+                    "github.repository", "1",
+                    {"repository": {"full_name": "fixture/repo-1"}, "readme_text": "alpha detector"},
+                    "now",
+                )
+            args = argparse.Namespace(
+                action="baseline", input=None, output=None, methods="keyword", ratings=None,
+                resume=True, dry_run=False, limit=None, collect_limit=None, classify_limit=None,
+                classify_all=False,
+            )
+            counts = _execute_github(args, settings)
+            output = root / "interim/github/baselines/keyword/classifications.csv"
+            self.assertEqual(counts["baseline_keyword_accept"], 1)
+            self.assertEqual(read_csv(output)[0]["decision"], "accept")
+            self.assertTrue((root / "evaluation/github/baselines/keyword/metrics.json").is_file())
+            parsed = build_parser().parse_args(["github", "baseline", "--methods", "keyword"])
+            self.assertEqual(parsed.methods, "keyword")
+
+
+if __name__ == "__main__":
+    unittest.main()

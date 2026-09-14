@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from ids_meta.common.baselines import classify_keyword_baseline, configured_baseline_methods, load_keyword_baseline_config
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.ensemble import ensemble_classifications
 from ids_meta.common.evaluation import EvaluationResult, evaluate_results, load_rating_profile
@@ -225,7 +226,7 @@ def _evaluation_jobs(
     """Resolve the rating profiles, isolated outputs, and manifest labels for evaluation."""
     primary = _path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml")
     explicit = getattr(args, "ratings", None)
-    if args.action == "evaluate" and explicit:
+    if args.action in {"evaluate", "baseline"} and explicit:
         return [(Path(explicit), _evaluation_output(args, default_output), "")]
 
     raw_additional = settings.section("evaluation").get(f"{source}_additional_ratings", [])
@@ -276,6 +277,56 @@ def _record_evaluation(manifest: RunManifest, result: EvaluationResult, suffix: 
     for name in ("tp", "fp", "tn", "fn"):
         manifest.counts[f"evaluation_{name}{label}"] = int(operational[name])
     manifest.counts[f"evaluation_files{label}"] = len(result.outputs)
+
+
+def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str) -> dict[str, int]:
+    """Run configured source baselines and their rated evaluations without invoking LLMs."""
+    paths = _default_paths(settings, source)
+    methods = configured_baseline_methods(settings, getattr(args, "methods", None))
+    if getattr(args, "output", None) and len(methods) != 1:
+        raise ConfigError("--output requires exactly one selected baseline method")
+    candidates_path = Path(args.input) if args.input else paths["candidates"]
+    term_profile = load_term_profile(settings, source)
+    manifest = _manifest(settings, source, "baseline")
+    manifest.parameters.update({"baseline_methods": methods, "candidates_path": str(candidates_path)})
+    LOG.info("starting baseline command source=%s methods=%s run_id=%s", source, ",".join(methods), manifest.run_id)
+    with PipelineCache(paths["cache"]) as cache:
+        for method in methods:
+            variant_paths = _variant_paths(settings, source, Path("baselines") / method)
+            output = Path(args.output) if args.output else variant_paths["classifications"]
+            if method == "keyword":
+                keyword_config = load_keyword_baseline_config(settings, source)
+                manifest.parameters["keyword_accept_threshold"] = keyword_config.accept_threshold
+                manifest.parameters["keyword_uncertain_threshold"] = keyword_config.uncertain_threshold
+                rows = classify_keyword_baseline(
+                    source, candidates_path, output, cache, term_profile, keyword_config,
+                    resume=args.resume,
+                    progress_every=int(settings.section("logging").get("progress_every", 25)),
+                )
+            else:  # configured_baseline_methods rejects unavailable implementations.
+                raise ConfigError(f"baseline method is not implemented yet: {method}")
+            manifest.counts[f"baseline_rows_{method}"] = len(rows)
+            manifest.counts[f"baseline_{method}_candidate_evidence"] = sum(
+                row.get("classifier_evidence_source") == "candidate_csv" for row in rows
+            )
+            for decision in ("accept", "uncertain", "exclude", "error"):
+                manifest.counts[f"baseline_{method}_{decision}"] = sum(
+                    row.get("decision") == decision for row in rows
+                )
+            for ratings_path, evaluation_dir, profile_label in _evaluation_jobs(
+                settings, source, args, variant_paths["evaluation"],
+            ):
+                result = _evaluate(
+                    settings, source, output, candidates_path, evaluation_dir, ratings_path,
+                )
+                _record_evaluation(
+                    manifest, result, "_".join(filter(None, (method, profile_label))),
+                )
+        manifest.coverage = cache.coverage_rows(source)
+    manifest.status = "complete"
+    manifest.write()
+    LOG.info("completed baseline command source=%s counts=%s", source, manifest.counts)
+    return manifest.counts
 
 
 def _execute_github_models(args: argparse.Namespace, settings: Settings, models: list[str]) -> dict[str, int]:
@@ -369,6 +420,8 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
 
 def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
     """Execute the requested GitHub pipeline stage or complete workflow."""
+    if args.action == "baseline":
+        return _execute_baselines(args, settings, "github")
     models = _configured_models(settings)
     ensemble_enabled, _members, _threshold = _ensemble_config(settings, models)
     if len(models) > 1 or ensemble_enabled:
@@ -527,6 +580,8 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
 
 def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
     """Execute the requested OpenAlex pipeline stage or complete workflow."""
+    if args.action == "baseline":
+        return _execute_baselines(args, settings, "openalex")
     models = _configured_models(settings)
     ensemble_enabled, _members, _threshold = _ensemble_config(settings, models)
     if len(models) > 1 or ensemble_enabled:
@@ -600,9 +655,10 @@ def build_parser() -> argparse.ArgumentParser:
     for source in ("github", "openalex"):
         source_parser = subparsers.add_parser(source)
         actions = source_parser.add_subparsers(dest="action", required=True)
-        for action in ("collect", "prefilter", "classify", "evaluate", "reconcile", "export", "plot", "run"):
+        for action in ("collect", "prefilter", "classify", "baseline", "evaluate", "reconcile", "export", "plot", "run"):
             action_parser = actions.add_parser(action)
-            action_parser.add_argument("--limit", type=int, help="legacy stage limit; for run, applies to both collection and classification")
+            if action != "baseline":
+                action_parser.add_argument("--limit", type=int, help="legacy stage limit; for run, applies to both collection and classification")
             if action in {"collect", "run"}:
                 action_parser.add_argument("--collect-limit", "--collection-limit", dest="collect_limit", type=int, help="maximum records collected from the source API")
             if action in {"classify", "run"}:
@@ -610,9 +666,15 @@ def build_parser() -> argparse.ArgumentParser:
                 classification_group.add_argument("--classify-limit", "--classification-limit", dest="classify_limit", type=int, help="maximum top-ranked eligible candidates sent to the LLM")
                 classification_group.add_argument("--classify-all", action="store_true", help="classify every candidate and borderline row above the configured rejection threshold")
             action_parser.add_argument("--resume", action=argparse.BooleanOptionalAction, default=True)
-            action_parser.add_argument("--dry-run", action="store_true")
+            if action != "baseline":
+                action_parser.add_argument("--dry-run", action="store_true")
             action_parser.add_argument("--input", type=Path)
             action_parser.add_argument("--output", type=Path)
+            if action == "baseline":
+                action_parser.add_argument(
+                    "--methods", help="comma-separated baseline methods; defaults to baselines.methods",
+                )
+                action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")
             if action == "evaluate":
                 action_parser.add_argument("--candidates", type=Path, help="candidate CSV used to distinguish not retrieved from not classified")
                 action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")

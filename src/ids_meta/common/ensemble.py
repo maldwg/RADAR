@@ -317,6 +317,9 @@ def consensus_classification(
         decision = exact_decision
     combined.update({
         "pipeline_version": "consecutive-consensus-2", "llm_model": representative.get("llm_model", ""),
+        "classifier_method": "llm", "classifier_id": representative.get("llm_model", ""),
+        "classifier_profile_hash": representative.get("classifier_profile_hash", representative.get("profile_hash", "")),
+        "classifier_supported_fields": "*",
         "decision": decision, "classified_at": utc_now(), "error": "",
         "ensemble_models": json.dumps(labels),
         "ensemble_model_decisions": json.dumps({label: row.get("decision", "") for label, row in votes.items()}, sort_keys=True),
@@ -410,6 +413,10 @@ def ensemble_classifications(
             "pipeline_version": "ensemble-2",
             "profile_hash": stable_hash(source, *models, threshold),
             "llm_model": "ensemble",
+            "classifier_method": "ensemble",
+            "classifier_id": "ensemble",
+            "classifier_profile_hash": stable_hash(source, *models, threshold),
+            "classifier_supported_fields": "*",
             "decision": decision,
             "classified_at": utc_now(),
             "error": "",

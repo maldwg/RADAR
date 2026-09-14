@@ -126,7 +126,7 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
     frame = pd.read_csv(source, keep_default_na=False)
     for column in ("comparisons", "exact_matches", "exact_accuracy", "label_f1"):
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
-    plot_frame = frame.copy()
+    plot_frame = frame[frame["comparisons"] > 0].copy()
     plot_frame["field_label"] = plot_frame["field"].astype(str).str.replace("_", " ").str.title()
     write_table(plot_frame.drop(columns=["field_label"]), out_dir / "plot_data", "03_field_accuracy")
 
@@ -138,7 +138,7 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
     )
     if plot_frame.empty:
         ax.axis("off")
-        ax.text(.5, .5, "No rated metadata fields", transform=ax.transAxes, ha="center", va="center")
+        ax.text(.5, .5, "Classifier does not emit rated metadata fields", transform=ax.transAxes, ha="center", va="center")
     else:
         ordered = plot_frame.iloc[::-1].reset_index(drop=True)
         positions = list(range(len(ordered)))
