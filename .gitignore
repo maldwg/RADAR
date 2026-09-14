@@ -8,3 +8,6 @@ data/raw/**/*.sqlite3-*
 artifacts/plots/
 artifacts/runs/
 **/*.log
+**/*.csv
+**/*.svg
+**/*.pdf
