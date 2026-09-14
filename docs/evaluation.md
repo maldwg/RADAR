@@ -4,16 +4,18 @@ The evaluation stage compares saved pipeline classifications with a small, versi
 
 ## Central rating profiles
 
-The default profiles are:
+The only checked-in profiles are:
 
 - `config/evaluation/github.toml`
-- `config/evaluation/openalex.toml`
+- `config/evaluation/openalex_ashraf_2026.toml`
 
-Each `[[entities]]` table uses exactly one matching selector:
+Source-record profiles use exactly one matching selector per `[[entities]]` table:
 
 - GitHub: `repository = "owner/name"`. Matching uses the `full_name` saved in classifications and candidates.
 - OpenAlex: `openalex_url = "https://openalex.org/W..."` is recommended. `title = "Exact paper title"` is also supported when no OpenAlex link is available.
 - Legacy `id` selectors remain supported for existing custom profiles, but the default profiles no longer use them.
+
+The checked-in OpenAlex profile instead uses `evaluation_unit = "artifact"`: every entity names a dataset with `artifact`, optional `aliases`, and survey-reference provenance. Evaluation searches the saved OpenAlex results for an accepted release representing that dataset.
 
 Repository names and titles are matched exactly after trimming repeated whitespace and ignoring letter case. A trailing slash on an OpenAlex URL is ignored. If a selector matches multiple rows--most plausibly a duplicated paper title--evaluation stops with an ambiguity error instead of guessing. The resolved stable source ID remains visible in `instances.csv`.
 
@@ -38,13 +40,17 @@ decision = "exclude"
 ```toml
 schema_version = "1.0"
 source = "openalex"
+evaluation_unit = "artifact"
+classification_fields = ["artifact_type", "domain", "data_form", "capture_environment", "labeling"]
 
 [[entities]]
-openalex_url = "https://openalex.org/W2296509296"
+artifact = "UNSW-NB15"
+aliases = ["UNSW NB15"]
 name = "UNSW-NB15"
 decision = "accept"
-paper_role = "original_release"
 artifact_type = "dataset"
+domain = "general_network"
+survey_reference_openalex_url = "https://openalex.org/W2296509296"
 ```
 
 The supported decisions are `accept`, OpenAlex `accept_adjacent`, `exclude`, and `uncertain`. Binary metrics use only human-rated include and exclude entities; a human-rated `uncertain` entry remains in exact decision and field reports but is outside the binary confusion-matrix denominator.
@@ -55,15 +61,15 @@ Classification files can declare their output contract through `classifier_suppo
 
 Profiles are validated before evaluation. A missing profile, wrong source/schema, missing or multiple selectors, duplicate selectors, ambiguous result matches, malformed field list, or unsupported decision fails the command instead of emitting misleading scores.
 
-### Balanced default benchmark
+### Benchmark composition
 
-The checked-in profiles are deliberately **stratified test sets**, not random samples and not estimates of how often each class occurs in the full discovery population. Both contain 24 rated entities split equally between 12 expected inclusions and 12 expected exclusions. This prevents accuracy from being dominated by whichever decision is most common.
+The GitHub profile is a deliberately **stratified test set**, not a random sample and not an estimate of how often each class occurs in the full discovery population.
 
 For GitHub, the positive half contains two repositories for each eligible role: standalone detector, platform/framework, classifier/model, rules/content, support tooling, and research demo. Together those positives cover every concrete observation scope and detection method in the configured taxonomy. The negative half contains three examples from each of four common boundary families: generic monitors, offensive/scanning tools, curated/tutorial content, and unrelated repositories whose names collide with IDS terminology.
 
-For OpenAlex, the positive half contains four original releases, four versioned releases, and four generator releases. The negative half contains three surveys, three downstream applications, three dataset analyses, and three unrelated high-overlap papers. Papers are chosen to vary domains, data forms, capture environments, and labeling, but those secondary fields are not forced to identical counts: some combinations are intrinsically rare or invalid, and fabricating symmetry there would make the ground truth less credible.
+OpenAlex uses only the 105-dataset positive-reference fixture extracted from Table 2 of Ashraf and Masoodi (2026). It measures whether each named survey dataset is represented by an accepted release result. Because this retained benchmark has no negative examples, false-positive rate, specificity, accuracy, precision, and F1 are not estimable and are reported as N/A.
 
-`test_default_profiles_preserve_the_stratified_benchmark_design` locks the decision and role quotas and the intended taxonomy coverage. A profile edit that silently reintroduces class imbalance therefore fails the regression suite.
+Regression tests lock the GitHub strata and the source counts, exclusions, aliases, requested domain taxonomy, and provenance fields of the OpenAlex dataset fixture.
 
 ## Running evaluation
 
@@ -105,7 +111,7 @@ Automatic LLM evaluation runs immediately after classification and consensus, be
 
 For one model, artifacts use `artifacts/evaluation/<source>/`. In multi-model mode, every result is evaluated independently under `artifacts/evaluation/<source>/models/<model-slug>/`; the ensemble uses `artifacts/evaluation/<source>/ensemble/`. Ratings and candidates are shared, which makes comparisons use the same reference set.
 
-Cross-approach plots are written to `artifacts/plots/comparisons/<source>/classifiers/`. For OpenAlex, the root comparison is the standard 105-dataset artifact benchmark and `openalex/` is the secondary balanced paper-screening benchmark. Detection rate, false-positive rate, accuracy, precision, F1, definitive coverage, abstention, and taxonomy-field accuracy each have a dedicated figure with every available Keyword, NLI, LLM, and Ensemble result on the same axis. Companion CSVs retain exact values, counts, classifier IDs, rating paths, and Wilson intervals. The interval level is configured as `evaluation.confidence_level`; the evaluator derives its normal quantile from that value. Decision-count, pairwise-agreement, and disagreement diagnostics sit below `decision_agreement/`. Metrics that a positive-only artifact fixture cannot estimate are shown as N/A, not as zero.
+Cross-approach plots are written to `artifacts/plots/comparisons/<source>/classifiers/`. The OpenAlex comparison uses the 105-dataset artifact benchmark. Detection rate, false-positive rate, accuracy, precision, F1, definitive coverage, abstention, and taxonomy-field accuracy each have a dedicated figure with every available Keyword, NLI, LLM, and Ensemble result on the same axis. Bar values are deliberately not printed on the figures; companion CSVs retain the exact values, counts, classifier IDs, rating paths, and Wilson intervals. The interval level is configured as `evaluation.confidence_level`; the evaluator derives its normal quantile from that value. Decision-count, pairwise-agreement, and disagreement diagnostics sit below `decision_agreement/`. Metrics that a positive-only artifact fixture cannot estimate are shown as N/A, not as zero.
 
 NLI evaluation also writes `threshold_diagnostics/`. It replays the aggregate probabilities already stored in `nli_scores_json` over the finite grid configured in `[baselines.nli.sensitivity]`, so it performs no inference and needs no network access. Every metric has a separate plot, the configured threshold/margin pair is marked, and the complete grid is retained as CSV. The sweep is descriptive; it must not silently tune the operating point on the same fixture used for final reporting.
 
@@ -163,6 +169,6 @@ Figure formats and resolution use the shared `[plots]` `formats` and `dpi` setti
 
 ## Regression tests
 
-`tests/test_evaluation.py` uses fixed GitHub and OpenAlex ratings and saved CSV rows. It checks exact confusion matrices, requested metric aliases, abstention and missing-result behavior, field comparisons, validation failures, artifact creation, both CLI stages, and manifest counts. These tests are deterministic and network-free.
+`tests/test_evaluation.py` uses the fixed GitHub repository ratings, the survey-derived OpenAlex dataset fixture, and temporary saved CSV rows. It checks exact confusion matrices, requested metric aliases, abstention and missing-result behavior, field comparisons, validation failures, artifact creation, both CLI stages, and manifest counts. These tests are deterministic and network-free.
 
 The lower-level `ids_meta.common.regression.evaluate_regression(...)` dictionary helper remains useful for small in-code unit fixtures. The evaluation stage is the persisted, centrally configured run-level counterpart.

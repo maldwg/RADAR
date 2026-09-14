@@ -1,6 +1,0 @@
-field,comparisons,exact_matches,exact_accuracy,label_f1
-artifact_type,123,41,0.3333333333333333,
-domain,123,35,0.2845528455284553,
-data_form,123,12,0.0975609756097561,
-capture_environment,123,18,0.1463414634146341,
-labeling,123,35,0.2845528455284553,

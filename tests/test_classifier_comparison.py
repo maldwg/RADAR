@@ -54,6 +54,10 @@ class ClassifierComparisonTests(unittest.TestCase):
                 self.assertEqual(len(table.read_text(encoding="utf-8").splitlines()), 5)
                 self.assertTrue((root / "plots" / f"{number:02d}_{metric}.svg").is_file())
             self.assertTrue((root / "plots/decision_agreement/data/02_pairwise_agreement.csv").is_file())
+            detection_svg = (root / "plots/01_detection_rate.svg").read_text(encoding="utf-8")
+            self.assertIn("95% Wilson interval", detection_svg)
+            self.assertIn("bar height=observed metric", detection_svg)
+            self.assertNotIn("65.0%", detection_svg)
 
 
 if __name__ == "__main__":

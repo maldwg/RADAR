@@ -36,8 +36,8 @@ class EvaluationTests(unittest.TestCase):
         )
         return path
 
-    def test_default_profiles_preserve_the_stratified_benchmark_design(self) -> None:
-        """Keep decisions and primary semantic strata balanced as ratings evolve."""
+    def test_github_profile_preserves_the_stratified_benchmark_design(self) -> None:
+        """Keep GitHub decisions and primary semantic strata balanced as ratings evolve."""
         with (ROOT / "config/evaluation/github.toml").open("rb") as handle:
             github = tomllib.load(handle)["entities"]
         self.assertEqual(len(github), 28)
@@ -48,32 +48,12 @@ class EvaluationTests(unittest.TestCase):
         self.assertTrue((set(METHODS) - {"unknown"}).issubset({value for row in accepted_repositories for value in row["detection_methods"]}))
         self.assertTrue(all(row["role"] == "out_of_scope" for row in github if row["decision"] == "exclude"))
 
-        with (ROOT / "config/evaluation/openalex.toml").open("rb") as handle:
-            openalex = tomllib.load(handle)["entities"]
-        self.assertEqual(len(openalex), 24)
-        self.assertEqual(Counter(row["decision"] for row in openalex), {"accept": 12, "exclude": 12})
-        self.assertEqual(
-            Counter(row["paper_role"] for row in openalex),
-            {
-                "original_release": 4, "versioned_release": 4, "generator_release": 4,
-                "survey": 3, "downstream_application": 3, "dataset_analysis": 3, "unrelated": 3,
-            },
-        )
-        accepted_papers = [row for row in openalex if row["decision"] == "accept"]
-        self.assertGreaterEqual(len({row["domain"] for row in accepted_papers} - {"unknown"}), 5)
-        self.assertGreaterEqual(len({row["data_form"] for row in accepted_papers} - {"unknown"}), 7)
-        self.assertEqual({row["capture_environment"] for row in accepted_papers}, {"real_world", "synthetic_lab", "hybrid"})
-        self.assertTrue({row["domain"] for row in openalex}.issubset(set(DOMAINS)))
-
     def test_ashraf_2026_profile_preserves_requested_table_2_dataset_types(self) -> None:
         """Keep the selected survey artifacts source-traceable and the taxonomy exact."""
         path = ROOT / "config/evaluation/openalex_ashraf_2026.toml"
         default_settings = load_settings(ROOT / "config/default.toml")
         self.assertEqual(default_settings.path("openalex_ratings"), path)
-        self.assertEqual(
-            default_settings.section("evaluation")["openalex_additional_ratings"],
-            ["config/evaluation/openalex.toml"],
-        )
+        self.assertNotIn("openalex_additional_ratings", default_settings.section("evaluation"))
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
         rows = raw["entities"]
@@ -366,22 +346,20 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(args.candidates, Path("candidates.csv"))
         self.assertEqual(args.ratings, Path("ratings.toml"))
 
-    def test_openalex_run_schedules_default_and_additional_evaluation_profiles(self) -> None:
-        """Include the configured artifact benchmark automatically without replacing screening evaluation."""
+    def test_openalex_run_schedules_only_the_dataset_evaluation_profile(self) -> None:
+        """Use only the configured survey-derived dataset benchmark in normal evaluation."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            default_profile = self._write_profile(root / "openalex.toml", "openalex", '[[entities]]\nid = "W1"\ndecision = "exclude"\n')
-            additional_profile = self._write_profile(root / "openalex_ashraf_2026.toml", "openalex", '[[entities]]\nid = "W2"\ndecision = "accept"\n')
-            settings = self._settings(root, root / "github.toml", default_profile)
-            settings.values["evaluation"]["openalex_additional_ratings"] = [str(additional_profile)]
+            dataset_profile = self._write_profile(
+                root / "openalex_ashraf_2026.toml", "openalex",
+                '[[entities]]\nid = "W2"\ndecision = "accept"\n',
+            )
+            settings = self._settings(root, root / "github.toml", dataset_profile)
             args = argparse.Namespace(action="run", ratings=None, output=None)
 
             jobs = _evaluation_jobs(settings, "openalex", args, root / "evaluation/openalex")
 
-            self.assertEqual(jobs, [
-                (default_profile, root / "evaluation/openalex", ""),
-                (additional_profile, root / "evaluation/openalex/openalex_ashraf_2026", "openalex-ashraf-2026"),
-            ])
+            self.assertEqual(jobs, [(dataset_profile, root / "evaluation/openalex", "")])
             args.action = "evaluate"
             self.assertEqual(_evaluation_jobs(settings, "openalex", args, root / "evaluation/openalex"), jobs)
 

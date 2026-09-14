@@ -7,6 +7,7 @@ from statistics import NormalDist
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.lines import Line2D
 
 from ids_meta.plotting.common import COLORS, configure_style, load_frame, metadata_caption, save_figure, stamp, write_table
 from ids_meta.common.logging import logger
@@ -286,24 +287,40 @@ def build_classifiers(
                 (values - visible["ci_low"].astype(float)).clip(lower=0),
                 (visible["ci_high"].astype(float) - values).clip(lower=0),
             ]
-        bars = ax.bar(
+        ax.bar(
             range(len(visible)), visible["value"].astype(float),
             color=[_method_color(str(value)) for value in visible["classifier_method"]],
-            yerr=error, capsize=4,
+            yerr=error, capsize=5,
+            error_kw={"ecolor": "#202830", "elinewidth": 1.6, "capthick": 1.6},
         )
         ax.set_xticks(
             range(len(visible)), labels=[_display_label(str(value)) for value in visible["classifier"]],
             rotation=25, ha="right",
         )
+        fig.subplots_adjust(bottom=.30)
         ax.set_ylim(0, 1.08)
         ax.set_ylabel(title)
         ax.set_xlabel("")
-        ax.bar_label(bars, labels=[f"{value:.1%}" for value in visible["value"]], padding=3, fontsize=8)
+        interval_caption = ""
+        if error is not None:
+            confidence_levels = sorted(set(visible["confidence_level"].astype(float)))
+            interval_label = (
+                f"{confidence_levels[0]:.0%} Wilson interval"
+                if len(confidence_levels) == 1 else "Configured Wilson intervals"
+            )
+            ax.legend(
+                handles=[Line2D(
+                    [0], [0], color="#202830", linewidth=1.6, marker="_",
+                    markersize=12, markeredgewidth=1.6, label=interval_label,
+                )],
+                loc="upper right", frameon=True, fontsize=8,
+            )
+            interval_caption = f"; capped vertical line={interval_label}"
         ax.set_title(f"{source.title()} — {title} by classification approach", loc="left", fontweight="bold")
         stamp(
             fig,
-            f"all bars use the same rating profile; n={visible['rated_entities'].iloc[0]}; "
-            "missing bars mean the metric is not estimable or the classifier does not emit that field",
+            f"n={visible['rated_entities'].iloc[0]}; bar height=observed metric"
+            f"{interval_caption}; missing bar=not estimable",
         )
         outputs += save_figure(fig, out_dir, f"{number:02d}_{stem}", formats, dpi)
     available_classifications = {

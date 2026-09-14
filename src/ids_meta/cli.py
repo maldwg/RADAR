@@ -234,32 +234,12 @@ def _evaluation_output(args: argparse.Namespace, default: Path) -> Path:
 def _evaluation_jobs(
     settings: Settings, source: str, args: argparse.Namespace, default_output: Path,
 ) -> list[tuple[Path, Path, str]]:
-    """Resolve the rating profiles, isolated outputs, and manifest labels for evaluation."""
+    """Resolve the single selected rating profile and its output directory."""
     primary = _path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml")
     explicit = getattr(args, "ratings", None)
     if args.action in {"evaluate", "baseline"} and explicit:
         return [(Path(explicit), _evaluation_output(args, default_output), "")]
-
-    raw_additional = settings.section("evaluation").get(f"{source}_additional_ratings", [])
-    if not isinstance(raw_additional, list) or any(not isinstance(value, str) or not value.strip() for value in raw_additional):
-        raise ConfigError(f"evaluation.{source}_additional_ratings must be an array of non-empty paths")
-    base_output = _evaluation_output(args, default_output)
-    jobs = [(primary, base_output, "")]
-    seen_paths = {primary.resolve()}
-    seen_labels: set[str] = set()
-    for value in raw_additional:
-        path = Path(value)
-        path = path if path.is_absolute() else settings.root / path
-        resolved = path.resolve()
-        if resolved in seen_paths:
-            continue
-        label = slug(path.stem)
-        if label in seen_labels:
-            raise ConfigError(f"additional {source} evaluation profiles must have distinct filename stems")
-        seen_paths.add(resolved)
-        seen_labels.add(label)
-        jobs.append((path, base_output / path.stem, label))
-    return jobs
+    return [(primary, _evaluation_output(args, default_output), "")]
 
 
 def _evaluation_confidence_level(settings: Settings) -> float:
@@ -345,30 +325,18 @@ def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]
     if len(entries) < 2:
         LOG.warning("skipping all-classifier comparison source=%s available=%d", source, len(entries))
         return []
-    profiles = {""}
-    raw_additional = settings.section("evaluation").get(f"{source}_additional_ratings", [])
-    if not isinstance(raw_additional, list) or any(
-        not isinstance(value, str) or not value.strip() for value in raw_additional
-    ):
-        raise ConfigError(f"evaluation.{source}_additional_ratings must be an array of non-empty paths")
-    profiles.update(slug(Path(value).stem) for value in raw_additional)
-    outputs: list[Path] = []
     comparison_root = _default_paths(settings, source)["comparison"] / "classifiers"
-    for profile in sorted(profiles, key=lambda value: (bool(value), value)):
-        classifications: dict[str, Path] = {}
-        evaluations: dict[str, Path] = {}
-        for label, (classification, evaluation_root) in entries.items():
-            directory = evaluation_root / profile if profile else evaluation_root
-            if classification.is_file() and (directory / "metrics.json").is_file():
-                classifications[label] = classification
-                evaluations[label] = directory
-        if len(evaluations) < 2:
-            continue
-        out_dir = comparison_root / profile if profile else comparison_root
-        outputs += build_classifiers(
-            source, classifications, evaluations, out_dir, settings.section("plots"),
-        )
-    return outputs
+    classifications: dict[str, Path] = {}
+    evaluations: dict[str, Path] = {}
+    for label, (classification, evaluation_root) in entries.items():
+        if classification.is_file() and (evaluation_root / "metrics.json").is_file():
+            classifications[label] = classification
+            evaluations[label] = evaluation_root
+    if len(evaluations) < 2:
+        return []
+    return build_classifiers(
+        source, classifications, evaluations, comparison_root, settings.section("plots"),
+    )
 
 
 def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str) -> dict[str, int]:

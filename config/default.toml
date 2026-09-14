@@ -19,7 +19,8 @@ github_prompts = "config/prompts/github.toml"
 openalex_prompts = "config/prompts/openalex.toml"
 github_system_types = "config/taxonomy/github_system_types.toml"
 github_ratings = "config/evaluation/github.toml"
-openalex_ratings = "config/evaluation/openalex.toml"
+# The dataset-level survey fixture is the primary OpenAlex benchmark.
+openalex_ratings = "config/evaluation/openalex_ashraf_2026.toml"
 github_nli = "config/baselines/github_nli.toml"
 openalex_nli = "config/baselines/openalex_nli.toml"
 
@@ -47,9 +48,9 @@ threshold = 1.0
 # Run rated-instance evaluation automatically after classification in a full run.
 # Explicit `github evaluate` and `openalex evaluate` commands always run.
 enabled = true
-# Run these additional rating profiles during a full source run or an evaluate
-# command without --ratings. Each report is isolated below a profile-named directory.
-openalex_additional_ratings = ["config/evaluation/openalex_ashraf_2026.toml"]
+# Coverage intervals are descriptive uncertainty bands, not decision thresholds.
+# The evaluator derives the normal quantile from this value; no z-score is hardcoded.
+confidence_level = 0.95
 
 [baselines]
 # Baselines are evaluation variants and are not reconciled into the production catalogues.
@@ -75,6 +76,13 @@ max_chunks = 6
 top_k = 2
 entailment_threshold = 0.50
 label_margin = 0.10
+
+[baselines.nli.sensitivity]
+# Offline diagnostic only: replay the saved aggregate probabilities at each pair.
+# This does not select or overwrite the configured operating point above.
+enabled = true
+entailment_thresholds = [0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65]
+label_margins = [0.00, 0.05, 0.10, 0.15, 0.20]
 
 [baselines.keyword.github]
 # These decision thresholds are independent of the recall-oriented discovery bands below.
