@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 from pathlib import Path
 
 from ids_meta.common.baselines import classify_keyword_baseline, configured_baseline_methods, load_keyword_baseline_config
@@ -8,6 +9,7 @@ from ids_meta.common.cache import PipelineCache
 from ids_meta.common.ensemble import ensemble_classifications
 from ids_meta.common.evaluation import EvaluationResult, evaluate_results, load_rating_profile
 from ids_meta.common.config import ConfigError, Settings, load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
+from ids_meta.common.csvio import read_csv
 from ids_meta.common.run import RunManifest
 from ids_meta.common.text import slug
 from ids_meta.common.logging import configure_logging, logger
@@ -260,6 +262,20 @@ def _evaluation_jobs(
     return jobs
 
 
+def _evaluation_confidence_level(settings: Settings) -> float:
+    """Return the configured interval level without embedding a fixed z-score."""
+    raw_confidence_level = settings.section("evaluation").get("confidence_level", .95)
+    if isinstance(raw_confidence_level, bool):
+        raise ConfigError("evaluation.confidence_level must be numeric")
+    try:
+        confidence_level = float(raw_confidence_level)
+    except (TypeError, ValueError) as exc:
+        raise ConfigError("evaluation.confidence_level must be numeric") from exc
+    if not 0 < confidence_level < 1:
+        raise ConfigError("evaluation.confidence_level must be greater than zero and smaller than one")
+    return confidence_level
+
+
 def _evaluate(
     settings: Settings, source: str, classifications: Path, candidates: Path, output_dir: Path,
     ratings_path: Path | None = None,
@@ -267,7 +283,10 @@ def _evaluate(
     """Evaluate one source/model result against its centrally configured ratings."""
     profile_path = ratings_path or _path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml")
     profile = load_rating_profile(profile_path, source)
-    result = evaluate_results(profile, classifications, output_dir, candidates)
+    result = evaluate_results(
+        profile, classifications, output_dir, candidates,
+        confidence_level=_evaluation_confidence_level(settings),
+    )
     from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
     plot_outputs = build_evaluation_plots(output_dir, settings.section("plots"))
@@ -327,11 +346,12 @@ def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]
         LOG.warning("skipping all-classifier comparison source=%s available=%d", source, len(entries))
         return []
     profiles = {""}
-    for _label, (_classification, evaluation_root) in entries.items():
-        profiles.update(
-            path.parent.relative_to(evaluation_root).as_posix()
-            for path in evaluation_root.glob("*/metrics.json")
-        )
+    raw_additional = settings.section("evaluation").get(f"{source}_additional_ratings", [])
+    if not isinstance(raw_additional, list) or any(
+        not isinstance(value, str) or not value.strip() for value in raw_additional
+    ):
+        raise ConfigError(f"evaluation.{source}_additional_ratings must be an array of non-empty paths")
+    profiles.update(slug(Path(value).stem) for value in raw_additional)
     outputs: list[Path] = []
     comparison_root = _default_paths(settings, source)["comparison"] / "classifiers"
     for profile in sorted(profiles, key=lambda value: (bool(value), value)):
@@ -355,22 +375,42 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
     """Run configured source baselines and their rated evaluations without invoking LLMs."""
     paths = _default_paths(settings, source)
     methods = configured_baseline_methods(settings, getattr(args, "methods", None))
+    evaluate_only = bool(getattr(args, "evaluate_only", False))
     if getattr(args, "output", None) and len(methods) != 1:
         raise ConfigError("--output requires exactly one selected baseline method")
     candidates_path = Path(args.input) if args.input else paths["candidates"]
-    term_profile = load_term_profile(settings, source)
     manifest = _manifest(settings, source, "baseline")
-    manifest.parameters.update({"baseline_methods": methods, "candidates_path": str(candidates_path)})
-    LOG.info("starting baseline command source=%s methods=%s run_id=%s", source, ",".join(methods), manifest.run_id)
-    with PipelineCache(paths["cache"]) as cache:
+    manifest.parameters.update({
+        "baseline_methods": methods, "candidates_path": str(candidates_path),
+        "evaluate_only": evaluate_only,
+    })
+    LOG.info(
+        "starting baseline command source=%s methods=%s evaluate_only=%s run_id=%s",
+        source, ",".join(methods), evaluate_only, manifest.run_id,
+    )
+    cache_context = nullcontext(None) if evaluate_only else PipelineCache(paths["cache"])
+    with cache_context as cache:
         for method in methods:
             nli_config = load_nli_runtime_config(settings) if method == "nli" else None
+            nli_profile = load_nli_profile(settings, source) if method == "nli" else None
+            adapter_config = (
+                {"system_type_profile": load_system_type_profile(settings, "github")}
+                if method == "nli" and source == "github" else {}
+            )
             variant = Path("baselines") / method
             if nli_config is not None:
                 variant /= slug(nli_config.model)
             variant_paths = _variant_paths(settings, source, variant)
             output = Path(args.output) if args.output else variant_paths["classifications"]
-            if method == "keyword":
+            if evaluate_only:
+                if not output.is_file():
+                    raise ConfigError(
+                        f"--evaluate-only requires an existing {method} classification file: {output}"
+                    )
+                rows = read_csv(output)
+            elif method == "keyword":
+                assert cache is not None
+                term_profile = load_term_profile(settings, source)
                 keyword_config = load_keyword_baseline_config(settings, source)
                 manifest.parameters["keyword_accept_threshold"] = keyword_config.accept_threshold
                 manifest.parameters["keyword_uncertain_threshold"] = keyword_config.uncertain_threshold
@@ -380,17 +420,14 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
                     progress_every=int(settings.section("logging").get("progress_every", 25)),
                 )
             elif method == "nli":
+                assert cache is not None
                 assert nli_config is not None
-                nli_profile = load_nli_profile(settings, source)
+                assert nli_profile is not None
                 manifest.parameters.update({
                     "nli_model": nli_config.model, "nli_revision": nli_config.revision,
                     "nli_entailment_threshold": nli_config.entailment_threshold,
                     "nli_label_margin": nli_config.label_margin,
                 })
-                adapter_config = (
-                    {"system_type_profile": load_system_type_profile(settings, "github")}
-                    if source == "github" else {}
-                )
                 rows = classify_nli_baseline(
                     source, candidates_path, output, cache, nli_profile, nli_config,
                     resume=args.resume,
@@ -416,7 +453,26 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
                 _record_evaluation(
                     manifest, result, "_".join(filter(None, (method, profile_label))),
                 )
-        manifest.coverage = cache.coverage_rows(source)
+                if method == "nli":
+                    from ids_meta.common.nli_diagnostics import (
+                        build_nli_threshold_diagnostics, load_nli_threshold_grid,
+                    )
+
+                    assert nli_config is not None and nli_profile is not None
+                    rating_profile = load_rating_profile(ratings_path, source)
+                    diagnostic_outputs = build_nli_threshold_diagnostics(
+                        source, output, candidates_path, rating_profile, nli_profile,
+                        nli_config, load_nli_threshold_grid(settings),
+                        evaluation_dir / "threshold_diagnostics", settings.section("plots"),
+                        confidence_level=_evaluation_confidence_level(settings),
+                        adapter_config=adapter_config,
+                    )
+                    diagnostic_label = "_".join(filter(None, (method, profile_label)))
+                    manifest.counts[f"nli_threshold_diagnostic_files_{diagnostic_label}"] = len(
+                        diagnostic_outputs
+                    )
+        if cache is not None:
+            manifest.coverage = cache.coverage_rows(source)
     comparison_outputs = _build_classifier_comparisons(settings, source)
     manifest.counts["baseline_comparison_files"] = len(comparison_outputs)
     manifest.status = "complete"
@@ -771,6 +827,10 @@ def build_parser() -> argparse.ArgumentParser:
                     "--methods", help="comma-separated baseline methods; defaults to baselines.methods",
                 )
                 action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")
+                action_parser.add_argument(
+                    "--evaluate-only", action="store_true",
+                    help="reuse existing baseline classification CSVs; never initialize a classifier or model",
+                )
             if action == "evaluate":
                 action_parser.add_argument("--candidates", type=Path, help="candidate CSV used to distinguish not retrieved from not classified")
                 action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")
@@ -825,7 +885,7 @@ def main(argv: list[str] | None = None) -> int:
             baseline_args = argparse.Namespace(
                 action="baseline", input=args.input, output=None, methods=None, ratings=None,
                 resume=args.resume, dry_run=False, limit=None, collect_limit=None,
-                classify_limit=None, classify_all=False,
+                classify_limit=None, classify_all=False, evaluate_only=False,
             )
             baseline_counts = _execute_baselines(baseline_args, settings, args.command)
             counts.update(baseline_counts)

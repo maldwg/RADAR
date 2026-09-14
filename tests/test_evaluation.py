@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from ids_meta.cli import _evaluation_jobs, _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
-from ids_meta.common.config import Settings
+from ids_meta.common.config import Settings, load_settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
 from ids_meta.github.schema import METHODS, ROLES, SCOPES
@@ -68,6 +68,12 @@ class EvaluationTests(unittest.TestCase):
     def test_ashraf_2026_profile_preserves_requested_table_2_dataset_types(self) -> None:
         """Keep the selected survey artifacts source-traceable and the taxonomy exact."""
         path = ROOT / "config/evaluation/openalex_ashraf_2026.toml"
+        default_settings = load_settings(ROOT / "config/default.toml")
+        self.assertEqual(default_settings.path("openalex_ratings"), path)
+        self.assertEqual(
+            default_settings.section("evaluation")["openalex_additional_ratings"],
+            ["config/evaluation/openalex.toml"],
+        )
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
         rows = raw["entities"]
@@ -128,8 +134,14 @@ class EvaluationTests(unittest.TestCase):
             candidates = root / "candidates.csv"
             atomic_write_csv(candidates, [{"github_repo_id": f"g{index}"} for index in range(1, 6)], ["github_repo_id"])
 
-            result = evaluate_results(load_rating_profile(profile_path, "github"), classifications, root / "evaluation", candidates)
+            result = evaluate_results(
+                load_rating_profile(profile_path, "github"), classifications,
+                root / "evaluation", candidates, confidence_level=.90,
+            )
             metrics = result.metrics
+            self.assertEqual(metrics["confidence_level"], .90)
+            self.assertIn("detection_rate", metrics["confidence_intervals"])
+            self.assertNotIn("confidence_intervals_95", metrics)
             self.assertEqual(metrics["operational"]["tp"], 1)
             self.assertEqual(metrics["operational"]["fp"], 1)
             self.assertEqual(metrics["operational"]["tn"], 1)

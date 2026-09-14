@@ -204,6 +204,10 @@ class BaselineTests(unittest.TestCase):
             self.assertTrue((root / "evaluation/github/baselines/keyword/metrics.json").is_file())
             parsed = build_parser().parse_args(["github", "baseline", "--methods", "keyword"])
             self.assertEqual(parsed.methods, "keyword")
+            offline = build_parser().parse_args([
+                "openalex", "baseline", "--methods", "nli", "--evaluate-only",
+            ])
+            self.assertTrue(offline.evaluate_only)
 
 
 if __name__ == "__main__":

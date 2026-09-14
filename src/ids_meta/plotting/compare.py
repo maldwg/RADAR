@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from statistics import NormalDist
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -167,11 +168,11 @@ def _metric_value(metrics: dict[str, object], section: str, key: str) -> float |
         return None
 
 
-def _wilson(successes: int, total: int) -> list[float] | None:
-    """Calculate a 95% Wilson interval for comparison inputs created before interval export."""
+def _wilson(successes: int, total: int, confidence_level: float) -> list[float] | None:
+    """Calculate a Wilson interval from exported counts and a declared confidence level."""
     if total <= 0:
         return None
-    z = 1.959963984540054
+    z = NormalDist().inv_cdf(.5 + confidence_level / 2)
     proportion = successes / total
     denominator = 1 + z * z / total
     center = (proportion + z * z / (2 * total)) / denominator
@@ -182,7 +183,8 @@ def _wilson(successes: int, total: int) -> list[float] | None:
 
 
 def _fallback_interval(metrics: dict[str, object], stem: str, value: float | None) -> list[float] | None:
-    """Derive a binomial interval from exported counts when an older report lacks one."""
+    """Derive a binomial interval from counts when a report lacks the requested interval."""
+    confidence_level = float(metrics.get("confidence_level", .95))
     operational = metrics.get("operational", {})
     if isinstance(operational, dict):
         tp, fp = int(operational.get("tp", 0)), int(operational.get("fp", 0))
@@ -192,13 +194,13 @@ def _fallback_interval(metrics: dict[str, object], stem: str, value: float | Non
             "accuracy": (tp + tn, tp + fp + tn + fn), "precision": (tp, tp + fp),
         }
         if stem in pairs:
-            return _wilson(*pairs[stem])
+            return _wilson(*pairs[stem], confidence_level)
     denominator = (
         int(metrics.get("classification_field_comparisons", 0))
         if stem == "field_accuracy" else int(metrics.get("rated_entities", 0))
     )
     if stem in {"definitive_coverage", "abstention_rate", "field_accuracy"} and value is not None:
-        return _wilson(round(value * denominator), denominator)
+        return _wilson(round(value * denominator), denominator, confidence_level)
     return None
 
 
@@ -246,7 +248,7 @@ def build_classifiers(
                 "ensemble" if label.casefold() == "ensemble" else "llm"
             )
             operational = metrics.get("operational", {})
-            intervals = metrics.get("confidence_intervals_95", {})
+            intervals = metrics.get("confidence_intervals", {})
             interval = intervals.get(stem) if isinstance(intervals, dict) else None
             if not (isinstance(interval, list) and len(interval) == 2):
                 interval = _fallback_interval(metrics, stem, value)
@@ -254,8 +256,9 @@ def build_classifiers(
                 "classifier": label, "classifier_method": method, "metric": stem,
                 "classifier_id": metrics.get("classifier_id", ""),
                 "value": value, "rated_entities": metrics.get("rated_entities", ""),
-                "ci95_low": interval[0] if isinstance(interval, list) and len(interval) == 2 else None,
-                "ci95_high": interval[1] if isinstance(interval, list) and len(interval) == 2 else None,
+                "confidence_level": metrics.get("confidence_level", .95),
+                "ci_low": interval[0] if isinstance(interval, list) and len(interval) == 2 else None,
+                "ci_high": interval[1] if isinstance(interval, list) and len(interval) == 2 else None,
                 "tp": operational.get("tp", "") if isinstance(operational, dict) else "",
                 "fp": operational.get("fp", "") if isinstance(operational, dict) else "",
                 "tn": operational.get("tn", "") if isinstance(operational, dict) else "",
@@ -277,11 +280,11 @@ def build_classifiers(
             outputs += save_figure(fig, out_dir, f"{number:02d}_{stem}", formats, dpi)
             continue
         error = None
-        if visible["ci95_low"].notna().all() and visible["ci95_high"].notna().all():
+        if visible["ci_low"].notna().all() and visible["ci_high"].notna().all():
             values = visible["value"].astype(float)
             error = [
-                (values - visible["ci95_low"].astype(float)).clip(lower=0),
-                (visible["ci95_high"].astype(float) - values).clip(lower=0),
+                (values - visible["ci_low"].astype(float)).clip(lower=0),
+                (visible["ci_high"].astype(float) - values).clip(lower=0),
             ]
         bars = ax.bar(
             range(len(visible)), visible["value"].astype(float),

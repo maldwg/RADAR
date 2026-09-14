@@ -336,34 +336,98 @@ def infer_nli_fields(
             for label, values in field_scores.items()
         }
         support[field.name] = {label: values["support"] for label, values in field_scores.items()}
+    predictions.update(decide_nli_fields(
+        audit, profile, config.entailment_threshold, config.label_margin,
+    ))
+    return predictions, audit, support
+
+
+def decide_nli_fields(
+    audit: dict[str, Any], profile: NLIProfile, entailment_threshold: float,
+    label_margin: float,
+) -> dict[str, Any]:
+    """Convert persisted aggregate scores into labels without running NLI inference."""
+    if not 0 < entailment_threshold < 1 or not 0 <= label_margin < 1:
+        raise ValueError("NLI thresholds must lie between zero and one")
+    predictions: dict[str, Any] = {}
+    for field in profile.fields:
+        raw_scores = audit.get(field.name)
+        if not isinstance(raw_scores, dict) or set(raw_scores) != set(field.hypotheses):
+            raise ValueError(f"persisted NLI scores do not match field {field.name!r}")
+        field_scores: dict[str, dict[str, float]] = {}
+        for label, raw_values in raw_scores.items():
+            if not isinstance(raw_values, dict):
+                raise ValueError(f"persisted NLI score for {field.name}.{label} is invalid")
+            try:
+                field_scores[str(label)] = {
+                    "entailment": float(raw_values["entailment"]),
+                    "contradiction": float(raw_values["contradiction"]),
+                }
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"persisted NLI score for {field.name}.{label} is incomplete"
+                ) from exc
         if field.mode == "exclusive":
-            ranked = sorted(field_scores, key=lambda label: field_scores[label]["entailment"], reverse=True)
+            ranked = sorted(
+                field_scores, key=lambda label: field_scores[label]["entailment"], reverse=True,
+            )
             best = ranked[0]
             second = field_scores[ranked[1]]["entailment"] if len(ranked) > 1 else 0.0
             best_score = field_scores[best]["entailment"]
             predictions[field.name] = best if (
-                best_score >= config.entailment_threshold and best_score - second >= config.label_margin
+                best_score >= entailment_threshold and best_score - second >= label_margin
             ) else field.fallback
         elif field.mode == "multilabel":
             selected = sorted(
                 label for label, values in field_scores.items()
-                if values["entailment"] >= config.entailment_threshold
-                and values["entailment"] - values["contradiction"] >= config.label_margin
+                if values["entailment"] >= entailment_threshold
+                and values["entailment"] - values["contradiction"] >= label_margin
             )
             predictions[field.name] = selected or ([field.fallback] if field.fallback else [])
         else:
             values = field_scores["true"]
-            if values["entailment"] >= config.entailment_threshold and (
-                values["entailment"] - values["contradiction"] >= config.label_margin
+            if values["entailment"] >= entailment_threshold and (
+                values["entailment"] - values["contradiction"] >= label_margin
             ):
                 predictions[field.name] = "true"
-            elif values["contradiction"] >= config.entailment_threshold and (
-                values["contradiction"] - values["entailment"] >= config.label_margin
+            elif values["contradiction"] >= entailment_threshold and (
+                values["contradiction"] - values["entailment"] >= label_margin
             ):
                 predictions[field.name] = "false"
             else:
                 predictions[field.name] = "unknown"
-    return predictions, audit, support
+    return predictions
+
+
+def rescore_nli_rows(
+    source: str, rows: Sequence[dict[str, str]], profile: NLIProfile,
+    entailment_threshold: float, label_margin: float,
+    adapter_config: dict[str, Any] | None = None,
+) -> list[dict[str, str]]:
+    """Replay saved NLI scores at new thresholds without model or network access."""
+    _identity, _namespace, _columns, _evidence_builder, normalizer = _source_contract(source)
+    rescored: list[dict[str, str]] = []
+    for row in rows:
+        updated = dict(row)
+        try:
+            raw_audit = json.loads(str(row.get("nli_scores_json", "")))
+            if not isinstance(raw_audit, dict) or not raw_audit:
+                raise ValueError("NLI score audit is empty")
+            predictions = decide_nli_fields(
+                raw_audit, profile, entailment_threshold, label_margin,
+            )
+            updated.update(normalizer(predictions, row, adapter_config or {}))
+            updated["nli_entailment_threshold"] = f"{entailment_threshold:g}"
+            updated["nli_label_margin"] = f"{label_margin:g}"
+            updated["error"] = ""
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            updated.update({
+                "decision": "error", "classification_validation_flags": "nli_rescore_error",
+                "primary_reason": "Saved NLI scores could not be rescored.",
+                "error": str(exc)[:1000],
+            })
+        rescored.append({str(name): str(value) for name, value in updated.items()})
+    return rescored
 
 
 def nli_profile_hash(profile: NLIProfile, config: NLIRuntimeConfig) -> str:
@@ -401,12 +465,21 @@ def classify_nli_baseline(
     identity, record_namespace, columns, evidence_builder, normalizer = _source_contract(source)
     rows = read_csv(candidates_path)
     require_columns(rows, (identity, "evidence_hash"), candidates_path)
-    active_backend = backend or TransformersNLIBackend(config)
-    if active_backend.model_id != config.model or active_backend.revision != config.revision:
+    active_backend = backend
+    if active_backend is not None and (
+        active_backend.model_id != config.model or active_backend.revision != config.revision
+    ):
         raise ValueError("NLI backend identity does not match the configured model and revision")
     profile_hash = nli_profile_hash(profile, config)
     namespace = f"{source}.baseline.nli.{slug(config.model)}"
     results: list[dict[str, str]] = []
+    prior_rows = read_csv(output) if resume and output.is_file() else []
+    prior_by_id = {
+        str(row.get(identity, "")).strip(): row for row in prior_rows
+        if str(row.get(identity, "")).strip()
+        and row.get("classifier_profile_hash") == profile_hash
+        and row.get("decision") != "error"
+    }
     reused = fallback_count = 0
     progress_every = max(1, int(progress_every))
     LOG.info(
@@ -427,6 +500,9 @@ def classify_nli_baseline(
         sections = evidence_builder(payload)
         evidence_hash = stable_hash(format_evidence(sections, 30000))
         cached = cache.get_decision(namespace, key, profile_hash, evidence_hash) if resume else None
+        if cached is None:
+            prior = prior_by_id.get(key)
+            cached = prior if prior is not None and prior.get("evidence_hash") == evidence_hash else None
         if cached is not None and cached.get("decision") != "error":
             results.append({str(name): str(value) for name, value in cached.items()})
             reused += 1
@@ -446,6 +522,8 @@ def classify_nli_baseline(
             "classified_at": utc_now(), "error": "",
         })
         try:
+            if active_backend is None:
+                active_backend = TransformersNLIBackend(config)
             predictions, scores, support = infer_nli_fields(sections, profile, active_backend, config)
             normalized = normalizer(predictions, candidate, adapter_config or {})
             result.update(normalized)

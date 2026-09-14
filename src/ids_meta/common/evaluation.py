@@ -6,6 +6,7 @@ import tomllib
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from statistics import NormalDist
 from typing import Any
 
 from ids_meta.common.csvio import atomic_write_csv, read_csv
@@ -120,10 +121,15 @@ def _f1(precision: float, recall: float) -> float:
     return 2 * precision * recall / (precision + recall) if precision + recall else 0.0
 
 
-def _wilson_interval(successes: int, total: int, z: float = 1.959963984540054) -> list[float] | None:
-    """Return a 95% Wilson score interval for one binomial proportion."""
+def _wilson_interval(
+    successes: int, total: int, confidence_level: float,
+) -> list[float] | None:
+    """Return a Wilson score interval at the explicitly selected confidence level."""
     if total <= 0:
         return None
+    if not 0 < confidence_level < 1:
+        raise ValueError("confidence_level must be greater than zero and smaller than one")
+    z = NormalDist().inv_cdf(.5 + confidence_level / 2)
     proportion = successes / total
     denominator = 1 + z * z / total
     center = (proportion + z * z / (2 * total)) / denominator
@@ -262,9 +268,11 @@ def _binary_metrics(tp: int, fp: int, tn: int, fn: int, total: int) -> dict[str,
 
 def evaluate_results(
     profile: RatingProfile, classifications_path: Path, output_dir: Path,
-    candidates_path: Path | None = None,
+    candidates_path: Path | None = None, *, confidence_level: float = .95,
 ) -> EvaluationResult:
     """Compare actual classifications with central ratings and write evaluation artifacts."""
+    if not 0 < confidence_level < 1:
+        raise ValueError("confidence_level must be greater than zero and smaller than one")
     identity = IDENTITY_FIELDS[profile.source]
     actual = _index_rows(classifications_path, identity)
     classifier_metadata, supported_fields = _classifier_contract(actual)
@@ -454,18 +462,29 @@ def evaluate_results(
             rated,
         ),
         "status_counts": dict(sorted(status_counts.items())),
-        "confidence_intervals_95": {
-            "detection_rate": _wilson_interval(operational["tp"], operational["tp"] + operational["fn"]),
-            "false_positive_rate": _wilson_interval(operational["fp"], operational["fp"] + operational["tn"]),
-            "accuracy": _wilson_interval(operational["tp"] + operational["tn"], binary_total),
-            "precision": _wilson_interval(operational["tp"], operational["tp"] + operational["fp"]),
-            "definitive_coverage": _wilson_interval(status_counts["classified"], rated),
+        "confidence_level": confidence_level,
+        "confidence_intervals": {
+            "detection_rate": _wilson_interval(
+                operational["tp"], operational["tp"] + operational["fn"], confidence_level,
+            ),
+            "false_positive_rate": _wilson_interval(
+                operational["fp"], operational["fp"] + operational["tn"], confidence_level,
+            ),
+            "accuracy": _wilson_interval(
+                operational["tp"] + operational["tn"], binary_total, confidence_level,
+            ),
+            "precision": _wilson_interval(
+                operational["tp"], operational["tp"] + operational["fp"], confidence_level,
+            ),
+            "definitive_coverage": _wilson_interval(
+                status_counts["classified"], rated, confidence_level,
+            ),
             "abstention_rate": _wilson_interval(
                 sum(status_counts[name] for name in (
                     ("uncertain", "error", "survey_reference_classification_uncertain", "survey_reference_classification_error")
                     if profile.evaluation_unit == "artifact"
                     else ("uncertain", "error", "not_retrieved", "not_classified", "unavailable")
-                )), rated,
+                )), rated, confidence_level,
             ),
         },
         "operational": operational_metrics, "strict": strict_metrics, "selective": selective_metrics,
