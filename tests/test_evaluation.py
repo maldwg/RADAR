@@ -8,7 +8,7 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from ids_meta.cli import _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
+from ids_meta.cli import _evaluation_jobs, _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
 from ids_meta.common.config import Settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
@@ -60,13 +60,13 @@ class EvaluationTests(unittest.TestCase):
             },
         )
         accepted_papers = [row for row in openalex if row["decision"] == "accept"]
-        self.assertGreaterEqual(len({row["domain"] for row in accepted_papers} - {"unknown"}), 7)
+        self.assertGreaterEqual(len({row["domain"] for row in accepted_papers} - {"unknown"}), 5)
         self.assertGreaterEqual(len({row["data_form"] for row in accepted_papers} - {"unknown"}), 7)
         self.assertEqual({row["capture_environment"] for row in accepted_papers}, {"real_world", "synthetic_lab", "hybrid"})
         self.assertTrue({row["domain"] for row in openalex}.issubset(set(DOMAINS)))
 
-    def test_ashraf_2026_profile_preserves_every_published_table_2_dataset(self) -> None:
-        """Keep the survey-derived artifact benchmark complete and source-traceable."""
+    def test_ashraf_2026_profile_preserves_requested_table_2_dataset_types(self) -> None:
+        """Keep the selected survey artifacts source-traceable and the taxonomy exact."""
         path = ROOT / "config/evaluation/openalex_ashraf_2026.toml"
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
@@ -75,21 +75,33 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(raw["source_claimed_dataset_count"], 124)
         self.assertEqual(raw["source_extracted_dataset_count"], 123)
         self.assertEqual(raw["source_missing_row_numbers"], [122])
-        self.assertEqual(len(rows), 123)
-        self.assertEqual({row["survey_row"] for row in rows}, set(range(1, 125)) - {122})
+        self.assertEqual(raw["selected_dataset_count"], 105)
+        self.assertEqual(raw["excluded_dataset_count"], 18)
+        self.assertEqual(raw["excluded_survey_categories"], ["Botnet", "IOV", "MANET network", "Satellites"])
+        self.assertEqual(len(rows), 105)
         self.assertTrue(all(row["decision"] == "accept" for row in rows))
         self.assertTrue({row["artifact_type"] for row in rows}.issubset(set(ARTIFACT_TYPES)))
-        self.assertTrue({row["domain"] for row in rows}.issubset(set(DOMAINS)))
+        requested_domains = {
+            "general_network", "host_endpoint", "iot_iiot", "cloud", "mobile_android",
+            "electrical_smartgrid", "uav", "vpn",
+        }
+        self.assertEqual(set(DOMAINS), requested_domains | {"unknown"})
         self.assertTrue({row["data_form"] for row in rows}.issubset(set(DATA_FORMS)))
         self.assertTrue({row["capture_environment"] for row in rows}.issubset(set(ENVIRONMENTS)))
         self.assertTrue({row["labeling"] for row in rows}.issubset(set(LABELING)))
+        self.assertEqual(
+            {row["domain"] for row in rows}, requested_domains,
+        )
         by_name = {row["artifact"]: row for row in rows}
-        self.assertEqual(by_name["Kitsune Network"]["survey_category"], "Botnet")
-        self.assertEqual(by_name["Kitsune Network"]["domain"], "malware_botnet")
+        self.assertNotIn("Kitsune Network", by_name)
+        self.assertEqual(by_name["ISOT-CID"]["domain"], "cloud")
+        self.assertEqual(by_name["Android Malware"]["domain"], "mobile_android")
+        self.assertEqual(by_name["UAV-NIDD"]["domain"], "uav")
+        self.assertEqual(by_name["VPN-NONVPN"]["domain"], "vpn")
         self.assertEqual(by_name["CIC-IDS 2017"]["aliases"], ["CICIDS2017", "CIC-IDS2017"])
         self.assertEqual(by_name["TON-IOT"]["survey_category"], "IOT/IIOT")
         self.assertIn("survey_reference", by_name["DARPA98"])
-        self.assertEqual(len(load_rating_profile(path, "openalex").entities), 123)
+        self.assertEqual(len(load_rating_profile(path, "openalex").entities), 105)
 
     def test_github_metrics_penalize_boundary_and_missing_results_transparently(self) -> None:
         """Verify operational, strict, and selective matrices use their documented denominators."""
@@ -177,8 +189,23 @@ class EvaluationTests(unittest.TestCase):
                 'classification_fields = ["artifact_type", "domain"]\n\n'
                 '[[entities]]\nartifact = "CIC-IDS 2017"\naliases = ["CICIDS2017"]\n'
                 'decision = "accept"\nartifact_type = "dataset"\ndomain = "general_network"\n\n'
-                '[[entities]]\nartifact = "Missing Fixture"\ndecision = "accept"\n'
-                'artifact_type = "dataset"\ndomain = "host"\n',
+                '[[entities]]\nartifact = "Survey Named Dataset"\ndecision = "accept"\n'
+                'artifact_type = "dataset"\ndomain = "host_endpoint"\n'
+                'survey_reference_openalex_url = "https://openalex.org/W-reference"\n\n'
+                '[[entities]]\nartifact = "Downstream Cited Dataset"\ndecision = "accept"\n'
+                'artifact_type = "dataset"\ndomain = "general_network"\n'
+                'survey_reference_openalex_url = "https://openalex.org/W-downstream"\n\n'
+                '[[entities]]\nartifact = "Retrieved but unclassified"\ndecision = "accept"\n'
+                'artifact_type = "dataset"\ndomain = "cloud"\n'
+                'survey_reference_openalex_url = "https://openalex.org/W-candidate"\n\n'
+                '[[entities]]\nartifact = "Not retrieved"\ndecision = "accept"\n'
+                'artifact_type = "dataset"\ndomain = "uav"\n'
+                'survey_reference_openalex_url = "https://openalex.org/W-absent"\n\n'
+                '[[entities]]\nartifact = "Unresolved reference"\ndecision = "accept"\n'
+                'artifact_type = "dataset"\ndomain = "vpn"\n\n'
+                '[[entities]]\nartifact = "Uncertain cited release"\ndecision = "accept"\n'
+                'artifact_type = "dataset"\ndomain = "iot_iiot"\n'
+                'survey_reference_openalex_url = "https://openalex.org/W-uncertain"\n',
                 encoding="utf-8",
             )
             actual = root / "classifications.csv"
@@ -195,23 +222,56 @@ class EvaluationTests(unittest.TestCase):
                     "artifact_display_name": "CICIDS2017", "artifact_aliases": "CIC-IDS 2017",
                     "artifact_type": "dataset", "domain": "general_network",
                 },
+                {
+                    "openalex_id": "https://openalex.org/W-reference", "decision": "accept",
+                    "paper_role": "original_release", "relevance_tier": "core",
+                    "artifact_name": "Long descriptive source title", "artifact_display_name": "LDS",
+                    "artifact_aliases": "", "artifact_type": "dataset", "domain": "host_endpoint",
+                },
+                {
+                    "openalex_id": "https://openalex.org/W-downstream", "decision": "exclude",
+                    "paper_role": "downstream_application", "relevance_tier": "excluded",
+                    "artifact_name": "", "artifact_display_name": "", "artifact_aliases": "",
+                    "artifact_type": "unknown", "domain": "general_network",
+                },
+                {
+                    "openalex_id": "https://openalex.org/W-uncertain", "decision": "uncertain",
+                    "paper_role": "uncertain", "relevance_tier": "uncertain",
+                    "artifact_name": "", "artifact_display_name": "", "artifact_aliases": "",
+                    "artifact_type": "unknown", "domain": "iot_iiot",
+                },
             ], [
                 "openalex_id", "decision", "paper_role", "relevance_tier", "artifact_name",
                 "artifact_display_name", "artifact_aliases", "artifact_type", "domain",
             ])
             candidates = root / "candidates.csv"
-            atomic_write_csv(candidates, [{"openalex_id": "W-original"}], ["openalex_id"])
+            atomic_write_csv(candidates, [
+                {"openalex_id": "W-original"},
+                {"openalex_id": "https://openalex.org/W-reference"},
+                {"openalex_id": "https://openalex.org/W-downstream"},
+                {"openalex_id": "https://openalex.org/W-candidate"},
+                {"openalex_id": "https://openalex.org/W-uncertain"},
+            ], ["openalex_id"])
             result = evaluate_results(
                 load_rating_profile(profile_path, "openalex"), actual, root / "evaluation", candidates,
             )
             self.assertEqual(result.metrics["evaluation_unit"], "artifact")
-            self.assertEqual(result.metrics["operational"]["tp"], 1)
-            self.assertEqual(result.metrics["operational"]["fn"], 1)
-            self.assertEqual(result.metrics["status_counts"], {"classified": 1, "not_identified": 1})
-            self.assertAlmostEqual(result.metrics["classification_coverage"], .5)
-            self.assertAlmostEqual(result.metrics["abstention_rate"], .5)
+            self.assertEqual(result.metrics["operational"]["tp"], 2)
+            self.assertEqual(result.metrics["operational"]["fn"], 5)
+            self.assertEqual(result.metrics["status_counts"], {
+                "classified": 2,
+                "survey_reference_classification_uncertain": 1,
+                "survey_reference_classified_nonrelease": 1,
+                "survey_reference_not_retrieved": 1,
+                "survey_reference_retrieved_not_classified": 1,
+                "survey_reference_unresolved": 1,
+            })
+            self.assertAlmostEqual(result.metrics["classification_coverage"], 2 / 7)
+            self.assertAlmostEqual(result.metrics["unresolved_artifact_rate"], 5 / 7)
+            self.assertAlmostEqual(result.metrics["abstention_rate"], 1 / 7)
             self.assertIsNone(result.metrics["retrieval_coverage"])
             self.assertEqual(result.instances[0]["entity_id"], "W-original")
+            self.assertEqual(result.instances[1]["match_method"], "accepted_survey_reference")
 
     def test_readable_selectors_resolve_and_ambiguous_titles_fail(self) -> None:
         """Resolve repository names safely and reject non-unique paper titles."""
@@ -293,6 +353,25 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(args.output, Path("report"))
         self.assertEqual(args.candidates, Path("candidates.csv"))
         self.assertEqual(args.ratings, Path("ratings.toml"))
+
+    def test_openalex_run_schedules_default_and_additional_evaluation_profiles(self) -> None:
+        """Include the configured artifact benchmark automatically without replacing screening evaluation."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            default_profile = self._write_profile(root / "openalex.toml", "openalex", '[[entities]]\nid = "W1"\ndecision = "exclude"\n')
+            additional_profile = self._write_profile(root / "openalex_ashraf_2026.toml", "openalex", '[[entities]]\nid = "W2"\ndecision = "accept"\n')
+            settings = self._settings(root, root / "github.toml", default_profile)
+            settings.values["evaluation"]["openalex_additional_ratings"] = [str(additional_profile)]
+            args = argparse.Namespace(action="run", ratings=None, output=None)
+
+            jobs = _evaluation_jobs(settings, "openalex", args, root / "evaluation/openalex")
+
+            self.assertEqual(jobs, [
+                (default_profile, root / "evaluation/openalex", ""),
+                (additional_profile, root / "evaluation/openalex/openalex_ashraf_2026", "openalex-ashraf-2026"),
+            ])
+            args.action = "evaluate"
+            self.assertEqual(_evaluation_jobs(settings, "openalex", args, root / "evaluation/openalex"), jobs)
 
     def _settings(self, root: Path, github_ratings: Path, openalex_ratings: Path) -> Settings:
         """Create a single-model offline settings fixture for CLI evaluation stages."""

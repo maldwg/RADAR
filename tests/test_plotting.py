@@ -10,13 +10,20 @@ from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.github.schema import CATALOGUE_COLUMNS as GITHUB_COLUMNS
 from ids_meta.openalex.schema import CATALOGUE_COLUMNS as OPENALEX_COLUMNS
 from ids_meta.plotting.github import OPERATIONAL_ROLES, _github_why_not_included, build as build_github
-from ids_meta.plotting.openalex import _cumulative_dimension, _openalex_why_not_included, build as build_openalex
+from ids_meta.plotting.openalex import _cumulative_dimension, _openalex_why_not_included, build as build_openalex, spread_label_coordinates
 from ids_meta.plotting.compare import build as build_compare
 from ids_meta.plotting.compare import build_models
 from ids_meta.architecture import build as build_architecture
 
 
 class PlottingTests(unittest.TestCase):
+    def test_timeline_label_positions_are_collision_spread_and_bounded(self) -> None:
+        """Keep dense timeline callouts separated without disconnecting their ordering."""
+        positions = spread_label_coordinates([1.0, 1.0, 1.02, 1.5], 0.0, 2.0, .25)
+        self.assertTrue(all(0.0 <= value <= 2.0 for value in positions))
+        ordered = sorted(positions)
+        self.assertTrue(all(right - left >= .249 for left, right in zip(ordered, ordered[1:])))
+
     def test_operational_reporting_roles_are_explicit(self) -> None:
         """Keep reporting limited to genuine operational approaches without hiding other roles."""
         self.assertEqual(OPERATIONAL_ROLES, {"native_detector", "classifier_engine", "detection_framework"})
@@ -127,9 +134,17 @@ class PlottingTests(unittest.TestCase):
             self.assertNotIn("Other", contribution)
             citation_table = root / "openalex-plots/data/01_citation_landscape.csv"
             self.assertIn("citations", citation_table.read_text(encoding="utf-8").splitlines()[0])
-            self.assertIn("resource_name", timeline.read_text(encoding="utf-8").splitlines()[0])
+            timeline_header = timeline.read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("resource_name", timeline_header)
+            self.assertIn("citation_coordinate", timeline_header)
+            self.assertIn("timeline_x_offset", timeline_header)
+            self.assertIn("label_coordinate", timeline_header)
             self.assertIn("survey_snowball", provenance.read_text(encoding="utf-8").splitlines()[0])
             self.assertTrue((root / "openalex-plots/00_publication_timeline.svg").is_file())
+            timeline_svg = (root / "openalex-plots/00_publication_timeline.svg").read_text(encoding="utf-8")
+            self.assertIn("Citations (log-scaled)", timeline_svg)
+            self.assertIn("Dataset domain (color)", timeline_svg)
+            self.assertIn("Dataset / generator (shape)", timeline_svg)
             self.assertTrue((root / "openalex-plots/01_citation_landscape.svg").is_file())
             self.assertTrue((root / "openalex-plots/03_cumulative_growth_by_type_and_domain.svg").is_file())
             cumulative_data = (root / "openalex-plots/data/03_cumulative_growth_by_type_and_domain.csv").read_text(encoding="utf-8")

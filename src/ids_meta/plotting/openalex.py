@@ -6,6 +6,7 @@ import re
 import textwrap
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator
 import pandas as pd
@@ -20,6 +21,13 @@ TYPE_COLORS = {
     "generator_framework": "#D1842F",
     "dataset_and_generator": "#7B5EA7",
     "unknown": "#6F7782",
+}
+
+TYPE_MARKERS = {
+    "dataset": "o",
+    "generator_framework": "s",
+    "dataset_and_generator": "D",
+    "unknown": "X",
 }
 
 DOMAIN_COLORS = {
@@ -131,6 +139,30 @@ def set_count_log_ticks(ax: plt.Axes, maximum: float, axis: str = "x") -> None:
     setter(positions, labels)
 
 
+def spread_label_coordinates(values: list[float], lower: float, upper: float, minimum_gap: float) -> list[float]:
+    """Spread label centers vertically while preserving their order and staying inside the plot."""
+    if not values:
+        return []
+    indexed = sorted(enumerate(values), key=lambda item: (item[1], item[0]))
+    available = max(0.0, upper - lower)
+    gap = min(max(0.0, minimum_gap), available / max(1, len(values) - 1))
+    placed: list[float] = []
+    for _index, value in indexed:
+        position = min(upper, max(lower, float(value)))
+        if placed:
+            position = max(position, placed[-1] + gap)
+        placed.append(position)
+    overflow = max(0.0, placed[-1] - upper)
+    if overflow:
+        placed = [value - overflow for value in placed]
+    if placed[0] < lower:
+        placed = [value + lower - placed[0] for value in placed]
+    result = [0.0] * len(values)
+    for (original_index, _value), position in zip(indexed, placed):
+        result[original_index] = position
+    return result
+
+
 def clean_bundle(out_dir: Path, formats: list[str]) -> None:
     """Remove stale OpenAlex figures and aggregate tables before replacement."""
     for extension in formats:
@@ -152,7 +184,8 @@ def prepare_frame(frame: pd.DataFrame) -> pd.DataFrame:
         if column not in view:
             view[column] = ""
     view["artifact_name"] = view["artifact_name"].where(view["artifact_name"] != "", view["title"])
-    view["artifact_type"] = view["artifact_type"].replace("", "unknown")
+    view["artifact_type"] = view["artifact_type"].fillna("").replace("", "unknown")
+    view["domain"] = view["domain"].fillna("").replace("", "unknown")
     view["publication_year_numeric"] = pd.to_numeric(view["publication_year"], errors="coerce")
     view["citations"] = pd.to_numeric(view["cited_by_count"], errors="coerce").fillna(0).clip(lower=0)
     view["provenance"] = view["discovery_relations"].map(discovery_provenance)
@@ -161,27 +194,48 @@ def prepare_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def publication_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Render a true publication timeline; resources in the same year are stacked vertically."""
+    """Plot publication year against zero-safe log citations using domain color and resource-type shape."""
     dated = frame.dropna(subset=["publication_year_numeric"]).copy()
-    dated = dated.sort_values(["publication_year_numeric", "resource_name", "openalex_id"], kind="stable")
+    dated = dated.sort_values(["publication_year_numeric", "citations", "resource_name", "openalex_id"], kind="stable")
     dated["publication_year"] = dated["publication_year_numeric"].astype(int)
-    dated["timeline_stack"] = dated.groupby("publication_year", sort=False).cumcount()
-    dated["timeline_stack_size"] = dated.groupby("publication_year", sort=False)["openalex_id"].transform("size")
+    dated["same_year_index"] = dated.groupby("publication_year", sort=False).cumcount()
+    dated["same_year_count"] = dated.groupby("publication_year", sort=False)["openalex_id"].transform("size")
+    dated["timeline_x_offset"] = dated.apply(
+        lambda row: 0.0 if int(row["same_year_count"]) <= 1 else -.31 + .62 * int(row["same_year_index"]) / (int(row["same_year_count"]) - 1),
+        axis=1,
+    )
+    dated["timeline_x"] = dated["publication_year"] + dated["timeline_x_offset"]
+    dated["citation_coordinate"] = dated["citations"].map(log_count_coordinate)
+
+    maximum_citations = float(dated["citations"].max()) if not dated.empty else 0.0
+    maximum_coordinate = log_count_coordinate(maximum_citations)
+    label_lower, label_upper = -.02, max(.45, maximum_coordinate + .48)
+    maximum_same_year = int(dated["same_year_count"].max()) if not dated.empty else 1
+    height = max(8.0, min(54.0, 7.0 + .42 * maximum_same_year + .012 * len(dated)))
+    label_gap = (label_upper - label_lower) * .24 / max(4.0, height * .72)
+    dated["label_x_offset"] = dated["same_year_index"].map(lambda value: .075 if int(value) % 2 == 0 else -.075)
+    dated["label_x"] = dated["timeline_x"] + dated["label_x_offset"]
+    dated["label_target_coordinate"] = dated.apply(
+        lambda row: row["citation_coordinate"] + (1.35 * label_gap if int(row["same_year_index"]) % 2 == 0 else -1.35 * label_gap),
+        axis=1,
+    )
+    dated["label_coordinate"] = 0.0
+    for _year, indices in dated.groupby("publication_year", sort=False).groups.items():
+        targets = [float(value) for value in dated.loc[indices, "label_target_coordinate"]]
+        dated.loc[indices, "label_coordinate"] = spread_label_coordinates(targets, label_lower, label_upper, label_gap)
 
     columns = [
         "resource_name", "artifact_display_name", "artifact_name", "publication_year", "publication_date",
-        "artifact_type", "domain", "data_form", "capture_environment", "labeling", "paper_role",
+        "citations", "citation_as_of", "artifact_type", "domain", "data_form", "capture_environment", "labeling", "paper_role",
         "catalogue_tier", "provenance", "discovery_relations", "prefilter_score", "title", "doi", "openalex_id",
-        "timeline_stack", "timeline_stack_size",
+        "same_year_index", "same_year_count", "timeline_x_offset", "timeline_x", "citation_coordinate",
+        "label_x_offset", "label_x", "label_coordinate",
     ]
     for column in columns:
         if column not in dated:
             dated[column] = ""
     # Row-level audit table: exactly the resources shown on the timeline and their metadata.
     write_table(dated[columns], out_dir / "data", "00_publication_timeline")
-
-    max_stack = int(dated["timeline_stack"].max()) if not dated.empty else 0
-    height = max(6.3, 5.2 + .72 * max_stack)
 
     # Give each calendar year substantially more horizontal room.  The timeline
     # remains proportional in time (missing years still occupy their real gap),
@@ -190,66 +244,67 @@ def publication_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str],
         year_span = 1
     else:
         year_span = int(dated["publication_year"].max()) - int(dated["publication_year"].min()) + 1
-    figure_width = max(15.2, min(36.0, 1.15 * year_span))
+    figure_width = max(15.2, min(54.0, 1.35 * year_span + .012 * len(dated)))
     fig, ax = plt.subplots(figsize=(figure_width, height))
     caption = metadata_caption(
         frame,
-        "x = publication year; y has no metric meaning; resources sharing a year are stacked vertically",
+        "x = publication year; y = citations with zero-safe logarithmic spacing; color = dataset domain; shape = dataset/generator characteristic",
     )
     add_heading(fig, "IDS dataset and generator publication timeline", caption, top=.86)
-    fig.subplots_adjust(left=.07, right=.84, bottom=.16)
+    fig.subplots_adjust(left=.07, right=.84, bottom=.12)
 
     if dated.empty:
         ax.axis("off")
         ax.text(.5, .5, "No dated canonical artifacts in the current catalogue", transform=ax.transAxes, ha="center", va="center")
         return save_figure(fig, out_dir, "00_publication_timeline", formats, dpi)
 
-    # The vertical coordinate is deliberately only a layout coordinate. A small gap
-    # between stacked entries leaves room for the mandatory resource labels.
-    dated["timeline_y"] = dated["timeline_stack"].astype(float) * 1.35
     minimum_year = int(dated["publication_year"].min())
     maximum_year = int(dated["publication_year"].max())
-
-    # Timeline baseline plus a light stem for every occupied year.
-    ax.axhline(-.72, color="#AAB6BF", linewidth=1.2, zorder=1)
-    for year, group in dated.groupby("publication_year", sort=True):
-        ax.vlines(year, -.72, float(group["timeline_y"].max()) + .12, color="#DCE3E8", linewidth=1.1, zorder=1)
-
-    for artifact_type, group in dated.groupby("artifact_type", sort=False):
+    for (domain, artifact_type), group in dated.groupby(["domain", "artifact_type"], sort=False):
         ax.scatter(
-            group["publication_year"], group["timeline_y"], s=68,
-            color=TYPE_COLORS.get(str(artifact_type), TYPE_COLORS["unknown"]),
-            edgecolor="white", linewidth=1.0, label=artifact_label(artifact_type), zorder=4,
+            group["timeline_x"], group["citation_coordinate"], s=76,
+            color=DOMAIN_COLORS.get(str(domain), DOMAIN_COLORS["unknown"]),
+            marker=TYPE_MARKERS.get(str(artifact_type), TYPE_MARKERS["unknown"]),
+            edgecolor="white", linewidth=1.0, zorder=4,
         )
 
-    # Names remain directly beneath their own point. Because same-year resources
-    # have different layout rows, these labels also stack instead of colliding.
+    # Every name is placed in a collision-spread callout and connected back to its
+    # marker. This remains unambiguous when many resources share a year or citation count.
     for _, row in dated.iterrows():
+        color = DOMAIN_COLORS.get(str(row["domain"]), DOMAIN_COLORS["unknown"])
         ax.annotate(
             textwrap.fill(str(row["resource_name"]), width=22),
-            (row["publication_year"], row["timeline_y"]),
-            xytext=(0, -10), textcoords="offset points",
-            ha="center", va="top", fontsize=6.7, color="#43505C", linespacing=.95,
+            (row["timeline_x"], row["citation_coordinate"]),
+            xytext=(row["label_x"], row["label_coordinate"]), textcoords="data",
+            ha="center", va="center", fontsize=6.6, color="#43505C", linespacing=.95,
+            bbox={"boxstyle": "round,pad=.13", "facecolor": "white", "edgecolor": color, "linewidth": .55, "alpha": .94},
+            arrowprops={"arrowstyle": "-", "color": color, "linewidth": .65, "alpha": .8, "shrinkA": 2, "shrinkB": 4},
             annotation_clip=False, zorder=3,
         )
 
-    ax.set_xlim(minimum_year - .65, maximum_year + .65)
-    ax.set_ylim(-1.0, float(dated["timeline_y"].max()) + .85)
+    ax.set_xlim(minimum_year - .85, maximum_year + .85)
+    ax.set_ylim(label_lower - .08, label_upper + .08)
     ax.set_xlabel("Publication year")
-    ax.set_ylabel("")
-    ax.set_yticks([])
+    ax.set_ylabel("Citations (log-scaled)")
+    set_count_log_ticks(ax, maximum_citations, axis="y")
     ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=14))
-    ax.grid(axis="x", linewidth=.6, alpha=.45)
-    ax.grid(axis="y", visible=False)
-    for spine in ("left", "right", "top"):
+    ax.grid(axis="both", linewidth=.6, alpha=.35)
+    for spine in ("right", "top"):
         ax.spines[spine].set_visible(False)
 
-    handles = [
-        Patch(facecolor=color, label=artifact_label(name))
-        for name, color in TYPE_COLORS.items()
+    domain_handles = [
+        Patch(facecolor=color, label=domain_label(name))
+        for name, color in DOMAIN_COLORS.items()
+        if name in set(dated["domain"])
+    ]
+    type_handles = [
+        Line2D([0], [0], marker=marker, linestyle="", markerfacecolor="#66727C", markeredgecolor="white", markersize=8, label=artifact_label(name))
+        for name, marker in TYPE_MARKERS.items()
         if name in set(dated["artifact_type"])
     ]
-    ax.legend(handles=handles, title="Resource type", loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=8)
+    domain_legend = ax.legend(handles=domain_handles, title="Dataset domain (color)", loc="upper left", bbox_to_anchor=(1.005, 1), frameon=False, fontsize=8)
+    ax.add_artist(domain_legend)
+    ax.legend(handles=type_handles, title="Dataset / generator (shape)", loc="upper left", bbox_to_anchor=(1.005, .60), frameon=False, fontsize=8)
     return save_figure(fig, out_dir, "00_publication_timeline", formats, dpi)
 
 def citation_landscape(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
@@ -958,7 +1013,7 @@ def build(
         surveys = load_frame(survey_sources_path, ("openalex_id", "title", "cited_by_count", "discovery_relations"))
         outputs += survey_source_landscape(surveys, out_dir, formats, dpi)
     outputs.append(write_index(out_dir, main_path, frame, outputs, [
-        "The timeline uses publication year on x only; the y coordinate is purely a stacking layout for resources published in the same year, and every dataset/generator is directly labelled.",
+        "The publication timeline uses domain colors and dataset/generator marker shapes. Citation counts use zero-safe log10(count + 1) spacing with actual-count tick labels; small horizontal offsets separate resources from the same year and are exported in the companion CSV.",
         "03_cumulative_growth_by_type_and_domain uses cumulative stacked bands for resource type and security domain; at every year the full stacked height and dark outline equal the number of canonical resources published up to that year.",
         "Citation counts are descriptive and never affect retrieval, inclusion, or canonical-base selection.",
         "Discovery provenance shows direct and survey-snowball paths plus the exact number of distinct citing surveys; source contribution is summarized for those two catalogue-producing routes only.",
