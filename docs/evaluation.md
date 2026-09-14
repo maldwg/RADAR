@@ -74,11 +74,13 @@ ids-meta github evaluate
 ids-meta openalex evaluate
 ```
 
-The keyword baseline command creates its classification file and immediately evaluates it against the same profiles without calling an LLM:
+The baseline command creates keyword and/or local zero-shot NLI classification files and immediately evaluates them against the same profiles without calling an LLM:
 
 ```bash
 ids-meta github baseline
 ids-meta openalex baseline
+ids-meta github baseline --methods nli
+ids-meta openalex baseline --methods keyword,nli
 ```
 
 Use other classification and candidate files or another artifact directory:
@@ -99,9 +101,11 @@ To make evaluation an automatic stage of each complete source run, set:
 enabled = true
 ```
 
-Automatic evaluation runs immediately after classification and consensus, before reconciliation. The explicit `evaluate` commands run regardless of this switch.
+Automatic LLM evaluation runs immediately after classification and consensus, before reconciliation. When `[baselines].enabled = true`, a complete run subsequently executes the configured baseline methods, evaluates them, and rebuilds the all-classifier plots. Explicit `evaluate` and `baseline` commands run regardless of their automatic-stage switches.
 
 For one model, artifacts use `artifacts/evaluation/<source>/`. In multi-model mode, every result is evaluated independently under `artifacts/evaluation/<source>/models/<model-slug>/`; the ensemble uses `artifacts/evaluation/<source>/ensemble/`. Ratings and candidates are shared, which makes comparisons use the same reference set.
+
+Cross-approach plots are written to `artifacts/plots/comparisons/<source>/classifiers/`. Detection rate, false-positive rate, accuracy, precision, F1, definitive coverage, abstention, and taxonomy-field accuracy each have a dedicated figure with every available Keyword, NLI, LLM, and Ensemble result on the same axis. Companion CSVs retain exact values, counts, classifier IDs, rating paths, and 95% Wilson intervals. Decision-count, pairwise-agreement, and disagreement diagnostics sit below `decision_agreement/`. Additional rating profiles are isolated by profile name. Metrics that a positive-only artifact fixture cannot estimate are shown as N/A, not as zero.
 
 ## Metric views
 

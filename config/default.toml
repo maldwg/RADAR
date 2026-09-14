@@ -20,6 +20,8 @@ openalex_prompts = "config/prompts/openalex.toml"
 github_system_types = "config/taxonomy/github_system_types.toml"
 github_ratings = "config/evaluation/github.toml"
 openalex_ratings = "config/evaluation/openalex.toml"
+github_nli = "config/baselines/github_nli.toml"
+openalex_nli = "config/baselines/openalex_nli.toml"
 
 [ollama]
 url = "http://10.20.31.1:11434"
@@ -51,10 +53,28 @@ openalex_additional_ratings = ["config/evaluation/openalex_ashraf_2026.toml"]
 
 [baselines]
 # Baselines are evaluation variants and are not reconciled into the production catalogues.
-# This switch is reserved for the later full-run integration; explicit baseline commands run regardless.
-# NLI will be added to this list after its inference backend and hypotheses are implemented.
+# Full runs execute these methods after the main classifiers; explicit baseline commands
+# run regardless of this switch. NLI requires installing the optional `nli` dependency group.
 enabled = true
-methods = ["keyword"]
+methods = ["keyword", "nli"]
+
+[baselines.nli]
+# Revision-pinned three-way NLI model. This is local inference, not an LLM/API call.
+model = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+revision = "84109e11e5d6e1238485596706ad12e8a03ba82c"
+device = "auto"
+batch_size = 8
+max_length = 512
+premise_tokens = 384
+chunk_overlap = 48
+# Bound per-record cost for a corpus with hundreds or thousands of results. Selection
+# retains representative beginning/end/middle chunks from each evidence source.
+max_chunks = 6
+# Average the strongest two evidence chunks, then abstain unless both the absolute
+# entailment score and the winning-label margin pass these predeclared thresholds.
+top_k = 2
+entailment_threshold = 0.50
+label_margin = 0.10
 
 [baselines.keyword.github]
 # These decision thresholds are independent of the recall-oriented discovery bands below.

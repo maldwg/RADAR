@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from ids_meta.common.baselines import CLASSIFIER_COLUMNS, KEYWORD_AUDIT_COLUMNS
+from ids_meta.common.nli import NLI_AUDIT_COLUMNS
 from ids_meta.common.evidence import EVIDENCE_EXPANSION_COLUMNS
 from ids_meta.common.text import normalize_text
 PAPER_ROLES = (
@@ -41,7 +42,7 @@ CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + CLASSIFIER_COLUMNS + [
     "capture_environment", "labeling", "direct_release_evidence",
     "primary_reason", "classification_validation_flags", "model_evidence_json", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
-] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS + KEYWORD_AUDIT_COLUMNS
+] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS + KEYWORD_AUDIT_COLUMNS + NLI_AUDIT_COLUMNS
 RECONCILIATION_COLUMNS = [
     "publication_family_id", "canonical_openalex_id", "canonical_doi", "canonical_title",
     "paper_relationship", "canonical_confidence", "canonical_reason", "canonical_resolution",

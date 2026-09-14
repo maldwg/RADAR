@@ -18,7 +18,7 @@ from ids_meta.common.text import stable_hash
 LOG = logger("baselines")
 BASELINE_VERSION = "keyword-baseline-2"
 KNOWN_BASELINE_METHODS = ("keyword", "nli")
-IMPLEMENTED_BASELINE_METHODS = ("keyword",)
+IMPLEMENTED_BASELINE_METHODS = ("keyword", "nli")
 CLASSIFIER_COLUMNS = [
     "classifier_method", "classifier_id", "classifier_profile_hash",
     "classifier_supported_fields", "classifier_evidence_source",

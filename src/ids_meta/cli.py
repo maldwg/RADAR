@@ -11,6 +11,7 @@ from ids_meta.common.config import ConfigError, Settings, load_prompt_profile, l
 from ids_meta.common.run import RunManifest
 from ids_meta.common.text import slug
 from ids_meta.common.logging import configure_logging, logger
+from ids_meta.common.nli import classify_nli_baseline, load_nli_profile, load_nli_runtime_config
 from ids_meta.github.collect import collect as collect_github
 from ids_meta.github.pipeline import classify as classify_github
 from ids_meta.github.pipeline import export as export_github
@@ -203,6 +204,14 @@ def _evaluation_enabled(settings: Settings) -> bool:
     return enabled
 
 
+def _baselines_enabled(settings: Settings) -> bool:
+    """Return whether full pipeline runs should execute configured baselines."""
+    enabled = settings.section("baselines").get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ConfigError("baselines.enabled must be true or false")
+    return enabled
+
+
 def _evaluation_candidates(args: argparse.Namespace, default: Path) -> Path:
     """Resolve the candidate audit matching an explicit evaluation or full run."""
     if getattr(args, "candidates", None):
@@ -279,6 +288,69 @@ def _record_evaluation(manifest: RunManifest, result: EvaluationResult, suffix: 
     manifest.counts[f"evaluation_files{label}"] = len(result.outputs)
 
 
+def _classifier_entries(settings: Settings, source: str) -> dict[str, tuple[Path, Path]]:
+    """Discover classifier CSVs and matching evaluation roots already present on disk."""
+    interim = settings.path("interim_dir") / source
+    evaluation = _path_with_default(settings, "evaluation_dir", "artifacts/evaluation") / source
+    entries: dict[str, tuple[Path, Path]] = {}
+    for path in sorted((interim / "models").glob("*/classifications.csv")):
+        name = path.parent.name
+        entries[f"LLM · {name}"] = (path, evaluation / "models" / name)
+    single = interim / "classifications.csv"
+    if single.is_file() and (evaluation / "metrics.json").is_file():
+        entries["LLM"] = (single, evaluation)
+    ensemble = interim / "ensemble" / "classifications.csv"
+    if ensemble.is_file():
+        entries["Ensemble"] = (ensemble, evaluation / "ensemble")
+    keyword = interim / "baselines" / "keyword" / "classifications.csv"
+    if keyword.is_file():
+        entries["Keyword"] = (keyword, evaluation / "baselines" / "keyword")
+    nli_root = interim / "baselines" / "nli"
+    direct_nli = nli_root / "classifications.csv"
+    if direct_nli.is_file():
+        entries["NLI"] = (direct_nli, evaluation / "baselines" / "nli")
+    for path in sorted(nli_root.glob("*/classifications.csv")):
+        name = path.parent.name
+        entries[f"NLI · {name}"] = (path, evaluation / "baselines" / "nli" / name)
+    order = {"Keyword": 0, "NLI": 1, "LLM": 2, "Ensemble": 3}
+    return dict(sorted(entries.items(), key=lambda item: (
+        next((rank for prefix, rank in order.items() if item[0].startswith(prefix)), 9), item[0],
+    )))
+
+
+def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]:
+    """Build same-profile performance plots across every available classifier family."""
+    from ids_meta.plotting.compare import build_classifiers
+
+    entries = _classifier_entries(settings, source)
+    if len(entries) < 2:
+        LOG.warning("skipping all-classifier comparison source=%s available=%d", source, len(entries))
+        return []
+    profiles = {""}
+    for _label, (_classification, evaluation_root) in entries.items():
+        profiles.update(
+            path.parent.relative_to(evaluation_root).as_posix()
+            for path in evaluation_root.glob("*/metrics.json")
+        )
+    outputs: list[Path] = []
+    comparison_root = _default_paths(settings, source)["comparison"] / "classifiers"
+    for profile in sorted(profiles, key=lambda value: (bool(value), value)):
+        classifications: dict[str, Path] = {}
+        evaluations: dict[str, Path] = {}
+        for label, (classification, evaluation_root) in entries.items():
+            directory = evaluation_root / profile if profile else evaluation_root
+            if classification.is_file() and (directory / "metrics.json").is_file():
+                classifications[label] = classification
+                evaluations[label] = directory
+        if len(evaluations) < 2:
+            continue
+        out_dir = comparison_root / profile if profile else comparison_root
+        outputs += build_classifiers(
+            source, classifications, evaluations, out_dir, settings.section("plots"),
+        )
+    return outputs
+
+
 def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str) -> dict[str, int]:
     """Run configured source baselines and their rated evaluations without invoking LLMs."""
     paths = _default_paths(settings, source)
@@ -292,7 +364,11 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
     LOG.info("starting baseline command source=%s methods=%s run_id=%s", source, ",".join(methods), manifest.run_id)
     with PipelineCache(paths["cache"]) as cache:
         for method in methods:
-            variant_paths = _variant_paths(settings, source, Path("baselines") / method)
+            nli_config = load_nli_runtime_config(settings) if method == "nli" else None
+            variant = Path("baselines") / method
+            if nli_config is not None:
+                variant /= slug(nli_config.model)
+            variant_paths = _variant_paths(settings, source, variant)
             output = Path(args.output) if args.output else variant_paths["classifications"]
             if method == "keyword":
                 keyword_config = load_keyword_baseline_config(settings, source)
@@ -303,8 +379,26 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
                     resume=args.resume,
                     progress_every=int(settings.section("logging").get("progress_every", 25)),
                 )
-            else:  # configured_baseline_methods rejects unavailable implementations.
-                raise ConfigError(f"baseline method is not implemented yet: {method}")
+            elif method == "nli":
+                assert nli_config is not None
+                nli_profile = load_nli_profile(settings, source)
+                manifest.parameters.update({
+                    "nli_model": nli_config.model, "nli_revision": nli_config.revision,
+                    "nli_entailment_threshold": nli_config.entailment_threshold,
+                    "nli_label_margin": nli_config.label_margin,
+                })
+                adapter_config = (
+                    {"system_type_profile": load_system_type_profile(settings, "github")}
+                    if source == "github" else {}
+                )
+                rows = classify_nli_baseline(
+                    source, candidates_path, output, cache, nli_profile, nli_config,
+                    resume=args.resume,
+                    progress_every=int(settings.section("logging").get("progress_every", 25)),
+                    adapter_config=adapter_config,
+                )
+            else:  # pragma: no cover - validated before the loop
+                raise ConfigError(f"baseline method is not implemented: {method}")
             manifest.counts[f"baseline_rows_{method}"] = len(rows)
             manifest.counts[f"baseline_{method}_candidate_evidence"] = sum(
                 row.get("classifier_evidence_source") == "candidate_csv" for row in rows
@@ -323,6 +417,8 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
                     manifest, result, "_".join(filter(None, (method, profile_label))),
                 )
         manifest.coverage = cache.coverage_rows(source)
+    comparison_outputs = _build_classifier_comparisons(settings, source)
+    manifest.counts["baseline_comparison_files"] = len(comparison_outputs)
     manifest.status = "complete"
     manifest.write()
     LOG.info("completed baseline command source=%s counts=%s", source, manifest.counts)
@@ -711,23 +807,28 @@ def main(argv: list[str] | None = None) -> int:
             counts = {"architecture_files": len(files)}
         else:
             from ids_meta.plotting.compare import build as build_comparison
-            from ids_meta.plotting.compare import build_models as build_model_comparison
 
             paths = _default_paths(settings, args.source)
-            models = _configured_models(settings)
-            ensemble_enabled, _members, _threshold = _ensemble_config(settings, models)
-            if args.input or (len(models) == 1 and not ensemble_enabled):
+            if args.input:
                 input_path = args.input or paths["classifications"]
                 output_path = args.output or paths["comparison"]
                 files = build_comparison(args.source, input_path, output_path, settings.section("plots"))
             else:
-                model_paths = _execution_paths(settings, args.source, models)
-                inputs = {model: model_paths[model]["classifications"] for model in models}
-                if ensemble_enabled:
-                    inputs["ensemble"] = _variant_paths(settings, args.source, Path("ensemble"))["classifications"]
-                output_path = args.output or paths["comparison"] / "models"
-                files = build_model_comparison(args.source, inputs, output_path, settings.section("plots"))
+                if args.output:
+                    raise ConfigError("--output is available for compare only together with --input")
+                files = _build_classifier_comparisons(settings, args.source)
             counts = {"plot_files": len(files)}
+        if (
+            args.command in {"github", "openalex"} and args.action == "run"
+            and not args.dry_run and _baselines_enabled(settings)
+        ):
+            baseline_args = argparse.Namespace(
+                action="baseline", input=args.input, output=None, methods=None, ratings=None,
+                resume=args.resume, dry_run=False, limit=None, collect_limit=None,
+                classify_limit=None, classify_all=False,
+            )
+            baseline_counts = _execute_baselines(baseline_args, settings, args.command)
+            counts.update(baseline_counts)
         LOG.info("command summary %s", "; ".join(f"{key}={value}" for key, value in sorted(counts.items())))
         return 0
     except (ConfigError, ValueError, OSError, RuntimeError) as exc:

@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from ids_meta.common.baselines import CLASSIFIER_COLUMNS, KEYWORD_AUDIT_COLUMNS
+from ids_meta.common.nli import NLI_AUDIT_COLUMNS
 from ids_meta.common.evidence import EVIDENCE_EXPANSION_COLUMNS
 from ids_meta.common.text import normalize_text, split_values
 
@@ -61,7 +62,7 @@ CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + CLASSIFIER_COLUMNS + [
     "offline_dataset_only", "implements_detection_engine", "requires_external_detector",
     "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "classification_validation_flags", "primary_reason", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
-] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS + KEYWORD_AUDIT_COLUMNS
+] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS + KEYWORD_AUDIT_COLUMNS + NLI_AUDIT_COLUMNS
 RECONCILIATION_COLUMNS = [
     "project_id", "canonical_repo_id", "canonical_full_name", "repository_relationship",
     "canonical_confidence", "canonical_reason", "canonical_resolution",

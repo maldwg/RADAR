@@ -1,0 +1,61 @@
+schema_version = "1.0"
+source = "github"
+
+# Each sentence is evaluated against repository metadata and documentation. Exclusive
+# fields select one label; multilabel fields may select several; boolean fields compare
+# entailment and contradiction for their single positive proposition.
+
+[fields.role]
+mode = "exclusive"
+fallback = "uncertain"
+[fields.role.hypotheses]
+native_detector = "This repository itself implements a deployable intrusion detector that observes live or recorded runtime activity."
+classifier_engine = "This repository itself implements a runnable classification or detection engine that users can train or execute independently."
+detection_framework = "This repository is a cohesive, extensible detection framework with its own components and ecosystem."
+detection_platform = "This repository is an integration platform that orchestrates multiple distinct external detection engines or security tools."
+research_project = "This repository contains a paper-linked or dataset-linked research detection project whose code is trainable or runnable."
+demo = "This repository is mainly a demonstration, tutorial, example, or notebook rather than a reusable detection implementation."
+rules_content = "This repository mainly distributes detection rules, signatures, policies, or other content and does not implement the engine that executes them."
+support_tooling = "This repository mainly provides supporting utilities, parsers, visualizations, deployment files, or integrations for a separate detector."
+out_of_scope = "This repository does not itself provide an intrusion detection, prevention, classification, or detection-framework approach."
+
+[fields.observation_scopes]
+mode = "multilabel"
+fallback = "unknown"
+[fields.observation_scopes.hypotheses]
+network = "The implemented detection approach observes network packets, flows, sessions, or network protocols."
+host_endpoint = "The implemented detection approach observes hosts or endpoints, including processes, files, system calls, or endpoint telemetry."
+wireless = "The implemented detection approach observes wireless network activity."
+database = "The implemented detection approach observes database activity or database queries."
+provenance = "The implemented detection approach analyzes provenance graphs or provenance records."
+application = "The implemented detection approach observes application-layer behavior or application protocols."
+multi_scope = "The implemented detection approach combines multiple distinct observation scopes."
+
+[fields.capabilities]
+mode = "multilabel"
+fallback = "unknown"
+[fields.capabilities.hypotheses]
+detection = "The system detects malicious, anomalous, or policy-violating activity."
+prevention = "The system actively blocks or prevents detected malicious activity."
+response = "The system performs response, containment, or remediation after detection."
+monitoring = "The system continuously monitors or presents security activity."
+
+[fields.detection_methods]
+mode = "multilabel"
+fallback = "unknown"
+[fields.detection_methods.hypotheses]
+signature_based = "The detection method matches known attack signatures or byte patterns."
+rule_based = "The detection method evaluates explicit detection rules or policies."
+anomaly_based = "The detection method identifies deviations from normal behavior."
+integrity_based = "The detection method checks file, system, or data integrity."
+query_based = "The detection method identifies threats using security queries."
+protocol_analysis = "The detection method analyzes network protocol semantics or state."
+ml_based = "The detection method uses machine learning."
+ann_based = "The detection method uses an artificial neural network."
+dnn_based = "The detection method uses a deep neural network."
+packet_analysis = "The detection method analyzes individual network packets or payloads."
+flow_analysis = "The detection method analyzes network flows or flow records."
+log_analysis = "The detection method analyzes logs or event records."
+system_call_analysis = "The detection method analyzes operating-system calls."
+threat_intelligence_based = "The detection method uses threat-intelligence indicators or feeds."
+hybrid = "The detection method explicitly combines multiple distinct detection techniques."

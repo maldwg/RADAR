@@ -1,0 +1,74 @@
+schema_version = "1.0"
+source = "openalex"
+
+[fields.paper_role]
+mode = "exclusive"
+fallback = "uncertain"
+[fields.paper_role.hypotheses]
+original_release = "This paper is the original publication that introduces and directly releases the evaluated intrusion-detection dataset."
+versioned_release = "This paper directly releases a new version, extension, or successor of an intrusion-detection dataset."
+generator_release = "This paper introduces and directly releases a reusable framework or generator for producing intrusion-detection data."
+survey = "This paper is a survey, review, taxonomy, or comparative overview of datasets or detection research."
+downstream_application = "This paper uses an existing dataset to evaluate a downstream detection or classification method but does not release that dataset."
+dataset_analysis = "This paper analyzes, benchmarks, or critiques an existing dataset but does not release a dataset or generator."
+unrelated = "This paper is not a release paper for an intrusion-detection dataset or reusable data generator."
+
+[fields.relevance_tier]
+mode = "exclusive"
+fallback = "uncertain"
+[fields.relevance_tier.hypotheses]
+core = "The paper's central contribution is the direct release of an intrusion-detection dataset or reusable data generator."
+adjacent = "The paper directly releases a relevant dataset, but that release is a secondary contribution or a versioned extension."
+excluded = "The paper does not directly release a dataset or reusable data generator relevant to intrusion detection."
+
+[fields.artifact_type]
+mode = "exclusive"
+fallback = "unknown"
+[fields.artifact_type.hypotheses]
+dataset = "The directly released research artifact is a dataset."
+generator_framework = "The directly released research artifact is a reusable data-generation framework rather than a fixed dataset."
+dataset_and_generator = "The paper directly releases both a fixed dataset and the reusable framework that generated it."
+
+[fields.domain]
+mode = "exclusive"
+fallback = "unknown"
+[fields.domain.hypotheses]
+general_network = "The released dataset primarily represents general computer-network intrusion or traffic activity."
+host_endpoint = "The released dataset primarily represents host or endpoint intrusion activity."
+iot_iiot = "The released dataset primarily represents Internet-of-Things or industrial Internet-of-Things activity."
+cloud = "The released dataset primarily represents cloud, virtualized, or data-center activity."
+mobile_android = "The released dataset primarily represents mobile or Android activity."
+electrical_smartgrid = "The released dataset primarily represents electrical systems, power systems, or smart-grid activity."
+uav = "The released dataset primarily represents unmanned aerial vehicle activity."
+vpn = "The released dataset primarily represents VPN or anonymized encrypted-tunnel traffic."
+
+[fields.data_form]
+mode = "exclusive"
+fallback = "unknown"
+[fields.data_form.hypotheses]
+packet = "The released data primarily consists of packet captures or packet-level records."
+flow = "The released data primarily consists of network-flow records."
+network_traffic = "The released data consists of network traffic without a more specific packet-or-flow representation."
+telemetry = "The released data primarily consists of device or system telemetry."
+host_system_call = "The released data primarily consists of host events or system calls."
+log = "The released data primarily consists of logs or event records."
+tabular_features = "The released data primarily consists of extracted tabular features."
+can = "The released data primarily consists of controller-area-network bus messages."
+wireless = "The released data primarily consists of wireless communication records."
+mixed = "The released data explicitly combines multiple distinct data representations."
+
+[fields.capture_environment]
+mode = "exclusive"
+fallback = "unknown"
+[fields.capture_environment.hypotheses]
+real_world = "The released data was captured from a real operational environment."
+synthetic_lab = "The released data was generated or captured in a controlled synthetic or laboratory environment."
+hybrid = "The released data explicitly combines real-world and synthetic or laboratory collection."
+
+[fields.labeling]
+mode = "exclusive"
+fallback = "unknown"
+[fields.labeling.hypotheses]
+labeled = "The released dataset provides labels for all relevant benign and malicious observations."
+partially_labeled = "The released dataset provides labels for only part of the observations or only some label dimensions."
+unlabeled = "The released dataset does not provide ground-truth labels."

@@ -60,16 +60,17 @@ class BaselineTests(unittest.TestCase):
         }
         return Settings(root, values)
 
-    def test_baseline_configuration_is_validated_and_future_methods_are_reserved(self) -> None:
-        """Validate keyword thresholds while reserving the CLI interface for later NLI support."""
+    def test_baseline_configuration_validates_methods_and_keyword_thresholds(self) -> None:
+        """Validate implemented method selection and independent keyword thresholds."""
         with tempfile.TemporaryDirectory() as directory:
             settings = self._settings(Path(directory))
             self.assertEqual(configured_baseline_methods(settings), ["keyword"])
             self.assertEqual(
                 load_keyword_baseline_config(settings, "github"), KeywordBaselineConfig(7.0, 4.0),
             )
-            with self.assertRaisesRegex(ConfigError, "not implemented yet"):
-                configured_baseline_methods(settings, "nli")
+            self.assertEqual(configured_baseline_methods(settings, "nli"), ["nli"])
+            with self.assertRaisesRegex(ConfigError, "unknown baseline"):
+                configured_baseline_methods(settings, "imaginary")
             invalid = dict(settings.values)
             invalid["baselines"] = {
                 "keyword": {"github": {"accept_threshold": 4, "uncertain_threshold": 4}},

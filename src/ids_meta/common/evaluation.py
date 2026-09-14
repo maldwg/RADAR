@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import tomllib
 from collections import Counter
 from dataclasses import dataclass
@@ -117,6 +118,19 @@ def _ratio(numerator: int | float, denominator: int | float) -> float:
 def _f1(precision: float, recall: float) -> float:
     """Return the harmonic mean of precision and recall."""
     return 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+
+
+def _wilson_interval(successes: int, total: int, z: float = 1.959963984540054) -> list[float] | None:
+    """Return a 95% Wilson score interval for one binomial proportion."""
+    if total <= 0:
+        return None
+    proportion = successes / total
+    denominator = 1 + z * z / total
+    center = (proportion + z * z / (2 * total)) / denominator
+    radius = z * math.sqrt(
+        proportion * (1 - proportion) / total + z * z / (4 * total * total)
+    ) / denominator
+    return [max(0.0, center - radius), min(1.0, center + radius)]
 
 
 def _values(value: object) -> set[str]:
@@ -409,7 +423,10 @@ def evaluate_results(
     metrics: dict[str, Any] = {
         "source": profile.source, "evaluation_unit": profile.evaluation_unit,
         "benchmark_scope": "positive_reference_set" if profile.evaluation_unit == "artifact" else "screening_decisions",
-        "not_estimable_metrics": ["false_positive_rate", "specificity", "balanced_accuracy"]
+        "not_estimable_metrics": [
+            "false_positive_rate", "specificity", "balanced_accuracy", "accuracy",
+            "precision", "f1",
+        ]
         if profile.evaluation_unit == "artifact" else [],
         "ratings_path": str(profile.path), "classifications_path": str(classifications_path),
         **classifier_metadata,
@@ -437,6 +454,20 @@ def evaluate_results(
             rated,
         ),
         "status_counts": dict(sorted(status_counts.items())),
+        "confidence_intervals_95": {
+            "detection_rate": _wilson_interval(operational["tp"], operational["tp"] + operational["fn"]),
+            "false_positive_rate": _wilson_interval(operational["fp"], operational["fp"] + operational["tn"]),
+            "accuracy": _wilson_interval(operational["tp"] + operational["tn"], binary_total),
+            "precision": _wilson_interval(operational["tp"], operational["tp"] + operational["fp"]),
+            "definitive_coverage": _wilson_interval(status_counts["classified"], rated),
+            "abstention_rate": _wilson_interval(
+                sum(status_counts[name] for name in (
+                    ("uncertain", "error", "survey_reference_classification_uncertain", "survey_reference_classification_error")
+                    if profile.evaluation_unit == "artifact"
+                    else ("uncertain", "error", "not_retrieved", "not_classified", "unavailable")
+                )), rated,
+            ),
+        },
         "operational": operational_metrics, "strict": strict_metrics, "selective": selective_metrics,
     }
     confusion = [{"expected": expected, "actual": actual_value, "count": count} for (expected, actual_value), count in sorted(confusion_counts.items())]

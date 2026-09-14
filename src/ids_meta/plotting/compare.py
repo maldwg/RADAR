@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
+import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from ids_meta.plotting.common import configure_style, load_frame, metadata_caption, save_figure, stamp, write_table
+from ids_meta.plotting.common import COLORS, configure_style, load_frame, metadata_caption, save_figure, stamp, write_table
 from ids_meta.common.logging import logger
 
 LOG = logger("plotting.compare")
@@ -128,4 +130,189 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
     stamp(fig, f"disagreements={len(disagreement)} of {len(combined)} sources; top {top_n} patterns shown")
     outputs += save_figure(fig, out_dir, "03_disagreement_patterns", formats, dpi)
     LOG.info("model comparison complete source=%s models=%d disagreements=%d files=%d", source, len(names), len(disagreement), len(outputs))
+    return outputs
+
+
+METRIC_SPECS = (
+    ("detection_rate", "Detection rate (recall)", "operational", "DR"),
+    ("false_positive_rate", "False-positive rate", "operational", "FPR"),
+    ("accuracy", "Accuracy", "operational", "ACC"),
+    ("precision", "Precision", "operational", "PREC"),
+    ("f1", "F1 score", "operational", "f1"),
+    ("definitive_coverage", "Definitive-decision coverage", "root", "definitive_coverage"),
+    ("abstention_rate", "Abstention rate", "root", "abstention_rate"),
+    ("field_accuracy", "Taxonomy-field exact accuracy", "root", "classification_field_accuracy"),
+)
+
+
+def _method_color(method: str) -> str:
+    """Return a stable color for a classifier family."""
+    return {
+        "keyword": COLORS[2], "nli": COLORS[1], "llm": COLORS[0],
+        "ensemble": COLORS[3],
+    }.get(method, COLORS[8])
+
+
+def _metric_value(metrics: dict[str, object], section: str, key: str) -> float | None:
+    """Read a numeric metric while preserving explicit N/A values."""
+    container = metrics if section == "root" else metrics.get(section, {})
+    if not isinstance(container, dict):
+        return None
+    value = container.get(key)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _wilson(successes: int, total: int) -> list[float] | None:
+    """Calculate a 95% Wilson interval for comparison inputs created before interval export."""
+    if total <= 0:
+        return None
+    z = 1.959963984540054
+    proportion = successes / total
+    denominator = 1 + z * z / total
+    center = (proportion + z * z / (2 * total)) / denominator
+    radius = z * math.sqrt(
+        proportion * (1 - proportion) / total + z * z / (4 * total * total)
+    ) / denominator
+    return [max(0.0, center - radius), min(1.0, center + radius)]
+
+
+def _fallback_interval(metrics: dict[str, object], stem: str, value: float | None) -> list[float] | None:
+    """Derive a binomial interval from exported counts when an older report lacks one."""
+    operational = metrics.get("operational", {})
+    if isinstance(operational, dict):
+        tp, fp = int(operational.get("tp", 0)), int(operational.get("fp", 0))
+        tn, fn = int(operational.get("tn", 0)), int(operational.get("fn", 0))
+        pairs = {
+            "detection_rate": (tp, tp + fn), "false_positive_rate": (fp, fp + tn),
+            "accuracy": (tp + tn, tp + fp + tn + fn), "precision": (tp, tp + fp),
+        }
+        if stem in pairs:
+            return _wilson(*pairs[stem])
+    denominator = (
+        int(metrics.get("classification_field_comparisons", 0))
+        if stem == "field_accuracy" else int(metrics.get("rated_entities", 0))
+    )
+    if stem in {"definitive_coverage", "abstention_rate", "field_accuracy"} and value is not None:
+        return _wilson(round(value * denominator), denominator)
+    return None
+
+
+def _display_label(label: str, maximum: int = 34) -> str:
+    """Keep long model identifiers readable on an axis while retaining them in CSV data."""
+    return label if len(label) <= maximum else label[: maximum - 1] + "…"
+
+
+def build_classifiers(
+    source: str, classification_inputs: dict[str, Path], evaluation_inputs: dict[str, Path],
+    out_dir: Path, config: dict[str, object],
+) -> list[Path]:
+    """Compare keyword, NLI, LLM, and ensemble outputs on shared metric axes."""
+    if len(evaluation_inputs) < 2:
+        raise ValueError("classifier comparison requires at least two evaluated outputs")
+    configure_style()
+    loaded: dict[str, dict[str, object]] = {}
+    rating_paths: set[str] = set()
+    evaluation_units: set[str] = set()
+    for label, directory in evaluation_inputs.items():
+        path = directory / "metrics.json"
+        if not path.is_file():
+            continue
+        metrics = json.loads(path.read_text(encoding="utf-8"))
+        loaded[label] = metrics
+        rating_path = str(metrics.get("ratings_path", "")).strip()
+        rating_paths.add(str(Path(rating_path).resolve()) if rating_path else "")
+        evaluation_units.add(str(metrics.get("evaluation_unit", "")))
+    if len(loaded) < 2:
+        raise ValueError("classifier comparison requires at least two readable metrics.json files")
+    if len(rating_paths) != 1 or len(evaluation_units) != 1:
+        raise ValueError("classifier metrics must use the same rating profile and evaluation unit")
+    formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
+    dpi = int(config.get("dpi", 160))
+    outputs: list[Path] = []
+    labels = list(loaded)
+    for number, (stem, title, section, key) in enumerate(METRIC_SPECS, 1):
+        rows: list[dict[str, object]] = []
+        for label, metrics in loaded.items():
+            not_estimable = set(metrics.get("not_estimable_metrics", []))
+            if metrics.get("evaluation_unit") == "artifact":
+                not_estimable.update({"false_positive_rate", "accuracy", "precision", "f1"})
+            value = None if stem in not_estimable else _metric_value(metrics, section, key)
+            method = str(metrics.get("classifier_method", "")) or (
+                "ensemble" if label.casefold() == "ensemble" else "llm"
+            )
+            operational = metrics.get("operational", {})
+            intervals = metrics.get("confidence_intervals_95", {})
+            interval = intervals.get(stem) if isinstance(intervals, dict) else None
+            if not (isinstance(interval, list) and len(interval) == 2):
+                interval = _fallback_interval(metrics, stem, value)
+            rows.append({
+                "classifier": label, "classifier_method": method, "metric": stem,
+                "classifier_id": metrics.get("classifier_id", ""),
+                "value": value, "rated_entities": metrics.get("rated_entities", ""),
+                "ci95_low": interval[0] if isinstance(interval, list) and len(interval) == 2 else None,
+                "ci95_high": interval[1] if isinstance(interval, list) and len(interval) == 2 else None,
+                "tp": operational.get("tp", "") if isinstance(operational, dict) else "",
+                "fp": operational.get("fp", "") if isinstance(operational, dict) else "",
+                "tn": operational.get("tn", "") if isinstance(operational, dict) else "",
+                "fn": operational.get("fn", "") if isinstance(operational, dict) else "",
+                "rating_profile": metrics.get("ratings_path", ""),
+            })
+        table = pd.DataFrame(rows)
+        write_table(table, out_dir / "data", f"{number:02d}_{stem}")
+        visible = table.dropna(subset=["value"])
+        fig, ax = plt.subplots(figsize=(max(8, .9 * len(visible) + 3), 5.4))
+        if visible.empty:
+            ax.axis("off")
+            ax.text(
+                .5, .5, "Not estimable from this rating profile",
+                transform=ax.transAxes, ha="center", va="center", fontsize=13,
+            )
+            ax.set_title(f"{source.title()} — {title} by classification approach", loc="left", fontweight="bold")
+            stamp(fig, "the positive-only reference set contains no negative examples for this metric")
+            outputs += save_figure(fig, out_dir, f"{number:02d}_{stem}", formats, dpi)
+            continue
+        error = None
+        if visible["ci95_low"].notna().all() and visible["ci95_high"].notna().all():
+            values = visible["value"].astype(float)
+            error = [
+                (values - visible["ci95_low"].astype(float)).clip(lower=0),
+                (visible["ci95_high"].astype(float) - values).clip(lower=0),
+            ]
+        bars = ax.bar(
+            range(len(visible)), visible["value"].astype(float),
+            color=[_method_color(str(value)) for value in visible["classifier_method"]],
+            yerr=error, capsize=4,
+        )
+        ax.set_xticks(
+            range(len(visible)), labels=[_display_label(str(value)) for value in visible["classifier"]],
+            rotation=25, ha="right",
+        )
+        ax.set_ylim(0, 1.08)
+        ax.set_ylabel(title)
+        ax.set_xlabel("")
+        ax.bar_label(bars, labels=[f"{value:.1%}" for value in visible["value"]], padding=3, fontsize=8)
+        ax.set_title(f"{source.title()} — {title} by classification approach", loc="left", fontweight="bold")
+        stamp(
+            fig,
+            f"all bars use the same rating profile; n={visible['rated_entities'].iloc[0]}; "
+            "missing bars mean the metric is not estimable or the classifier does not emit that field",
+        )
+        outputs += save_figure(fig, out_dir, f"{number:02d}_{stem}", formats, dpi)
+    available_classifications = {
+        label: path for label, path in classification_inputs.items()
+        if label in loaded and path.is_file()
+    }
+    if len(available_classifications) >= 2:
+        outputs += build_models(
+            source, available_classifications, out_dir / "decision_agreement", config,
+        )
+    LOG.info(
+        "classifier performance comparison complete source=%s classifiers=%d files=%d labels=%s",
+        source, len(labels), len(outputs), ",".join(labels),
+    )
     return outputs

@@ -15,9 +15,16 @@ dependencies = [
   "matplotlib>=3.10,<4",
 ]
 
+[project.optional-dependencies]
+nli = [
+  "torch>=2.4,<3",
+  "transformers>=4.48,<6",
+  "sentencepiece>=0.2,<1",
+  "protobuf>=5,<7",
+]
+
 [project.scripts]
 ids-meta = "ids_meta.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
