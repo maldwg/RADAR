@@ -35,10 +35,28 @@ class ClassifierComparisonTests(unittest.TestCase):
                     "classifier_method": method, "rated_entities": 20,
                     "not_estimable_metrics": [], "definitive_coverage": value,
                     "abstention_rate": 1 - value, "classification_field_accuracy": value,
+                    "classification_field_macro_f1": value - .05,
                     "operational": {"DR": value, "FPR": 1 - value, "ACC": value,
                                     "PREC": value, "f1": value, "tp": 8, "fp": 2, "tn": 8, "fn": 2},
                 }
                 (evaluation / "metrics.json").write_text(json.dumps(metrics), encoding="utf-8")
+                atomic_write_csv(evaluation / "field_metrics.csv", [{
+                    "field": "role", "supported": "true", "comparisons": 20,
+                    "exact_matches": int(value * 20), "exact_accuracy": value,
+                    "label_f1": "", "macro_f1": value - .05,
+                    "per_label_metrics_json": "{}",
+                }], [
+                    "field", "supported", "comparisons", "exact_matches", "exact_accuracy",
+                    "label_f1", "macro_f1", "per_label_metrics_json",
+                ])
+                atomic_write_csv(evaluation / "field_label_metrics.csv", [{
+                    "field": "role", "label": "native_detector", "supported": "true",
+                    "tp": 1, "fp": 0, "fn": 0, "precision": 1.0, "recall": 1.0,
+                    "f1": value,
+                }], [
+                    "field", "label", "supported", "tp", "fp", "fn",
+                    "precision", "recall", "f1",
+                ])
                 classifications[label] = csv_path
                 evaluations[label] = evaluation
             outputs = build_classifiers(
@@ -48,11 +66,14 @@ class ClassifierComparisonTests(unittest.TestCase):
             self.assertTrue(outputs)
             for number, metric in enumerate((
                 "detection_rate", "false_positive_rate", "accuracy", "precision", "f1",
-                "definitive_coverage", "abstention_rate", "field_accuracy",
+                "definitive_coverage", "abstention_rate", "field_accuracy", "field_macro_f1",
             ), 1):
                 table = root / "plots/data" / f"{number:02d}_{metric}.csv"
                 self.assertEqual(len(table.read_text(encoding="utf-8").splitlines()), 5)
                 self.assertTrue((root / "plots" / f"{number:02d}_{metric}.svg").is_file())
+            self.assertTrue((root / "plots/10_exact_accuracy_by_field.svg").is_file())
+            self.assertTrue((root / "plots/11_macro_f1_by_field.svg").is_file())
+            self.assertTrue((root / "plots/12_category_f1.svg").is_file())
             self.assertTrue((root / "plots/decision_agreement/data/02_pairwise_agreement.csv").is_file())
             detection_svg = (root / "plots/01_detection_rate.svg").read_text(encoding="utf-8")
             self.assertIn("95% Wilson interval", detection_svg)

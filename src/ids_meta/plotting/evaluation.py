@@ -27,14 +27,6 @@ STATUS_LABELS = {
 }
 
 
-def _annotate_bars(ax: plt.Axes, bars: Any, *, percent: bool = True) -> None:
-    """Place compact values above vertical bars without obscuring the axes."""
-    for bar in bars:
-        value = float(bar.get_height())
-        label = f"{value:.0%}" if percent else f"{value:g}"
-        ax.text(bar.get_x() + bar.get_width() / 2, value + (.025 if percent else .08), label, ha="center", va="bottom", fontsize=7.5)
-
-
 def _decision_performance(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Plot quality and error rates for operational, strict, and selective views."""
     positive_only = metrics.get("benchmark_scope") == "positive_reference_set"
@@ -69,8 +61,7 @@ def _decision_performance(metrics: dict[str, Any], out_dir: Path, formats: list[
         for index, view in enumerate(VIEW_LABELS.values()):
             values = frame[frame["view"] == view].set_index("metric")["value"].reindex(metrics_order).fillna(0)
             positions = [value + (index - 1) * width for value in x_values]
-            bars = ax.bar(positions, values, width=width, label=view, color=colors[index])
-            _annotate_bars(ax, bars)
+            ax.bar(positions, values, width=width, label=view, color=colors[index])
         ax.set_xticks(x_values, labels=metrics_order, rotation=18, ha="right")
         ax.set_ylim(0, 1.12)
         ax.set_ylabel("Rate")
@@ -145,30 +136,21 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
         multilabel = ordered["label_f1"].notna()
         exact_positions = [position + .17 if multilabel.iloc[index] else position for index, position in enumerate(positions)]
         exact_heights = [.28 if multilabel.iloc[index] else .52 for index in ordered.index]
-        exact_bars = ax.barh(
+        ax.barh(
             exact_positions, ordered["exact_accuracy"].fillna(0), height=exact_heights,
             color=COLORS[0], label="Exact accuracy",
         )
         if multilabel.any():
             f1_positions = [positions[index] - .17 for index in ordered.index[multilabel]]
-            f1_bars = ax.barh(
+            ax.barh(
                 f1_positions, ordered.loc[multilabel, "label_f1"], height=.28,
                 color=COLORS[2], label="Label F1",
             )
-            for bar in f1_bars:
-                value = float(bar.get_width())
-                ax.text(
-                    value + .015, bar.get_y() + bar.get_height() / 2, f"{value:.0%}",
-                    va="center", fontsize=8, fontweight="bold", color="#253746",
-                )
         ax.set_yticks(positions, labels=ordered["field_label"])
         ax.set_xlim(0, 1.25)
         ax.set_xlabel("Score")
-        for bar in exact_bars:
-            value = float(bar.get_width())
-            ax.text(value + .015, bar.get_y() + bar.get_height() / 2, f"{value:.0%}", va="center", fontsize=8)
         ax.legend(frameon=False, fontsize=9, loc="lower right")
-    stamp(fig, "Multi-label fields additionally show label-level F1; percentages are printed beside their bars.")
+    stamp(fig, "Multi-label fields additionally show label-level F1; exact values are in the companion CSV.")
     return save_figure(fig, out_dir, "03_field_accuracy", formats, dpi)
 
 
@@ -209,11 +191,10 @@ def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: i
     if table.empty:
         axes[0].axis("off")
     else:
-        bars = axes[0].bar(table["measure"], pd.to_numeric(table["value"]), color=[COLORS[1], COLORS[0], COLORS[3], COLORS[4]][:len(table)])
+        axes[0].bar(table["measure"], pd.to_numeric(table["value"]), color=[COLORS[1], COLORS[0], COLORS[3], COLORS[4]][:len(table)])
         axes[0].set_ylim(0, 1.12)
         axes[0].set_ylabel("Share of rated entities")
         axes[0].tick_params(axis="x", rotation=22)
-        _annotate_bars(axes[0], bars)
     axes[0].set_title("Pipeline coverage", loc="left", fontweight="bold")
     status_frame = pd.DataFrame(status_rows)
     if status_frame.empty:

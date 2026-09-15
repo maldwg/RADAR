@@ -23,6 +23,8 @@ github_ratings = "config/evaluation/github.toml"
 openalex_ratings = "config/evaluation/openalex_ashraf_2026.toml"
 github_nli = "config/baselines/github_nli.toml"
 openalex_nli = "config/baselines/openalex_nli.toml"
+github_keyword = "config/baselines/github_keyword.toml"
+openalex_keyword = "config/baselines/openalex_keyword.toml"
 
 [ollama]
 url = "http://10.20.31.1:11434"

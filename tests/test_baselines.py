@@ -10,7 +10,9 @@ from ids_meta.common.baselines import (
     KeywordBaselineConfig,
     classify_keyword_baseline,
     configured_baseline_methods,
+    infer_keyword_fields,
     load_keyword_baseline_config,
+    load_keyword_taxonomy_profile,
 )
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import ConfigError, Settings
@@ -18,6 +20,9 @@ from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
 from ids_meta.github.schema import CANDIDATE_COLUMNS
 from ids_meta.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class BaselineTests(unittest.TestCase):
@@ -49,6 +54,9 @@ class BaselineTests(unittest.TestCase):
                 "github_cache": str(root / "github.sqlite3"),
                 "github_terms": str(terms),
                 "github_ratings": str(ratings),
+                "github_keyword": str(ROOT / "config/baselines/github_keyword.toml"),
+                "openalex_keyword": str(ROOT / "config/baselines/openalex_keyword.toml"),
+                "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
             },
             "logging": {"progress_every": 1},
             "baselines": {
@@ -69,6 +77,11 @@ class BaselineTests(unittest.TestCase):
                 load_keyword_baseline_config(settings, "github"), KeywordBaselineConfig(7.0, 4.0),
             )
             self.assertEqual(configured_baseline_methods(settings, "nli"), ["nli"])
+            keyword_profile = load_keyword_taxonomy_profile(settings, "github")
+            self.assertEqual(
+                [field.name for field in keyword_profile.fields],
+                ["role", "observation_scopes", "capabilities", "detection_methods"],
+            )
             with self.assertRaisesRegex(ConfigError, "unknown baseline"):
                 configured_baseline_methods(settings, "imaginary")
             invalid = dict(settings.values)
@@ -111,30 +124,40 @@ class BaselineTests(unittest.TestCase):
                     ("2", "beta research", "borderline"),
                     ("3", "unrelated material", "reject"),
                 ):
+                    role_evidence = {
+                        "1": " intrusion detection system network traffic attack detection",
+                        "2": " research code network traffic intrusion detection",
+                        "3": "",
+                    }[identifier]
                     cache.put_record(
                         "github.repository", identifier,
-                        {"repository": {"full_name": f"fixture/repo-{identifier}"}, "readme_text": text},
+                        {"repository": {"full_name": f"fixture/repo-{identifier}"},
+                         "readme_text": text + role_evidence},
                         "now",
                     )
+                taxonomy = load_keyword_taxonomy_profile(self._settings(root), "github")
                 first = classify_keyword_baseline(
-                    "github", candidates, output, cache, profile, KeywordBaselineConfig(7, 4),
+                    "github", candidates, output, cache, profile, KeywordBaselineConfig(7, 4), taxonomy,
                 )
                 resumed = classify_keyword_baseline(
-                    "github", candidates, output, cache, profile, KeywordBaselineConfig(7, 4),
+                    "github", candidates, output, cache, profile, KeywordBaselineConfig(7, 4), taxonomy,
                 )
                 changed = classify_keyword_baseline(
-                    "github", candidates, output, cache, profile, KeywordBaselineConfig(8, 4),
+                    "github", candidates, output, cache, profile, KeywordBaselineConfig(8, 4), taxonomy,
                 )
             self.assertEqual([row["decision"] for row in first], ["accept", "uncertain", "exclude"])
             self.assertEqual(first[0]["classified_at"], resumed[0]["classified_at"])
             self.assertNotEqual(first[0]["classifier_profile_hash"], changed[0]["classifier_profile_hash"])
             self.assertEqual(changed[0]["decision"], "uncertain")
             self.assertEqual(first[0]["classifier_method"], "keyword")
-            self.assertEqual(first[0]["classifier_supported_fields"], "decision")
+            self.assertIn("role", first[0]["classifier_supported_fields"])
+            self.assertEqual(first[0]["role"], "native_detector")
+            self.assertEqual(first[0]["observation_scopes"], "network")
+            self.assertTrue(first[0]["keyword_taxonomy_scores_json"])
             self.assertNotEqual(first[0]["evidence_hash"], "stale-candidate-hash")
 
-    def test_keyword_evaluation_marks_taxonomy_as_unsupported(self) -> None:
-        """Report decision quality while leaving unsupported metadata metrics as N/A."""
+    def test_keyword_evaluation_compares_supported_taxonomy(self) -> None:
+        """Include deterministic keyword taxonomy fields in the common evaluation."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             settings = self._settings(root)
@@ -142,17 +165,30 @@ class BaselineTests(unittest.TestCase):
             atomic_write_csv(classifications, [{
                 "github_repo_id": "1", "decision": "accept",
                 "classifier_method": "keyword", "classifier_id": "keyword-score",
-                "classifier_profile_hash": "profile", "classifier_supported_fields": "decision",
+                "classifier_profile_hash": "profile",
+                "classifier_supported_fields": "decision;role;observation_scopes",
+                "role": "native_detector", "observation_scopes": "network",
             }], [
                 "github_repo_id", "decision", "classifier_method", "classifier_id",
-                "classifier_profile_hash", "classifier_supported_fields",
+                "classifier_profile_hash", "classifier_supported_fields", "role", "observation_scopes",
             ])
             profile = load_rating_profile(settings.path("github_ratings"), "github")
             result = evaluate_results(profile, classifications, root / "evaluation")
             self.assertEqual(result.metrics["operational"]["ACC"], 1.0)
-            self.assertIsNone(result.metrics["classification_field_accuracy"])
-            self.assertEqual(result.metrics["classification_field_comparisons"], 0)
-            self.assertTrue(all(row["supported"] == "false" for row in result.field_metrics))
+            self.assertEqual(result.metrics["classification_field_accuracy"], 1.0)
+            self.assertEqual(result.metrics["classification_field_comparisons"], 2)
+            self.assertTrue(all(row["supported"] == "true" for row in result.field_metrics))
+
+    def test_keyword_taxonomy_abstains_on_exclusive_ties(self) -> None:
+        """Do not break equal-scoring category ties using declaration order."""
+        with tempfile.TemporaryDirectory() as directory:
+            profile = load_keyword_taxonomy_profile(self._settings(Path(directory)), "github")
+            predictions, scores, signals = infer_keyword_fields(
+                "extensible framework and security platform", profile,
+            )
+            self.assertEqual(predictions["role"], "uncertain")
+            self.assertEqual(scores["role"]["detection_framework"], scores["role"]["detection_platform"])
+            self.assertTrue(signals["role"]["detection_framework"])
 
     def test_keyword_baseline_audits_candidate_evidence_fallback(self) -> None:
         """Continue transparently from an OpenAlex audit when its raw cache is unavailable."""
@@ -163,13 +199,15 @@ class BaselineTests(unittest.TestCase):
             row = {column: "" for column in OPENALEX_CANDIDATE_COLUMNS}
             row.update({
                 "openalex_id": "https://openalex.org/W1", "title": "Released corpus",
-                "abstract": "We release an alpha detector dataset.", "evidence_hash": "old",
+                "abstract": "We release a dataset named alpha detector.", "evidence_hash": "old",
             })
             atomic_write_csv(candidates, [row], OPENALEX_CANDIDATE_COLUMNS)
             profile = {"positive": {"release": {"weight": 7, "terms": ["release"]}}}
+            taxonomy = load_keyword_taxonomy_profile(self._settings(root), "openalex")
             with PipelineCache(root / "empty.sqlite3") as cache:
                 results = classify_keyword_baseline(
                     "openalex", candidates, output, cache, profile, KeywordBaselineConfig(7, 4),
+                    taxonomy,
                 )
             self.assertEqual(results[0]["decision"], "accept")
             self.assertEqual(results[0]["classifier_evidence_source"], "candidate_csv")
@@ -189,7 +227,8 @@ class BaselineTests(unittest.TestCase):
             with PipelineCache(root / "github.sqlite3") as cache:
                 cache.put_record(
                     "github.repository", "1",
-                    {"repository": {"full_name": "fixture/repo-1"}, "readme_text": "alpha detector"},
+                    {"repository": {"full_name": "fixture/repo-1"},
+                     "readme_text": "alpha detector intrusion detection system"},
                     "now",
                 )
             args = argparse.Namespace(

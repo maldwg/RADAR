@@ -1,0 +1,248 @@
+schema_version = "1.0"
+source = "openalex"
+
+# Fixed zero-training rules over the same bounded title/abstract/full-text evidence
+# supplied to the other classifiers. Scores and every matched term are exported.
+
+[decision]
+field = "paper_role"
+include_labels = ["original_release", "versioned_release", "generator_release"]
+exclude_labels = ["survey", "downstream_application", "dataset_analysis", "unrelated"]
+
+[fields.paper_role]
+mode = "exclusive"
+fallback = "uncertain"
+minimum_score = 1.0
+margin = 1.0
+
+[fields.paper_role.labels.original_release]
+terms = [
+  "we introduce a dataset", "we introduce the dataset", "we present a dataset",
+  "we present the dataset", "we release a dataset", "we release the dataset",
+  "we create and release", "we collected and released", "new intrusion detection dataset",
+  "novel intrusion detection dataset", "dataset is publicly available",
+]
+
+[fields.paper_role.labels.versioned_release]
+weight = 1.5
+terms = [
+  "new version of the dataset", "extended version of the dataset", "dataset extension",
+  "successor dataset", "updated dataset", "improved version", "new release version",
+]
+
+[fields.paper_role.labels.generator_release]
+weight = 1.5
+terms = [
+  "dataset generation framework", "data generation framework", "traffic generator",
+  "attack generator", "generation toolkit", "testbed framework", "cyber range",
+  "simulation framework", "emulation framework", "generate intrusion datasets",
+]
+
+[fields.paper_role.labels.survey]
+weight = 1.5
+terms = [
+  "systematic review", "systematic literature review", "literature review", "survey of datasets",
+  "dataset survey", "mapping study", "systematic mapping", "taxonomy of datasets",
+  "overview of datasets", "state of the art review",
+]
+
+[fields.paper_role.labels.downstream_application]
+terms = [
+  "trained on", "evaluated on", "tested on", "classification accuracy", "feature selection",
+  "detection model", "classification model", "outperforms", "performance comparison",
+  "experiments using the dataset",
+]
+
+[fields.paper_role.labels.dataset_analysis]
+terms = [
+  "dataset analysis", "dataset quality", "label errors", "class imbalance", "data cleaning",
+  "dataset characterization", "dataset comparison", "relabeling", "benchmark analysis",
+]
+
+[fields.paper_role.labels.unrelated]
+terms = [
+  "image classification", "object detection", "natural language processing",
+  "medical imaging", "recommendation system", "unrelated benchmark",
+]
+
+[fields.relevance_tier]
+mode = "exclusive"
+fallback = "uncertain"
+minimum_score = 1.0
+margin = 1.0
+
+[fields.relevance_tier.labels.core]
+terms = [
+  "we introduce a dataset", "we present a dataset", "we release a dataset",
+  "dataset generation framework", "data generation framework", "novel dataset",
+  "new intrusion detection dataset", "dataset is publicly available",
+]
+
+[fields.relevance_tier.labels.adjacent]
+weight = 1.5
+terms = [
+  "dataset extension", "extended version", "new version of the dataset", "successor dataset",
+  "updated dataset", "secondary contribution",
+]
+
+[fields.relevance_tier.labels.excluded]
+terms = [
+  "systematic review", "survey of datasets", "trained on", "evaluated on",
+  "dataset analysis", "dataset quality", "feature selection", "classification model",
+]
+
+[fields.artifact_type]
+mode = "exclusive"
+fallback = "unknown"
+minimum_score = 1.0
+margin = 1.0
+
+[fields.artifact_type.labels.dataset]
+terms = [
+  "dataset", "data set", "corpus", "benchmark dataset", "traffic traces",
+  "packet captures", "data collection",
+]
+
+[fields.artifact_type.labels.generator_framework]
+terms = [
+  "dataset generator", "data generation framework", "dataset generation framework",
+  "traffic generator", "attack generator", "generation toolkit", "testbed framework",
+]
+
+[fields.artifact_type.labels.dataset_and_generator]
+weight = 2.0
+terms = [
+  "dataset and generator", "generator and dataset", "framework and generated dataset",
+  "toolkit and dataset", "testbed and dataset",
+]
+
+[fields.domain]
+mode = "exclusive"
+fallback = "unknown"
+minimum_score = 1.0
+margin = 1.0
+
+[fields.domain.labels.general_network]
+terms = [
+  "network intrusion", "network traffic", "internet traffic", "enterprise network",
+  "general network", "tcp ip", "network attack",
+]
+
+[fields.domain.labels.host_endpoint]
+terms = [
+  "host intrusion", "host based", "endpoint", "system call", "process activity",
+  "file activity", "endpoint telemetry", "operating system audit",
+]
+
+[fields.domain.labels.iot_iiot]
+terms = [
+  "internet of things", "iot", "industrial internet of things", "iiot",
+  "industrial control", "scada", "operational technology", "smart home",
+  "embedded device",
+]
+
+[fields.domain.labels.cloud]
+terms = ["cloud", "cloud computing", "virtual machine", "virtualized", "data center", "container"]
+
+[fields.domain.labels.mobile_android]
+terms = ["android", "mobile device", "mobile network", "smartphone", "mobile application"]
+
+[fields.domain.labels.electrical_smartgrid]
+terms = [
+  "smart grid", "power grid", "electrical system", "power system", "substation",
+  "electric vehicle charging", "iec 61850",
+]
+
+[fields.domain.labels.uav]
+terms = ["unmanned aerial vehicle", "uav", "drone", "aerial vehicle network"]
+
+[fields.domain.labels.vpn]
+terms = ["vpn", "virtual private network", "tor traffic", "encrypted tunnel", "anonymized traffic"]
+
+[fields.data_form]
+mode = "exclusive"
+fallback = "unknown"
+minimum_score = 1.0
+margin = 1.0
+
+[fields.data_form.labels.packet]
+terms = ["packet capture", "packet level", "network packet", "pcap", "raw packets"]
+
+[fields.data_form.labels.flow]
+terms = ["network flow", "flow record", "netflow", "ipfix", "bidirectional flow"]
+
+[fields.data_form.labels.network_traffic]
+terms = ["network traffic", "traffic trace", "communication traffic"]
+
+[fields.data_form.labels.telemetry]
+terms = ["telemetry", "sensor reading", "device measurement", "system metric"]
+
+[fields.data_form.labels.host_system_call]
+terms = ["system call", "syscall", "host event", "process trace"]
+
+[fields.data_form.labels.log]
+terms = ["security log", "event log", "audit log", "log data", "log file"]
+
+[fields.data_form.labels.tabular_features]
+terms = ["tabular feature", "extracted features", "feature vector", "csv features"]
+
+[fields.data_form.labels.can]
+terms = ["can bus", "controller area network", "can message", "can frame"]
+
+[fields.data_form.labels.wireless]
+terms = ["wireless frame", "wifi frame", "wi fi traffic", "802.11 frame", "radio traffic"]
+
+[fields.data_form.labels.mixed]
+weight = 1.5
+terms = [
+  "mixed data", "multiple data sources", "multimodal data", "network and host data",
+  "packets flows and logs", "heterogeneous telemetry",
+]
+
+[fields.capture_environment]
+mode = "exclusive"
+fallback = "unknown"
+minimum_score = 1.0
+margin = 1.0
+
+[fields.capture_environment.labels.real_world]
+terms = [
+  "real world", "real-world", "operational environment", "production network",
+  "live network", "captured in the wild", "actual network",
+]
+
+[fields.capture_environment.labels.synthetic_lab]
+terms = [
+  "synthetic", "laboratory", "lab environment", "testbed", "simulated",
+  "emulated", "controlled environment", "generated traffic",
+]
+
+[fields.capture_environment.labels.hybrid]
+weight = 1.5
+terms = [
+  "hybrid environment", "real and synthetic", "real-world and simulated",
+  "operational and testbed", "mixed capture environment",
+]
+
+[fields.labeling]
+mode = "exclusive"
+fallback = "unknown"
+minimum_score = 1.0
+margin = 1.0
+
+[fields.labeling.labels.labeled]
+terms = [
+  "labeled dataset", "labelled dataset", "ground truth labels", "attack labels",
+  "fully labeled", "annotated data", "class labels",
+]
+
+[fields.labeling.labels.partially_labeled]
+weight = 1.5
+terms = [
+  "partially labeled", "partially labelled", "incomplete labels", "partial ground truth",
+  "subset is labeled",
+]
+
+[fields.labeling.labels.unlabeled]
+weight = 1.5
+terms = ["unlabeled", "unlabelled", "without labels", "no ground truth", "raw unannotated"]

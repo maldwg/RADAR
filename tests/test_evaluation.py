@@ -139,7 +139,13 @@ class EvaluationTests(unittest.TestCase):
             self.assertAlmostEqual(metrics["abstention_rate"], 2 / 5)
             self.assertEqual(metrics["unrated_actual_entities"], 1)
             self.assertAlmostEqual(metrics["classification_field_accuracy"], 1.0)
-            self.assertEqual({item.name for item in (root / "evaluation").iterdir()}, {"metrics.json", "instances.csv", "decision_confusion.csv", "field_metrics.csv", "README.md"})
+            self.assertEqual(
+                {item.name for item in (root / "evaluation").iterdir()},
+                {
+                    "metrics.json", "instances.csv", "decision_confusion.csv",
+                    "field_metrics.csv", "field_label_metrics.csv", "README.md",
+                },
+            )
             self.assertNotIn("mean_jaccard", result.field_metrics[0])
             self.assertNotIn("label_precision", result.field_metrics[0])
             self.assertNotIn("label_recall", result.field_metrics[0])

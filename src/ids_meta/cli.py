@@ -4,7 +4,10 @@ import argparse
 from contextlib import nullcontext
 from pathlib import Path
 
-from ids_meta.common.baselines import classify_keyword_baseline, configured_baseline_methods, load_keyword_baseline_config
+from ids_meta.common.baselines import (
+    classify_keyword_baseline, configured_baseline_methods, load_keyword_baseline_config,
+    load_keyword_taxonomy_profile,
+)
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.ensemble import ensemble_classifications
 from ids_meta.common.evaluation import EvaluationResult, evaluate_results, load_rating_profile
@@ -380,12 +383,20 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
                 assert cache is not None
                 term_profile = load_term_profile(settings, source)
                 keyword_config = load_keyword_baseline_config(settings, source)
+                keyword_profile = load_keyword_taxonomy_profile(settings, source)
+                keyword_adapter_config = (
+                    {"system_type_profile": load_system_type_profile(settings, "github")}
+                    if source == "github" else {}
+                )
                 manifest.parameters["keyword_accept_threshold"] = keyword_config.accept_threshold
                 manifest.parameters["keyword_uncertain_threshold"] = keyword_config.uncertain_threshold
+                manifest.parameters["keyword_taxonomy_profile"] = str(keyword_profile.path)
                 rows = classify_keyword_baseline(
                     source, candidates_path, output, cache, term_profile, keyword_config,
+                    keyword_profile,
                     resume=args.resume,
                     progress_every=int(settings.section("logging").get("progress_every", 25)),
+                    adapter_config=keyword_adapter_config,
                 )
             elif method == "nli":
                 assert cache is not None
@@ -495,10 +506,16 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             candidates_path = _evaluation_candidates(args, base_paths["candidates"])
             for model in models:
+                if not model_paths[model]["classifications"].is_file():
+                    LOG.warning(
+                        "skipping evaluation for model without classifications source=github model=%s path=%s",
+                        model, model_paths[model]["classifications"],
+                    )
+                    continue
                 for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "github", args, model_paths[model]["evaluation"]):
                     result = _evaluate(settings, "github", model_paths[model]["classifications"], candidates_path, output_dir, ratings_path)
                     _record_evaluation(manifest, result, "_".join(filter(None, (labels[model], profile_label))))
-            if ensemble_enabled:
+            if ensemble_enabled and ensemble_paths["classifications"].is_file():
                 for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "github", args, ensemble_paths["evaluation"]):
                     result = _evaluate(settings, "github", ensemble_paths["classifications"], candidates_path, output_dir, ratings_path)
                     _record_evaluation(manifest, result, "_".join(filter(None, ("ensemble", profile_label))))
@@ -653,10 +670,16 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
         if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
             candidates_path = _evaluation_candidates(args, base_paths["candidates"])
             for model in models:
+                if not model_paths[model]["classifications"].is_file():
+                    LOG.warning(
+                        "skipping evaluation for model without classifications source=openalex model=%s path=%s",
+                        model, model_paths[model]["classifications"],
+                    )
+                    continue
                 for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "openalex", args, model_paths[model]["evaluation"]):
                     result = _evaluate(settings, "openalex", model_paths[model]["classifications"], candidates_path, output_dir, ratings_path)
                     _record_evaluation(manifest, result, "_".join(filter(None, (labels[model], profile_label))))
-            if ensemble_enabled:
+            if ensemble_enabled and ensemble_paths["classifications"].is_file():
                 for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "openalex", args, ensemble_paths["evaluation"]):
                     result = _evaluate(settings, "openalex", ensemble_paths["classifications"], candidates_path, output_dir, ratings_path)
                     _record_evaluation(manifest, result, "_".join(filter(None, ("ensemble", profile_label))))

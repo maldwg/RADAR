@@ -1,0 +1,213 @@
+schema_version = "1.0"
+source = "github"
+
+# This is a fixed, training-free taxonomy profile. A label score is the number of
+# matched concepts multiplied by its configured weight. Exclusive fields abstain
+# when the winner is below minimum_score or does not clear the runner-up by margin.
+# Multilabel fields retain every label reaching minimum_score.
+
+[decision]
+field = "role"
+include_labels = [
+  "native_detector", "classifier_engine", "detection_framework", "detection_platform",
+  "research_project", "demo", "rules_content", "support_tooling",
+]
+exclude_labels = ["out_of_scope"]
+
+[fields.role]
+mode = "exclusive"
+fallback = "uncertain"
+minimum_score = 1.0
+margin = 1.0
+
+[fields.role.labels.native_detector]
+terms = [
+  "intrusion detection system", "intrusion prevention system", "intrusion detector",
+  "network ids", "host ids", "wireless ids", "security sensor", "packet inspection engine",
+  "network security monitor", "inline prevention",
+]
+
+[fields.role.labels.classifier_engine]
+terms = [
+  "classification engine", "classifier", "trained model", "model inference",
+  "machine learning model", "deep learning model", "neural network model",
+  "anomaly detector", "train the model", "run inference",
+]
+
+[fields.role.labels.detection_framework]
+terms = [
+  "intrusion detection framework", "detection framework", "extensible framework",
+  "plugin framework", "distributed intrusion detection", "manager agent architecture",
+  "server agent architecture", "detection ecosystem",
+]
+
+[fields.role.labels.detection_platform]
+terms = [
+  "detection platform", "security platform", "integration platform", "security operations platform",
+  "multiple detection engines", "integrates detection tools", "orchestrates security tools",
+  "siem platform", "security monitoring distribution",
+]
+
+[fields.role.labels.research_project]
+terms = [
+  "research code", "research implementation", "paper implementation", "code for the paper",
+  "reproduce the paper", "reproduction package", "experimental implementation",
+  "research prototype", "dataset linked project",
+]
+
+[fields.role.labels.demo]
+terms = [
+  "jupyter notebook", "notebook demo", "demonstration", "tutorial", "example project",
+  "sample application", "educational example", "walkthrough",
+]
+
+[fields.role.labels.rules_content]
+terms = [
+  "detection rules", "security rules", "signature collection", "intrusion signatures",
+  "sigma rules", "yara rules", "suricata rules", "snort rules", "detection content",
+  "rule repository",
+]
+
+[fields.role.labels.support_tooling]
+terms = [
+  "support tool", "parser", "rule converter", "dashboard", "visualization",
+  "integration plugin", "deployment files", "helm chart", "docker compose",
+  "log shipper", "management console", "configuration utility",
+]
+
+[fields.role.labels.out_of_scope]
+weight = 1.5
+terms = [
+  "awesome list", "curated list", "reading list", "bibliography", "lecture notes",
+  "vulnerability scanner", "port scanner", "secret scanner", "exploit framework",
+  "penetration testing toolkit", "dataset only", "uptime monitor",
+  "application performance monitoring", "network management system",
+]
+
+[fields.observation_scopes]
+mode = "multilabel"
+fallback = "unknown"
+minimum_score = 1.0
+
+[fields.observation_scopes.labels.network]
+terms = [
+  "network traffic", "network packet", "packet capture", "packet inspection", "network flow",
+  "flow record", "network session", "dns traffic", "network intrusion", "network ids",
+]
+
+[fields.observation_scopes.labels.host_endpoint]
+terms = [
+  "host intrusion", "host ids", "endpoint", "host event", "system call", "process activity",
+  "file activity", "file integrity", "endpoint telemetry", "operating system audit",
+]
+
+[fields.observation_scopes.labels.wireless]
+terms = ["wireless", "wifi", "wi fi", "802.11", "wireless frame", "wids", "wips"]
+
+[fields.observation_scopes.labels.database]
+terms = ["database activity", "database query", "sql query", "database intrusion", "dbids"]
+
+[fields.observation_scopes.labels.provenance]
+terms = ["provenance graph", "provenance record", "data provenance", "audit graph"]
+
+[fields.observation_scopes.labels.application]
+terms = [
+  "application layer", "application protocol", "web application", "http request",
+  "api request", "application log",
+]
+
+[fields.observation_scopes.labels.multi_scope]
+terms = [
+  "multiple telemetry sources", "multiple data sources", "cross layer detection",
+  "network and endpoint", "extended detection and response", "xdr",
+]
+
+[fields.capabilities]
+mode = "multilabel"
+fallback = "unknown"
+minimum_score = 1.0
+
+[fields.capabilities.labels.detection]
+terms = [
+  "intrusion detection", "attack detection", "threat detection", "anomaly detection",
+  "malware detection", "detects attacks", "detect malicious",
+]
+
+[fields.capabilities.labels.prevention]
+terms = [
+  "intrusion prevention", "attack prevention", "blocks attacks", "block malicious",
+  "inline blocking", "prevent attacks", "active prevention",
+]
+
+[fields.capabilities.labels.response]
+terms = [
+  "incident response", "automated response", "threat response", "containment",
+  "remediation", "quarantine", "response action",
+]
+
+[fields.capabilities.labels.monitoring]
+terms = [
+  "security monitoring", "continuous monitoring", "network monitoring", "event monitoring",
+  "real time monitoring", "monitoring dashboard", "security visibility",
+]
+
+[fields.detection_methods]
+mode = "multilabel"
+fallback = "unknown"
+minimum_score = 1.0
+
+[fields.detection_methods.labels.signature_based]
+terms = ["signature based", "signature matching", "attack signature", "pattern matching"]
+
+[fields.detection_methods.labels.rule_based]
+terms = ["rule based", "detection rule", "security rule", "policy rule", "rule engine"]
+
+[fields.detection_methods.labels.anomaly_based]
+terms = [
+  "anomaly based", "anomaly detection", "behavior based", "behaviour based",
+  "deviation from normal", "statistical anomaly",
+]
+
+[fields.detection_methods.labels.integrity_based]
+terms = ["file integrity", "integrity monitoring", "integrity check", "checksum monitoring"]
+
+[fields.detection_methods.labels.query_based]
+terms = ["security query", "query based", "detection query", "threat hunting query"]
+
+[fields.detection_methods.labels.protocol_analysis]
+terms = [
+  "protocol analysis", "protocol analyzer", "stateful protocol", "protocol semantics",
+  "deep packet inspection",
+]
+
+[fields.detection_methods.labels.ml_based]
+terms = ["machine learning", "ml based", "learned classifier", "supervised learning"]
+
+[fields.detection_methods.labels.ann_based]
+terms = ["artificial neural network", "neural network", "ann based"]
+
+[fields.detection_methods.labels.dnn_based]
+terms = ["deep neural network", "deep learning", "dnn based", "convolutional neural network", "lstm"]
+
+[fields.detection_methods.labels.packet_analysis]
+terms = ["packet analysis", "packet inspection", "packet payload", "packet capture", "pcap"]
+
+[fields.detection_methods.labels.flow_analysis]
+terms = ["flow analysis", "network flow", "flow record", "netflow", "ipfix"]
+
+[fields.detection_methods.labels.log_analysis]
+terms = ["log analysis", "security log", "event log", "audit log", "log based detection"]
+
+[fields.detection_methods.labels.system_call_analysis]
+terms = ["system call analysis", "system call trace", "syscall", "system calls"]
+
+[fields.detection_methods.labels.threat_intelligence_based]
+terms = [
+  "threat intelligence", "indicator of compromise", "ioc matching", "intelligence feed",
+]
+
+[fields.detection_methods.labels.hybrid]
+terms = [
+  "hybrid detection", "hybrid intrusion detection", "multiple detection methods",
+  "combines signature and anomaly", "ensemble detection",
+]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -11,12 +12,12 @@ from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.logging import logger
 from ids_meta.common.ollama import format_evidence
 from ids_meta.common.run import utc_now
-from ids_meta.common.scoring import score_evidence
-from ids_meta.common.text import stable_hash
+from ids_meta.common.scoring import ScoreResult
+from ids_meta.common.text import normalize_text, stable_hash
 
 
 LOG = logger("baselines")
-BASELINE_VERSION = "keyword-baseline-2"
+BASELINE_VERSION = "keyword-baseline-3"
 KNOWN_BASELINE_METHODS = ("keyword", "nli")
 IMPLEMENTED_BASELINE_METHODS = ("keyword", "nli")
 CLASSIFIER_COLUMNS = [
@@ -26,6 +27,7 @@ CLASSIFIER_COLUMNS = [
 KEYWORD_AUDIT_COLUMNS = [
     "keyword_score", "keyword_band", "keyword_signals",
     "keyword_accept_threshold", "keyword_uncertain_threshold",
+    "keyword_taxonomy_scores_json", "keyword_taxonomy_signals_json",
 ]
 
 
@@ -35,6 +37,31 @@ class KeywordBaselineConfig:
 
     accept_threshold: float
     uncertain_threshold: float
+
+
+@dataclass(frozen=True)
+class KeywordField:
+    """One deterministic keyword classification field."""
+
+    name: str
+    mode: str
+    fallback: str
+    minimum_score: float
+    margin: float
+    labels: dict[str, dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class KeywordTaxonomyProfile:
+    """Complete source taxonomy and decision mapping for the keyword baseline."""
+
+    source: str
+    fields: tuple[KeywordField, ...]
+    decision_field: str
+    include_labels: tuple[str, ...]
+    exclude_labels: tuple[str, ...]
+    raw: dict[str, Any]
+    path: Path
 
 
 def configured_baseline_methods(settings: Settings, requested: str | None = None) -> list[str]:
@@ -82,8 +109,119 @@ def load_keyword_baseline_config(settings: Settings, source: str) -> KeywordBase
     return KeywordBaselineConfig(accept, uncertain)
 
 
+def load_keyword_taxonomy_profile(settings: Settings, source: str) -> KeywordTaxonomyProfile:
+    """Load and validate a source-complete, independently configured keyword taxonomy."""
+    path = settings.path(f"{source}_keyword")
+    if not path.is_file():
+        raise ConfigError(f"keyword taxonomy profile does not exist: {path}")
+    with path.open("rb") as handle:
+        raw = tomllib.load(handle)
+    if str(raw.get("schema_version", "")) != "1.0" or str(raw.get("source", "")) != source:
+        raise ConfigError(
+            f"keyword taxonomy profile must use schema_version 1.0 and source {source!r}: {path}"
+        )
+    raw_fields = raw.get("fields")
+    if not isinstance(raw_fields, dict) or not raw_fields:
+        raise ConfigError(f"keyword taxonomy profile requires a non-empty [fields] table: {path}")
+    fields: list[KeywordField] = []
+    for name, value in raw_fields.items():
+        if not isinstance(value, dict):
+            raise ConfigError(f"keyword field {name!r} must be a table")
+        mode = str(value.get("mode", "")).strip()
+        fallback = str(value.get("fallback", "")).strip()
+        labels = value.get("labels")
+        if mode not in {"exclusive", "multilabel"}:
+            raise ConfigError(f"keyword field {name!r} has unsupported mode {mode!r}")
+        if not fallback:
+            raise ConfigError(f"keyword field {name!r} requires a fallback")
+        if not isinstance(labels, dict) or not labels:
+            raise ConfigError(f"keyword field {name!r} requires labels")
+        normalized: dict[str, dict[str, Any]] = {}
+        for label, rule in labels.items():
+            if not isinstance(rule, dict):
+                raise ConfigError(f"keyword label {name}.{label} must be a table")
+            terms = rule.get("terms")
+            if not isinstance(terms, list) or not terms or any(
+                not isinstance(term, str) or not term.strip() for term in terms
+            ):
+                raise ConfigError(f"keyword label {name}.{label} requires non-empty terms")
+            try:
+                weight = float(rule.get("weight", 1.0))
+            except (TypeError, ValueError) as exc:
+                raise ConfigError(f"keyword label {name}.{label}.weight must be numeric") from exc
+            if weight <= 0:
+                raise ConfigError(f"keyword label {name}.{label}.weight must be positive")
+            normalized[str(label)] = {"terms": [term.strip() for term in terms], "weight": weight}
+        try:
+            minimum_score = float(value.get("minimum_score", 1.0))
+            margin = float(value.get("margin", 1.0 if mode == "exclusive" else 0.0))
+        except (TypeError, ValueError) as exc:
+            raise ConfigError(f"keyword field {name!r} score settings must be numeric") from exc
+        if minimum_score <= 0 or margin < 0:
+            raise ConfigError(f"keyword field {name!r} requires minimum_score > 0 and margin >= 0")
+        fields.append(KeywordField(str(name), mode, fallback, minimum_score, margin, normalized))
+    if source == "github":
+        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, SCOPES
+
+        expected = {
+            "role": set(AUDIT_ROLES) - {"uncertain"},
+            "observation_scopes": set(SCOPES) - {"unknown"},
+            "capabilities": set(CAPABILITIES),
+            "detection_methods": set(METHODS) - {"unknown"},
+        }
+    elif source == "openalex":
+        from ids_meta.openalex.schema import (
+            ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, TIERS,
+        )
+
+        expected = {
+            "paper_role": set(PAPER_ROLES) - {"uncertain"},
+            "relevance_tier": set(TIERS) - {"uncertain"},
+            "artifact_type": set(ARTIFACT_TYPES) - {"unknown"},
+            "domain": set(DOMAINS) - {"unknown"},
+            "data_form": set(DATA_FORMS) - {"unknown"},
+            "capture_environment": set(ENVIRONMENTS) - {"unknown"},
+            "labeling": set(LABELING) - {"unknown"},
+        }
+    else:  # pragma: no cover - guarded by the CLI source choices
+        raise ConfigError(f"unsupported keyword taxonomy source: {source}")
+    configured = {field.name: set(field.labels) for field in fields}
+    if set(configured) != set(expected):
+        missing = sorted(set(expected) - set(configured))
+        extra = sorted(set(configured) - set(expected))
+        raise ConfigError(f"keyword taxonomy fields differ from {source} schema: missing={missing}, extra={extra}")
+    for name, labels in expected.items():
+        if configured[name] != labels:
+            missing = sorted(labels - configured[name])
+            extra = sorted(configured[name] - labels)
+            raise ConfigError(
+                f"keyword taxonomy labels differ for {name}: missing={missing}, extra={extra}"
+            )
+    decision = raw.get("decision")
+    if not isinstance(decision, dict):
+        raise ConfigError("keyword taxonomy profile requires a [decision] table")
+    decision_field = str(decision.get("field", "")).strip()
+    field = next((field for field in fields if field.name == decision_field), None)
+    if field is None or field.mode != "exclusive":
+        raise ConfigError("keyword decision.field must name an exclusive configured field")
+    include = decision.get("include_labels")
+    exclude = decision.get("exclude_labels")
+    if not isinstance(include, list) or not isinstance(exclude, list):
+        raise ConfigError("keyword decision label sets must be arrays")
+    include_labels = tuple(str(label) for label in include)
+    exclude_labels = tuple(str(label) for label in exclude)
+    known_labels = set(field.labels)
+    unknown = (set(include_labels) | set(exclude_labels)) - known_labels
+    if unknown or not include_labels or not exclude_labels or set(include_labels) & set(exclude_labels):
+        raise ConfigError("keyword decision labels must be known, non-empty, and disjoint")
+    return KeywordTaxonomyProfile(
+        source, tuple(fields), decision_field, include_labels, exclude_labels, raw, path,
+    )
+
+
 def keyword_profile_hash(
     source: str, term_profile: dict[str, Any], config: KeywordBaselineConfig,
+    taxonomy_profile: KeywordTaxonomyProfile,
 ) -> str:
     """Fingerprint all semantics that can alter a keyword baseline decision."""
     payload = {
@@ -92,8 +230,91 @@ def keyword_profile_hash(
         "term_profile": term_profile,
         "accept_threshold": config.accept_threshold,
         "uncertain_threshold": config.uncertain_threshold,
+        "taxonomy_profile": taxonomy_profile.raw,
     }
     return stable_hash(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+
+
+def infer_keyword_fields(
+    evidence: str, profile: KeywordTaxonomyProfile,
+) -> tuple[dict[str, Any], dict[str, dict[str, float]], dict[str, dict[str, list[str]]]]:
+    """Classify every configured field from transparent weighted concept matches."""
+    predictions: dict[str, Any] = {}
+    scores: dict[str, dict[str, float]] = {}
+    signals: dict[str, dict[str, list[str]]] = {}
+    normalized_evidence = f" {normalize_text(evidence)} "
+    for field in profile.fields:
+        field_scores: dict[str, float] = {}
+        field_signals: dict[str, list[str]] = {}
+        for label, rule in field.labels.items():
+            hits = [
+                term for term in rule["terms"]
+                if f" {normalize_text(term)} " in normalized_evidence
+            ]
+            field_signals[label] = hits
+            field_scores[label] = round(len(hits) * float(rule["weight"]), 3)
+        scores[field.name] = field_scores
+        signals[field.name] = field_signals
+        if field.mode == "exclusive":
+            ranked = sorted(field_scores, key=lambda label: (-field_scores[label], label))
+            best = ranked[0]
+            second_score = field_scores[ranked[1]] if len(ranked) > 1 else 0.0
+            predictions[field.name] = best if (
+                field_scores[best] >= field.minimum_score
+                and field_scores[best] - second_score >= field.margin
+            ) else field.fallback
+        else:
+            selected = sorted(
+                label for label, score in field_scores.items() if score >= field.minimum_score
+            )
+            predictions[field.name] = selected or [field.fallback]
+    return predictions, scores, signals
+
+
+def score_keyword_evidence(
+    evidence: str, term_profile: dict[str, Any], accept_threshold: float,
+    uncertain_threshold: float,
+) -> ScoreResult:
+    """Score broad relevance with normalized exact phrases for the classical baseline."""
+    normalized_evidence = f" {normalize_text(evidence)} "
+    score = 0.0
+    signals: list[str] = []
+    for section in ("positive", "negative"):
+        groups = term_profile.get(section, {})
+        if not isinstance(groups, dict):
+            continue
+        for name, group in groups.items():
+            if not isinstance(group, dict):
+                continue
+            terms = group.get("terms", [])
+            if not isinstance(terms, list):
+                continue
+            hits = [
+                term for term in terms
+                if isinstance(term, str) and f" {normalize_text(term)} " in normalized_evidence
+            ]
+            if not hits:
+                continue
+            weight = float(group.get("weight", 0.0))
+            score += weight
+            signals.append(f"{name}:{'|'.join(hits)}:{weight:+g}")
+    band = (
+        "candidate" if score >= accept_threshold
+        else "borderline" if score >= uncertain_threshold else "reject"
+    )
+    return ScoreResult(round(score, 3), band, tuple(signals))
+
+
+def _keyword_decision(
+    predictions: dict[str, Any], profile: KeywordTaxonomyProfile, screening_band: str,
+) -> str:
+    """Map the configured class field to a decision, retaining the relevance-score gate."""
+    label = str(predictions.get(profile.decision_field, ""))
+    if label in profile.exclude_labels:
+        return "exclude"
+    if label in profile.include_labels:
+        return "accept" if screening_band == "candidate" else "uncertain"
+    return "exclude" if screening_band == "reject" else "uncertain"
 
 
 def _source_contract(source: str) -> tuple[str, str, list[str]]:
@@ -140,15 +361,19 @@ def classify_keyword_baseline(
     cache: PipelineCache,
     term_profile: dict[str, Any],
     config: KeywordBaselineConfig,
+    taxonomy_profile: KeywordTaxonomyProfile,
     *,
     resume: bool = True,
     progress_every: int = 25,
+    adapter_config: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     """Classify every candidate row with an independent, cached keyword decision rule."""
     identity, record_namespace, columns = _source_contract(source)
     candidates = read_csv(candidates_path)
     require_columns(candidates, (identity, "evidence_hash"), candidates_path)
-    profile_hash = keyword_profile_hash(source, term_profile, config)
+    if taxonomy_profile.source != source:
+        raise ValueError(f"keyword taxonomy source must be {source!r}")
+    profile_hash = keyword_profile_hash(source, term_profile, config, taxonomy_profile)
     decision_namespace = f"{source}.baseline.keyword"
     results: list[dict[str, str]] = []
     reused = 0
@@ -179,12 +404,19 @@ def classify_keyword_baseline(
             results.append({str(name): str(value) for name, value in cached.items()})
             reused += 1
             continue
-        scored = score_evidence(
+        scored = score_keyword_evidence(
             evidence, term_profile, config.accept_threshold, config.uncertain_threshold,
         )
-        decision = {
-            "candidate": "accept", "borderline": "uncertain", "reject": "exclude",
-        }[scored.band]
+        predictions, taxonomy_scores, taxonomy_signals = infer_keyword_fields(
+            evidence, taxonomy_profile,
+        )
+        predictions["decision"] = _keyword_decision(predictions, taxonomy_profile, scored.band)
+        if source == "github":
+            from ids_meta.github.baseline import normalize_keyword_result
+        else:
+            from ids_meta.openalex.baseline import normalize_keyword_result
+        normalized = normalize_keyword_result(predictions, candidate, adapter_config or {})
+        decision = normalized["decision"]
         classified_at = utc_now()
         result: dict[str, Any] = dict(candidate)
         result.update({
@@ -195,12 +427,14 @@ def classify_keyword_baseline(
             "classifier_method": "keyword",
             "classifier_id": "keyword-score",
             "classifier_profile_hash": profile_hash,
-            "classifier_supported_fields": "decision",
+            "classifier_supported_fields": normalized["classifier_supported_fields"],
             "classifier_evidence_source": evidence_source,
+            **normalized,
             "decision": decision,
             "primary_reason": (
-                f"Keyword score {scored.score:g}; accept at >= {config.accept_threshold:g}, "
-                f"uncertain at >= {config.uncertain_threshold:g}, otherwise exclude."
+                f"Keyword taxonomy selected {taxonomy_profile.decision_field}="
+                f"{predictions.get(taxonomy_profile.decision_field)}; relevance score "
+                f"{scored.score:g} produced band={scored.band}."
             ),
             "classification_validation_flags": "",
             "evidence_quote_verified": "false",
@@ -211,6 +445,8 @@ def classify_keyword_baseline(
             "keyword_signals": ";".join(scored.signals),
             "keyword_accept_threshold": f"{config.accept_threshold:g}",
             "keyword_uncertain_threshold": f"{config.uncertain_threshold:g}",
+            "keyword_taxonomy_scores_json": json.dumps(taxonomy_scores, sort_keys=True),
+            "keyword_taxonomy_signals_json": json.dumps(taxonomy_signals, ensure_ascii=False, sort_keys=True),
         })
         serialized = {str(name): str(value) for name, value in result.items()}
         cache.put_decision(decision_namespace, key, profile_hash, evidence_hash, serialized, classified_at)

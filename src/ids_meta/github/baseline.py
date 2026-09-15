@@ -21,10 +21,10 @@ def _allowed_list(value: object, allowed: tuple[str, ...], fallback: str = "") -
     return selected or ([fallback] if fallback else [])
 
 
-def normalize_nli_result(
-    predictions: dict[str, Any], _candidate: dict[str, str], config: dict[str, Any],
+def _normalize_result(
+    predictions: dict[str, Any], config: dict[str, Any], classifier_name: str,
 ) -> dict[str, str]:
-    """Map zero-shot semantic labels to decisions without LLM-specific evidence gates."""
+    """Normalize one non-LLM taxonomy result into the GitHub output contract."""
     role = str(predictions.get("role", "uncertain"))
     role = role if role in AUDIT_ROLES else "uncertain"
     scopes = _allowed_list(predictions.get("observation_scopes"), SCOPES, "unknown")
@@ -32,7 +32,9 @@ def normalize_nli_result(
     methods = _allowed_list(predictions.get("detection_methods"), METHODS, "unknown")
     profile = config.get("system_type_profile")
     types = derive_system_types(scopes, capabilities, methods, role, profile)
-    decision = "accept" if role in ROLES else "exclude" if role == "out_of_scope" else "uncertain"
+    derived_decision = "accept" if role in ROLES else "exclude" if role == "out_of_scope" else "uncertain"
+    decision = str(predictions.get("decision", derived_decision))
+    decision = decision if decision in {"accept", "exclude", "uncertain"} else derived_decision
     return {
         "decision": decision, "role": role,
         "observation_scopes": ";".join(scopes), "capabilities": ";".join(capabilities),
@@ -47,9 +49,23 @@ def normalize_nli_result(
         "cohesive_framework_architecture": "unknown", "research_basis": "unknown",
         "upstream_full_name": "", "classification_validation_flags": "",
         "primary_reason": (
-            f"Zero-shot NLI selected role={role}; the baseline maps included roles to accept, "
-            f"out_of_scope to exclude, and low-margin results to uncertain."
+            f"{classifier_name} selected role={role}; configured role and relevance rules "
+            f"map the result to decision={decision}."
         ),
         "evidence_json": "[]", "evidence_quote_verified": "false",
         "classifier_supported_fields": ";".join(SUPPORTED_FIELDS),
     }
+
+
+def normalize_nli_result(
+    predictions: dict[str, Any], _candidate: dict[str, str], config: dict[str, Any],
+) -> dict[str, str]:
+    """Map zero-shot semantic labels to decisions without LLM-specific evidence gates."""
+    return _normalize_result(predictions, config, "Zero-shot NLI")
+
+
+def normalize_keyword_result(
+    predictions: dict[str, Any], _candidate: dict[str, str], config: dict[str, Any],
+) -> dict[str, str]:
+    """Map deterministic keyword labels to the complete GitHub taxonomy contract."""
+    return _normalize_result(predictions, config, "Keyword taxonomy")

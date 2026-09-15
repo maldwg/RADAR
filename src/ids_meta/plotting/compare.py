@@ -144,6 +144,7 @@ METRIC_SPECS = (
     ("definitive_coverage", "Definitive-decision coverage", "root", "definitive_coverage"),
     ("abstention_rate", "Abstention rate", "root", "abstention_rate"),
     ("field_accuracy", "Taxonomy-field exact accuracy", "root", "classification_field_accuracy"),
+    ("field_macro_f1", "Mean taxonomy-field macro-F1", "root", "classification_field_macro_f1"),
 )
 
 
@@ -323,6 +324,108 @@ def build_classifiers(
             f"{interval_caption}; missing bar=not estimable",
         )
         outputs += save_figure(fig, out_dir, f"{number:02d}_{stem}", formats, dpi)
+    field_rows: list[dict[str, object]] = []
+    for label, metrics in loaded.items():
+        directory = evaluation_inputs[label]
+        path = directory / "field_metrics.csv"
+        if not path.is_file():
+            continue
+        method = str(metrics.get("classifier_method", "")) or (
+            "ensemble" if label.casefold() == "ensemble" else "llm"
+        )
+        frame = pd.read_csv(path)
+        for row in frame.to_dict("records"):
+            field_rows.append({
+                "classifier": label,
+                "classifier_method": method,
+                "field": row.get("field", ""),
+                "supported": row.get("supported", ""),
+                "comparisons": row.get("comparisons", ""),
+                "exact_matches": row.get("exact_matches", ""),
+                "exact_accuracy": row.get("exact_accuracy"),
+                "macro_f1": row.get("macro_f1"),
+                "per_label_metrics_json": row.get("per_label_metrics_json", ""),
+            })
+    field_table = pd.DataFrame(field_rows)
+    if not field_table.empty:
+        for number, value_column, title in (
+            (10, "exact_accuracy", "Exact accuracy by taxonomy field"),
+            (11, "macro_f1", "Macro-F1 by taxonomy field"),
+        ):
+            table = field_table.copy()
+            table[value_column] = pd.to_numeric(table[value_column], errors="coerce")
+            write_table(table, out_dir / "data", f"{number:02d}_{value_column}_by_field")
+            pivot = table.pivot(index="field", columns="classifier", values=value_column)
+            pivot = pivot.reindex(columns=labels)
+            fig, ax = plt.subplots(figsize=(max(8, 1.25 * len(labels) + 3), max(4.8, .62 * len(pivot) + 2)))
+            cmap = plt.get_cmap("Blues").copy()
+            cmap.set_bad("#E6E8EB")
+            image = ax.imshow(pivot.astype(float).values, vmin=0, vmax=1, cmap=cmap, aspect="auto")
+            ax.set_xticks(
+                range(len(labels)), labels=[_display_label(label) for label in labels],
+                rotation=25, ha="right",
+            )
+            ax.set_yticks(range(len(pivot)), labels=[str(field).replace("_", " ") for field in pivot.index])
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+            fig.colorbar(image, ax=ax, label=title)
+            ax.set_title(f"{source.title()} — {title}", loc="left", fontweight="bold")
+            stamp(fig, "color encodes the metric; grey=unsupported or not estimable; exact values are in the companion CSV")
+            fig.subplots_adjust(bottom=.30)
+            outputs += save_figure(
+                fig, out_dir, f"{number:02d}_{value_column}_by_field", formats, dpi,
+            )
+    label_rows: list[dict[str, object]] = []
+    for label, metrics in loaded.items():
+        path = evaluation_inputs[label] / "field_label_metrics.csv"
+        if not path.is_file():
+            continue
+        method = str(metrics.get("classifier_method", "")) or (
+            "ensemble" if label.casefold() == "ensemble" else "llm"
+        )
+        frame = pd.read_csv(path)
+        for row in frame.to_dict("records"):
+            label_rows.append({
+                "classifier": label, "classifier_method": method,
+                "field": row.get("field", ""), "label": row.get("label", ""),
+                "tp": row.get("tp", ""), "fp": row.get("fp", ""), "fn": row.get("fn", ""),
+                "precision": row.get("precision"), "recall": row.get("recall"),
+                "f1": row.get("f1"),
+            })
+    label_table = pd.DataFrame(label_rows)
+    if not label_table.empty:
+        label_table["f1"] = pd.to_numeric(label_table["f1"], errors="coerce")
+        write_table(label_table, out_dir / "data", "12_category_f1")
+        label_table["field_label"] = (
+            label_table["field"].astype(str) + ": " + label_table["label"].astype(str)
+        )
+        pivot = label_table.pivot(index="field_label", columns="classifier", values="f1")
+        pivot = pivot.reindex(columns=labels)
+        fig, ax = plt.subplots(figsize=(
+            max(8, 1.25 * len(labels) + 3), max(6, .34 * len(pivot) + 2),
+        ))
+        cmap = plt.get_cmap("Blues").copy()
+        cmap.set_bad("#E6E8EB")
+        image = ax.imshow(pivot.astype(float).values, vmin=0, vmax=1, cmap=cmap, aspect="auto")
+        ax.set_xticks(
+            range(len(labels)), labels=[_display_label(label) for label in labels],
+            rotation=25, ha="right",
+        )
+        ax.set_yticks(
+            range(len(pivot)),
+            labels=[str(value).replace("_", " ") for value in pivot.index],
+            fontsize=7,
+        )
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        fig.colorbar(image, ax=ax, label="One-vs-rest category F1")
+        ax.set_title(
+            f"{source.title()} — F1 for every rated taxonomy category",
+            loc="left", fontweight="bold",
+        )
+        stamp(fig, "one-vs-rest F1; grey=not represented or unsupported; exact TP/FP/FN values are in the companion CSV")
+        fig.subplots_adjust(bottom=.18, left=.28)
+        outputs += save_figure(fig, out_dir, "12_category_f1", formats, dpi)
     available_classifications = {
         label: path for label, path in classification_inputs.items()
         if label in loaded and path.is_file()

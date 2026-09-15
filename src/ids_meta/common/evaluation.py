@@ -291,6 +291,7 @@ def evaluate_results(
         field: {
             "supported": supported_fields is None or field.casefold() in supported_fields,
             "comparisons": 0, "exact": 0, "tp": 0, "fp": 0, "fn": 0,
+            "expected_labels": set(), "label_counts": Counter(),
             "multilabel": field in MULTI_FIELDS[profile.source],
         }
         for field in profile.classification_fields
@@ -387,6 +388,12 @@ def evaluate_results(
             state = field_state[field]
             state["comparisons"] += 1
             state["exact"] += int(exact)
+            state["expected_labels"].update(expected_values)
+            for label in expected_values | actual_values:
+                outcome = "tp" if label in expected_values and label in actual_values else (
+                    "fp" if label in actual_values else "fn"
+                )
+                state["label_counts"][(label, outcome)] += 1
             if field in MULTI_FIELDS[profile.source] or isinstance(expected[field], list):
                 state["multilabel"] = True
                 state["tp"] += len(expected_values & actual_values)
@@ -410,7 +417,9 @@ def evaluate_results(
         })
 
     field_metrics: list[dict[str, Any]] = []
+    field_label_metrics: list[dict[str, Any]] = []
     total_field_comparisons = total_field_exact = 0
+    field_macro_f1_values: list[float] = []
     for field, state in field_state.items():
         comparisons = int(state["comparisons"])
         total_field_comparisons += comparisons
@@ -418,11 +427,36 @@ def evaluate_results(
         multilabel = bool(state["multilabel"])
         precision = _ratio(state["tp"], state["tp"] + state["fp"]) if multilabel else None
         recall = _ratio(state["tp"], state["tp"] + state["fn"]) if multilabel else None
+        per_label: dict[str, dict[str, float | int]] = {}
+        for label in sorted(state["expected_labels"]):
+            tp = int(state["label_counts"][(label, "tp")])
+            fp = int(state["label_counts"][(label, "fp")])
+            fn = int(state["label_counts"][(label, "fn")])
+            label_precision = _ratio(tp, tp + fp)
+            label_recall = _ratio(tp, tp + fn)
+            per_label[label] = {
+                "tp": tp, "fp": fp, "fn": fn,
+                "precision": label_precision, "recall": label_recall,
+                "f1": _f1(label_precision, label_recall),
+            }
+            field_label_metrics.append({
+                "field": field, "label": label, "supported": str(bool(state["supported"])).lower(),
+                "tp": tp, "fp": fp, "fn": fn, "precision": label_precision,
+                "recall": label_recall, "f1": _f1(label_precision, label_recall),
+            })
+        macro_f1 = (
+            sum(float(values["f1"]) for values in per_label.values()) / len(per_label)
+            if per_label and bool(state["supported"]) else None
+        )
+        if macro_f1 is not None:
+            field_macro_f1_values.append(macro_f1)
         field_metrics.append({
             "field": field, "supported": str(bool(state["supported"])).lower(),
             "comparisons": comparisons, "exact_matches": state["exact"],
             "exact_accuracy": _ratio(state["exact"], comparisons) if comparisons else None,
             "label_f1": _f1(precision, recall) if precision is not None and recall is not None else None,
+            "macro_f1": macro_f1,
+            "per_label_metrics_json": json.dumps(per_label, sort_keys=True),
         })
     operational_metrics = _binary_metrics(operational["tp"], operational["fp"], operational["tn"], operational["fn"], binary_total)
     strict_metrics = _binary_metrics(strict["tp"], strict["fp"], strict["tn"], strict["fn"], binary_total)
@@ -446,6 +480,10 @@ def evaluate_results(
         "rated_entities": rated, "actual_entities": len(actual), "unrated_actual_entities": len(set(actual) - matched_actual_ids),
         "decision_accuracy": _ratio(decision_correct, rated),
         "classification_field_accuracy": _ratio(total_field_exact, total_field_comparisons) if total_field_comparisons else None,
+        "classification_field_macro_f1": (
+            sum(field_macro_f1_values) / len(field_macro_f1_values)
+            if field_macro_f1_values else None
+        ),
         "classification_field_comparisons": total_field_comparisons,
         "retrieval_coverage": _ratio(rated - status_counts["not_retrieved"], rated)
         if candidates_supplied and profile.evaluation_unit != "artifact" else None,
@@ -504,9 +542,16 @@ def evaluate_results(
     instances_path = output_dir / "instances.csv"
     confusion_path = output_dir / "decision_confusion.csv"
     fields_path = output_dir / "field_metrics.csv"
+    field_labels_path = output_dir / "field_label_metrics.csv"
     atomic_write_csv(instances_path, instances, instance_columns)
     atomic_write_csv(confusion_path, confusion, ["expected", "actual", "count"])
-    atomic_write_csv(fields_path, field_metrics, ["field", "supported", "comparisons", "exact_matches", "exact_accuracy", "label_f1"])
+    atomic_write_csv(fields_path, field_metrics, [
+        "field", "supported", "comparisons", "exact_matches", "exact_accuracy",
+        "label_f1", "macro_f1", "per_label_metrics_json",
+    ])
+    atomic_write_csv(field_labels_path, field_label_metrics, [
+        "field", "label", "supported", "tp", "fp", "fn", "precision", "recall", "f1",
+    ])
     readme_path = output_dir / "README.md"
     heading = (
         "# Classification evaluation\n\n"
@@ -515,6 +560,7 @@ def evaluate_results(
     field_summary = (
         f"- Metadata field accuracy: {metrics['classification_field_accuracy']:.4f} "
         f"({metrics['classification_field_comparisons']} comparisons)\n"
+        f"- Mean taxonomy-field macro-F1: {metrics['classification_field_macro_f1']:.4f}\n"
         if metrics["classification_field_accuracy"] is not None
         else "- Metadata field accuracy: N/A (classifier does not emit rated taxonomy fields)\n"
     )
@@ -546,5 +592,7 @@ def evaluate_results(
             "Example: if exclusion was expected but the result is uncertain, operational counts a true negative, strict counts a false positive, and selective omits the entity. If inclusion was expected, the same unresolved result is a false negative operationally and strictly, and is omitted selectively.\n"
         )
     readme_path.write_text(heading + body, encoding="utf-8")
-    outputs = [metrics_path, instances_path, confusion_path, fields_path, readme_path]
+    outputs = [
+        metrics_path, instances_path, confusion_path, fields_path, field_labels_path, readme_path,
+    ]
     return EvaluationResult(metrics, instances, field_metrics, confusion, outputs)
