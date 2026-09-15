@@ -172,10 +172,10 @@ text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
 <text x="444" y="946" class="tag" text-anchor="start">OUTPUT</text>
 <text x="498" y="946" class="card-text" text-anchor="start">confusions + coverage + field scores</text>
 <rect x="850" y="825" width="410" height="142" rx="12" class="data-card"/>
-<text x="1055.0" y="851" class="data-title" text-anchor="middle">Evaluation artifacts per model / ensemble</text>
-<text x="868" y="878" class="data-text" text-anchor="start">• metrics.json: DR, FPR, ACC, PREC, F1</text>
-<text x="868" y="898" class="data-text" text-anchor="start">• instances + confusion + field metric CSVs</text>
-<text x="868" y="918" class="data-text" text-anchor="start">• 4 SVG/PDF figures + exact plot data</text>
+<text x="1055.0" y="851" class="data-title" text-anchor="middle">Unified evaluation tree per source</text>
+<text x="868" y="878" class="data-text" text-anchor="start">• comparison: DR, FPR, FDR, ACC, PREC, F1</text>
+<text x="868" y="898" class="data-text" text-anchor="start">• classifier audits: instances + field metrics</text>
+<text x="868" y="918" class="data-text" text-anchor="start">• NLI cutoff sensitivity + exact figure data</text>
 <polyline points="1265,317 1325,317 1325,215 1380,215" class="flow" marker-end="url(#arrow)"/>
 <polyline points="1265,649 1325,649 1325,255 1380,255" class="flow" marker-end="url(#arrow)"/>
 <polyline points="1548,307 1548,345" class="flow" marker-end="url(#arrow)"/>

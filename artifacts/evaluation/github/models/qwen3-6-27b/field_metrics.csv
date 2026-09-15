@@ -1,5 +1,0 @@
-field,comparisons,exact_matches,exact_accuracy,label_f1
-role,24,8,0.3333333333333333,
-observation_scopes,24,9,0.375,0.5957446808510638
-capabilities,24,8,0.3333333333333333,0.5714285714285714
-detection_methods,24,7,0.2916666666666667,0.6470588235294118

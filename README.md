@@ -6,7 +6,8 @@ Both pipelines use the same stages:
 
 ```text
 collection -> recall-oriented keyword prefilter -> row-level Ollama adjudication -> consensus -> reconciliation -> export -> plots
-                                                                                 \-> rated evaluation artifacts
+                         \-> keyword baseline ----\
+                         \-> zero-shot NLI baseline +-> rated evaluation -> unified classifier plots
 ```
 
 The keyword score only controls which records reach the LLM. It is not a final relevance label, and keyword scores/signals are deliberately omitted from model prompts.
@@ -17,6 +18,8 @@ The project targets Python 3.11. The existing thesis environment already contain
 
 ```bash
 /home/max/venv/phd/bin/python -m pip install -e .
+# Include the local zero-shot NLI baseline:
+/home/max/venv/phd/bin/python -m pip install -e '.[nli]'
 ```
 
 Credentials and model selection are environment-only:
@@ -40,6 +43,7 @@ Each stage can be run separately and resumed:
 ids-meta github collect
 ids-meta github prefilter
 ids-meta github classify
+ids-meta github baseline
 ids-meta github evaluate
 ids-meta github reconcile
 ids-meta github export
@@ -48,19 +52,45 @@ ids-meta github plot
 ids-meta openalex collect
 ids-meta openalex prefilter
 ids-meta openalex classify
+ids-meta openalex baseline
 ids-meta openalex evaluate
 ids-meta openalex reconcile
 ids-meta openalex export
 ids-meta openalex plot
 ```
 
-The default OpenAlex ratings remain the balanced 24-paper screening benchmark. The survey-derived dataset benchmark is separate and can be run against existing classifications without collection or reclassification:
+The OpenAlex evaluation is the survey-derived 105-dataset artifact benchmark selected by `paths.openalex_ratings`. A normal `ids-meta openalex run`, `ids-meta openalex evaluate`, or baseline run evaluates it in the root of every classifier's evaluation directory.
+
+The primary survey profile retains the 105 datasets from Table 2 of Ashraf and Masoodi (2026) that belong to the requested types: general network, host/endpoint, IoT/IIoT, cloud, mobile/Android, electrical/smart-grid, UAV, and VPN. It preserves the survey’s original attributes and crosswalks category, format, traffic origin, and label availability into this project’s taxonomy. The other 18 published rows—Botnet, IOV, MANET-network, and satellite categories—are explicitly recorded as excluded profile categories rather than forced into an incorrect type. The article states 124 datasets, but its published table contains 123 rows (1–124 with row 122 absent), which the fixture records explicitly.
+
+The profile is a positive-reference dataset-recall benchmark. Artifact names and aliases are matched first; an accepted release paper cited by the survey is used as a fallback identity match. Because several survey citations are analyses or documentation rather than original releases, all other citation outcomes remain separate diagnostics: classified non-release, classification uncertain/error, retrieved but not classified, not retrieved, or unresolved OpenAlex reference. Consequently, the report separates actual classifier abstention from the unresolved-artifact rate.
+
+### Baselines
+
+Run the deterministic keyword and local zero-shot NLI baselines, evaluate both, and rebuild the unified comparison plots without reclassifying any saved LLM result:
 
 ```bash
-ids-meta openalex evaluate --ratings config/evaluation/openalex_ashraf_2026.toml
+ids-meta github baseline
+ids-meta openalex baseline
+# Or select one method:
+ids-meta github baseline --methods nli
+ids-meta openalex baseline --methods keyword
+# Re-evaluate and replot already saved baseline outputs; no classifier is initialized:
+ids-meta github baseline --evaluate-only
+ids-meta openalex baseline --methods nli --evaluate-only
 ```
 
-That profile contains the datasets and attributes published in Table 2 of Ashraf and Masoodi (2026), then crosswalks category, format, traffic origin, and label availability into this project’s OpenAlex taxonomy. It is a positive-reference dataset-recall benchmark; cited papers are retained only as provenance because several citations are analyses or documentation rather than original releases. The article states 124 datasets, but its published Table 2 contains 123 rows (1–124 with row 122 absent), which the fixture records explicitly rather than filling speculatively. Reports selected with `--ratings` are written below a profile-named subdirectory, keeping the default evaluation intact.
+The command processes every row in the candidate audit, including discovery-band `reject` rows. Keyword relevance thresholds are configured under `[baselines.keyword.github]` and `[baselines.keyword.openalex]`. A result is accepted only when its broad evidence score reaches `accept_threshold` and its configured role is eligible; the middle band abstains, explicit exclusion roles are excluded, and a low-score result without an eligible role is excluded. This keeps the screening gate separate from taxonomy assignment.
+
+Keyword taxonomy rules live in `config/baselines/github_keyword.toml` and `config/baselines/openalex_keyword.toml`. Each source-complete profile defines exclusive or multilabel fields, normalized exact phrases, optional label weights, a minimum score, and an exclusive-label margin. Ties and insufficient evidence use the configured fallback instead of declaration-order guessing. Every label score and matched phrase is retained in the classification CSV, and changing either the screening vocabulary or taxonomy profile invalidates only incompatible cached keyword decisions. These rules are fixed independently of the evaluation fixtures and require no labeled training data.
+
+NLI uses the revision-pinned model and inference settings under `[baselines.nli]`. Source-specific candidate-label hypotheses live in `config/baselines/github_nli.toml` and `config/baselines/openalex_nli.toml`. The strongest two representative evidence chunks are averaged; a label is emitted only when its entailment threshold and winning-label margin pass, otherwise the field abstains. GitHub role and OpenAlex paper role map directly to the decision, while the remaining hypotheses independently produce taxonomy fields. Scores, supporting chunks, model revision, thresholds, evidence source, and inference time are retained in every CSV row. Profile/model/threshold/chunk changes invalidate incompatible NLI cache entries. On resume, compatible decisions may be restored from the decision cache or the existing classification CSV before the transformer backend is constructed.
+
+The predeclared `[baselines.nli.sensitivity]` grid is evaluated by replaying those saved aggregate scores. It never calls the model and never changes the configured operating point. One six-panel heatmap under `classifiers/nli/<model>/sensitivity/` shows what happens as the minimum entailment score and minimum winner gap become stricter; the black outline marks the configured cutoffs. This is a robustness and abstention trade-off diagnostic for the same NLI classifier, not another classifier result and not automatic threshold selection.
+
+Keyword, NLI, each LLM, and the ensemble now declare and emit the same rated taxonomy fields. All rated results now live under one source-oriented root: `artifacts/evaluation/<source>/`. Start with `comparison/00_metric_overview`, which places DR, FNR, FPR, FDR, precision, accuracy, decision-F1, coverage, abstention, and taxonomy scores against every available approach. Larger per-metric figures are under `comparison/metrics/`, taxonomy comparisons under `comparison/taxonomy/`, agreement diagnostics under `comparison/agreement/`, and one-classifier audit details under `classifiers/`. The OpenAlex comparison uses only the survey-derived dataset benchmark. Positive-only fixtures show non-estimable false-positive, false-discovery, accuracy, precision, and decision-F1 results explicitly as N/A rather than drawing misleading values. Exact values, confusion counts, per-label TP/FP/FN, classifier IDs, rating paths, and Wilson intervals are in companion CSVs. Their interval level is set by `evaluation.confidence_level` (0.95 by default), and the normal quantile is derived from that setting rather than hardcoded.
+
+With `[baselines].enabled = true`, complete `run` commands execute the configured baseline methods after the main pipeline and regenerate these comparisons. Explicit `baseline` commands always run regardless of that switch. `ids-meta compare github` or `ids-meta compare openalex` rebuilds comparisons from all evaluated classifier outputs currently present on disk.
 
 `ids-meta run github` and `ids-meta run openalex` execute all stages. Collection and LLM adjudication have separate limits. The audit-oriented defaults retain at most 5,000 records per source and classify every retained row; keyword scores prioritize the work but do not reject an active record:
 
@@ -153,7 +183,7 @@ Each source can also repeat the same classification consecutively with `<source>
 
 The ensemble first maps `accept` and OpenAlex `accept_adjacent` to include, while `exclude` and `uncertain` remain separate dispositions. A unique disposition must reach the threshold among all selected ensemble members. Missing/error results remain in the denominator, and tied or below-threshold votes become `uncertain`. The ensemble CSV preserves the representative classification plus member names, each model decision, exact decision counts, all disposition scores, agreement, and vote status. Its reconciliation is deterministic and does not ask another model to override the vote.
 
-With two or more configured models, outputs are isolated under `data/interim/<source>/models/<model-slug>/`, `data/processed/<source>/models/<model-slug>/`, and `artifacts/plots/<source>/models/<model-slug>/`. Ensemble equivalents use an `ensemble/` directory. Cross-model decision counts, pairwise agreement, and record-level disagreement tables/plots are written to `artifacts/plots/comparisons/<source>/models/`. The shared cache remains safe because decision fingerprints already include the model name. `ids-meta compare <source>` detects this configuration and rebuilds the cross-model bundle. In multi-model or ensemble mode, model-dependent `--output` paths and stage-specific `--input` paths for reconcile, export, or plot are rejected because one file cannot represent every variant; a shared candidate `--input` remains supported for classify and run.
+With two or more configured models, outputs are isolated under `data/interim/<source>/models/<model-slug>/`, `data/processed/<source>/models/<model-slug>/`, and `artifacts/plots/<source>/models/<model-slug>/`. Ensemble equivalents use an `ensemble/` directory. Unrated cross-model decision diagnostics from catalogue plotting are written under `artifacts/plots/<source>/comparison/models/`; rated correctness and agreement comparisons are kept separately under `artifacts/evaluation/<source>/comparison/`. The shared cache remains safe because decision fingerprints already include the model name. `ids-meta compare <source>` rebuilds the rated cross-classifier bundle. In multi-model or ensemble mode, model-dependent `--output` paths and stage-specific `--input` paths for reconcile, export, or plot are rejected because one file cannot represent every variant; a shared candidate `--input` remains supported for classify and run.
 
 Use `--config path/to/config.toml`, `--input`, and `--output` for alternate runs. The default generic discovery queries and weighted concept groups live in `config/terms/`. OpenAlex uses parenthesized `AND`/`OR` synonym blocks across title, abstract, and indexed full text. GitHub uses smaller unparenthesized `OR` groups because repository search does not reliably share OpenAlex's grouping behavior. Production term profiles must contain domain concepts only, never named products, repositories, datasets, or benchmarks.
 
@@ -165,7 +195,7 @@ GitHub system types are defined independently in `config/taxonomy/github_system_
 
 ### Rated evaluation and regression fixtures
 
-Central human ratings live in `config/evaluation/github.toml` and `config/evaluation/openalex.toml`. They match GitHub results by `owner/repository` and OpenAlex results by OpenAlex URL; exact paper-title matching is available as an ambiguity-checked fallback. `ids-meta <source> evaluate` compares saved classifications with those ratings and writes operational, strict, and selective DR/FPR/ACC/PREC/F1 metrics, entity/confusion/field audit tables, and four approachable decision, metadata, and coverage figures under `artifacts/evaluation/`. Every figure has an exact companion CSV under `plot_data/`. Set `[evaluation].enabled = true` to execute this stage automatically after classification in a full run. Multi-model and ensemble results receive separate evaluation directories. See [rated classification evaluation](docs/evaluation.md) for profile examples, exact denominators, missing-result behavior, output files, and tests.
+Central ratings live in `config/evaluation/github.toml` for repositories and `config/evaluation/openalex_ashraf_2026.toml` for the survey-derived dataset benchmark. `ids-meta <source> evaluate` compares saved classifications with those ratings. Each classifier keeps machine-readable audit tables at `artifacts/evaluation/<source>/classifiers/<family>/...`, with its diagnostic figures and companion data isolated below `figures/`. Cross-classifier reporting is in the sibling `comparison/` directory, and a source-level README points to the correct starting figure. Set `[evaluation].enabled = true` to execute this stage automatically after classification in a full run. See [rated classification evaluation](docs/evaluation.md) for profile details, exact denominators, missing-result behavior, output files, and tests.
 
 `ids_meta.common.regression.evaluate_regression(source, expected, rated_entities, classification_fields)` remains available for small plain-dictionary unit fixtures without persisted run artifacts.
 
@@ -174,16 +204,21 @@ Central human ratings live in `config/evaluation/github.toml` and `config/evalua
 - `data/raw/<source>/cache.sqlite3`: resumable API evidence, coverage records, and fingerprinted LLM decisions.
 - `data/interim/github/candidates.csv`: every GitHub prefilter result.
 - `data/interim/github/classifications.csv`: every evaluated GitHub accept/exclude/uncertain/error decision.
+- `data/interim/github/baselines/keyword/classifications.csv`: deterministic keyword role, scope, capability, method, system-type, and decision baseline over the complete candidate audit, including per-label score and matched-term audit.
+- `data/interim/github/baselines/nli/<model-slug>/classifications.csv`: zero-shot NLI role/taxonomy decisions with complete score and evidence-chunk audit.
 - `data/interim/github/reconciled.csv`: complete GitHub audit plus global project-family and canonical fields.
 - `data/processed/github/repositories.csv`: one combined accepted, role-labelled repository catalogue with canonical relationships and explicit `primary_system_type`, `system_types`, and `system_type_names` fields.
 - `data/interim/openalex/paper_candidates.csv`: work-level OpenAlex prefilter results.
 - `data/interim/openalex/survey_sources.csv`: auxiliary survey records used only for reference discovery; these do not consume collection or classification capacity.
 - `data/interim/openalex/classifications.csv`: every evaluated paper decision. `classification_validation_flags` explains why a plausible release remained uncertain, `model_evidence_json` preserves the quotes returned by the model, and `evidence_json` contains only quotes verified against the supplied source section.
+- `data/interim/openalex/baselines/keyword/classifications.csv`: deterministic keyword paper-role, relevance, artifact, domain, representation, capture, labeling, and decision baseline over the complete paper-candidate audit, including per-label score and matched-term audit.
+- `data/interim/openalex/baselines/nli/<model-slug>/classifications.csv`: zero-shot NLI paper-role/taxonomy decisions with complete score and evidence-chunk audit.
 - `data/interim/openalex/reconciled.csv`: complete paper audit plus artifact-family, manifestation, and canonical-base fields.
 - `data/processed/openalex/base_papers.csv`: security-intended dataset and generator base papers. `title` is the publication title, `artifact_name` is the canonical LLM-extracted resource identity, and `artifact_display_name`/`resource_name` is the explicit concise label used in tables and plots.
 - `data/processed/openalex/adjacent_base_papers.csv`: neutral foundational data releases.
 - `artifacts/plots/`: source-specific SVG/PDF catalogue figures plus the exact aggregate CSV behind each plot.
-- `artifacts/evaluation/`: rated-set metrics and auditable instance, confusion, and field tables for each source/model/ensemble.
+- `artifacts/evaluation/<source>/comparison/`: the primary rated cross-approach overview, metric, taxonomy, and agreement figures.
+- `artifacts/evaluation/<source>/classifiers/`: per-classifier metrics, auditable instance/confusion/field tables, diagnostic figures, and NLI sensitivity analysis.
 - `pipeline_architecture.svg`: the combined repository-level data-flow architecture, generated independently with `ids-meta architecture`. Each component states its input data, transformation, and output data.
 - `artifacts/runs/`: configuration fingerprints, source coverage, counts, and the explicit API-coverage limitation for each command.
 
@@ -191,7 +226,7 @@ Popularity fields never determine eligibility or relevance. The default GitHub s
 
 The GitHub plot bundle starts with one tall, scrollable feature matrix of every accepted repository and a lossless `data/00_repository_overview.csv`. It groups repositories by normalized system family and shows role dots, system labels, methods, activity, stars, forks, canonical/variant status, and latest commit time. New collections obtain the exact latest commit timestamp; older cached records transparently use `pushed_at` and mark that fallback in the CSV.
 
-The OpenAlex bundle starts with a scrollable, one-row-per-resource publication timeline. The classifier extracts `artifact_display_name` separately from the publication title: it prefers an explicit short name or acronym, never invents one, and otherwise supplies a concise evidence-grounded descriptor. Existing pre-`openalex-3` rows fall back to their shortest recorded canonical name or alias until they are reclassified.
+The OpenAlex bundle starts with a scrollable publication timeline: publication year is on x, citations use zero-safe logarithmic spacing on y, color identifies the dataset domain, and marker shape distinguishes datasets, generators, and combined dataset/generator releases. Same-year points receive small deterministic horizontal offsets. Every resource name is placed in a compact bordered callout connected to its marker by a domain-colored leader line; callouts are collision-spread within each year, and the vector canvas scales moderately with both result count and maximum same-year density. Point and label coordinates are recorded in the companion CSV. The classifier extracts `artifact_display_name` separately from the publication title: it prefers an explicit short name or acronym, never invents one, and otherwise supplies a concise evidence-grounded descriptor. Existing pre-`openalex-3` rows fall back to their shortest recorded canonical name or alias until they are reclassified.
 
 The remaining figures deliberately avoid overloaded scatterplots. Citation context is an ordered dot plot whose logarithmically spaced axis is labelled with actual citation counts. Discovery provenance is an exact row matrix showing direct search, survey snowballing, and the number of distinct surveys citing each accepted resource; auxiliary survey papers remain in their separate survey-source figure. Domain/data-form and capture/label relationships are annotated count heatmaps; growth uses cumulative counts with integer axes; and classifier outcomes show counts plus within-prefilter-band percentages. Survey sources use three aligned panels for retrieval score, citations, and referenced-work count. Labels occupy dedicated rows rather than being placed on top of data points. Exact citation, provenance, score, and identifier tables are exported beside every figure. Large SVG/PDF canvases are intended for scrolling and zooming.
 

@@ -11,3 +11,9 @@ artifacts/runs/
 **/*.csv
 **/*.svg
 **/*.pdf
+
+# Rated evaluation reports are versioned research artifacts. Keep their figures
+# and companion tables visible after the evaluation tree is regenerated.
+!artifacts/evaluation/**/*.csv
+!artifacts/evaluation/**/*.svg
+!artifacts/evaluation/**/*.pdf

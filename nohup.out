@@ -980,3 +980,76 @@ ids-meta: error: argument command: invalid choice: 'openalex.log' (choose from '
 2026-09-11T12:57:09Z INFO    ids_meta.run: wrote run manifest /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/runs/2026-09-11-af945db702.json
 2026-09-11T12:57:09Z INFO    ids_meta.cli: completed multi-model command source=openalex stage=plot counts={'plot_files': 93}
 2026-09-11T12:57:09Z INFO    ids_meta.cli: command summary plot_files=93
+2026-09-15T09:12:57Z INFO    ids_meta.cli: loaded configuration /home/max/Doktorarbeit/dataset-and-ids-metastudy/config/default.toml
+2026-09-15T09:12:57Z INFO    ids_meta.cli: starting multi-model command source=github stage=plot run_id=2026-09-15-0f98a5686a models=gemma4:31b,gpt-oss:20b,qwen3.8:27b,gpt-oss:120b,qwen3:235b ensemble=True
+2026-09-15T09:12:57Z INFO    ids_meta.plotting.github: building GitHub plots input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/github/models/gemma4-31b/repositories.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b
+2026-09-15T09:12:57Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/github/models/gemma4-31b/repositories.csv rows=62 columns=95
+2026-09-15T09:12:59Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/00_repository_overview.svg
+2026-09-15T09:13:00Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/00_repository_overview.pdf
+2026-09-15T09:13:00Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/01_repository_timeline.svg
+2026-09-15T09:13:00Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/01_repository_timeline.pdf
+2026-09-15T09:13:00Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/02_role_type_matrix.svg
+2026-09-15T09:13:00Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/02_role_type_matrix.pdf
+2026-09-15T09:13:00Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/03_repository_relationships.svg
+2026-09-15T09:13:00Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/03_repository_relationships.pdf
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/04_detection_method_type_matrix.svg
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/04_detection_method_type_matrix.pdf
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/05_activity.svg
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/05_activity.pdf
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/06_metadata_completeness.svg
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/06_metadata_completeness.pdf
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/07_common_tags.svg
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/07_common_tags.pdf
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/08_discovery_sources.svg
+2026-09-15T09:13:01Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/08_discovery_sources.pdf
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/09_classification_audit.svg
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/09_classification_audit.pdf
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/10_evidence_escalation.svg
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/10_evidence_escalation.pdf
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/11_keyword_score_vs_decision.svg
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/11_keyword_score_vs_decision.pdf
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/12_why_not_included.svg
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/12_why_not_included.pdf
+2026-09-15T09:13:02Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b/README.md
+2026-09-15T09:13:02Z INFO    ids_meta.plotting.github: GitHub plot bundle complete files=27 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gemma4-31b
+2026-09-15T09:13:02Z INFO    ids_meta.plotting.github: building GitHub plots input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/github/models/gpt-oss-20b/repositories.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/github/models/gpt-oss-20b
+2026-09-15T09:13:02Z ERROR   ids_meta.cli: command failed: [Errno 2] No such file or directory: '/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/github/models/gpt-oss-20b/repositories.csv'
+2026-09-15T09:13:07Z INFO    ids_meta.cli: loaded configuration /home/max/Doktorarbeit/dataset-and-ids-metastudy/config/default.toml
+2026-09-15T09:13:07Z INFO    ids_meta.cli: starting multi-model command source=openalex stage=plot run_id=2026-09-15-733edea6bc models=gemma4:31b,gpt-oss:20b,qwen3.8:27b,gpt-oss:120b,qwen3:235b ensemble=True
+2026-09-15T09:13:07Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-09-15T09:13:07Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/base_papers.csv rows=60 columns=90
+2026-09-15T09:13:07Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gemma4-31b/adjacent_base_papers.csv rows=1 columns=90
+2026-09-15T09:13:07Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.svg
+2026-09-15T09:13:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/00_publication_timeline.pdf
+2026-09-15T09:13:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.svg
+2026-09-15T09:13:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/01_citation_landscape.pdf
+2026-09-15T09:13:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.svg
+2026-09-15T09:13:08Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_type_domain_overview.pdf
+2026-09-15T09:13:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.svg
+2026-09-15T09:13:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/02_discovery_provenance.pdf
+2026-09-15T09:13:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_contribution.svg
+2026-09-15T09:13:09Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/10_discovery_source_contribution.pdf
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_growth_by_type_and_domain.svg
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/03_cumulative_growth_by_type_and_domain.pdf
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.svg
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/04_domain_data_form.pdf
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.svg
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/05_capture_environment_labeling.pdf
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.svg
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/06_metadata_completeness.pdf
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/gemma4-31b/classifications.csv rows=500 columns=82
+2026-09-15T09:13:10Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.svg
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/07_classification_audit.pdf
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_evidence_escalation.svg
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/09_evidence_escalation.pdf
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/11_keyword_score_vs_decision.svg
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/11_keyword_score_vs_decision.pdf
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/12_why_not_included.svg
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/12_why_not_included.pdf
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: loaded plotting input /home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/survey_sources.csv rows=770 columns=30
+2026-09-15T09:13:11Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.svg
+2026-09-15T09:13:12Z INFO    ids_meta.plotting: wrote figure /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/08_survey_sources.pdf
+2026-09-15T09:13:12Z INFO    ids_meta.plotting: wrote plot bundle index /home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b/README.md
+2026-09-15T09:13:12Z INFO    ids_meta.plotting.openalex: OpenAlex plot bundle complete canonical_artifacts=56 files=29 output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gemma4-31b
+2026-09-15T09:13:12Z INFO    ids_meta.plotting.openalex: building OpenAlex plots core_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gpt-oss-20b/base_papers.csv adjacent_input=/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gpt-oss-20b/adjacent_base_papers.csv output=/home/max/Doktorarbeit/dataset-and-ids-metastudy/artifacts/plots/openalex/models/gpt-oss-20b
+2026-09-15T09:13:12Z ERROR   ids_meta.cli: command failed: [Errno 2] No such file or directory: '/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/processed/openalex/models/gpt-oss-20b/base_papers.csv'

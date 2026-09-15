@@ -128,6 +128,7 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(metrics["operational"]["fn"], 2)
             self.assertAlmostEqual(metrics["operational"]["DR"], 1 / 3)
             self.assertAlmostEqual(metrics["operational"]["FPR"], 1 / 2)
+            self.assertAlmostEqual(metrics["operational"]["FDR"], 1 / 2)
             self.assertAlmostEqual(metrics["operational"]["ACC"], 2 / 5)
             self.assertAlmostEqual(metrics["operational"]["PREC"], 1 / 2)
             self.assertEqual({key: metrics["strict"][key] for key in ("tp", "fp", "tn", "fn")}, {"tp": 1, "fp": 2, "tn": 0, "fn": 2})
@@ -254,6 +255,11 @@ class EvaluationTests(unittest.TestCase):
                 load_rating_profile(profile_path, "openalex"), actual, root / "evaluation", candidates,
             )
             self.assertEqual(result.metrics["evaluation_unit"], "artifact")
+            self.assertIn("false_discovery_rate", result.metrics["not_estimable_metrics"])
+            self.assertIsNone(result.metrics["operational"]["FPR"])
+            self.assertIsNone(result.metrics["operational"]["FDR"])
+            self.assertIsNone(result.metrics["operational"]["ACC"])
+            self.assertIsNone(result.metrics["confidence_intervals"]["false_discovery_rate"])
             self.assertEqual(result.metrics["operational"]["tp"], 2)
             self.assertEqual(result.metrics["operational"]["fn"], 5)
             self.assertEqual(result.metrics["status_counts"], {
@@ -311,21 +317,21 @@ class EvaluationTests(unittest.TestCase):
             output_dir = root / "evaluation"
             evaluate_results(profile, classifications, output_dir, candidates)
             outputs = build_evaluation_plots(output_dir, {"formats": ["svg"], "dpi": 72})
-            self.assertEqual([output.name for output in outputs], [
-                "01_decision_performance.svg", "02_decision_confusion.svg",
-                "03_field_accuracy.svg", "04_coverage_and_status.svg",
+            self.assertEqual([str(output.relative_to(output_dir)) for output in outputs], [
+                "figures/01_decision_views.svg", "figures/02_decision_confusion.svg",
+                "figures/03_taxonomy_fields.svg", "figures/04_pipeline_coverage.svg",
             ])
             self.assertTrue(all(output.is_file() and output.stat().st_size > 1000 for output in outputs))
             self.assertEqual(
-                {item.name for item in (output_dir / "plot_data").iterdir()},
-                {"01_decision_performance.csv", "02_decision_confusion.csv", "03_field_accuracy.csv", "04_coverage_rates.csv", "04_status_counts.csv"},
+                {item.name for item in (output_dir / "figures/data").iterdir()},
+                {"01_decision_views.csv", "02_decision_confusion.csv", "03_taxonomy_fields.csv", "04_coverage_rates.csv", "04_status_counts.csv"},
             )
             readme = (output_dir / "README.md").read_text(encoding="utf-8")
             self.assertIn("Metadata field accuracy", readme)
             self.assertIn("Interpreting the three views", readme)
             self.assertIn("definitive coverage and abstention rate", readme)
-            self.assertIn("03_field_accuracy.svg", readme)
-            field_svg = (output_dir / "03_field_accuracy.svg").read_text(encoding="utf-8")
+            self.assertIn("figures/03_taxonomy_fields.svg", readme)
+            field_svg = (output_dir / "figures/03_taxonomy_fields.svg").read_text(encoding="utf-8")
             self.assertIn("Label F1", field_svg)
             self.assertNotIn("Jaccard", field_svg)
 
@@ -414,8 +420,8 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(openalex_counts["evaluation_tn"], 1)
             self.assertTrue((root / "github-report/metrics.json").is_file())
             self.assertTrue((root / "openalex-report/metrics.json").is_file())
-            self.assertTrue((root / "github-report/03_field_accuracy.svg").is_file())
-            self.assertTrue((root / "openalex-report/04_coverage_and_status.svg").is_file())
+            self.assertTrue((root / "github-report/figures/03_taxonomy_fields.svg").is_file())
+            self.assertTrue((root / "openalex-report/figures/04_pipeline_coverage.svg").is_file())
             manifests = list((root / "runs").glob("*.json"))
             self.assertEqual(len(manifests), 2)
 
@@ -455,7 +461,13 @@ class EvaluationTests(unittest.TestCase):
                 paths = _execution_paths(settings, source, models)
                 for model in models:
                     self.assertTrue((paths[model]["evaluation"] / "metrics.json").is_file())
+                    self.assertEqual(
+                        paths[model]["evaluation"].relative_to(root / "evaluation" / source),
+                        Path("classifiers/llm") / model,
+                    )
                 self.assertTrue((_variant_paths(settings, source, Path("ensemble"))["evaluation"] / "metrics.json").is_file())
+                self.assertTrue((root / "evaluation" / source / "README.md").is_file())
+                self.assertTrue((root / "evaluation" / source / "comparison/00_metric_overview.svg").is_file())
 
 
 if __name__ == "__main__":
