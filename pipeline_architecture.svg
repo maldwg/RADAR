@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1240" viewBox="0 0 1800 1240" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1470" viewBox="0 0 1900 1470" role="img" aria-labelledby="title description">
 <title id="title">IDS meta-study pipeline architecture</title>
-<desc id="description">Data-flow architecture for OpenAlex and GitHub discovery, classification consensus, validation, rated evaluation, reconciliation, and export.</desc>
+<desc id="description">Data-flow architecture for OpenAlex and GitHub discovery, keyword, zero-shot NLI, LLM and ensemble classification, rated evaluation, reconciliation, plotting, and export.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#526979"/></marker>
 <style>
@@ -14,10 +14,10 @@ text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
 .legend { font-size: 11px; fill: #60717d; }
 </style></defs>
 <text x="48" y="45" class="title" text-anchor="start">IDS meta-study pipeline architecture</text>
-<text x="48" y="72" class="subtitle" text-anchor="start">Components transform data; connectors name transferred records; dashed boxes mark persistent data boundaries.</text>
+<text x="48" y="72" class="subtitle" text-anchor="start">Discovery feeds comparable classifier families; rated evaluation and catalogue reporting remain separate outputs.</text>
 <rect x="40" y="105" width="1260" height="400" rx="18" fill="#f5f9fc" class="section"/>
 <text x="60" y="134" class="section-title" text-anchor="start">OpenAlex discovery</text>
-<text x="60" y="155" class="section-subtitle" text-anchor="start">Publisher-diverse survey and paper seeds drive convergent backward snowballing (configurable depth ≤ 10).</text>
+<text x="60" y="155" class="section-subtitle" text-anchor="start">Direct queries and survey references form one deduplicated paper pool before evidence-based screening.</text>
 <text x="65" y="166" class="tag" text-anchor="start">DIRECT WORK BRANCH</text>
 <rect x="65" y="180" width="245" height="118" rx="12" class="card" fill="#e8f1f7"/>
 <text x="79" y="205" class="card-title" text-anchor="start">Direct query sampler</text>
@@ -111,96 +111,140 @@ text { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #253746; }
 <polyline points="310,649 365,649" class="flow" marker-end="url(#arrow)"/>
 <polyline points="610,649 665,649" class="flow" marker-end="url(#arrow)"/>
 <polyline points="940,649 995,649" class="flow" marker-end="url(#arrow)"/>
-<rect x="1335" y="105" width="425" height="1085" rx="18" fill="#faf9f5" class="section"/>
-<text x="1355" y="134" class="section-title" text-anchor="start">Shared classification, reconciliation, and export</text>
-<text x="1355" y="155" class="section-subtitle" text-anchor="start">Both sources cross the same auditable data boundaries.</text>
-<rect x="1380" y="165" width="335" height="142" rx="12" class="data-card"/>
-<text x="1547.5" y="191" class="data-title" text-anchor="middle">Candidate evidence boundary</text>
-<text x="1398" y="218" class="data-text" text-anchor="start">• candidate CSV row</text>
-<text x="1398" y="238" class="data-text" text-anchor="start">• stable cache key</text>
-<text x="1398" y="258" class="data-text" text-anchor="start">• metadata / README / abstract sections</text>
-<rect x="1380" y="345" width="335" height="118" rx="12" class="card" fill="#fff2de"/>
-<text x="1394" y="370" class="card-title" text-anchor="start">Repeated LLM classification</text>
-<text x="1394" y="396" class="tag" text-anchor="start">INPUT</text>
-<text x="1448" y="396" class="card-text" text-anchor="start">candidate row + evidence sections</text>
-<text x="1394" y="421" class="tag" text-anchor="start">DO</text>
-<text x="1448" y="421" class="card-text" text-anchor="start">vote; enrich + restart unresolved round</text>
-<text x="1394" y="446" class="tag" text-anchor="start">OUTPUT</text>
-<text x="1448" y="446" class="card-text" text-anchor="start">consensus + evidence-escalation audit</text>
-<rect x="1380" y="525" width="335" height="118" rx="12" class="card" fill="#fff2de"/>
-<text x="1394" y="550" class="card-title" text-anchor="start">Decision + field consensus</text>
-<text x="1394" y="576" class="tag" text-anchor="start">INPUT</text>
-<text x="1448" y="576" class="card-text" text-anchor="start">all normalized run rows</text>
-<text x="1394" y="601" class="tag" text-anchor="start">DO</text>
-<text x="1448" y="601" class="card-text" text-anchor="start">threshold-vote scalar + multi-label fields</text>
-<text x="1394" y="626" class="tag" text-anchor="start">OUTPUT</text>
-<text x="1448" y="626" class="card-text" text-anchor="start">voted tuple + complete vote audit</text>
-<rect x="1380" y="705" width="335" height="118" rx="12" class="card" fill="#fff2de"/>
-<text x="1394" y="730" class="card-title" text-anchor="start">Cross-field validator</text>
-<text x="1394" y="756" class="tag" text-anchor="start">INPUT</text>
-<text x="1448" y="756" class="card-text" text-anchor="start">voted tuple + taxonomy rules</text>
-<text x="1394" y="781" class="tag" text-anchor="start">DO</text>
-<text x="1448" y="781" class="card-text" text-anchor="start">check coherence; use audited fallback</text>
-<text x="1394" y="806" class="tag" text-anchor="start">OUTPUT</text>
-<text x="1448" y="806" class="card-text" text-anchor="start">validated or uncertain classification</text>
-<rect x="1380" y="885" width="335" height="118" rx="12" class="card" fill="#eeeaf7"/>
-<text x="1394" y="910" class="card-title" text-anchor="start">Reconcile + export</text>
-<text x="1394" y="936" class="tag" text-anchor="start">INPUT</text>
-<text x="1448" y="936" class="card-text" text-anchor="start">validated classification rows</text>
-<text x="1394" y="961" class="tag" text-anchor="start">DO</text>
-<text x="1448" y="961" class="card-text" text-anchor="start">group families and select canonical base</text>
-<text x="1394" y="986" class="tag" text-anchor="start">OUTPUT</text>
-<text x="1448" y="986" class="card-text" text-anchor="start">accepted catalogues + audit rows</text>
-<rect x="1380" y="1050" width="335" height="122" rx="12" class="data-card"/>
-<text x="1547.5" y="1076" class="data-title" text-anchor="middle">Persisted outputs</text>
-<text x="1398" y="1103" class="data-text" text-anchor="start">• interim classifications / reconciled CSV</text>
-<text x="1398" y="1123" class="data-text" text-anchor="start">• processed OpenAlex and GitHub catalogues</text>
-<rect x="40" y="760" width="1260" height="430" rx="18" fill="#f8f6fb" class="section"/>
+<rect x="1335" y="105" width="525" height="1305" rx="18" fill="#faf9f5" class="section"/>
+<text x="1355" y="134" class="section-title" text-anchor="start">Classification and catalogue reporting</text>
+<text x="1355" y="155" class="section-subtitle" text-anchor="start">Comparable classifiers; only LLM and Ensemble feed catalogues.</text>
+<rect x="1370" y="165" width="455" height="142" rx="12" class="data-card"/>
+<text x="1597.5" y="191" class="data-title" text-anchor="middle">Candidate evidence boundary</text>
+<text x="1388" y="218" class="data-text" text-anchor="start">• candidate CSV + stable source ID</text>
+<text x="1388" y="238" class="data-text" text-anchor="start">• cached metadata and README / abstract evidence</text>
+<text x="1388" y="258" class="data-text" text-anchor="start">• source taxonomy and classifier configuration</text>
+<rect x="1370" y="335" width="455" height="118" rx="12" class="card" fill="#fff2de"/>
+<text x="1384" y="360" class="card-title" text-anchor="start">Comparable classifier runners</text>
+<text x="1384" y="386" class="tag" text-anchor="start">INPUT</text>
+<text x="1438" y="386" class="card-text" text-anchor="start">candidate evidence + source taxonomy</text>
+<text x="1384" y="411" class="tag" text-anchor="start">DO</text>
+<text x="1438" y="411" class="card-text" text-anchor="start">keyword rules | zero-shot NLI | repeated LLM</text>
+<text x="1384" y="436" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1438" y="436" class="card-text" text-anchor="start">method predictions + saved score / vote audits</text>
+<rect x="1370" y="500" width="455" height="118" rx="12" class="card" fill="#fff2de"/>
+<text x="1384" y="525" class="card-title" text-anchor="start">Normalize, vote, and ensemble</text>
+<text x="1384" y="551" class="tag" text-anchor="start">INPUT</text>
+<text x="1438" y="551" class="card-text" text-anchor="start">method predictions + repeated LLM runs</text>
+<text x="1384" y="576" class="tag" text-anchor="start">DO</text>
+<text x="1438" y="576" class="card-text" text-anchor="start">normalize all; vote LLM runs; combine models</text>
+<text x="1384" y="601" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1438" y="601" class="card-text" text-anchor="start">per-approach decision + taxonomy rows</text>
+<rect x="1370" y="665" width="455" height="118" rx="12" class="card" fill="#fff2de"/>
+<text x="1384" y="690" class="card-title" text-anchor="start">Validation and audit</text>
+<text x="1384" y="716" class="tag" text-anchor="start">INPUT</text>
+<text x="1438" y="716" class="card-text" text-anchor="start">classifier rows + deterministic field rules</text>
+<text x="1384" y="741" class="tag" text-anchor="start">DO</text>
+<text x="1438" y="741" class="card-text" text-anchor="start">normalize; check coherence; record evidence</text>
+<text x="1384" y="766" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1438" y="766" class="card-text" text-anchor="start">validated rows + reasons + saved NLI scores</text>
+<rect x="1370" y="830" width="455" height="142" rx="12" class="data-card"/>
+<text x="1597.5" y="856" class="data-title" text-anchor="middle">Classifier result families</text>
+<text x="1388" y="883" class="data-text" text-anchor="start">• classifiers/keyword</text>
+<text x="1388" y="903" class="data-text" text-anchor="start">• classifiers/nli/&lt;model&gt;</text>
+<text x="1388" y="923" class="data-text" text-anchor="start">• classifiers/llm/&lt;model&gt; and classifiers/ensemble</text>
+<rect x="1370" y="1015" width="455" height="118" rx="12" class="card" fill="#eeeaf7"/>
+<text x="1384" y="1040" class="card-title" text-anchor="start">Reconcile production results</text>
+<text x="1384" y="1066" class="tag" text-anchor="start">INPUT</text>
+<text x="1438" y="1066" class="card-text" text-anchor="start">validated LLM / ensemble classifications</text>
+<text x="1384" y="1091" class="tag" text-anchor="start">DO</text>
+<text x="1438" y="1091" class="card-text" text-anchor="start">group releases or forks; rank canonical member</text>
+<text x="1384" y="1116" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1438" y="1116" class="card-text" text-anchor="start">reconciled families + accepted rows</text>
+<rect x="1370" y="1180" width="455" height="118" rx="12" class="card" fill="#e9eef8"/>
+<text x="1384" y="1205" class="card-title" text-anchor="start">Catalogue plotter and export</text>
+<text x="1384" y="1231" class="tag" text-anchor="start">INPUT</text>
+<text x="1438" y="1231" class="card-text" text-anchor="start">reconciled families + accepted catalogues</text>
+<text x="1384" y="1256" class="tag" text-anchor="start">DO</text>
+<text x="1438" y="1256" class="card-text" text-anchor="start">build descriptive role, domain, and timeline views</text>
+<text x="1384" y="1281" class="tag" text-anchor="start">OUTPUT</text>
+<text x="1438" y="1281" class="card-text" text-anchor="start">processed CSV + artifacts/plots/&lt;source&gt;</text>
+<rect x="40" y="760" width="1260" height="650" rx="18" fill="#f8f6fb" class="section"/>
 <text x="60" y="789" class="section-title" text-anchor="start">Rated classification evaluation</text>
-<text x="60" y="810" class="section-subtitle" text-anchor="start">A separate offline branch resolves readable source selectors and compares results with versioned human ratings.</text>
-<rect x="65" y="835" width="300" height="142" rx="12" class="data-card"/>
-<text x="215.0" y="861" class="data-title" text-anchor="middle">Central rating profiles</text>
-<text x="83" y="888" class="data-text" text-anchor="start">• config/evaluation/&lt;source&gt;.toml</text>
-<text x="83" y="908" class="data-text" text-anchor="start">• expected include / exclude decision</text>
-<text x="83" y="928" class="data-text" text-anchor="start">• expected normalized field values</text>
-<rect x="430" y="845" width="350" height="118" rx="12" class="card" fill="#eeeaf7"/>
-<text x="444" y="870" class="card-title" text-anchor="start">Result evaluator</text>
-<text x="444" y="896" class="tag" text-anchor="start">INPUT</text>
-<text x="498" y="896" class="card-text" text-anchor="start">ratings + classifications + candidates</text>
-<text x="444" y="921" class="tag" text-anchor="start">DO</text>
-<text x="498" y="921" class="card-text" text-anchor="start">resolve readable selectors; score three metric views</text>
-<text x="444" y="946" class="tag" text-anchor="start">OUTPUT</text>
-<text x="498" y="946" class="card-text" text-anchor="start">confusions + coverage + field scores</text>
-<rect x="850" y="825" width="410" height="142" rx="12" class="data-card"/>
-<text x="1055.0" y="851" class="data-title" text-anchor="middle">Unified evaluation tree per source</text>
-<text x="868" y="878" class="data-text" text-anchor="start">• comparison: DR, FPR, FDR, ACC, PREC, F1</text>
-<text x="868" y="898" class="data-text" text-anchor="start">• classifier audits: instances + field metrics</text>
-<text x="868" y="918" class="data-text" text-anchor="start">• NLI cutoff sensitivity + exact figure data</text>
-<polyline points="1265,317 1325,317 1325,215 1380,215" class="flow" marker-end="url(#arrow)"/>
-<polyline points="1265,649 1325,649 1325,255 1380,255" class="flow" marker-end="url(#arrow)"/>
-<polyline points="1548,307 1548,345" class="flow" marker-end="url(#arrow)"/>
-<rect x="1464.6" y="316" width="166.8" height="20" rx="7" class="flow-label-bg"/>
-<text x="1548" y="331" class="flow-label" text-anchor="middle">candidate row + evidence</text>
-<polyline points="1548,463 1548,525" class="flow" marker-end="url(#arrow)"/>
-<rect x="1480.1" y="484" width="135.8" height="20" rx="7" class="flow-label-bg"/>
-<text x="1548" y="499" class="flow-label" text-anchor="middle">normalized run rows</text>
-<polyline points="1548,643 1548,705" class="flow" marker-end="url(#arrow)"/>
-<rect x="1461.5" y="664" width="173.0" height="20" rx="7" class="flow-label-bg"/>
-<text x="1548" y="679" class="flow-label" text-anchor="middle">voted tuple + field audit</text>
-<polyline points="1548,823 1548,885" class="flow" marker-end="url(#arrow)"/>
-<rect x="1464.6" y="844" width="166.8" height="20" rx="7" class="flow-label-bg"/>
-<text x="1548" y="859" class="flow-label" text-anchor="middle">validated classification</text>
-<polyline points="1380,775 1320,775 1320,904 780,904" class="flow" marker-end="url(#arrow)"/>
-<rect x="989.9" y="885" width="210.20000000000002" height="20" rx="7" class="flow-label-bg"/>
-<text x="1095" y="900" class="flow-label" text-anchor="middle">classification + candidate rows</text>
-<polyline points="365,904 430,904" class="flow" marker-end="url(#arrow)"/>
-<rect x="347.7" y="885" width="98.60000000000001" height="20" rx="7" class="flow-label-bg"/>
-<text x="397" y="900" class="flow-label" text-anchor="middle">human ratings</text>
-<polyline points="780,904 850,904" class="flow" marker-end="url(#arrow)"/>
-<rect x="756.4" y="885" width="117.2" height="20" rx="7" class="flow-label-bg"/>
-<text x="815" y="900" class="flow-label" text-anchor="middle">auditable scores</text>
-<polyline points="1548,1003 1548,1050" class="flow" marker-end="url(#arrow)"/>
-<rect x="1464.6" y="1015" width="166.8" height="20" rx="7" class="flow-label-bg"/>
-<text x="1548" y="1030" class="flow-label" text-anchor="middle">families + accepted rows</text>
-<text x="48" y="1218" class="legend" text-anchor="start">Solid cards transform data  •  Dashed cards persist or transfer data  •  x = per-query sample size  •  y = selected collection size</text>
+<text x="60" y="810" class="section-subtitle" text-anchor="start">Offline scoring compares Keyword, NLI, every LLM, and Ensemble on the same versioned source benchmark.</text>
+<rect x="65" y="835" width="320" height="142" rx="12" class="data-card"/>
+<text x="225.0" y="861" class="data-title" text-anchor="middle">Central rating profiles</text>
+<text x="83" y="888" class="data-text" text-anchor="start">• GitHub: stratified positive + negative repos</text>
+<text x="83" y="908" class="data-text" text-anchor="start">• OpenAlex: 105 positive reference datasets</text>
+<text x="83" y="928" class="data-text" text-anchor="start">• expected decision + rated taxonomy fields</text>
+<rect x="65" y="1050" width="320" height="162" rx="12" class="data-card"/>
+<text x="225.0" y="1076" class="data-title" text-anchor="middle">Comparable classifier inputs</text>
+<text x="83" y="1103" class="data-text" text-anchor="start">• Keyword</text>
+<text x="83" y="1123" class="data-text" text-anchor="start">• zero-shot NLI</text>
+<text x="83" y="1143" class="data-text" text-anchor="start">• each LLM model</text>
+<text x="83" y="1163" class="data-text" text-anchor="start">• Ensemble</text>
+<rect x="445" y="845" width="365" height="118" rx="12" class="card" fill="#eeeaf7"/>
+<text x="459" y="870" class="card-title" text-anchor="start">Result evaluator</text>
+<text x="459" y="896" class="tag" text-anchor="start">INPUT</text>
+<text x="513" y="896" class="card-text" text-anchor="start">ratings + classifier rows + candidates</text>
+<text x="459" y="921" class="tag" text-anchor="start">DO</text>
+<text x="513" y="921" class="card-text" text-anchor="start">resolve fixtures; score operational / strict / selective</text>
+<text x="459" y="946" class="tag" text-anchor="start">OUTPUT</text>
+<text x="513" y="946" class="card-text" text-anchor="start">confusions + coverage + taxonomy metrics</text>
+<rect x="445" y="1030" width="365" height="118" rx="12" class="card" fill="#e9eef8"/>
+<text x="459" y="1055" class="card-title" text-anchor="start">NLI sensitivity replay</text>
+<text x="459" y="1081" class="tag" text-anchor="start">INPUT</text>
+<text x="513" y="1081" class="card-text" text-anchor="start">saved NLI scores + configured cutoff grid</text>
+<text x="459" y="1106" class="tag" text-anchor="start">DO</text>
+<text x="513" y="1106" class="card-text" text-anchor="start">replay score / winner-gap thresholds offline</text>
+<text x="459" y="1131" class="tag" text-anchor="start">OUTPUT</text>
+<text x="513" y="1131" class="card-text" text-anchor="start">six-panel robustness heatmap + exact CSV</text>
+<rect x="865" y="845" width="390" height="118" rx="12" class="card" fill="#e9eef8"/>
+<text x="879" y="870" class="card-title" text-anchor="start">Cross-approach plotter</text>
+<text x="879" y="896" class="tag" text-anchor="start">INPUT</text>
+<text x="933" y="896" class="card-text" text-anchor="start">all compatible evaluator outputs</text>
+<text x="879" y="921" class="tag" text-anchor="start">DO</text>
+<text x="933" y="921" class="card-text" text-anchor="start">align metrics, taxonomy, and agreement</text>
+<text x="879" y="946" class="tag" text-anchor="start">OUTPUT</text>
+<text x="933" y="946" class="card-text" text-anchor="start">overview + drill-down comparisons</text>
+<rect x="865" y="1030" width="390" height="162" rx="12" class="data-card"/>
+<text x="1060.0" y="1056" class="data-title" text-anchor="middle">artifacts/evaluation/&lt;source&gt;</text>
+<text x="883" y="1083" class="data-text" text-anchor="start">• comparison/{metrics,taxonomy,agreement}</text>
+<text x="883" y="1103" class="data-text" text-anchor="start">• classifiers/{keyword,nli,llm,ensemble}</text>
+<text x="883" y="1123" class="data-text" text-anchor="start">• per-classifier figures + auditable CSVs</text>
+<text x="883" y="1143" class="data-text" text-anchor="start">• OpenAlex unsupported binary metrics = N/A</text>
+<polyline points="1265,317 1320,317 1320,220 1370,220" class="flow" marker-end="url(#arrow)"/>
+<polyline points="1265,649 1320,649 1320,260 1370,260" class="flow" marker-end="url(#arrow)"/>
+<polyline points="1598,307 1598,335" class="flow" marker-end="url(#arrow)"/>
+<rect x="1533.2" y="313" width="129.60000000000002" height="20" rx="7" class="flow-label-bg"/>
+<text x="1598" y="328" class="flow-label" text-anchor="middle">candidate evidence</text>
+<polyline points="1598,453 1598,500" class="flow" marker-end="url(#arrow)"/>
+<rect x="1533.2" y="470" width="129.60000000000002" height="20" rx="7" class="flow-label-bg"/>
+<text x="1598" y="485" class="flow-label" text-anchor="middle">method predictions</text>
+<polyline points="1598,618 1598,665" class="flow" marker-end="url(#arrow)"/>
+<rect x="1530.1" y="635" width="135.8" height="20" rx="7" class="flow-label-bg"/>
+<text x="1598" y="650" class="flow-label" text-anchor="middle">all classifier rows</text>
+<polyline points="1598,783 1598,830" class="flow" marker-end="url(#arrow)"/>
+<rect x="1533.2" y="800" width="129.60000000000002" height="20" rx="7" class="flow-label-bg"/>
+<text x="1598" y="815" class="flow-label" text-anchor="middle">validated variants</text>
+<polyline points="1370,902 1320,902 1320,1245 810,1245 810,904" class="flow" marker-end="url(#arrow)"/>
+<rect x="987.3" y="1226" width="185.4" height="20" rx="7" class="flow-label-bg"/>
+<text x="1080" y="1241" class="flow-label" text-anchor="middle">classifier + candidate rows</text>
+<polyline points="385,904 445,904" class="flow" marker-end="url(#arrow)"/>
+<rect x="365.7" y="885" width="98.60000000000001" height="20" rx="7" class="flow-label-bg"/>
+<text x="415" y="900" class="flow-label" text-anchor="middle">human ratings</text>
+<polyline points="385,1140 415,1140 415,1089 445,1089" class="flow" marker-end="url(#arrow)"/>
+<rect x="356.4" y="1114" width="117.2" height="20" rx="7" class="flow-label-bg"/>
+<text x="415" y="1129" class="flow-label" text-anchor="middle">saved NLI result</text>
+<polyline points="810,904 865,904" class="flow" marker-end="url(#arrow)"/>
+<rect x="788.7" y="885" width="98.60000000000001" height="20" rx="7" class="flow-label-bg"/>
+<text x="838" y="900" class="flow-label" text-anchor="middle">rated metrics</text>
+<polyline points="1058,963 1058,1030" class="flow" marker-end="url(#arrow)"/>
+<rect x="996.3" y="988" width="123.4" height="20" rx="7" class="flow-label-bg"/>
+<text x="1058" y="1003" class="flow-label" text-anchor="middle">comparison bundle</text>
+<polyline points="810,1089 835,1089 835,1170 865,1170" class="flow" marker-end="url(#arrow)"/>
+<rect x="790.0" y="1131" width="90" height="20" rx="7" class="flow-label-bg"/>
+<text x="835" y="1146" class="flow-label" text-anchor="middle">sensitivity</text>
+<polyline points="1598,972 1598,1015" class="flow" marker-end="url(#arrow)"/>
+<rect x="1514.6" y="988" width="166.8" height="20" rx="7" class="flow-label-bg"/>
+<text x="1598" y="1003" class="flow-label" text-anchor="middle">production variants only</text>
+<polyline points="1598,1133 1598,1180" class="flow" marker-end="url(#arrow)"/>
+<rect x="1527.0" y="1150" width="142.0" height="20" rx="7" class="flow-label-bg"/>
+<text x="1598" y="1165" class="flow-label" text-anchor="middle">reconciled catalogue</text>
+<text x="48" y="1442" class="legend" text-anchor="start">Solid cards transform data  •  Dashed cards persist or transfer data  •  x = per-query sample size  •  y = retained collection size</text>
 </svg>
