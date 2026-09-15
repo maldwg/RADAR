@@ -106,7 +106,7 @@ def render_svg() -> str:
         _section(40, 760, 1260, 430, "Rated classification evaluation", "A separate offline branch resolves readable source selectors and compares results with versioned human ratings.", "#f8f6fb"),
         _data_card(65, 835, 300, "Central rating profiles", ["config/evaluation/<source>.toml", "expected include / exclude decision", "expected normalized field values"]),
         _card(430, 845, 350, "Result evaluator", "ratings + classifications + candidates", "resolve readable selectors; score three metric views", "confusions + coverage + field scores", "#eeeaf7"),
-        _data_card(850, 825, 410, "Evaluation artifacts per model / ensemble", ["metrics.json: DR, FPR, ACC, PREC, F1", "instances + confusion + field metric CSVs", "4 SVG/PDF figures + exact plot data"]),
+        _data_card(850, 825, 410, "Unified evaluation tree per source", ["comparison: DR, FPR, FDR, ACC, PREC, F1", "classifier audits: instances + field metrics", "NLI cutoff sensitivity + exact figure data"]),
         _flow([(1265, 317), (1325, 317), (1325, 215), (1380, 215)]),
         _flow([(1265, 649), (1325, 649), (1325, 255), (1380, 255)]),
         _flow([(1548, 307), (1548, 345)], "candidate row + evidence", (1548, 330)),

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ids_meta.common.csvio import atomic_write_csv
+from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.plotting.compare import build_classifiers
 
 
@@ -33,10 +33,12 @@ class ClassifierComparisonTests(unittest.TestCase):
                 metrics = {
                     "ratings_path": "/same/profile.toml", "evaluation_unit": "source_record",
                     "classifier_method": method, "rated_entities": 20,
-                    "not_estimable_metrics": [], "definitive_coverage": value,
+                    "not_estimable_metrics": ["false_discovery_rate"] if index == 0 else [],
+                    "definitive_coverage": value,
                     "abstention_rate": 1 - value, "classification_field_accuracy": value,
                     "classification_field_macro_f1": value - .05,
-                    "operational": {"DR": value, "FPR": 1 - value, "ACC": value,
+                    "operational": {"DR": value, "FNR": 1 - value,
+                                    "FPR": 1 - value, "FDR": 1 - value, "ACC": value,
                                     "PREC": value, "f1": value, "tp": 8, "fp": 2, "tn": 8, "fn": 2},
                 }
                 (evaluation / "metrics.json").write_text(json.dumps(metrics), encoding="utf-8")
@@ -64,18 +66,30 @@ class ClassifierComparisonTests(unittest.TestCase):
                 {"formats": ["svg"], "dpi": 72, "top_n": 5},
             )
             self.assertTrue(outputs)
+            overview = root / "plots/data/00_metric_overview.csv"
+            self.assertEqual(len(overview.read_text(encoding="utf-8").splitlines()), 45)
+            self.assertTrue((root / "plots/00_metric_overview.svg").is_file())
+            self.assertIn(
+                "N/A", (root / "plots/00_metric_overview.svg").read_text(encoding="utf-8"),
+            )
             for number, metric in enumerate((
                 "detection_rate", "false_positive_rate", "accuracy", "precision", "f1",
                 "definitive_coverage", "abstention_rate", "field_accuracy", "field_macro_f1",
+                "false_discovery_rate",
             ), 1):
-                table = root / "plots/data" / f"{number:02d}_{metric}.csv"
+                table = root / "plots/metrics/data" / f"{number:02d}_{metric}.csv"
                 self.assertEqual(len(table.read_text(encoding="utf-8").splitlines()), 5)
-                self.assertTrue((root / "plots" / f"{number:02d}_{metric}.svg").is_file())
-            self.assertTrue((root / "plots/10_exact_accuracy_by_field.svg").is_file())
-            self.assertTrue((root / "plots/11_macro_f1_by_field.svg").is_file())
-            self.assertTrue((root / "plots/12_category_f1.svg").is_file())
-            self.assertTrue((root / "plots/decision_agreement/data/02_pairwise_agreement.csv").is_file())
-            detection_svg = (root / "plots/01_detection_rate.svg").read_text(encoding="utf-8")
+                self.assertTrue((root / "plots/metrics" / f"{number:02d}_{metric}.svg").is_file())
+            fdr_rows = read_csv(root / "plots/metrics/data/10_false_discovery_rate.csv")
+            self.assertEqual(fdr_rows[0]["value"], "")
+            self.assertEqual(fdr_rows[0]["ci_low"], "")
+            self.assertEqual(fdr_rows[0]["ci_high"], "")
+            self.assertTrue((root / "plots/taxonomy/01_exact_accuracy_by_field.svg").is_file())
+            self.assertTrue((root / "plots/taxonomy/02_macro_f1_by_field.svg").is_file())
+            self.assertTrue((root / "plots/taxonomy/03_category_f1.svg").is_file())
+            self.assertTrue((root / "plots/agreement/data/02_pairwise_agreement.csv").is_file())
+            self.assertTrue((root / "plots/README.md").is_file())
+            detection_svg = (root / "plots/metrics/01_detection_rate.svg").read_text(encoding="utf-8")
             self.assertIn("95% Wilson interval", detection_svg)
             self.assertIn("bar height=observed metric", detection_svg)
             self.assertNotIn("65.0%", detection_svg)

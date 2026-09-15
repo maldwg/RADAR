@@ -252,16 +252,19 @@ def _binary_metrics(tp: int, fp: int, tn: int, fn: int, total: int) -> dict[str,
     specificity = _ratio(tn, tn + fp)
     false_positive_rate = _ratio(fp, fp + tn)
     false_negative_rate = _ratio(fn, tp + fn)
+    false_discovery_rate = _ratio(fp, tp + fp)
     accuracy = _ratio(tp + tn, total)
     return {
         "tp": tp, "fp": fp, "tn": tn, "fn": fn,
         "detection_rate": recall, "recall": recall, "sensitivity": recall,
         "false_positive_rate": false_positive_rate, "false_negative_rate": false_negative_rate,
+        "false_discovery_rate": false_discovery_rate,
         "precision": precision, "specificity": specificity,
         "negative_predictive_value": _ratio(tn, tn + fn),
         "accuracy": accuracy, "f1": _f1(precision, recall),
         "balanced_accuracy": (recall + specificity) / 2 if total else 0.0,
         "DR": recall, "FPR": false_positive_rate, "FNR": false_negative_rate,
+        "FDR": false_discovery_rate,
         "ACC": accuracy, "PREC": precision,
     }
 
@@ -466,8 +469,8 @@ def evaluate_results(
         "source": profile.source, "evaluation_unit": profile.evaluation_unit,
         "benchmark_scope": "positive_reference_set" if profile.evaluation_unit == "artifact" else "screening_decisions",
         "not_estimable_metrics": [
-            "false_positive_rate", "specificity", "balanced_accuracy", "accuracy",
-            "precision", "f1",
+            "false_positive_rate", "false_discovery_rate", "specificity",
+            "balanced_accuracy", "accuracy", "precision", "f1",
         ]
         if profile.evaluation_unit == "artifact" else [],
         "ratings_path": str(profile.path), "classifications_path": str(classifications_path),
@@ -508,6 +511,9 @@ def evaluate_results(
             "false_positive_rate": _wilson_interval(
                 operational["fp"], operational["fp"] + operational["tn"], confidence_level,
             ),
+            "false_discovery_rate": _wilson_interval(
+                operational["fp"], operational["tp"] + operational["fp"], confidence_level,
+            ),
             "accuracy": _wilson_interval(
                 operational["tp"] + operational["tn"], binary_total, confidence_level,
             ),
@@ -527,6 +533,19 @@ def evaluate_results(
         },
         "operational": operational_metrics, "strict": strict_metrics, "selective": selective_metrics,
     }
+    if profile.evaluation_unit == "artifact":
+        unavailable_keys = {
+            "false_positive_rate", "false_discovery_rate", "specificity",
+            "balanced_accuracy", "accuracy", "precision", "f1",
+            "FPR", "FDR", "ACC", "PREC",
+        }
+        for view in (operational_metrics, strict_metrics, selective_metrics):
+            for key in unavailable_keys:
+                view[key] = None
+        intervals = metrics["confidence_intervals"]
+        for key in metrics["not_estimable_metrics"]:
+            if key in intervals:
+                intervals[key] = None
     confusion = [{"expected": expected, "actual": actual_value, "count": count} for (expected, actual_value), count in sorted(confusion_counts.items())]
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = output_dir / "metrics.json"
@@ -571,7 +590,7 @@ def evaluate_results(
             + field_summary
             + f"- Classifier abstention rate: {metrics['abstention_rate']:.4f}\n"
             f"- Unresolved artifact rate: {metrics['unresolved_artifact_rate']:.4f}\n\n"
-            "This artifact fixture is a positive reference set. Exact artifact names and aliases are matched first; an accepted release paper cited by the survey is a traceable fallback match. Other cited-paper outcomes remain diagnostics rather than being treated as artifact decisions, because a survey citation may be an analysis or documentation paper. Metadata accuracy is end-to-end across the rated inventory. False-positive rate, specificity, and balanced accuracy are not estimable because the profile contains no negative artifacts.\n\n"
+            "This artifact fixture is a positive reference set. Exact artifact names and aliases are matched first; an accepted release paper cited by the survey is a traceable fallback match. Other cited-paper outcomes remain diagnostics rather than being treated as artifact decisions, because a survey citation may be an analysis or documentation paper. Metadata accuracy is end-to-end across the rated inventory. False-positive rate, false-discovery rate, specificity, accuracy, precision, decision-F1, and balanced accuracy are not estimable because the profile contains no negative artifacts.\n\n"
             "## Interpreting the three views\n\n"
             "- **Operational:** dataset recall across the complete positive reference set.\n"
             "- **Strict:** identical here because every unresolved positive is a miss.\n"
@@ -581,6 +600,7 @@ def evaluate_results(
         body = (
             f"- Operational DR: {operational_metrics['detection_rate']:.4f}\n"
             f"- Operational FPR: {operational_metrics['false_positive_rate']:.4f}\n"
+            f"- Operational FDR: {operational_metrics['false_discovery_rate']:.4f}\n"
             f"- Operational accuracy: {operational_metrics['accuracy']:.4f}\n"
             f"- Operational precision: {operational_metrics['precision']:.4f}\n"
             + field_summary

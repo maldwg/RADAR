@@ -8,6 +8,7 @@ from typing import Any, Sequence
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.patches import Rectangle
 
 from ids_meta.common.config import ConfigError, Settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
@@ -29,18 +30,6 @@ class NLIThresholdGrid:
     enabled: bool
     entailment_thresholds: tuple[float, ...]
     label_margins: tuple[float, ...]
-
-
-METRICS = (
-    ("detection_rate", "Detection rate"),
-    ("false_positive_rate", "False-positive rate"),
-    ("accuracy", "Accuracy"),
-    ("precision", "Precision"),
-    ("f1", "F1"),
-    ("definitive_coverage", "Definitive coverage"),
-    ("abstention_rate", "Abstention rate"),
-    ("field_accuracy", "Taxonomy-field accuracy"),
-)
 
 
 def load_nli_threshold_grid(settings: Settings) -> NLIThresholdGrid:
@@ -161,12 +150,15 @@ def build_nli_threshold_diagnostics(
                 "error": sum(row.get("decision") == "error" for row in rescored),
                 "detection_rate": None if "detection_rate" in unavailable else operational["DR"],
                 "false_positive_rate": None if "false_positive_rate" in unavailable else operational["FPR"],
+                "false_discovery_rate": None if "false_discovery_rate" in unavailable else operational["FDR"],
                 "accuracy": None if "accuracy" in unavailable else operational["ACC"],
                 "precision": None if "precision" in unavailable else operational["PREC"],
                 "f1": None if "f1" in unavailable else operational["f1"],
                 "definitive_coverage": evaluated.metrics["definitive_coverage"],
+                "classification_coverage": evaluated.metrics["classification_coverage"],
                 "abstention_rate": evaluated.metrics["abstention_rate"],
                 "field_accuracy": evaluated.metrics["classification_field_accuracy"],
+                "field_macro_f1": evaluated.metrics["classification_field_macro_f1"],
             })
 
     frame = pd.DataFrame(result_rows)
@@ -175,36 +167,87 @@ def build_nli_threshold_diagnostics(
     configure_style()
     formats = [str(value) for value in plot_config.get("formats", ["svg", "pdf"])]
     dpi = int(plot_config.get("dpi", 160))
-    outputs: list[Path] = [table_path]
-    for number, (metric, title) in enumerate(METRICS, 1):
-        visible = frame.dropna(subset=[metric])
-        fig, ax = plt.subplots(figsize=(8.2, 5.2))
-        if visible.empty:
-            ax.axis("off")
-            ax.text(.5, .5, "Not estimable from this rating profile", ha="center", va="center")
-        else:
-            for margin, group in visible.groupby("label_margin", sort=True):
-                ordered = group.sort_values("entailment_threshold")
-                ax.plot(
-                    ordered["entailment_threshold"], ordered[metric], marker="o",
-                    label=f"margin {float(margin):g}",
-                )
-            current = visible[visible["configured_operating_point"]]
-            if not current.empty:
-                ax.scatter(
-                    current["entailment_threshold"], current[metric], marker="*", s=180,
-                    color="#111111", zorder=5, label="configured point",
-                )
-            ax.set_ylim(0, 1.03)
-            ax.set_xlabel("Minimum entailment probability")
-            ax.set_ylabel(title)
-            ax.legend(fontsize=8, ncol=2)
-        ax.set_title(f"{source.title()} NLI threshold diagnostic — {title}", loc="left", fontweight="bold")
-        stamp(
-            fig,
-            "offline replay of saved NLI scores; diagnostic grid is not automatic threshold tuning",
+    panels = [
+        ("detection_rate", "Detection rate ↑", "higher"),
+        (
+            "false_positive_rate" if source == "github" else "definitive_coverage",
+            "False-positive rate ↓" if source == "github" else "Definitive coverage ↑",
+            "lower" if source == "github" else "higher",
+        ),
+        ("definitive_coverage", "Definitive coverage ↑", "higher"),
+        ("abstention_rate", "Abstention rate ↓", "lower"),
+        ("field_accuracy", "Taxonomy exact accuracy ↑", "higher"),
+        ("field_macro_f1", "Taxonomy macro-F1 ↑", "higher"),
+    ]
+    if source != "github":
+        panels[2] = ("classification_coverage", "Dataset identified ↑", "higher")
+    fig, axes = plt.subplots(2, 3, figsize=(14.5, 9.2), constrained_layout=False)
+    threshold_values = list(grid.entailment_thresholds)
+    margin_values = list(grid.label_margins)
+    for ax, (metric, title, direction) in zip(axes.flat, panels):
+        pivot = frame.pivot(
+            index="label_margin", columns="entailment_threshold", values=metric,
+        ).reindex(index=margin_values, columns=threshold_values)
+        cmap = plt.get_cmap("Blues" if direction == "higher" else "Reds").copy()
+        cmap.set_bad("#E6E8EB")
+        image = ax.imshow(
+            pivot.astype(float).values, vmin=0, vmax=1,
+            cmap=cmap, aspect="auto", origin="lower",
         )
-        outputs += save_figure(fig, out_dir, f"{number:02d}_{metric}", formats, dpi)
+        ax.set_xticks(range(len(threshold_values)), labels=[f"{value:g}" for value in threshold_values])
+        ax.set_yticks(range(len(margin_values)), labels=[f"{value:g}" for value in margin_values])
+        ax.set_xlabel("Minimum label evidence (entailment)")
+        ax.set_ylabel("Minimum lead over runner-up")
+        ax.set_title(title, loc="left", fontweight="bold", fontsize=10)
+        for row_index in range(len(margin_values)):
+            for column_index in range(len(threshold_values)):
+                if pd.isna(pivot.iloc[row_index, column_index]):
+                    ax.text(column_index, row_index, "N/A", ha="center", va="center", fontsize=7)
+        if (
+            runtime_config.entailment_threshold in threshold_values
+            and runtime_config.label_margin in margin_values
+        ):
+            column_index = threshold_values.index(runtime_config.entailment_threshold)
+            row_index = margin_values.index(runtime_config.label_margin)
+            ax.add_patch(Rectangle(
+                (column_index - .5, row_index - .5), 1, 1,
+                fill=False, edgecolor="#111111", linewidth=2.2,
+            ))
+        fig.colorbar(image, ax=ax, fraction=.046, pad=.04)
+    fig.suptitle(
+        f"{'OpenAlex' if source == 'openalex' else 'GitHub'} — What changes when NLI abstention cutoffs move?",
+        x=.06, ha="left", fontsize=16, fontweight="bold",
+    )
+    stamp(
+        fig,
+        "move right/up = demand stronger, less ambiguous NLI evidence; black outline=configured cutoffs; "
+        "offline sensitivity check only—not another classifier and not automatic tuning",
+    )
+    fig.subplots_adjust(left=.08, right=.97, top=.89, bottom=.11, wspace=.32, hspace=.38)
+    outputs: list[Path] = [table_path]
+    outputs += save_figure(fig, out_dir, "00_threshold_sensitivity", formats, dpi)
+    readme = out_dir / "README.md"
+    readme.write_text(
+        "# NLI cutoff sensitivity\n\n"
+        "This directory does **not** contain another classifier result. It replays the NLI "
+        "scores already saved for this one model and asks how its results would change under "
+        "different abstention cutoffs. No model inference or network access occurs.\n\n"
+        "## How to read the figure\n\n"
+        "- An entailment score estimates how strongly the text supports a hypothesis such as "
+        "‘this repository is a detector’. It is not a probability that the final classification is correct.\n"
+        "- Columns are the minimum entailment score required before emitting a label.\n"
+        "- Rows are the minimum lead required between the best and second-best labels.\n"
+        "- Moving right or upward is stricter and usually creates more abstentions.\n"
+        f"- The black outline is the reported setting: score at least "
+        f"{runtime_config.entailment_threshold:g} and lead at least "
+        f"{runtime_config.label_margin:g}.\n"
+        "- Blue panels prefer darker cells; red error-rate panels prefer lighter cells.\n"
+        "- The figure shows robustness and trade-offs. It must not be used to tune thresholds on "
+        "the same evaluation fixture and then report the tuned score as an unbiased result.\n\n"
+        "Exact values for every tested pair are in `data/nli_threshold_sensitivity.csv`.\n",
+        encoding="utf-8",
+    )
+    outputs.append(readme)
     LOG.info(
         "NLI threshold diagnostics complete source=%s combinations=%d files=%d output=%s",
         source, len(frame), len(outputs), out_dir,

@@ -15,6 +15,11 @@ from ids_meta.common.logging import logger
 LOG = logger("plotting.compare")
 
 
+def _source_name(source: str) -> str:
+    """Return the publication-ready display name for a discovery source."""
+    return "OpenAlex" if source == "openalex" else "GitHub" if source == "github" else source.title()
+
+
 def build(source: str, input_path: Path, out_dir: Path, config: dict[str, object]) -> list[Path]:
     """Build plots comparing prefilter scores with subsequent LLM decisions."""
     LOG.info("building %s classifier comparison input=%s output=%s", source, input_path, out_dir)
@@ -25,7 +30,7 @@ def build(source: str, input_path: Path, out_dir: Path, config: dict[str, object
     matrix = pd.crosstab(frame["prefilter_band"], frame["decision"])
     write_table(matrix.reset_index(), out_dir / "data", "01_prefilter_decisions")
     fig, ax = plt.subplots(); matrix.plot(kind="bar", stacked=True, ax=ax)
-    ax.set_title(f"{source.title()} prefilter bands and LLM decisions", loc="left", fontweight="bold")
+    ax.set_title(f"{_source_name(source)} prefilter bands and LLM decisions", loc="left", fontweight="bold")
     ax.set_ylabel("Classified candidates"); ax.legend(title="LLM decision", fontsize=8)
     stamp(fig, metadata_caption(frame, "universe: records evaluated by the LLM"))
     outputs = save_figure(fig, out_dir, "01_prefilter_decisions", formats, dpi)
@@ -37,7 +42,7 @@ def build(source: str, input_path: Path, out_dir: Path, config: dict[str, object
     labels = [name for name, _group in scores.groupby("decision")]
     if groups:
         ax.boxplot(groups, tick_labels=labels, showfliers=False)
-    ax.set_title(f"{source.title()} prefilter scores by LLM decision", loc="left", fontweight="bold"); ax.set_ylabel("Prefilter score")
+    ax.set_title(f"{_source_name(source)} prefilter scores by LLM decision", loc="left", fontweight="bold"); ax.set_ylabel("Prefilter score")
     stamp(fig, metadata_caption(frame, "prefilter scores select candidates; they are not final labels"))
     outputs += save_figure(fig, out_dir, "02_score_summary", formats, dpi)
     LOG.info("classifier comparison complete source=%s files=%d", source, len(outputs))
@@ -56,7 +61,9 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
     decisions: list[pd.Series] = []
     labels: dict[str, str] = {}
     for model, path in model_inputs.items():
-        frame = load_frame(path, (identity, label_column, "decision"))
+        frame = load_frame(path, (identity, "decision"))
+        if label_column not in frame:
+            frame[label_column] = frame[identity]
         view = frame.drop_duplicates(identity, keep="last").set_index(identity)
         decisions.append(view["decision"].rename(model))
         labels.update({str(key): str(value) for key, value in view[label_column].items()})
@@ -81,7 +88,7 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
         ax.set_xlabel("")
         ax.tick_params(axis="x", rotation=25)
         ax.legend(title="Decision", fontsize=8)
-    ax.set_title(f"{source.title()} decisions by model", loc="left", fontweight="bold")
+    ax.set_title(f"{_source_name(source)} decisions by model", loc="left", fontweight="bold")
     stamp(fig, f"models={len(names)}; union of sources={len(combined)}")
     outputs += save_figure(fig, out_dir, "01_model_decision_counts", formats, dpi)
 
@@ -104,7 +111,7 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
             text_value = "n/a" if pd.isna(value) else f"{value:.0%}"
             ax.text(column_index, row_index, text_value, ha="center", va="center", color="white" if not pd.isna(value) and value > .65 else "black")
     fig.colorbar(image, ax=ax, label="Exact agreement")
-    ax.set_title(f"{source.title()} pairwise classification agreement", loc="left", fontweight="bold")
+    ax.set_title(f"{_source_name(source)} pairwise classification agreement", loc="left", fontweight="bold")
     stamp(fig, "agreement uses only sources classified by both outputs; overlap counts are in the companion CSV")
     outputs += save_figure(fig, out_dir, "02_pairwise_agreement", formats, dpi)
 
@@ -128,7 +135,7 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
         ordered = patterns.iloc[::-1]
         ax.barh(ordered["classification_pattern"], ordered["count"], color="#C94F4F")
         ax.set_xlabel("Sources")
-    ax.set_title(f"{source.title()} cross-model disagreement patterns", loc="left", fontweight="bold")
+    ax.set_title(f"{_source_name(source)} cross-model disagreement patterns", loc="left", fontweight="bold")
     stamp(fig, f"disagreements={len(disagreement)} of {len(combined)} sources; top {top_n} patterns shown")
     outputs += save_figure(fig, out_dir, "03_disagreement_patterns", formats, dpi)
     LOG.info("model comparison complete source=%s models=%d disagreements=%d files=%d", source, len(names), len(disagreement), len(outputs))
@@ -145,6 +152,22 @@ METRIC_SPECS = (
     ("abstention_rate", "Abstention rate", "root", "abstention_rate"),
     ("field_accuracy", "Taxonomy-field exact accuracy", "root", "classification_field_accuracy"),
     ("field_macro_f1", "Mean taxonomy-field macro-F1", "root", "classification_field_macro_f1"),
+    ("false_discovery_rate", "False-discovery rate", "operational", "FDR"),
+)
+
+
+OVERVIEW_SPECS = (
+    ("detection_rate", "DR (recall) ↑", "higher", "operational", "DR"),
+    ("false_negative_rate", "FNR ↓", "lower", "operational", "FNR"),
+    ("false_positive_rate", "FPR ↓", "lower", "operational", "FPR"),
+    ("false_discovery_rate", "FDR ↓", "lower", "operational", "FDR"),
+    ("precision", "Precision ↑", "higher", "operational", "PREC"),
+    ("accuracy", "Accuracy ↑", "higher", "operational", "ACC"),
+    ("f1", "Decision F1 ↑", "higher", "operational", "f1"),
+    ("definitive_coverage", "Definitive-decision coverage ↑", "higher", "root", "definitive_coverage"),
+    ("abstention_rate", "Abstention rate ↓", "lower", "root", "abstention_rate"),
+    ("field_accuracy", "Taxonomy exact accuracy ↑", "higher", "root", "classification_field_accuracy"),
+    ("field_macro_f1", "Taxonomy macro-F1 ↑", "higher", "root", "classification_field_macro_f1"),
 )
 
 
@@ -193,6 +216,7 @@ def _fallback_interval(metrics: dict[str, object], stem: str, value: float | Non
         tn, fn = int(operational.get("tn", 0)), int(operational.get("fn", 0))
         pairs = {
             "detection_rate": (tp, tp + fn), "false_positive_rate": (fp, fp + tn),
+            "false_discovery_rate": (fp, tp + fp),
             "accuracy": (tp + tn, tp + fp + tn + fn), "precision": (tp, tp + fp),
         }
         if stem in pairs:
@@ -239,12 +263,80 @@ def build_classifiers(
     dpi = int(config.get("dpi", 160))
     outputs: list[Path] = []
     labels = list(loaded)
+    metrics_dir = out_dir / "metrics"
+    taxonomy_dir = out_dir / "taxonomy"
+    overview_rows: list[dict[str, object]] = []
+    for stem, metric_label, direction, section, key in OVERVIEW_SPECS:
+        for label, metrics in loaded.items():
+            not_estimable = set(metrics.get("not_estimable_metrics", []))
+            if metrics.get("evaluation_unit") == "artifact":
+                not_estimable.update({
+                    "false_positive_rate", "false_discovery_rate", "accuracy",
+                    "precision", "f1",
+                })
+            value = None if stem in not_estimable else _metric_value(metrics, section, key)
+            method = str(metrics.get("classifier_method", "")) or (
+                "ensemble" if label.casefold() == "ensemble" else "llm"
+            )
+            overview_rows.append({
+                "classifier": label,
+                "classifier_method": method,
+                "metric": stem,
+                "metric_label": metric_label,
+                "preferred_direction": direction,
+                "value": value,
+                "estimable": value is not None,
+                "rated_entities": metrics.get("rated_entities", ""),
+                "rating_profile": metrics.get("ratings_path", ""),
+            })
+    overview_table = pd.DataFrame(overview_rows)
+    write_table(overview_table, out_dir / "data", "00_metric_overview")
+    metric_labels = [spec[1] for spec in OVERVIEW_SPECS]
+    overview_pivot = overview_table.pivot(
+        index="metric_label", columns="classifier", values="value",
+    ).reindex(index=metric_labels, columns=labels)
+    fig, ax = plt.subplots(figsize=(
+        max(8.5, 1.25 * len(labels) + 3.5),
+        max(7.2, .52 * len(metric_labels) + 2.5),
+    ))
+    cmap = plt.get_cmap("Blues").copy()
+    cmap.set_bad("#E6E8EB")
+    image = ax.imshow(
+        overview_pivot.astype(float).values, vmin=0, vmax=1,
+        cmap=cmap, aspect="auto",
+    )
+    ax.set_xticks(
+        range(len(labels)), labels=[_display_label(label) for label in labels],
+        rotation=25, ha="right",
+    )
+    ax.set_yticks(range(len(metric_labels)), labels=metric_labels)
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    for row_index in range(len(metric_labels)):
+        for column_index in range(len(labels)):
+            if pd.isna(overview_pivot.iloc[row_index, column_index]):
+                ax.text(column_index, row_index, "N/A", ha="center", va="center", fontsize=7)
+    fig.colorbar(image, ax=ax, label="Observed rate (0–1)")
+    ax.set_title(
+        f"{_source_name(source)} — All headline metrics by classification approach",
+        loc="left", fontweight="bold",
+    )
+    stamp(
+        fig,
+        "color encodes the raw rate; arrows show the preferred direction; "
+        "grey N/A=not estimable; exact values are in the companion CSV",
+    )
+    fig.subplots_adjust(bottom=.25, left=.30)
+    outputs += save_figure(fig, out_dir, "00_metric_overview", formats, dpi)
     for number, (stem, title, section, key) in enumerate(METRIC_SPECS, 1):
         rows: list[dict[str, object]] = []
         for label, metrics in loaded.items():
             not_estimable = set(metrics.get("not_estimable_metrics", []))
             if metrics.get("evaluation_unit") == "artifact":
-                not_estimable.update({"false_positive_rate", "accuracy", "precision", "f1"})
+                not_estimable.update({
+                    "false_positive_rate", "false_discovery_rate", "accuracy",
+                    "precision", "f1",
+                })
             value = None if stem in not_estimable else _metric_value(metrics, section, key)
             method = str(metrics.get("classifier_method", "")) or (
                 "ensemble" if label.casefold() == "ensemble" else "llm"
@@ -252,7 +344,9 @@ def build_classifiers(
             operational = metrics.get("operational", {})
             intervals = metrics.get("confidence_intervals", {})
             interval = intervals.get(stem) if isinstance(intervals, dict) else None
-            if not (isinstance(interval, list) and len(interval) == 2):
+            if value is None:
+                interval = None
+            elif not (isinstance(interval, list) and len(interval) == 2):
                 interval = _fallback_interval(metrics, stem, value)
             rows.append({
                 "classifier": label, "classifier_method": method, "metric": stem,
@@ -268,7 +362,7 @@ def build_classifiers(
                 "rating_profile": metrics.get("ratings_path", ""),
             })
         table = pd.DataFrame(rows)
-        write_table(table, out_dir / "data", f"{number:02d}_{stem}")
+        write_table(table, metrics_dir / "data", f"{number:02d}_{stem}")
         visible = table.dropna(subset=["value"])
         fig, ax = plt.subplots(figsize=(max(8, .9 * len(visible) + 3), 5.4))
         if visible.empty:
@@ -277,9 +371,9 @@ def build_classifiers(
                 .5, .5, "Not estimable from this rating profile",
                 transform=ax.transAxes, ha="center", va="center", fontsize=13,
             )
-            ax.set_title(f"{source.title()} — {title} by classification approach", loc="left", fontweight="bold")
+            ax.set_title(f"{_source_name(source)} — {title} by classification approach", loc="left", fontweight="bold")
             stamp(fig, "the positive-only reference set contains no negative examples for this metric")
-            outputs += save_figure(fig, out_dir, f"{number:02d}_{stem}", formats, dpi)
+            outputs += save_figure(fig, metrics_dir, f"{number:02d}_{stem}", formats, dpi)
             continue
         error = None
         if visible["ci_low"].notna().all() and visible["ci_high"].notna().all():
@@ -317,13 +411,13 @@ def build_classifiers(
                 loc="upper right", frameon=True, fontsize=8,
             )
             interval_caption = f"; capped vertical line={interval_label}"
-        ax.set_title(f"{source.title()} — {title} by classification approach", loc="left", fontweight="bold")
+        ax.set_title(f"{_source_name(source)} — {title} by classification approach", loc="left", fontweight="bold")
         stamp(
             fig,
             f"n={visible['rated_entities'].iloc[0]}; bar height=observed metric"
             f"{interval_caption}; missing bar=not estimable",
         )
-        outputs += save_figure(fig, out_dir, f"{number:02d}_{stem}", formats, dpi)
+        outputs += save_figure(fig, metrics_dir, f"{number:02d}_{stem}", formats, dpi)
     field_rows: list[dict[str, object]] = []
     for label, metrics in loaded.items():
         directory = evaluation_inputs[label]
@@ -349,12 +443,12 @@ def build_classifiers(
     field_table = pd.DataFrame(field_rows)
     if not field_table.empty:
         for number, value_column, title in (
-            (10, "exact_accuracy", "Exact accuracy by taxonomy field"),
-            (11, "macro_f1", "Macro-F1 by taxonomy field"),
+            (1, "exact_accuracy", "Exact accuracy by taxonomy field"),
+            (2, "macro_f1", "Macro-F1 by taxonomy field"),
         ):
             table = field_table.copy()
             table[value_column] = pd.to_numeric(table[value_column], errors="coerce")
-            write_table(table, out_dir / "data", f"{number:02d}_{value_column}_by_field")
+            write_table(table, taxonomy_dir / "data", f"{number:02d}_{value_column}_by_field")
             pivot = table.pivot(index="field", columns="classifier", values=value_column)
             pivot = pivot.reindex(columns=labels)
             fig, ax = plt.subplots(figsize=(max(8, 1.25 * len(labels) + 3), max(4.8, .62 * len(pivot) + 2)))
@@ -369,11 +463,11 @@ def build_classifiers(
             ax.set_xlabel("")
             ax.set_ylabel("")
             fig.colorbar(image, ax=ax, label=title)
-            ax.set_title(f"{source.title()} — {title}", loc="left", fontweight="bold")
+            ax.set_title(f"{_source_name(source)} — {title}", loc="left", fontweight="bold")
             stamp(fig, "color encodes the metric; grey=unsupported or not estimable; exact values are in the companion CSV")
             fig.subplots_adjust(bottom=.30)
             outputs += save_figure(
-                fig, out_dir, f"{number:02d}_{value_column}_by_field", formats, dpi,
+                fig, taxonomy_dir, f"{number:02d}_{value_column}_by_field", formats, dpi,
             )
     label_rows: list[dict[str, object]] = []
     for label, metrics in loaded.items():
@@ -395,7 +489,7 @@ def build_classifiers(
     label_table = pd.DataFrame(label_rows)
     if not label_table.empty:
         label_table["f1"] = pd.to_numeric(label_table["f1"], errors="coerce")
-        write_table(label_table, out_dir / "data", "12_category_f1")
+        write_table(label_table, taxonomy_dir / "data", "03_category_f1")
         label_table["field_label"] = (
             label_table["field"].astype(str) + ": " + label_table["label"].astype(str)
         )
@@ -420,20 +514,40 @@ def build_classifiers(
         ax.set_ylabel("")
         fig.colorbar(image, ax=ax, label="One-vs-rest category F1")
         ax.set_title(
-            f"{source.title()} — F1 for every rated taxonomy category",
+            f"{_source_name(source)} — F1 for every rated taxonomy category",
             loc="left", fontweight="bold",
         )
         stamp(fig, "one-vs-rest F1; grey=not represented or unsupported; exact TP/FP/FN values are in the companion CSV")
         fig.subplots_adjust(bottom=.18, left=.28)
-        outputs += save_figure(fig, out_dir, "12_category_f1", formats, dpi)
+        outputs += save_figure(fig, taxonomy_dir, "03_category_f1", formats, dpi)
     available_classifications = {
         label: path for label, path in classification_inputs.items()
         if label in loaded and path.is_file()
     }
     if len(available_classifications) >= 2:
         outputs += build_models(
-            source, available_classifications, out_dir / "decision_agreement", config,
+            source, available_classifications, out_dir / "agreement", config,
         )
+    readme = out_dir / "README.md"
+    readme.parent.mkdir(parents=True, exist_ok=True)
+    readme.write_text(
+        f"# {_source_name(source)} classifier comparison\n\n"
+        "## Start here\n\n"
+        "Open `00_metric_overview.svg`. Rows are metrics and columns are classifiers. "
+        "The color is the raw rate, so use the arrow on each row to see whether higher "
+        "or lower is preferable. Grey N/A cells mean the benchmark cannot estimate that metric.\n\n"
+        "## Drill-down directories\n\n"
+        "- `metrics/`: one enlarged operational-metric comparison per figure.\n"
+        "- `taxonomy/`: field and individual-category comparisons.\n"
+        "- `agreement/`: where classifiers make the same decision; agreement is not correctness.\n"
+        "- `data/00_metric_overview.csv`: exact values behind the overview.\n\n"
+        "Matching SVG and PDF files are the same figure in screen and publication formats.\n\n"
+        "Single-classifier operational/strict/selective views, confusion matrices, and coverage "
+        "diagnostics are under the sibling `classifiers/` directory. Those diagnose one output; "
+        "the figures here compare approaches on the common rated set.\n",
+        encoding="utf-8",
+    )
+    outputs.append(readme)
     LOG.info(
         "classifier performance comparison complete source=%s classifiers=%d files=%d labels=%s",
         source, len(labels), len(outputs), ",".join(labels),

@@ -109,13 +109,13 @@ enabled = true
 
 Automatic LLM evaluation runs immediately after classification and consensus, before reconciliation. When `[baselines].enabled = true`, a complete run subsequently executes the configured baseline methods, evaluates them, and rebuilds the all-classifier plots. Explicit `evaluate` and `baseline` commands run regardless of their automatic-stage switches.
 
-For one model, artifacts use `artifacts/evaluation/<source>/`. In multi-model mode, every result is evaluated independently under `artifacts/evaluation/<source>/models/<model-slug>/`; the ensemble uses `artifacts/evaluation/<source>/ensemble/`. Ratings and candidates are shared, which makes comparisons use the same reference set.
+Every rated result lives under `artifacts/evaluation/<source>/`. The source-level README is the directory index. Classifier details use `classifiers/keyword/`, `classifiers/nli/<model-slug>/`, `classifiers/llm/<model-slug>/`, and `classifiers/ensemble/`. Ratings and candidates are shared, which makes comparisons use the same reference set.
 
-Cross-approach plots are written to `artifacts/plots/comparisons/<source>/classifiers/`. The OpenAlex comparison uses the 105-dataset artifact benchmark. Detection rate, false-positive rate, accuracy, precision, decision-F1, definitive coverage, abstention, aggregate taxonomy exact accuracy, and mean taxonomy-field macro-F1 each have a dedicated figure with every available Keyword, NLI, LLM, and Ensemble result on the same axis. Further heatmaps compare every approach by rated field using exact accuracy and macro-F1, then by every individual taxonomy category using one-vs-rest F1. Bar and cell values are deliberately not printed on the figures; companion CSVs and each evaluation's `field_label_metrics.csv` retain exact values, per-label TP/FP/FN, classifier IDs, rating paths, and Wilson intervals. The interval level is configured as `evaluation.confidence_level`; the evaluator derives its normal quantile from that value. Decision-count, pairwise-agreement, and disagreement diagnostics sit below `decision_agreement/`. Metrics that a positive-only artifact fixture cannot estimate are shown as N/A, not as zero.
+Cross-approach plots are in the sibling `comparison/` directory. `00_metric_overview` is the single starting matrix: its rows contain DR, FNR, FPR, FDR, precision, accuracy, decision-F1, coverage, abstention, and aggregate taxonomy scores; its columns contain every available Keyword, NLI, LLM, and Ensemble result. Arrows state whether higher or lower is preferable, grey cells mean N/A, and exact values are in `data/00_metric_overview.csv`. Enlarged operational-metric plots are grouped under `metrics/`, field/category comparisons under `taxonomy/`, and decision agreement under `agreement/`. Agreement is descriptive and must not be read as correctness. Single-classifier operational/strict/selective views and audit diagnostics remain under that classifier's `figures/` directory rather than being mixed with the comparison figures. The OpenAlex comparison uses the 105-dataset artifact benchmark. Numeric values are deliberately not printed on the figures; companion CSVs retain exact values, per-label TP/FP/FN, classifier IDs, rating paths, and Wilson intervals. Metrics that a positive-only artifact fixture cannot estimate are shown as N/A, not as zero.
 
-NLI evaluation also writes `threshold_diagnostics/`. It replays the aggregate probabilities already stored in `nli_scores_json` over the finite grid configured in `[baselines.nli.sensitivity]`, so it performs no inference and needs no network access. Every metric has a separate plot, the configured threshold/margin pair is marked, and the complete grid is retained as CSV. The sweep is descriptive; it must not silently tune the operating point on the same fixture used for final reporting.
+NLI evaluation also writes `classifiers/nli/<model-slug>/sensitivity/`. This is not a second NLI result. It replays the aggregate probabilities already stored in `nli_scores_json` over the finite grid configured in `[baselines.nli.sensitivity]`, so it performs no inference and needs no network access. An entailment score says how strongly the text supports a label hypothesis; it is not a probability that the final answer is correct. The six-panel heatmap has minimum label evidence on its columns and the required lead over the runner-up label on its rows. Moving right or upward demands stronger, less ambiguous evidence and usually increases abstention. The black outline marks the cutoffs actually used for the reported NLI result. Blue panels prefer darker cells; red error-rate panels prefer lighter cells. The sweep describes robustness and trade-offs; it must not silently tune the operating point on the same fixture used for final reporting.
 
-Use `ids-meta <source> baseline --evaluate-only` to rebuild baseline evaluations, threshold diagnostics, and cross-approach plots from existing baseline classification CSVs. This mode does not open the source cache or initialize the keyword or NLI classifier.
+Use `ids-meta <source> baseline --evaluate-only` to rebuild baseline evaluations, NLI sensitivity analysis, and cross-approach plots from existing baseline classification CSVs. This mode does not open the source cache or initialize the keyword or NLI classifier.
 
 ## Metric views
 
@@ -143,6 +143,7 @@ Each view reports TP, FP, TN, FN and:
 
 - DR / recall / sensitivity = TP / (TP + FN)
 - FPR = FP / (FP + TN)
+- FDR = FP / (TP + FP), the share of predicted inclusions that are false
 - FNR = FN / (TP + FN)
 - PREC / precision = TP / (TP + FP)
 - ACC / accuracy = (TP + TN) / the view's denominator
@@ -159,11 +160,11 @@ Each evaluation directory contains:
 - `decision_confusion.csv`: exact expected-to-actual disposition counts, including uncertain and unavailable.
 - `field_metrics.csv`: support status plus exact and multi-label metrics for every configured field; unsupported baseline fields are N/A.
 - `README.md`: compact human-readable headline values, metadata accuracy, metric semantics, and figure links.
-- `01_decision_performance.svg`/`.pdf`: operational, strict, and selective DR, precision, accuracy, F1, FPR, and FNR.
-- `02_decision_confusion.svg`/`.pdf`: exact expected-to-actual dispositions, retaining uncertain and unavailable outcomes.
-- `03_field_accuracy.svg`/`.pdf`: exact metadata accuracy per configured field plus directly labeled multi-label F1 bars where applicable.
-- `04_coverage_and_status.svg`/`.pdf`: retrieval, classification, definitive-decision, abstention, and final-status summaries.
-- `plot_data/`: the exact aggregate CSVs behind the four figures.
+- `figures/01_decision_views.svg`/`.pdf`: operational, strict, and selective DR, precision, accuracy, F1, FPR, FDR, and FNR.
+- `figures/02_decision_confusion.svg`/`.pdf`: exact expected-to-actual dispositions, retaining uncertain and unavailable outcomes.
+- `figures/03_taxonomy_fields.svg`/`.pdf`: exact metadata accuracy per configured field plus directly labeled multi-label F1 bars where applicable.
+- `figures/04_pipeline_coverage.svg`/`.pdf`: retrieval, classification, definitive-decision, abstention, and final-status summaries.
+- `figures/data/`: the exact aggregate CSVs behind the four single-classifier figures.
 
 Figure formats and resolution use the shared `[plots]` `formats` and `dpi` settings. The run manifest additionally records the operational TP, FP, TN, FN, rated entity count, and artifact count. This makes recurring runs comparable without treating the rating profiles as inputs to the classifier itself.
 

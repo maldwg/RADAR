@@ -34,7 +34,8 @@ def _decision_performance(metrics: dict[str, Any], out_dir: Path, formats: list[
         ("DR", "Detection rate"), ("PREC", "Precision"), ("ACC", "Accuracy"), ("f1", "F1"),
     ]
     errors = [("FNR", "Miss rate")] if positive_only else [
-        ("FPR", "False-positive rate"), ("FNR", "False-negative rate"),
+        ("FPR", "False-positive rate"), ("FDR", "False-discovery rate"),
+        ("FNR", "False-negative rate"),
     ]
     rows: list[dict[str, object]] = []
     for view in VIEW_LABELS:
@@ -42,7 +43,7 @@ def _decision_performance(metrics: dict[str, Any], out_dir: Path, formats: list[
         for key, label in quality + errors:
             rows.append({"view": VIEW_LABELS[view], "metric": label, "metric_key": key, "value": float(values.get(key, 0.0))})
     table = pd.DataFrame(rows)
-    write_table(table, out_dir / "plot_data", "01_decision_performance")
+    write_table(table, out_dir / "data", "01_decision_views")
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5.7), gridspec_kw={"width_ratios": [2, 1]})
     add_heading(
@@ -69,7 +70,7 @@ def _decision_performance(metrics: dict[str, Any], out_dir: Path, formats: list[
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(.52, .875), ncol=3, frameon=False, fontsize=8)
     stamp(fig, "Operational includes all outcomes; strict penalizes abstentions; selective uses definitive predictions only.")
-    return save_figure(fig, out_dir, "01_decision_performance", formats, dpi)
+    return save_figure(fig, out_dir, "01_decision_views", formats, dpi)
 
 
 def _decision_confusion(input_dir: Path, metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
@@ -83,7 +84,7 @@ def _decision_confusion(input_dir: Path, metrics: dict[str, Any], out_dir: Path,
     actual_values += sorted(set(frame.get("actual", [])) - set(actual_values))
     matrix = frame.pivot_table(index="expected", columns="actual", values="count", aggfunc="sum", fill_value=0)
     matrix = matrix.reindex(index=expected_values, columns=actual_values, fill_value=0)
-    write_table(matrix.reset_index(), out_dir / "plot_data", "02_decision_confusion")
+    write_table(matrix.reset_index(), out_dir / "data", "02_decision_confusion")
 
     fig, ax = plt.subplots(figsize=(max(7, 1.25 * max(1, len(actual_values))), max(4.8, 1.05 * max(1, len(expected_values)))))
     add_heading(
@@ -119,7 +120,7 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
     plot_frame = frame[frame["comparisons"] > 0].copy()
     plot_frame["field_label"] = plot_frame["field"].astype(str).str.replace("_", " ").str.title()
-    write_table(plot_frame.drop(columns=["field_label"]), out_dir / "plot_data", "03_field_accuracy")
+    write_table(plot_frame.drop(columns=["field_label"]), out_dir / "data", "03_taxonomy_fields")
 
     fig, ax = plt.subplots(figsize=(12.5, max(5.2, .72 * max(1, len(plot_frame)) + 2.0)))
     add_heading(
@@ -151,7 +152,7 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
         ax.set_xlabel("Score")
         ax.legend(frameon=False, fontsize=9, loc="lower right")
     stamp(fig, "Multi-label fields additionally show label-level F1; exact values are in the companion CSV.")
-    return save_figure(fig, out_dir, "03_field_accuracy", formats, dpi)
+    return save_figure(fig, out_dir, "03_taxonomy_fields", formats, dpi)
 
 
 def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
@@ -179,8 +180,8 @@ def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: i
         for key, value in statuses.items()
     ]
     table = pd.DataFrame(coverage_rows)
-    write_table(table, out_dir / "plot_data", "04_coverage_rates")
-    write_table(pd.DataFrame(status_rows, columns=["status", "count"]), out_dir / "plot_data", "04_status_counts")
+    write_table(table, out_dir / "data", "04_coverage_rates")
+    write_table(pd.DataFrame(status_rows, columns=["status", "count"]), out_dir / "data", "04_status_counts")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.8), gridspec_kw={"width_ratios": [1.25, 1]})
     add_heading(
@@ -212,7 +213,7 @@ def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: i
         "Survey-reference diagnostics distinguish name matches, accepted release fallbacks, retrieval gaps, and unresolved references."
         if artifact_profile else "Candidate input distinguishes not retrieved from retrieved-but-not-classified entities.",
     )
-    return save_figure(fig, out_dir, "04_coverage_and_status", formats, dpi)
+    return save_figure(fig, out_dir, "04_pipeline_coverage", formats, dpi)
 
 
 def _append_readme(input_dir: Path, outputs: list[Path]) -> None:
@@ -223,8 +224,11 @@ def _append_readme(input_dir: Path, outputs: list[Path]) -> None:
     if marker in current:
         current = current.split(marker, 1)[0].rstrip() + "\n"
     lines = ["", "## Figures", ""]
-    lines.extend(f"- `{output.name}`" for output in outputs)
-    lines.extend(["", "Companion aggregate tables are stored under `plot_data/`. Metadata accuracy is shown separately from binary inclusion/exclusion metrics.", ""])
+    lines.extend(
+        f"- `{output.relative_to(input_dir)}`" for output in outputs
+        if output.suffix == ".svg"
+    )
+    lines.extend(["", "Each listed SVG has a matching PDF for publication; they are two formats of the same figure. These are single-classifier diagnostics. Use the source-level `comparison/` directory for cross-classifier reporting. Companion aggregate tables are stored under `figures/data/`.", ""])
     path.write_text(current.rstrip() + "\n" + "\n".join(lines), encoding="utf-8")
 
 
@@ -237,11 +241,12 @@ def build(input_dir: Path, config: dict[str, object]) -> list[Path]:
     configure_style()
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
     dpi = int(config.get("dpi", 160))
+    figure_dir = input_dir / "figures"
     outputs: list[Path] = []
-    outputs += _decision_performance(metrics, input_dir, formats, dpi)
-    outputs += _decision_confusion(input_dir, metrics, input_dir, formats, dpi)
-    outputs += _field_accuracy(input_dir, metrics, input_dir, formats, dpi)
-    outputs += _coverage(metrics, input_dir, formats, dpi)
+    outputs += _decision_performance(metrics, figure_dir, formats, dpi)
+    outputs += _decision_confusion(input_dir, metrics, figure_dir, formats, dpi)
+    outputs += _field_accuracy(input_dir, metrics, figure_dir, formats, dpi)
+    outputs += _coverage(metrics, figure_dir, formats, dpi)
     _append_readme(input_dir, outputs)
-    LOG.info("evaluation plot bundle complete source=%s files=%d output=%s", metrics.get("source", "unknown"), len(outputs), input_dir)
+    LOG.info("evaluation plot bundle complete source=%s files=%d output=%s", metrics.get("source", "unknown"), len(outputs), figure_dir)
     return outputs

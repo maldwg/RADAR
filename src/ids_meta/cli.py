@@ -34,6 +34,26 @@ from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS as OPENALEX_CLASSIFI
 LOG = logger("cli")
 
 
+def _evaluation_root(settings: Settings, source: str) -> Path:
+    """Return the single source root containing every rated-evaluation artifact."""
+    return _path_with_default(settings, "evaluation_dir", "artifacts/evaluation") / source
+
+
+def _evaluation_variant(settings: Settings, source: str, variant: Path) -> Path:
+    """Map pipeline variants into a consistent classifier-oriented evaluation tree."""
+    root = _evaluation_root(settings, source) / "classifiers"
+    parts = variant.parts
+    if parts[:1] == ("models",) and len(parts) > 1:
+        return root / "llm" / Path(*parts[1:])
+    if parts[:1] == ("ensemble",):
+        return root / "ensemble" / Path(*parts[1:])
+    if parts[:2] == ("baselines", "keyword"):
+        return root / "keyword" / Path(*parts[2:])
+    if parts[:2] == ("baselines", "nli"):
+        return root / "nli" / Path(*parts[2:])
+    return root / Path(*parts)
+
+
 def _path_with_default(settings: Settings, key: str, default: str) -> Path:
     """Resolve an optional configured path while preserving older custom configs."""
     value = settings.section("paths").get(key, default)
@@ -48,14 +68,17 @@ def _default_paths(settings: Settings, source: str) -> dict[str, Path]:
     interim = settings.path("interim_dir") / source
     processed = settings.path("processed_dir") / source
     plots = settings.path("plots_dir") / source
-    evaluation = _path_with_default(settings, "evaluation_dir", "artifacts/evaluation") / source
+    evaluation_root = _evaluation_root(settings, source)
+    configured_model = str(settings.section("ollama").get("model", "model")).strip() or "model"
+    evaluation = evaluation_root / "classifiers" / "llm" / slug(configured_model)
+    comparison = settings.path("plots_dir") / source / "comparison"
     if source == "github":
         return {
             "cache": settings.path("github_cache"), "candidates": interim / "candidates.csv",
             "classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv",
             "catalogue": processed / "repositories.csv",
             "plots": plots, "evaluation": evaluation,
-            "comparison": settings.path("plots_dir") / "comparisons" / source,
+            "comparison": comparison, "evaluation_comparison": evaluation_root / "comparison",
         }
     return {
         "cache": settings.path("openalex_cache"), "candidates": interim / "paper_candidates.csv",
@@ -63,7 +86,7 @@ def _default_paths(settings: Settings, source: str) -> dict[str, Path]:
         "classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv",
         "catalogue": processed / "base_papers.csv",
         "adjacent": processed / "adjacent_base_papers.csv", "plots": plots, "evaluation": evaluation,
-        "comparison": settings.path("plots_dir") / "comparisons" / source,
+        "comparison": comparison, "evaluation_comparison": evaluation_root / "comparison",
     }
 
 
@@ -131,7 +154,7 @@ def _variant_paths(settings: Settings, source: str, variant: Path) -> dict[str, 
     interim = settings.path("interim_dir") / source / variant
     processed = settings.path("processed_dir") / source / variant
     plots = settings.path("plots_dir") / source / variant
-    evaluation = _path_with_default(settings, "evaluation_dir", "artifacts/evaluation") / source / variant
+    evaluation = _evaluation_variant(settings, source, variant)
     paths.update({"classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv", "plots": plots, "evaluation": evaluation})
     if source == "github":
         paths["catalogue"] = processed / "repositories.csv"
@@ -273,7 +296,7 @@ def _evaluate(
     from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
     plot_outputs = build_evaluation_plots(output_dir, settings.section("plots"))
-    plot_tables = sorted((output_dir / "plot_data").glob("*.csv"))
+    plot_tables = sorted((output_dir / "figures" / "data").glob("*.csv"))
     return EvaluationResult(
         result.metrics, result.instances, result.field_metrics, result.confusion,
         [*result.outputs, *plot_outputs, *plot_tables],
@@ -293,27 +316,30 @@ def _record_evaluation(manifest: RunManifest, result: EvaluationResult, suffix: 
 def _classifier_entries(settings: Settings, source: str) -> dict[str, tuple[Path, Path]]:
     """Discover classifier CSVs and matching evaluation roots already present on disk."""
     interim = settings.path("interim_dir") / source
-    evaluation = _path_with_default(settings, "evaluation_dir", "artifacts/evaluation") / source
+    evaluation = _evaluation_root(settings, source) / "classifiers"
     entries: dict[str, tuple[Path, Path]] = {}
     for path in sorted((interim / "models").glob("*/classifications.csv")):
         name = path.parent.name
-        entries[f"LLM · {name}"] = (path, evaluation / "models" / name)
+        entries[f"LLM · {name}"] = (path, evaluation / "llm" / name)
     single = interim / "classifications.csv"
-    if single.is_file() and (evaluation / "metrics.json").is_file():
-        entries["LLM"] = (single, evaluation)
+    single_evaluation = evaluation / "llm" / slug(
+        str(settings.section("ollama").get("model", "model"))
+    )
+    if single.is_file() and (single_evaluation / "metrics.json").is_file():
+        entries["LLM"] = (single, single_evaluation)
     ensemble = interim / "ensemble" / "classifications.csv"
     if ensemble.is_file():
         entries["Ensemble"] = (ensemble, evaluation / "ensemble")
     keyword = interim / "baselines" / "keyword" / "classifications.csv"
     if keyword.is_file():
-        entries["Keyword"] = (keyword, evaluation / "baselines" / "keyword")
+        entries["Keyword"] = (keyword, evaluation / "keyword")
     nli_root = interim / "baselines" / "nli"
     direct_nli = nli_root / "classifications.csv"
     if direct_nli.is_file():
-        entries["NLI"] = (direct_nli, evaluation / "baselines" / "nli")
+        entries["NLI"] = (direct_nli, evaluation / "nli")
     for path in sorted(nli_root.glob("*/classifications.csv")):
         name = path.parent.name
-        entries[f"NLI · {name}"] = (path, evaluation / "baselines" / "nli" / name)
+        entries[f"NLI · {name}"] = (path, evaluation / "nli" / name)
     order = {"Keyword": 0, "NLI": 1, "LLM": 2, "Ensemble": 3}
     return dict(sorted(entries.items(), key=lambda item: (
         next((rank for prefix, rank in order.items() if item[0].startswith(prefix)), 9), item[0],
@@ -328,7 +354,7 @@ def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]
     if len(entries) < 2:
         LOG.warning("skipping all-classifier comparison source=%s available=%d", source, len(entries))
         return []
-    comparison_root = _default_paths(settings, source)["comparison"] / "classifiers"
+    comparison_root = _default_paths(settings, source)["evaluation_comparison"]
     classifications: dict[str, Path] = {}
     evaluations: dict[str, Path] = {}
     for label, (classification, evaluation_root) in entries.items():
@@ -337,9 +363,34 @@ def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]
             evaluations[label] = evaluation_root
     if len(evaluations) < 2:
         return []
-    return build_classifiers(
+    outputs = build_classifiers(
         source, classifications, evaluations, comparison_root, settings.section("plots"),
     )
+    evaluation_root = _evaluation_root(settings, source)
+    lines = [
+        f"# {'OpenAlex' if source == 'openalex' else 'GitHub'} rated evaluation", "",
+        "## Start here", "",
+        "Open `comparison/00_metric_overview.svg` to compare every classifier on the same rated set.",
+        "Exact values are in `comparison/data/00_metric_overview.csv`.", "",
+        "## Directory guide", "",
+        "- `comparison/`: primary cross-classifier reporting figures.",
+        "- `comparison/metrics/`: one larger figure per operational metric.",
+        "- `comparison/taxonomy/`: field- and category-level taxonomy comparisons.",
+        "- `comparison/agreement/`: decision agreement; this is not correctness.",
+        "- `classifiers/`: detailed audit for one classifier at a time.",
+        "- `classifiers/nli/<model>/sensitivity/`: offline robustness check for NLI cutoffs; it is not another model result.",
+        "- Matching `.svg` and `.pdf` files are the same figure in screen and publication formats.",
+        "", "## Available classifier details", "",
+    ]
+    lines.extend(
+        f"- `{label}` → `{directory.relative_to(evaluation_root)}/`"
+        for label, (_classification, directory) in entries.items()
+        if (directory / "metrics.json").is_file()
+    )
+    lines.append("")
+    evaluation_root.mkdir(parents=True, exist_ok=True)
+    (evaluation_root / "README.md").write_text("\n".join(lines), encoding="utf-8")
+    return outputs
 
 
 def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str) -> dict[str, int]:
@@ -442,7 +493,7 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
                     diagnostic_outputs = build_nli_threshold_diagnostics(
                         source, output, candidates_path, rating_profile, nli_profile,
                         nli_config, load_nli_threshold_grid(settings),
-                        evaluation_dir / "threshold_diagnostics", settings.section("plots"),
+                        evaluation_dir / "sensitivity", settings.section("plots"),
                         confidence_level=_evaluation_confidence_level(settings),
                         adapter_config=adapter_config,
                     )
@@ -519,6 +570,10 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
                 for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "github", args, ensemble_paths["evaluation"]):
                     result = _evaluate(settings, "github", ensemble_paths["classifications"], candidates_path, output_dir, ratings_path)
                     _record_evaluation(manifest, result, "_".join(filter(None, ("ensemble", profile_label))))
+            if not getattr(args, "output", None):
+                manifest.counts["evaluation_comparison_files"] = len(
+                    _build_classifier_comparisons(settings, "github")
+                )
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             for model in models:
                 rows = reconcile_github(model_paths[model]["classifications"], model_paths[model]["reconciled"], cache, _model_ollama_config(settings, model), config, args.dry_run, prompt_config=prompt_config)
@@ -598,6 +653,10 @@ def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, i
             for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "github", args, paths["evaluation"]):
                 result = _evaluate(settings, "github", classifications_path, candidates_path, output_dir, ratings_path)
                 _record_evaluation(manifest, result, profile_label)
+            if not getattr(args, "output", None):
+                manifest.counts["evaluation_comparison_files"] = len(
+                    _build_classifier_comparisons(settings, "github")
+                )
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]
             output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]
@@ -683,6 +742,10 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
                 for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "openalex", args, ensemble_paths["evaluation"]):
                     result = _evaluate(settings, "openalex", ensemble_paths["classifications"], candidates_path, output_dir, ratings_path)
                     _record_evaluation(manifest, result, "_".join(filter(None, ("ensemble", profile_label))))
+            if not getattr(args, "output", None):
+                manifest.counts["evaluation_comparison_files"] = len(
+                    _build_classifier_comparisons(settings, "openalex")
+                )
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             for model in models:
                 rows = reconcile_openalex(model_paths[model]["classifications"], model_paths[model]["reconciled"], cache, _model_ollama_config(settings, model), config, args.dry_run, prompt_config=prompt_config)
@@ -766,6 +829,10 @@ def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str,
             for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "openalex", args, paths["evaluation"]):
                 result = _evaluate(settings, "openalex", classifications_path, candidates_path, output_dir, ratings_path)
                 _record_evaluation(manifest, result, profile_label)
+            if not getattr(args, "output", None):
+                manifest.counts["evaluation_comparison_files"] = len(
+                    _build_classifier_comparisons(settings, "openalex")
+                )
         if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
             input_path = Path(args.input) if args.input else paths["classifications"]
             output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]

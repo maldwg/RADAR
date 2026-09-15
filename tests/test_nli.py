@@ -179,7 +179,8 @@ class NLITests(unittest.TestCase):
             self.assertEqual(len(read_csv(
                 root / "diagnostics/data/nli_threshold_sensitivity.csv"
             )), 2)
-            self.assertTrue(any(path.name == "01_detection_rate.svg" for path in outputs))
+            self.assertTrue(any(path.name == "00_threshold_sensitivity.svg" for path in outputs))
+            self.assertTrue((root / "diagnostics/README.md").is_file())
 
 
 if __name__ == "__main__":

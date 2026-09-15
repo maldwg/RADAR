@@ -240,7 +240,7 @@ class BaselineTests(unittest.TestCase):
             output = root / "interim/github/baselines/keyword/classifications.csv"
             self.assertEqual(counts["baseline_keyword_accept"], 1)
             self.assertEqual(read_csv(output)[0]["decision"], "accept")
-            self.assertTrue((root / "evaluation/github/baselines/keyword/metrics.json").is_file())
+            self.assertTrue((root / "evaluation/github/classifiers/keyword/metrics.json").is_file())
             parsed = build_parser().parse_args(["github", "baseline", "--methods", "keyword"])
             self.assertEqual(parsed.methods, "keyword")
             offline = build_parser().parse_args([
