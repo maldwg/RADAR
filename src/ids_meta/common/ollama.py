@@ -34,19 +34,32 @@ class OllamaClient:
         self.temperature = float(config.get("temperature", 0))
         self.seed = int(config.get("seed", 42))
         self.max_output_tokens = int(config.get("max_output_tokens", 900))
+        self.context_length = int(config.get("context_length", 0))
+        self.keep_alive = str(config.get("keep_alive", "")).strip()
+        if self.context_length < 0:
+            raise ValueError("ollama.context_length must be zero or a positive integer")
         if not self.model:
             raise ValueError("OLLAMA_MODEL or ollama.model is required for classification")
 
     def generate(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         """Request one schema-constrained JSON object with retry handling."""
+        options = {
+            "temperature": self.temperature,
+            "seed": self.seed,
+            "num_predict": self.max_output_tokens,
+        }
+        if self.context_length:
+            options["num_ctx"] = self.context_length
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
             "think": False,
             "format": schema,
-            "options": {"temperature": self.temperature, "seed": self.seed, "num_predict": self.max_output_tokens},
+            "options": options,
         }
+        if self.keep_alive:
+            payload["keep_alive"] = self.keep_alive
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -57,6 +70,15 @@ class OllamaClient:
                 response = requests.post(f"{self.url}/api/generate", json=payload, headers=headers, timeout=self.timeout)
                 response.raise_for_status()
                 body = response.json()
+                LOG.info(
+                    "Ollama timing model=%s load=%.3fs prompt_eval=%.3fs eval=%.3fs "
+                    "prompt_tokens=%s eval_tokens=%s done_reason=%s",
+                    self.model, float(body.get("load_duration") or 0) / 1e9,
+                    float(body.get("prompt_eval_duration") or 0) / 1e9,
+                    float(body.get("eval_duration") or 0) / 1e9,
+                    body.get("prompt_eval_count", ""), body.get("eval_count", ""),
+                    body.get("done_reason", ""),
+                )
                 text = body.get("response") or (body.get("message") or {}).get("content")
                 parsed = json.loads(str(text))
                 if not isinstance(parsed, dict):
@@ -68,6 +90,23 @@ class OllamaClient:
                     LOG.warning("Ollama request failed (%s); retrying", exc)
                     time.sleep(2**attempt)
         raise RuntimeError(f"Ollama request failed: {error}") from error
+
+
+def legacy_runtime_decision_profile(
+    model: str, prompt_version: str, config: dict[str, Any],
+    prompt_config: dict[str, Any] | None = None,
+) -> str:
+    """Reproduce the short-lived cache key that included runtime context capacity."""
+    relevant = {
+        "model": model,
+        "prompt_version": prompt_version,
+        "temperature": config.get("temperature"),
+        "seed": config.get("seed"),
+        "context_length": config.get("context_length"),
+        "require_verified_quote": config.get("require_verified_quote"),
+        "prompt_config": prompt_config or {},
+    }
+    return stable_hash(json.dumps(relevant, sort_keys=True))
 
 
 def format_evidence(sections: list[EvidenceSection], max_chars: int = 14000) -> str:

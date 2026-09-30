@@ -77,7 +77,7 @@ class PlottingTests(unittest.TestCase):
             github_row = {column: "" for column in GITHUB_COLUMNS}
             github_row.update({"schema_version": "1.0", "run_id": "run", "github_repo_id": "1", "project_id": "p1", "canonical_repo_id": "1", "repository_relationship": "canonical", "full_name": "example/repo", "role": "native_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", "system_type_names": "Network intrusion detection system", "language": "Python", "stars": "5", "forks": "1", "pushed_at": "2025-01-01T00:00:00Z", "html_url": "https://example.invalid", "evidence_json": "[]", "prefilter_band": "candidate", "prefilter_score": "10", "decision": "accept", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true"})
             atomic_write_csv(github_csv, [github_row], GITHUB_COLUMNS)
-            outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg"], "dpi": 72, "top_n": 5}, classifications_path=github_csv)
+            outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg", "pdf"], "dpi": 72, "top_n": 5}, classifications_path=github_csv)
             self.assertTrue(outputs)
             self.assertTrue((root / "github-plots/data/01_repository_timeline.csv").is_file())
             overview = root / "github-plots/data/00_repository_overview.csv"
@@ -87,6 +87,7 @@ class PlottingTests(unittest.TestCase):
             self.assertTrue((root / "github-plots/data/00_system_type_definitions.csv").is_file())
             self.assertTrue((root / "github-plots/data/02_role_type_matrix.csv").is_file())
             self.assertTrue((root / "github-plots/00_repository_overview.svg").is_file())
+            self.assertTrue((root / "github-plots/00_repository_overview.pdf").is_file())
             self.assertTrue((root / "github-plots/10_evidence_escalation.svg").is_file())
             self.assertIn("denominator_scope", (root / "github-plots/data/10_evidence_escalation.csv").read_text(encoding="utf-8").splitlines()[0])
             self.assertTrue((root / "github-plots/11_keyword_score_vs_decision.svg").is_file())
@@ -171,6 +172,7 @@ class PlottingTests(unittest.TestCase):
             architecture = build_architecture(root, ["svg"], 72)
             self.assertTrue(architecture)
             self.assertTrue((root / "pipeline_architecture.svg").is_file())
+            self.assertTrue((root / "system_architecture.svg").is_file())
             self.assertFalse((root / "github-plots/pipeline_sequence.svg").exists())
             self.assertFalse((root / "openalex-plots/pipeline_sequence.svg").exists())
 

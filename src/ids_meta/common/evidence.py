@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ids_meta.common.text import unicode_safe
+
 
 MAX_SNOWBALL_DEPTH = 10
 EVIDENCE_EXPANSION_COLUMNS = [
@@ -40,6 +42,7 @@ def merge_new_evidence(target: dict[str, Any], discovered: dict[str, Any]) -> bo
     """Merge non-empty evidence fields and report whether the usable evidence changed."""
     changed = False
     for key, value in discovered.items():
+        value = unicode_safe(value)
         if value in (None, "", [], {}):
             continue
         if target.get(key) != value:

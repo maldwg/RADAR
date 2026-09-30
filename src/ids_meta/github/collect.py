@@ -396,8 +396,11 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
                 LOG.info("GitHub enrichment progress %d/%d (cache_reused=%d)", index + 1, len(seen), reused)
             continue
         LOG.info("enriching repository %d/%d: %s", index + 1, len(seen), item.get("full_name", key))
-        payload = _enrich(client, item, int(settings.get("max_docs_files", 3)))
-        payload["matched_queries"] = sorted(matched[key])
+        try:
+            payload = _enrich(client, item, int(settings.get("max_docs_files", 3)))
+        except Exception as exc:
+            LOG.warning("Error occurred while enriching repository %s: %s", item.get("full_name", key), str(exc))
+            payload = {"matched_queries": sorted(matched[key])}
         cache.put_record("github.repository", key, payload, fetched_at)
         LOG.info("finished repository %d/%d: %s", index + 1, len(seen), item.get("full_name", key))
     LOG.info("GitHub collection complete discovered=%d reused=%d incomplete_shards=%d", len(seen), reused, len(incomplete_shards))

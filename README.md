@@ -153,15 +153,36 @@ ids-meta compare github
 ids-meta compare openalex
 ```
 
-Generate the combined architecture figure independently from source plotting. By default it writes `pipeline_architecture.svg` in the repository root:
+Generate both paper-ready architecture views independently from source plotting. The command writes `pipeline_architecture.{svg,pdf}` for the detailed five-stage method and `system_architecture.{svg,pdf}` for the additional high-level component view:
 
 ```bash
 ids-meta architecture
 # Alternate directory:
 ids-meta architecture --output artifacts/architecture
+# Select one vector format:
+ids-meta architecture --formats pdf
 # Direct module entry point:
 python -m ids_meta.architecture
 ```
+
+The detailed pipeline figure labels the five paper stages `(i)`–`(v)` and keeps GitHub and OpenAlex discovery, reconciliation, and export paths visually distinct. The separate system figure shows the GitHub and OpenAlex APIs, crawlers, evidence database, pipeline client, Ollama server, configured LLMs, and outputs.
+
+All catalogue, evaluation, comparison, and funnel builders use `plots.formats`.
+The default `formats = ["svg", "pdf"]` therefore writes a matching PDF beside
+every SVG figure.
+
+Generate the source-to-catalogue reverse-pyramid independently from collection or inference:
+
+```bash
+ids-meta funnel github
+ids-meta funnel openalex
+# Alternate directory:
+ids-meta funnel github --output artifacts/paper/funnel
+# Direct module entry point:
+python -m ids_meta.funnel github
+```
+
+The funnel reads the active source cache and compatible candidate, classification, and catalogue CSVs when they exist. If no database snapshot exists, it falls back to acquisition and collection capacities from the selected TOML configuration and marks those segments as configured capacity rather than observed results. Query counts are displayed as acquisition context instead of being compared geometrically with record counts. Every normal `classify`, `baseline`, or complete `run` refreshes the default bundle under `artifacts/plots/<source>/pipeline_funnel/`; custom-input/output experiments remain opt-in through the standalone command. Multi-model and baseline outputs receive separate funnels with a shared discovery denominator. Each transition labels the exact number and percentage removed, while companion CSVs preserve the counts, provenance, and denominators.
 
 ### Multiple models and ensembles
 
@@ -171,6 +192,8 @@ Set `ollama.models` to run the model-dependent stages once per model. Collection
 [ollama]
 model = "qwen3.6:27b"
 models = ["qwen3.6:27b", "llama3.3:70b", "gemma3:27b"]
+context_length = 262144
+keep_alive = "30m"
 
 [ensemble]
 enabled = true
@@ -178,6 +201,19 @@ enabled = true
 models = ["qwen3.6:27b", "llama3.3:70b"]
 threshold = 0.5
 ```
+
+`ollama.context_length` is sent as `options.num_ctx` on every classification and
+reconciliation request, overriding Ollama's server-selected context for this
+pipeline. Use `262144` for a 256 Ki-token context window. Set it to `0` to omit
+the request-level override and use the Ollama server default. `ollama.keep_alive`
+is sent with every request so Ollama keeps that model loaded between consecutive
+items when memory permits. Context capacity and keep-alive are runtime controls,
+not semantic decision settings, so changing them does not invalidate compatible
+cached classifications. Resume remains enabled unless `--no-resume` is passed.
+A compatible decision produced while context capacity was briefly part of the
+cache key is migrated lazily on its first cache hit; this does not call Ollama.
+New processes log Ollama-reported `load`, `prompt_eval`, and `eval` durations for
+every request; a large `load` duration is direct evidence of a model reload.
 
 Each source can also repeat the same classification consecutively with `<source>.consecutive_runs` and vote using `<source>.consensus_threshold`. Consensus covers the include/exclude/uncertain disposition and normalized classification fields. Single-value fields use threshold voting; GitHub scopes, capabilities, and methods use per-label voting; derived system types are recomputed. The assembled tuple is checked against deterministic cross-field rules. Invalid mixtures fall back to an audited coherent supporting run, or remain uncertain when no valid fallback exists. Set `consecutive_runs = 1` for the former single-run behavior. See [classification consensus](docs/classification_consensus.md) for the complete rules, independence limitations, and audit columns.
 
@@ -217,9 +253,11 @@ Central ratings live in `config/evaluation/github.toml` for repositories and `co
 - `data/processed/openalex/base_papers.csv`: security-intended dataset and generator base papers. `title` is the publication title, `artifact_name` is the canonical LLM-extracted resource identity, and `artifact_display_name`/`resource_name` is the explicit concise label used in tables and plots.
 - `data/processed/openalex/adjacent_base_papers.csv`: neutral foundational data releases.
 - `artifacts/plots/`: source-specific SVG/PDF catalogue figures plus the exact aggregate CSV behind each plot.
+- `artifacts/plots/<source>/pipeline_funnel/`: database-aware, paper-ready reverse pyramids for every current classifier variant, including exact transition-loss CSVs and configuration-only fallbacks.
 - `artifacts/evaluation/<source>/comparison/`: the primary rated cross-approach overview, metric, taxonomy, and agreement figures.
 - `artifacts/evaluation/<source>/classifiers/`: per-classifier metrics, auditable instance/confusion/field tables, diagnostic figures, and NLI sensitivity analysis.
-- `pipeline_architecture.svg`: the combined repository-level data-flow architecture, generated independently with `ids-meta architecture`. Each component states its input data, transformation, and output data.
+- `pipeline_architecture.{svg,pdf}`: the detailed five-stage paper pipeline.
+- `system_architecture.{svg,pdf}`: the additional high-level component architecture. Both are generated with `ids-meta architecture`.
 - `artifacts/runs/`: configuration fingerprints, source coverage, counts, and the explicit API-coverage limitation for each command.
 
 Popularity fields never determine eligibility or relevance. The default GitHub star and OpenAlex citation floors are both zero. Within an already verified OpenAlex artifact family, raw citation counts provide only a configurable, log-scaled, capped secondary signal for canonical-paper selection.

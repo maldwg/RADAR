@@ -894,6 +894,10 @@ def build_parser() -> argparse.ArgumentParser:
                 action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")
     architecture = subparsers.add_parser("architecture")
     architecture.add_argument("--output", type=Path, help="output directory; defaults to the repository root")
+    architecture.add_argument("--formats", default="svg,pdf", help="comma-separated vector formats: svg,pdf")
+    funnel = subparsers.add_parser("funnel")
+    funnel.add_argument("source", choices=("github", "openalex"))
+    funnel.add_argument("--output", type=Path, help="output directory; defaults to artifacts/plots/<source>/pipeline_funnel")
     comparison = subparsers.add_parser("compare")
     comparison.add_argument("source", choices=("github", "openalex"))
     comparison.add_argument("--input", type=Path)
@@ -921,8 +925,13 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "architecture":
             from ids_meta.architecture import build as build_architecture
 
-            files = build_architecture(args.output or settings.root)
+            files = build_architecture(args.output or settings.root, [value.strip() for value in args.formats.split(",")])
             counts = {"architecture_files": len(files)}
+        elif args.command == "funnel":
+            from ids_meta.funnel import build as build_funnel
+
+            files = build_funnel(settings, args.source, args.output)
+            counts = {"funnel_files": len(files)}
         else:
             from ids_meta.plotting.compare import build as build_comparison
 
@@ -947,6 +956,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             baseline_counts = _execute_baselines(baseline_args, settings, args.command)
             counts.update(baseline_counts)
+        if (
+            args.command in {"github", "openalex"}
+            and args.action in {"classify", "baseline", "run"}
+            and not getattr(args, "dry_run", False)
+            and not getattr(args, "input", None)
+            and not getattr(args, "output", None)
+        ):
+            from ids_meta.funnel import build as build_funnel
+
+            counts["funnel_files"] = len(build_funnel(settings, args.command))
         LOG.info("command summary %s", "; ".join(f"{key}={value}" for key, value in sorted(counts.items())))
         return 0
     except (ConfigError, ValueError, OSError, RuntimeError) as exc:

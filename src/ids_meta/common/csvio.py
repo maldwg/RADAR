@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
+from ids_meta.common.text import unicode_safe_text
+
 
 def configure_csv_limit() -> None:
     """Raise Python's CSV field-size limit to the largest supported value."""
@@ -35,7 +37,10 @@ def atomic_write_csv(path: Path, rows: Iterable[Mapping[str, object]], columns: 
             writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
             writer.writeheader()
             for row in rows:
-                writer.writerow({column: row.get(column, "") for column in columns})
+                writer.writerow({
+                    column: unicode_safe_text(value) if isinstance(value := row.get(column, ""), str) else value
+                    for column in columns
+                })
         os.replace(temporary, path)
     except Exception:
         try:

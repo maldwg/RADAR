@@ -4,9 +4,29 @@ import hashlib
 import re
 import unicodedata
 from difflib import SequenceMatcher
-from typing import Iterable
+from typing import Any, Iterable
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
+
+
+def unicode_safe(value: Any) -> Any:
+    """Recursively replace invalid UTF-16 surrogate code points with U+FFFD."""
+    if isinstance(value, str):
+        return SURROGATE_RE.sub("\ufffd", value)
+    if isinstance(value, dict):
+        return {unicode_safe(key): unicode_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [unicode_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(unicode_safe(item) for item in value)
+    return value
+
+
+def unicode_safe_text(value: object) -> str:
+    """Convert a value to text and replace invalid UTF-16 surrogate code points."""
+    return SURROGATE_RE.sub("\ufffd", str(value or ""))
+
 
 
 def normalize_text(*values: object) -> str:
@@ -18,7 +38,7 @@ def normalize_text(*values: object) -> str:
 
 def stable_hash(*values: object, length: int = 20) -> str:
     """Create a deterministic truncated SHA-256 fingerprint from ordered values."""
-    payload = "\x1f".join(str(value or "") for value in values)
+    payload = "\x1f".join(unicode_safe_text(value) for value in values)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:length]
 
 

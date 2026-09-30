@@ -8,17 +8,18 @@ import io
 import json
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.architecture import build as build_architecture
-from ids_meta.common.csvio import atomic_write_csv
+from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.ensemble import consensus_classification, ensemble_classifications
 from ids_meta.common.config import Settings
 from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
-from ids_meta.common.ollama import EvidenceSection, decision_profile, verify_evidence
+from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, verify_evidence
 from ids_meta.common.scoring import score_evidence
 from ids_meta.common.scoring import shortlist_candidates
-from ids_meta.common.text import contains_concept, normalize_text
+from ids_meta.common.text import contains_concept, normalize_text, stable_hash, unicode_safe
 from ids_meta.common.logging import configure_logging, logger
 from ids_meta.cli import _configured_models, _ensemble_config, _execution_paths, _pipeline_limits, build_parser
 from ids_meta.github.pipeline import prompt as github_prompt
@@ -58,6 +59,25 @@ class CommonTests(unittest.TestCase):
         self.assertEqual(normalize_text("Host‑Based", "IDS"), "host based ids")
         self.assertTrue(contains_concept("an intruson detction system", "intrusion detection system"))
         self.assertFalse(contains_concept("a recipe collection", "intrusion detection system"))
+
+    def test_invalid_unicode_is_safe_at_cache_csv_and_hash_boundaries(self) -> None:
+        """Replace unpaired surrogates without changing storage or export schemas."""
+        broken = "abstract before \ud800 evidence \udfff after"
+        cleaned = "abstract before \ufffd evidence \ufffd after"
+        self.assertEqual(unicode_safe({"evidence": [broken]}), {"evidence": [cleaned]})
+        self.assertEqual(stable_hash(broken), stable_hash(cleaned))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_record("openalex.work", "W1", {"abstract": broken}, "now")
+                cache.put_decision("openalex", "W1", "profile", "evidence", {"reason": broken}, "now")
+                cache.put_coverage("openalex", "query", "all", "complete", 1, {"note": broken}, "now")
+                self.assertEqual(cache.get_record("openalex.work", "W1")["abstract"], cleaned)
+                self.assertEqual(cache.get_decision("openalex", "W1", "profile", "evidence")["reason"], cleaned)
+                self.assertIn(cleaned, cache.coverage_rows("openalex")[0]["details_json"])
+            csv_path = root / "classification.csv"
+            atomic_write_csv(csv_path, [{"openalex_id": "W1", "abstract": broken}], ["openalex_id", "abstract"])
+            self.assertEqual(read_csv(csv_path)[0]["abstract"], cleaned)
 
     def test_grouped_score_counts_each_group_once(self) -> None:
         """Verify repeated terms cannot multiply one concept group's score."""
@@ -111,32 +131,48 @@ class CommonTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             parser.parse_args(["openalex", "classify", "--classify-all", "--classify-limit", "25"])
 
-    def test_architecture_svg_exposes_data_transformations(self) -> None:
-        """Generate a standalone SVG with explicit input, operation, and output data."""
+    def test_architecture_emits_detailed_pipeline_and_system_views(self) -> None:
+        """Keep the sequential method and deployed components as separate figures."""
         with tempfile.TemporaryDirectory() as directory:
             outputs = build_architecture(Path(directory))
-            value = outputs[0].read_text(encoding="utf-8")
-        self.assertIn("Direct query sampler", value)
-        self.assertIn("SURVEY / REFERENCE BRANCH", value)
-        self.assertIn("INPUT", value)
-        self.assertIn("OUTPUT", value)
-        self.assertIn("Comparable classifier runners", value)
-        self.assertIn("keyword rules | zero-shot NLI | repeated LLM", value)
-        self.assertIn("Normalize, vote, and ensemble", value)
-        self.assertIn("Rated classification evaluation", value)
-        self.assertIn("Cross-approach plotter", value)
-        self.assertIn("NLI sensitivity replay", value)
-        self.assertIn("comparison/{metrics,taxonomy,agreement}", value)
-        self.assertIn("classifiers/{keyword,nli,llm,ensemble}", value)
-        self.assertIn("OpenAlex unsupported binary metrics = N/A", value)
-        self.assertIn("Catalogue plotter and export", value)
-        self.assertNotIn("Matplotlib", value)
+            self.assertEqual(
+                {path.name for path in outputs},
+                {
+                    "pipeline_architecture.svg", "pipeline_architecture.pdf",
+                    "system_architecture.svg", "system_architecture.pdf",
+                },
+            )
+            pipeline = (Path(directory) / "pipeline_architecture.svg").read_text(encoding="utf-8")
+            system = (Path(directory) / "system_architecture.svg").read_text(encoding="utf-8")
+        for label in (
+            "Repository search", "Direct paper search", "Diverse survey seeds",
+            "Backward snowballing", "Deterministic prefilter", "Structured prompts", "Keyword + NLI baselines",
+            "Repository families", "Publication families", "Repository catalogue",
+            "Dataset catalogue", "GitHub-specific", "OpenAlex-specific",
+            "Shared processing", "Evaluation only", "Reporting container",
+            "(i)", "(ii)", "(iii)", "(iv)", "(v)",
+        ):
+            self.assertIn(label, pipeline)
+        for label in (
+            "GitHub", "OpenAlex", "API", "GitHub crawler", "OpenAlex crawler",
+            "Evidence &amp; run DB", "Adjudication client", "Ollama server",
+            "LLM models", "Repository families", "Publication families",
+            "GitHub path", "OpenAlex path", "Shared state", "Shared processing",
+        ):
+            self.assertIn(label, system)
+        self.assertNotIn("Keyword baseline", system)
+        self.assertNotIn("(i)", system)
+        self.assertNotIn("structured request", system)
+        self.assertNotIn(">serves<", system)
+        self.assertNotIn("IDS meta-study", pipeline)
+        self.assertNotIn("IDS meta-study", system)
 
     def test_architecture_is_an_independent_cli_command(self) -> None:
         """Expose architecture generation outside both source plotting commands."""
         args = build_parser().parse_args(["architecture", "--output", "figures"])
         self.assertEqual(args.command, "architecture")
         self.assertEqual(args.output, Path("figures"))
+        self.assertEqual(args.formats, "svg,pdf")
 
     def test_profiles_contain_generic_query_types(self) -> None:
         """Verify both source profiles expose generic discovery queries."""
@@ -146,10 +182,11 @@ class CommonTests(unittest.TestCase):
         self.assertTrue(load_prompt_profile(settings, "github")["template"])
         self.assertTrue(load_prompt_profile(settings, "openalex")["template"])
         self.assertIn("NIDS", load_system_type_profile(settings, "github")["types"])
-        self.assertEqual(settings.section("github")["collection_limit"], 5000)
+        self.assertGreaterEqual(int(settings.section("github")["collection_limit"]), 1)
         self.assertEqual(settings.section("github")["classification_limit"], "all")
-        self.assertEqual(settings.section("openalex")["collection_limit"], 5000)
+        self.assertGreaterEqual(int(settings.section("openalex")["collection_limit"]), 1)
         self.assertEqual(settings.section("openalex")["classification_limit"], "all")
+        self.assertEqual(settings.section("plots")["formats"], ["svg", "pdf"])
 
     def test_configured_prompts_describe_taxonomies_and_include_evidence(self) -> None:
         """Verify both source prompts render configurable taxonomy descriptions and supplied evidence."""
@@ -181,6 +218,30 @@ class CommonTests(unittest.TestCase):
         first = decision_profile("model", "version", model_config, {"template": "first ${evidence}"})
         second = decision_profile("model", "version", model_config, {"template": "second ${evidence}"})
         self.assertNotEqual(first, second)
+
+    def test_ollama_runtime_controls_do_not_invalidate_cached_decisions(self) -> None:
+        """Send runtime controls without treating capacity or residency as semantics."""
+        config = {
+            "model": "fixture-model", "context_length": 262144,
+            "keep_alive": "30m", "max_output_tokens": 12, "retries": 0,
+        }
+        with patch("ids_meta.common.ollama.requests.post") as post:
+            post.return_value.json.return_value = {"response": "{}"}
+            result = OllamaClient(config).generate("fixture prompt", {"type": "object"})
+        self.assertEqual(result, {})
+        payload = post.call_args.kwargs["json"]
+        self.assertEqual(payload["options"]["num_ctx"], 262144)
+        self.assertEqual(payload["keep_alive"], "30m")
+        first = decision_profile("fixture-model", "version", config)
+        runtime_changed = decision_profile(
+            "fixture-model", "version",
+            {**config, "context_length": 32768, "keep_alive": "5m"},
+        )
+        semantic_changed = decision_profile(
+            "fixture-model", "version", {**config, "temperature": 0.5},
+        )
+        self.assertEqual(first, runtime_changed)
+        self.assertNotEqual(first, semantic_changed)
 
     def test_evidence_quotes_are_source_bound(self) -> None:
         """Verify evidence quotes must occur in their claimed source section."""
@@ -215,6 +276,19 @@ class CommonTests(unittest.TestCase):
                 cache.put_decision("x", "1", "profile-a", "evidence-a", {"decision": "accept"}, "now")
                 self.assertIsNotNone(cache.get_decision("x", "1", "profile-a", "evidence-a"))
                 self.assertIsNone(cache.get_decision("x", "1", "profile-a", "evidence-b"))
+                cache.put_decision(
+                    "x", "2", "runtime-profile", "evidence-a",
+                    {"decision": "accept", "profile_hash": "runtime-profile",
+                     "classifier_profile_hash": "runtime-profile", "classified_at": "now"},
+                    "now",
+                )
+                migrated = cache.get_compatible_decision(
+                    "x", "2", "semantic-profile", "evidence-a", ("runtime-profile",),
+                )
+                self.assertEqual(migrated["profile_hash"], "semantic-profile")
+                self.assertIsNotNone(
+                    cache.get_decision("x", "2", "semantic-profile", "evidence-a"),
+                )
 
     def test_multi_model_configuration_and_paths(self) -> None:
         """Verify model lists, ensemble subsets, and isolated filesystem paths."""

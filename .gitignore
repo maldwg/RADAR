@@ -11,6 +11,9 @@ artifacts/runs/
 **/*.csv
 **/*.svg
 **/*.pdf
+!pipeline_architecture.pdf
+!system_architecture.svg
+!system_architecture.pdf
 
 # Rated evaluation reports are versioned research artifacts. Keep their figures
 # and companion tables visible after the evaluation tree is regenerated.

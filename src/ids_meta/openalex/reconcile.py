@@ -9,7 +9,7 @@ from typing import Any, Protocol
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.logging import logger
-from ids_meta.common.ollama import OllamaClient, decision_profile
+from ids_meta.common.ollama import OllamaClient, decision_profile, legacy_runtime_decision_profile
 from ids_meta.common.prompts import render_prompt
 from ids_meta.common.reconcile import group_by_links, margin_confidence
 from ids_meta.common.run import utc_now
@@ -228,7 +228,10 @@ def reconcile(
                 if model_client is None:
                     model_client = OllamaClient(ollama_config)
                     profile_hash = decision_profile(model_client.model, PROMPT_VERSION, ollama_config, profile)
-                cached = cache.get_decision("openalex.reconciliation", group_key, profile_hash, evidence_hash) if cache else None
+                cached = cache.get_compatible_decision(
+                    "openalex.reconciliation", group_key, profile_hash, evidence_hash,
+                    (legacy_runtime_decision_profile(model_client.model, PROMPT_VERSION, ollama_config, profile),),
+                ) if cache else None
                 raw = cached or model_client.generate(_prompt(group, scores, prompt_config), RESPONSE_SCHEMA)
                 selected = str(raw.get("canonical_openalex_id", ""))
                 choices = {row["openalex_id"]: row for row in group}

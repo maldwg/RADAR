@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from ids_meta.common.logging import logger
+from ids_meta.common.text import unicode_safe
 
 LOG = logger("cache")
 
@@ -44,6 +45,14 @@ def _sql(value: object) -> str:
     if isinstance(value, int):
         return str(value)
     return "'" + str(value).replace("'", "''") + "'"
+
+
+def _json_payload(value: Any, context: str) -> str:
+    """Serialize JSON after replacing invalid surrogate code points at the boundary."""
+    cleaned = unicode_safe(value)
+    if cleaned != value:
+        LOG.warning("replaced invalid Unicode surrogate code points while caching %s", context)
+    return json.dumps(cleaned, ensure_ascii=False)
 
 
 class PipelineCache:
@@ -85,7 +94,7 @@ class PipelineCache:
 
     def put_record(self, namespace: str, key: str, payload: dict[str, Any], fetched_at: str) -> None:
         """Insert or replace a timestamped raw record in a namespace."""
-        values = (namespace, key, json.dumps(payload, ensure_ascii=False), fetched_at)
+        values = (namespace, key, _json_payload(payload, f"record {namespace}/{key}"), fetched_at)
         if self.connection is not None:
             self.connection.execute("INSERT OR REPLACE INTO records VALUES (?, ?, ?, ?)", values)
             self.connection.commit()
@@ -111,7 +120,7 @@ class PipelineCache:
 
     def put_decision(self, namespace: str, key: str, profile_hash: str, evidence_hash: str, payload: dict[str, Any], classified_at: str) -> None:
         """Cache a decision under its model/profile and evidence fingerprints."""
-        values = (namespace, key, profile_hash, evidence_hash, json.dumps(payload, ensure_ascii=False), classified_at)
+        values = (namespace, key, profile_hash, evidence_hash, _json_payload(payload, f"decision {namespace}/{key}"), classified_at)
         if self.connection is not None:
             self.connection.execute("INSERT OR REPLACE INTO decisions VALUES (?, ?, ?, ?, ?, ?)", values)
             self.connection.commit()
@@ -129,9 +138,34 @@ class PipelineCache:
         )
         return json.loads(rows[0]["payload_json"]) if rows else None
 
+    def get_compatible_decision(
+        self, namespace: str, key: str, profile_hash: str,
+        evidence_hash: str, compatible_profile_hashes: Iterable[str] = (),
+    ) -> dict[str, Any] | None:
+        """Reuse and migrate a decision from a known-compatible historical cache key."""
+        for candidate_hash in (profile_hash, *compatible_profile_hashes):
+            cached = self.get_decision(namespace, key, candidate_hash, evidence_hash)
+            if cached is None:
+                continue
+            if candidate_hash != profile_hash:
+                cached = dict(cached)
+                for field in ("profile_hash", "classifier_profile_hash"):
+                    if field in cached:
+                        cached[field] = profile_hash
+                classified_at = str(cached.get("classified_at", ""))
+                self.put_decision(
+                    namespace, key, profile_hash, evidence_hash, cached, classified_at,
+                )
+                LOG.info(
+                    "migrated compatible cached decision namespace=%s key=%s old_profile=%s new_profile=%s",
+                    namespace, key, candidate_hash, profile_hash,
+                )
+            return cached
+        return None
+
     def put_coverage(self, source: str, query: str, shard: str, status: str, total_count: int | None, details: dict[str, Any], completed_at: str) -> None:
         """Record the completeness status and details of a discovery query shard."""
-        values = (source, query, shard, status, total_count, json.dumps(details, ensure_ascii=False), completed_at)
+        values = (source, query, shard, status, total_count, _json_payload(details, f"coverage {source}/{query}/{shard}"), completed_at)
         if self.connection is not None:
             self.connection.execute("INSERT OR REPLACE INTO coverage VALUES (?, ?, ?, ?, ?, ?, ?)", values)
             self.connection.commit()

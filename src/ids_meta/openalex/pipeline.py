@@ -8,7 +8,7 @@ from ids_meta.common.cache import PipelineCache
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.ensemble import consensus_classification
 from ids_meta.common.evidence import evidence_expansion_audit, merge_new_evidence, vote_round_needs_more_evidence
-from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, verify_evidence
+from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, legacy_runtime_decision_profile, verify_evidence
 from ids_meta.common.prompts import description_block, render_prompt
 from ids_meta.common.run import utc_now
 from ids_meta.common.scoring import score_evidence, shortlist_candidates
@@ -193,7 +193,7 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         )
     model = getattr(client, "model", str(ollama_config.get("model") or "dry-run"))
     consecutive_runs = max(1, int(consecutive_runs))
-    profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, {
+    decision_config = {
         "prompt": prompt_config or {}, "consecutive_runs": consecutive_runs,
         "consensus_threshold": consensus_threshold,
         "evidence_fallback": {
@@ -201,7 +201,11 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
             "uncertain_full_text": bool(enrichment_config.get("enrich_uncertain_with_full_text", False)),
             "max_full_text_chars": int(enrichment_config.get("max_enriched_full_text_chars", 30000)),
         },
-    })
+    }
+    profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)
+    legacy_profile_hash = legacy_runtime_decision_profile(
+        model, PROMPT_VERSION, ollama_config, decision_config,
+    )
     results: list[dict[str, str]] = []
     new_decisions = 0
     LOG.info(
@@ -235,7 +239,9 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                 atomic_write_csv(candidates_path, rows, CANDIDATE_COLUMNS)
                 LOG.info("enriched missing paper evidence title=%s abstract=%s full_text=%s", row.get("title", key), bool(work.get("abstract")), bool(work.get("full_text")))
         evidence_hash = row["evidence_hash"]
-        cached = cache.get_decision("openalex.classification", key, profile_hash, evidence_hash) if resume else None
+        cached = cache.get_compatible_decision(
+            "openalex.classification", key, profile_hash, evidence_hash, (legacy_profile_hash,),
+        ) if resume else None
         if cached and cached.get("decision") != "error":
             results.append({str(k): str(v) for k, v in cached.items()})
             LOG.info(
