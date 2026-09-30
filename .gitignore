@@ -10,6 +10,7 @@ artifacts/runs/
 **/*.log
 **/*.csv
 **/*.svg
+!assets/architecture/*.svg
 **/*.pdf
 !pipeline_architecture.pdf
 !system_architecture.svg

@@ -154,9 +154,10 @@ class CommonTests(unittest.TestCase):
         ):
             self.assertIn(label, pipeline)
         for label in (
-            "GitHub", "OpenAlex", "API", "GitHub crawler", "OpenAlex crawler",
-            "Evidence &amp; run DB", "Adjudication client", "Ollama server",
-            "LLM models", "Repository families", "Publication families",
+            "GitHub", "OpenAlex", "GitHub crawler", "OpenAlex crawler",
+            "Adjudication client",
+            "Ollama server", "Qwen", "gpt-oss", "Gemma",
+            "Repository families", "Publication families",
             "GitHub path", "OpenAlex path", "Shared state", "Shared processing",
         ):
             self.assertIn(label, system)
@@ -166,6 +167,11 @@ class CommonTests(unittest.TestCase):
         self.assertNotIn(">serves<", system)
         self.assertNotIn("IDS meta-study", pipeline)
         self.assertNotIn("IDS meta-study", system)
+        self.assertNotIn(">Python<", system)
+        self.assertNotIn(">Record families<", system)
+        self.assertEqual(system.count(">Outputs<"), 1)
+        for asset in ("sqlite.svg", "python.svg", "ollama.svg", "qwen.svg", "openai.svg", "gemma.png"):
+            self.assertTrue((ROOT / "assets" / "architecture" / asset).is_file())
 
     def test_architecture_is_an_independent_cli_command(self) -> None:
         """Expose architecture generation outside both source plotting commands."""

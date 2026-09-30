@@ -221,6 +221,12 @@ def _icon_artist(kind: str, color: str = EDGE, size: float = 18) -> DrawingArea:
         line([(3, 5), (3, 15)])
         line([(17, 5), (17, 15)])
         area.add_artist(Arc((p(10), p(10)), p(14), p(5), theta1=180, theta2=360, edgecolor=color, linewidth=1.1))
+    elif kind == "web":
+        for radius in (3.0, 5.8, 8.0):
+            circle(10, 10, radius, fill="none")
+        for endpoint in ((10, 1.5), (16, 4), (18.5, 10), (16, 16), (10, 18.5), (4, 16), (1.5, 10), (4, 4)):
+            line([(10, 10), endpoint], linewidth=0.9)
+        circle(10, 10, 0.7, fill=color)
     elif kind == "server":
         rect(3, 3, 14, 14, fill=WHITE, radius=0.8)
         line([(3, 8), (17, 8)])
@@ -258,7 +264,7 @@ def _read_brand_image(path: Path) -> np.ndarray:
             raise RuntimeError(
                 "SVG architecture assets require CairoSVG; install the project dependencies"
             ) from exc
-        raw = svg2png(bytestring=raw)
+        raw = svg2png(bytestring=raw, output_width=512)
         image_format = "png"
     elif raw.startswith(b"\x89PNG\r\n\x1a\n"):
         image_format = "png"
@@ -352,6 +358,49 @@ def _brand_box(
         )
 
 
+def _logo_box(
+    ax: Axes, x: float, y: float, width: float, height: float,
+    filename: str, title: str, *, facecolor: str, target_width: float,
+    edgecolor: str = EDGE, title_size: float = 6.6,
+) -> None:
+    """Draw a process card with an unmodified technology logo and text label."""
+    ax.add_patch(FancyBboxPatch(
+        (x, y), width, height,
+        boxstyle="round,pad=0.004,rounding_size=0.007",
+        linewidth=0.9, edgecolor=edgecolor, facecolor=facecolor, zorder=3,
+    ))
+    _add_brand(
+        ax, x + width / 2, y + height * (0.68 if title else 0.50), filename,
+        target_width=target_width,
+    )
+    ax.text(
+        x + width / 2, y + height * 0.22, title,
+        ha="center", va="center", color=INK, fontsize=title_size,
+        fontweight="bold", linespacing=1.08, zorder=5,
+    )
+
+
+def _model_badge(
+    ax: Axes, x: float, y: float, width: float, height: float,
+    filename: str, label: str, *, target_width: float,
+) -> None:
+    """Draw one compact, labelled local-model badge inside the inference group."""
+    ax.add_patch(FancyBboxPatch(
+        (x, y), width, height,
+        boxstyle="round,pad=0.002,rounding_size=0.004",
+        linewidth=0.7, edgecolor="#C9C1B2", facecolor=WHITE, zorder=4,
+    ))
+    _add_brand(
+        ax, x + width / 2, y + height * 0.67, filename,
+        target_width=target_width,
+    )
+    ax.text(
+        x + width / 2, y + height * 0.18, label,
+        ha="center", va="center", color=INK, fontsize=5.5,
+        fontweight="bold", zorder=5,
+    )
+
+
 def _box(
     ax: Axes,
     x: float,
@@ -366,8 +415,10 @@ def _box(
     linestyle: str = "-",
     title_size: float = 6.8,
     icon_size: float = 17,
+    secondary_logo: str = "",
+    secondary_logo_width: float = 11,
 ) -> None:
-    """Draw one consistently aligned process card with a literal pictogram."""
+    """Draw a process card with a pictogram and optional technology mark."""
     ax.add_patch(FancyBboxPatch(
         (x, y), width, height,
         boxstyle="round,pad=0.004,rounding_size=0.007",
@@ -379,10 +430,16 @@ def _box(
     ))
     icon_y = y + height * 0.69
     title_y = y + height * 0.27
+    icon_x = x + width * (0.40 if secondary_logo else 0.50)
     _add_icon(
-        ax, x + width / 2, icon_y, icon,
+        ax, icon_x, icon_y, icon,
         color=edgecolor, size=min(icon_size, 15),
     )
+    if secondary_logo:
+        _add_brand(
+            ax, x + width * 0.62, icon_y, secondary_logo,
+            target_width=secondary_logo_width,
+        )
     ax.text(
         x + width / 2,
         title_y,
@@ -766,20 +823,19 @@ def _draw_system_figure() -> Figure:
     ax.set_ylim(-0.40, 5.25)
     ax.axis("off")
     headings = (
-        (2.72, "Source adapters", GITHUB),
-        (4.90, "Evidence store", REPORT),
-        (6.92, "Pipeline logic", CLASSIFY),
-        (8.92, "Inference", CLASSIFY),
-        (10.95, "Record families", REPORT),
-        (12.92, "Outputs", REPORT),
+        (2.72, "Source adapters", GITHUB, 2.04, 3.40),
+        (4.90, "Evidence store", REPORT, 4.22, 5.58),
+        (6.92, "Preiltering", CLASSIFY, 6.24, 7.60),
+        (8.92, "Inference", CLASSIFY, 8.24, 9.60),
+        (11.90, "Outputs", REPORT, 10.27, 13.60),
     )
-    for center, label, color in headings:
+    for center, label, color, left, right in headings:
         ax.text(
             center, 4.65, label, ha="center", va="center",
             fontsize=7.7, color=INK, fontweight="bold",
         )
         ax.plot(
-            [center - 0.68, center + 0.68], [4.48, 4.48],
+            [left, right], [4.48, 4.48],
             color=color if color != WHITE else GUIDE, linewidth=3.0,
             solid_capstyle="round", zorder=1,
         )
@@ -793,46 +849,61 @@ def _draw_system_figure() -> Figure:
     _brand_box(
         ax, 0.15, github_y - card_height / 2, 1.20, card_height,
         "github-lockup-black.svg", facecolor=GITHUB,
-        target_width=24, label="API",
+        target_width=24, label="",
     )
     _brand_box(
         ax, 0.15, openalex_y - card_height / 2, 1.20, card_height,
         "openalex-lockup-black.svg", facecolor=OPENALEX,
-        target_width=45, label="API",
+        target_width=45, label="",
     )
 
     _box(
         ax, 1.85, github_y - card_height / 2, 1.75, card_height,
-        "GitHub crawler", icon="repository", facecolor=GITHUB,
+        "GitHub crawler", icon="web", facecolor=GITHUB,
         title_size=7.2, icon_size=18,
+        secondary_logo="python.svg", secondary_logo_width=11,
     )
     _box(
         ax, 1.85, openalex_y - card_height / 2, 1.75, card_height,
-        "OpenAlex crawler", icon="paper", facecolor=OPENALEX,
+        "OpenAlex crawler", icon="web", facecolor=OPENALEX,
         title_size=7.2, icon_size=18,
+        secondary_logo="python.svg", secondary_logo_width=11,
     )
 
-    _box(
+    _logo_box(
         ax, 4.20, 2.72, 1.40, 0.90,
-        "Evidence & run DB", icon="database", facecolor=REPORT,
-        title_size=7.0, icon_size=18,
+        "sqlite2.svg", "",
+        facecolor=REPORT, target_width=55, title_size=6.2,
     )
     _box(
         ax, 6.15, 2.72, 1.55, 0.90,
         "Deterministic prefilter", icon="rank", facecolor=CLASSIFY,
         title_size=6.7, icon_size=18,
+        secondary_logo="python.svg", secondary_logo_width=11,
     )
-    _box(
+    _logo_box(
         ax, 8.20, 2.72, 1.45, 0.90,
-        "Adjudication client", icon="classifier", facecolor=CLASSIFY,
-        title_size=6.9, icon_size=18,
+        "python.svg", "Adjudication client",
+        facecolor=CLASSIFY, target_width=18, title_size=6.1,
     )
 
-    _box(
-        ax, 8.20, 0.75, 1.45, 1.30,
-        "Ollama server\n+ local LLM models", icon="server", facecolor=CLASSIFY,
-        title_size=6.5, icon_size=17,
+    ax.add_patch(FancyBboxPatch(
+        (7.80, 0.30), 2.24, 1.90,
+        boxstyle="round,pad=0.004,rounding_size=0.007",
+        linewidth=0.9, edgecolor=EDGE, facecolor=CLASSIFY, zorder=3,
+    ))
+    _logo_box(
+        ax, 8.12, 1.40, 1.60, 0.62,
+        "ollama.svg", "Ollama server",
+        facecolor=WHITE, target_width=11, title_size=6.4,
     )
+    ax.text(
+        8.92, 1.21, "Local model families", ha="center", va="center",
+        color=MUTED, fontsize=6.0, fontweight="bold", zorder=5,
+    )
+    _model_badge(ax, 7.94, 0.49, 0.60, 0.58, "qwen.svg", "Qwen", target_width=20)
+    _model_badge(ax, 8.62, 0.49, 0.60, 0.58, "openai.svg", "gpt-oss", target_width=12)
+    _model_badge(ax, 9.30, 0.49, 0.60, 0.58, "gemma.png", "Gemma", target_width=13)
 
     _box(
         ax, 10.15, github_y - card_height / 2, 1.60, card_height,
@@ -855,8 +926,8 @@ def _draw_system_figure() -> Figure:
         edgecolor=CATALOGUE_EDGE, title_size=6.7, icon_size=17,
     )
 
-    _arrow(ax, (1.43, github_y), (1.77, github_y), linewidth=1.45)
-    _arrow(ax, (1.43, openalex_y), (1.77, openalex_y), linewidth=1.45)
+    _arrow(ax, (1.77, github_y), (1.43, github_y), linewidth=1.45)
+    _arrow(ax, (1.77, openalex_y), (1.43, openalex_y), linewidth=1.45)
     _elbow_arrow(
         ax, [(3.68, github_y), (3.90, github_y), (3.90, 3.33), (4.12, 3.33)],
         linewidth=1.45,
@@ -877,7 +948,7 @@ def _draw_system_figure() -> Figure:
     )
     _arrow(ax, (11.83, github_y), (12.12, github_y), color=CATALOGUE_EDGE, linewidth=1.50)
     _arrow(ax, (11.83, openalex_y), (12.12, openalex_y), color=CATALOGUE_EDGE, linewidth=1.50)
-    _arrow(ax, (8.92, 2.64), (8.92, 2.13), color=EVALUATION_EDGE, linewidth=1.45)
+    _arrow(ax, (8.92, 2.64), (8.92, 2.28), color=EVALUATION_EDGE, linewidth=1.45)
 
     _color_legend(
         ax,
