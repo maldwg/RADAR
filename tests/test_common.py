@@ -155,7 +155,7 @@ class CommonTests(unittest.TestCase):
             self.assertIn(label, pipeline)
         for label in (
             "GitHub", "OpenAlex", "GitHub crawler", "OpenAlex crawler",
-            "Adjudication client",
+            "Evidence + LLM results", "Evidence enrichment", "Adjudication client",
             "Ollama server", "Qwen", "gpt-oss", "Gemma",
             "Repository families", "Publication families",
             "GitHub path", "OpenAlex path", "Shared state", "Shared processing",

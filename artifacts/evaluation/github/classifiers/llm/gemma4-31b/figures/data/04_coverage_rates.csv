@@ -1,0 +1,5 @@
+measure,key,value
+Retrieved,retrieval_coverage,0.025
+Classification present,classification_coverage,0.0
+Definitive decision,definitive_coverage,0.0
+Abstention,abstention_rate,1.0

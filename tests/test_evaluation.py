@@ -12,7 +12,7 @@ from ids_meta.cli import _evaluation_jobs, _execute_github, _execute_openalex, _
 from ids_meta.common.config import Settings, load_settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.github.schema import METHODS, ROLES, SCOPES
+from ids_meta.common.ollama import decision_profile
 from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING
 from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
@@ -36,24 +36,35 @@ class EvaluationTests(unittest.TestCase):
         )
         return path
 
-    def test_github_profile_preserves_the_stratified_benchmark_design(self) -> None:
-        """Keep GitHub decisions and primary semantic strata balanced as ratings evolve."""
-        with (ROOT / "config/evaluation/github.toml").open("rb") as handle:
-            github = tomllib.load(handle)["entities"]
-        self.assertEqual(len(github), 28)
-        self.assertEqual(Counter(row["decision"] for row in github), {"accept": 16, "exclude": 12})
-        accepted_repositories = [row for row in github if row["decision"] == "accept"]
-        self.assertEqual(Counter(row["role"] for row in accepted_repositories), {role: 2 for role in ROLES})
-        self.assertTrue((set(SCOPES) - {"unknown"}).issubset({value for row in accepted_repositories for value in row["observation_scopes"]}))
-        self.assertTrue((set(METHODS) - {"unknown"}).issubset({value for row in accepted_repositories for value in row["detection_methods"]}))
-        self.assertTrue(all(row["role"] == "out_of_scope" for row in github if row["decision"] == "exclude"))
+    def test_ghml23_profile_preserves_upstream_ground_truth_and_crosswalk(self) -> None:
+        """Keep the external GitHub reference snapshot complete and source-traceable."""
+        path = ROOT / "config/evaluation/github_ghml23.toml"
+        profile = load_rating_profile(path, "github")
+        rows = list(profile.entities.values())
+        self.assertEqual(len(rows), 120)
+        self.assertEqual(Counter(row["benchmark_category"] for row in rows), {
+            "secumon": 100, "imageocr": 10, "pentest": 10,
+        })
+        self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 100, "exclude": 20})
+        self.assertTrue(all("role" not in row for row in rows if row["benchmark_category"] == "secumon"))
+        self.assertTrue(all(
+            row.get("role") == "out_of_scope"
+            for row in rows if row["benchmark_category"] in {"imageocr", "pentest"}
+        ))
+        by_repository = {row["repository"]: row for row in rows}
+        self.assertEqual(by_repository["zeek/zeek"]["decision"], "accept")
+        self.assertEqual(by_repository["OWASP/Nettacker"]["decision"], "exclude")
+        self.assertEqual(by_repository["JaidedAI/EasyOCR"]["decision"], "exclude")
 
     def test_ashraf_2026_profile_preserves_requested_table_2_dataset_types(self) -> None:
         """Keep the selected survey artifacts source-traceable and the taxonomy exact."""
         path = ROOT / "config/evaluation/openalex_ashraf_2026.toml"
         default_settings = load_settings(ROOT / "config/default.toml")
-        self.assertEqual(default_settings.path("openalex_ratings"), path)
-        self.assertNotIn("openalex_additional_ratings", default_settings.section("evaluation"))
+        reference_sets = default_settings.section("evaluation")["reference_sets"]
+        configured = {item["name"]: item for item in reference_sets}
+        self.assertEqual(configured["ghml23"]["profile"], "config/evaluation/github_ghml23.toml")
+        self.assertEqual(configured["shield"]["profile"], "config/evaluation/openalex_ashraf_2026.toml")
+        self.assertEqual(default_settings.root / configured["shield"]["profile"], path)
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
         rows = raw["entities"]
@@ -371,9 +382,38 @@ class EvaluationTests(unittest.TestCase):
 
             jobs = _evaluation_jobs(settings, "openalex", args, root / "evaluation/openalex")
 
-            self.assertEqual(jobs, [(dataset_profile, root / "evaluation/openalex", "")])
+            self.assertEqual(jobs, [(dataset_profile, root / "evaluation/openalex", "shield")])
             args.action = "evaluate"
             self.assertEqual(_evaluation_jobs(settings, "openalex", args, root / "evaluation/openalex"), jobs)
+
+    def test_multiple_reference_sets_are_isolated_and_do_not_change_decision_fingerprint(self) -> None:
+        """Keep reference selection outside classification semantics and output collisions."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            github_profile = self._write_profile(
+                root / "github-one.toml", "github", "[[entities]]\nid = \"1\"\ndecision = \"accept\"\n",
+            )
+            second_profile = self._write_profile(
+                root / "github-two.toml", "github", "[[entities]]\nid = \"2\"\ndecision = \"exclude\"\n",
+            )
+            openalex_profile = self._write_profile(
+                root / "openalex.toml", "openalex", "[[entities]]\nid = \"W1\"\ndecision = \"accept\"\n",
+            )
+            settings = self._settings(root, github_profile, openalex_profile)
+            before = decision_profile("fixture-model", "version", settings.section("ollama"), {"prompt": "fixed"})
+            settings.section("evaluation")["reference_sets"].append({
+                "name": "second set", "source": "github", "profile": str(second_profile),
+            })
+            after = decision_profile("fixture-model", "version", settings.section("ollama"), {"prompt": "fixed"})
+            jobs = _evaluation_jobs(
+                settings, "github", argparse.Namespace(action="run", ratings=None, output=None),
+                root / "evaluation/github",
+            )
+            self.assertEqual(before, after)
+            self.assertEqual(jobs, [
+                (github_profile, root / "evaluation/github/ghml23", "ghml23"),
+                (second_profile, root / "evaluation/github/second-set", "second-set"),
+            ])
 
     def _settings(self, root: Path, github_ratings: Path, openalex_ratings: Path) -> Settings:
         """Create a single-model offline settings fixture for CLI evaluation stages."""
@@ -386,12 +426,17 @@ class EvaluationTests(unittest.TestCase):
                 "github_terms": str(ROOT / "config/terms/github.toml"), "openalex_terms": str(ROOT / "config/terms/openalex.toml"),
                 "github_prompts": str(ROOT / "config/prompts/github.toml"), "openalex_prompts": str(ROOT / "config/prompts/openalex.toml"),
                 "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
-                "github_ratings": str(github_ratings), "openalex_ratings": str(openalex_ratings),
             },
             "logging": {"progress_every": 25},
             "ollama": {"model": "fixture-model", "models": [], "temperature": 0.0, "seed": 42},
             "ensemble": {"enabled": False, "models": [], "threshold": 0.5},
-            "evaluation": {"enabled": False},
+            "evaluation": {
+                "enabled": False,
+                "reference_sets": [
+                    {"name": "ghml23", "source": "github", "profile": str(github_ratings)},
+                    {"name": "shield", "source": "openalex", "profile": str(openalex_ratings)},
+                ],
+            },
             "github": {"collection_limit": 10, "classification_limit": 10, "borderline_threshold": 4, "reconcile_with_llm": False},
             "openalex": {"collection_limit": 10, "classification_limit": 10, "borderline_threshold": 4, "reconcile_with_llm": False},
             "plots": {"formats": ["svg"], "dpi": 72, "top_n": 5},
@@ -416,8 +461,8 @@ class EvaluationTests(unittest.TestCase):
             common = {"limit": None, "collect_limit": None, "classify_limit": None, "classify_all": False, "resume": True, "dry_run": False}
             github_counts = _execute_github(argparse.Namespace(action="evaluate", input=github_actual, output=root / "github-report", candidates=github_candidates, **common), settings)
             openalex_counts = _execute_openalex(argparse.Namespace(action="evaluate", input=openalex_actual, output=root / "openalex-report", candidates=openalex_candidates, **common), settings)
-            self.assertEqual(github_counts["evaluation_tp"], 1)
-            self.assertEqual(openalex_counts["evaluation_tn"], 1)
+            self.assertEqual(github_counts["evaluation_tp_ghml23"], 1)
+            self.assertEqual(openalex_counts["evaluation_tn_shield"], 1)
             self.assertTrue((root / "github-report/metrics.json").is_file())
             self.assertTrue((root / "openalex-report/metrics.json").is_file())
             self.assertTrue((root / "github-report/figures/03_taxonomy_fields.svg").is_file())
@@ -453,10 +498,10 @@ class EvaluationTests(unittest.TestCase):
             common = {"action": "evaluate", "limit": None, "collect_limit": None, "classify_limit": None, "classify_all": False, "resume": True, "dry_run": False, "input": None, "output": None, "candidates": None}
             github_counts = _execute_github(argparse.Namespace(**common), settings)
             openalex_counts = _execute_openalex(argparse.Namespace(**common), settings)
-            self.assertEqual(github_counts["evaluation_tp_model-a"], 1)
-            self.assertEqual(github_counts["evaluation_fn_model-b"], 1)
-            self.assertEqual(openalex_counts["evaluation_tn_model-a"], 1)
-            self.assertEqual(openalex_counts["evaluation_fp_model-b"], 1)
+            self.assertEqual(github_counts["evaluation_tp_model-a_ghml23"], 1)
+            self.assertEqual(github_counts["evaluation_fn_model-b_ghml23"], 1)
+            self.assertEqual(openalex_counts["evaluation_tn_model-a_shield"], 1)
+            self.assertEqual(openalex_counts["evaluation_fp_model-b_shield"], 1)
             for source in ("github", "openalex"):
                 paths = _execution_paths(settings, source, models)
                 for model in models:

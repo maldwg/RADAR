@@ -53,12 +53,17 @@ class BaselineTests(unittest.TestCase):
                 "evaluation_dir": str(root / "evaluation"),
                 "github_cache": str(root / "github.sqlite3"),
                 "github_terms": str(terms),
-                "github_ratings": str(ratings),
                 "github_keyword": str(ROOT / "config/baselines/github_keyword.toml"),
                 "openalex_keyword": str(ROOT / "config/baselines/openalex_keyword.toml"),
                 "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
             },
             "logging": {"progress_every": 1},
+            "evaluation": {
+                "enabled": True,
+                "reference_sets": [
+                    {"name": "fixture", "source": "github", "profile": str(ratings)},
+                ],
+            },
             "baselines": {
                 "enabled": True,
                 "methods": ["keyword"],
@@ -172,7 +177,8 @@ class BaselineTests(unittest.TestCase):
                 "github_repo_id", "decision", "classifier_method", "classifier_id",
                 "classifier_profile_hash", "classifier_supported_fields", "role", "observation_scopes",
             ])
-            profile = load_rating_profile(settings.path("github_ratings"), "github")
+            profile_path = Path(settings.section("evaluation")["reference_sets"][0]["profile"])
+            profile = load_rating_profile(profile_path, "github")
             result = evaluate_results(profile, classifications, root / "evaluation")
             self.assertEqual(result.metrics["operational"]["ACC"], 1.0)
             self.assertEqual(result.metrics["classification_field_accuracy"], 1.0)

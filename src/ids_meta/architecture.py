@@ -872,8 +872,13 @@ def _draw_system_figure() -> Figure:
 
     _logo_box(
         ax, 4.20, 2.72, 1.40, 0.90,
-        "sqlite2.svg", "",
-        facecolor=REPORT, target_width=55, title_size=6.2,
+        "sqlite.svg", "Evidence + LLM results",
+        facecolor=REPORT, target_width=42, title_size=5.8,
+    )
+    _logo_box(
+        ax, 4.20, 1.32, 1.40, 0.88,
+        "python.svg", "Evidence enrichment",
+        facecolor=CLASSIFY, target_width=17, title_size=5.9,
     )
     _box(
         ax, 6.15, 2.72, 1.55, 0.90,
@@ -938,6 +943,23 @@ def _draw_system_figure() -> Figure:
     )
     _arrow(ax, (5.68, 3.17), (6.07, 3.17), linewidth=1.45)
     _arrow(ax, (7.78, 3.17), (8.12, 3.17), linewidth=1.45)
+    _arrow(ax, (4.90, 2.28), (4.90, 2.64), linewidth=1.20)
+    _elbow_arrow(
+        ax, [(6.925, 2.64), (6.925, 1.76), (5.68, 1.76)],
+        linewidth=1.20,
+    )
+    ax.plot(
+        [8.40, 8.40], [2.64, 2.42], color=EDGE, linewidth=1.20,
+        solid_capstyle="round", zorder=6,
+    )
+    ax.plot(
+        [6.925, 8.40], [2.42, 2.42], color=EDGE, linewidth=1.20,
+        solid_capstyle="round", zorder=6,
+    )
+    _elbow_arrow(
+        ax, [(8.92, 3.70), (8.92, 4.14), (4.90, 4.14), (4.90, 3.70)],
+        linewidth=1.35,
+    )
     _elbow_arrow(
         ax, [(9.73, 3.17), (9.90, 3.17), (9.90, github_y), (10.07, github_y)],
         linewidth=1.45,

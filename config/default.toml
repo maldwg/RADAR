@@ -18,9 +18,6 @@ openalex_terms = "config/terms/openalex.toml"
 github_prompts = "config/prompts/github.toml"
 openalex_prompts = "config/prompts/openalex.toml"
 github_system_types = "config/taxonomy/github_system_types.toml"
-github_ratings = "config/evaluation/github.toml"
-# The dataset-level survey fixture is the primary OpenAlex benchmark.
-openalex_ratings = "config/evaluation/openalex_ashraf_2026.toml"
 github_nli = "config/baselines/github_nli.toml"
 openalex_nli = "config/baselines/openalex_nli.toml"
 github_keyword = "config/baselines/github_keyword.toml"
@@ -58,6 +55,18 @@ enabled = true
 # Coverage intervals are descriptive uncertainty bands, not decision thresholds.
 # The evaluator derives the normal quantile from this value; no z-score is hardcoded.
 confidence_level = 0.95
+
+# External reference sets are evaluation-only inputs. Changing them reruns scoring and
+# figures but cannot change an LLM decision fingerprint or invalidate classification caches.
+[[evaluation.reference_sets]]
+name = "ghml23"
+source = "github"
+profile = "config/evaluation/github_ghml23.toml"
+
+[[evaluation.reference_sets]]
+name = "shield"
+source = "openalex"
+profile = "config/evaluation/openalex_ashraf_2026.toml"
 
 [baselines]
 # Baselines are evaluation variants and are not reconciled into the production catalogues.

@@ -1,13 +1,33 @@
-# Rated classification evaluation
+# External reference-set evaluation
 
-The evaluation stage compares saved pipeline classifications with a small, versioned human-rated set. It is offline: it does not call GitHub, OpenAlex, or Ollama, and it does not change classification decisions.
+The evaluation stage compares saved pipeline classifications with versioned external reference sets. It is offline: it does not call GitHub, OpenAlex, Ollama, or any classifier, and it does not change classification decisions.
 
-## Central rating profiles
+## Configured reference sets
 
-The only checked-in profiles are:
+`config/default.toml` declares reference sets as an array of tables:
 
-- `config/evaluation/github.toml`
-- `config/evaluation/openalex_ashraf_2026.toml`
+```toml
+[evaluation]
+enabled = true
+confidence_level = 0.95
+
+[[evaluation.reference_sets]]
+name = "ghml23"
+source = "github"
+profile = "config/evaluation/github_ghml23.toml"
+
+[[evaluation.reference_sets]]
+name = "shield"
+source = "openalex"
+profile = "config/evaluation/openalex_ashraf_2026.toml"
+```
+
+A custom configuration can replace or add entries without changing Python. A single configured set retains the normal classifier evaluation directory. If several sets target one source, each result is isolated below a reference-set-named subdirectory.
+
+The checked-in inputs are:
+
+- `config/evaluation/github_ghml23.toml` and its verbatim `github_ghml23.csv` snapshot.
+- `config/evaluation/openalex_ashraf_2026.toml`, the survey-derived SHIELD artifact profile.
 
 Source-record profiles use exactly one matching selector per `[[entities]]` table:
 
@@ -22,20 +42,21 @@ Repository names and titles are matched exactly after trimming repeated whitespa
 ```toml
 schema_version = "1.0"
 source = "github"
-classification_fields = ["role", "observation_scopes", "capabilities", "detection_methods"]
+classification_fields = ["role"]
 
-[[entities]]
-repository = "OISF/suricata"
-decision = "accept"
-role = "native_detector"
-observation_scopes = ["network"]
-capabilities = ["detection", "prevention", "monitoring"]
-detection_methods = ["signature_based", "packet_analysis"]
+[entity_source]
+format = "csv"
+path = "github_ghml23.csv"
+delimiter = ";"
+selector = "repository"
+selector_column = "Repository"
 
-[[entities]]
-repository = "sbilly/awesome-security"
-decision = "exclude"
+[entity_source.mappings.decision]
+column = "Label"
+values = { secumon = "accept", pentest = "exclude", imageocr = "exclude" }
 ```
+
+An `entity_source` imports a local CSV snapshot and maps its columns and category values declaratively. Inline `[[entities]]` profiles remain supported for reference sets whose published source has already been transcribed into TOML, such as SHIELD. Mixing both forms in one profile is rejected.
 
 ```toml
 schema_version = "1.0"
@@ -63,13 +84,11 @@ Profiles are validated before evaluation. A missing profile, wrong source/schema
 
 ### Benchmark composition
 
-The GitHub profile is a deliberately **stratified test set**, not a random sample and not an estimate of how often each class occurs in the full discovery population.
-
-For GitHub, the positive half contains two repositories for each eligible role: standalone detector, platform/framework, classifier/model, rules/content, support tooling, and research demo. Together those positives cover every concrete observation scope and detection method in the configured taxonomy. The negative half contains three examples from each of four common boundary families: generic monitors, offensive/scanning tools, curated/tutorial content, and unrelated repositories whose names collide with IDS terminology.
+GitHub uses GHML23's published `ground_truth_with_source.csv`: 100 security-monitoring (`secumon`) repositories, 10 penetration-testing controls, and 10 image/OCR controls. The crosswalk treats `secumon` as expected inclusion and the two control categories as expected exclusion with repository role `out_of_scope`. GHML23 does not distinguish native detectors, classifier engines, frameworks, platforms, research projects, demonstrations, rules/content, or support tooling. Those labels are therefore not inferred from the broad positive category and do not enter its taxonomy metrics.
 
 OpenAlex uses only the 105-dataset positive-reference fixture extracted from Table 2 of Ashraf and Masoodi (2026). It measures whether each named survey dataset is represented by an accepted release result. Because this retained benchmark has no negative examples, false-positive rate, specificity, accuracy, precision, and F1 are not estimable and are reported as N/A.
 
-Regression tests lock the GitHub strata and the source counts, exclusions, aliases, requested domain taxonomy, and provenance fields of the OpenAlex dataset fixture.
+Regression tests lock the exact GHML23 row/category/decision counts and representative crosswalk entries, plus the source counts, exclusions, aliases, requested domain taxonomy, and provenance fields of the SHIELD dataset profile.
 
 ## Running evaluation
 
@@ -170,6 +189,6 @@ Figure formats and resolution use the shared `[plots]` `formats` and `dpi` setti
 
 ## Regression tests
 
-`tests/test_evaluation.py` uses the fixed GitHub repository ratings, the survey-derived OpenAlex dataset fixture, and temporary saved CSV rows. It checks exact confusion matrices, requested metric aliases, abstention and missing-result behavior, field comparisons, validation failures, artifact creation, both CLI stages, and manifest counts. These tests are deterministic and network-free.
+`tests/test_evaluation.py` validates the imported GHML23 snapshot, the survey-derived SHIELD fixture, generic TOML/CSV loading, configurable job selection, and temporary saved classification rows. It checks exact confusion matrices, requested metric aliases, abstention and missing-result behavior, field comparisons, validation failures, artifact creation, both CLI stages, and manifest counts. These tests are deterministic and network-free.
 
 The lower-level `ids_meta.common.regression.evaluate_regression(...)` dictionary helper remains useful for small in-code unit fixtures. The evaluation stage is the persisted, centrally configured run-level counterpart.

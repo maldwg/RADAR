@@ -9,6 +9,7 @@ artifacts/plots/**
 artifacts/runs/
 **/*.log
 **/*.csv
+!config/evaluation/*.csv
 **/*.svg
 !assets/architecture/*.svg
 **/*.pdf
