@@ -1,14 +1,14 @@
 {
   "abstention_rate": 1.0,
-  "actual_entities": 5252,
+  "actual_entities": 1522,
   "benchmark_scope": "screening_decisions",
   "classification_coverage": 0.0,
-  "classification_field_accuracy": 0.0,
-  "classification_field_comparisons": 20,
+  "classification_field_accuracy": 0.03611111111111111,
+  "classification_field_comparisons": 720,
   "classification_field_macro_f1": 0.0,
   "classifications_path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/github/models/gemma4-31b/classifications.csv",
   "classifier_evidence_source_counts": {
-    "raw_cache": 5252
+    "raw_cache": 1522
   },
   "classifier_id": "gemma4:31b",
   "classifier_method": "llm",
@@ -20,8 +20,8 @@
       1.0
     ],
     "accuracy": [
-      0.11055996367984616,
-      0.2434528139326228
+      0.13824476478840253,
+      0.28036673506281956
     ],
     "definitive_coverage": [
       0.0,
@@ -29,12 +29,12 @@
     ],
     "detection_rate": [
       0.0,
-      0.03699349820698566
+      0.038475587857675665
     ],
     "false_discovery_rate": null,
     "false_positive_rate": [
-      1.3877787807814457e-17,
-      0.1611251580528193
+      0.0,
+      0.13797620467498012
     ],
     "precision": null
   },
@@ -44,40 +44,40 @@
   "evaluation_unit": "source_record",
   "not_estimable_metrics": [],
   "operational": {
-    "ACC": 0.16666666666666666,
+    "ACC": 0.2,
     "DR": 0.0,
     "FDR": 0.0,
     "FNR": 1.0,
     "FPR": 0.0,
     "PREC": 0.0,
-    "accuracy": 0.16666666666666666,
+    "accuracy": 0.2,
     "balanced_accuracy": 0.5,
     "detection_rate": 0.0,
     "f1": 0.0,
     "false_discovery_rate": 0.0,
     "false_negative_rate": 1.0,
     "false_positive_rate": 0.0,
-    "fn": 100,
+    "fn": 96,
     "fp": 0,
-    "negative_predictive_value": 0.16666666666666666,
+    "negative_predictive_value": 0.2,
     "precision": 0.0,
     "recall": 0.0,
     "sensitivity": 0.0,
     "specificity": 1.0,
-    "tn": 20,
+    "tn": 24,
     "tp": 0
   },
   "rated_entities": 120,
   "ratings_path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml",
   "reference_set": {
-    "benchmark_name": "GHML23 security-monitoring repository ground truth",
-    "crosswalk_version": "ghml23-to-ids-meta-v1",
+    "benchmark_name": "GHML23 repository reference set with IDS-Meta taxonomy crosswalk",
+    "crosswalk_version": "ghml23-to-ids-meta-v2",
     "source_dataset": "https://doi.org/10.6084/m9.figshare.24793077",
     "source_license": "CC BY 4.0",
     "source_repository": "https://github.com/ghml23/ghml23",
     "source_sha256": "dfbae7da69071dbce9491c041164ea89496546810ea3adcafcb20e6f2f8ce2da"
   },
-  "retrieval_coverage": 0.025,
+  "retrieval_coverage": 0.0,
   "selective": {
     "ACC": 0.0,
     "DR": 0.0,
@@ -104,8 +104,7 @@
   },
   "source": "github",
   "status_counts": {
-    "not_classified": 3,
-    "not_retrieved": 117
+    "not_retrieved": 120
   },
   "strict": {
     "ACC": 0.0,
@@ -121,8 +120,8 @@
     "false_discovery_rate": 1.0,
     "false_negative_rate": 1.0,
     "false_positive_rate": 1.0,
-    "fn": 100,
-    "fp": 20,
+    "fn": 96,
+    "fp": 24,
     "negative_predictive_value": 0.0,
     "precision": 0.0,
     "recall": 0.0,
@@ -131,6 +130,6 @@
     "tn": 0,
     "tp": 0
   },
-  "unrated_actual_entities": 5252,
+  "unrated_actual_entities": 1522,
   "unresolved_artifact_rate": null
 }

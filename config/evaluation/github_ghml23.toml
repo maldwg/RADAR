@@ -1,0 +1,1618 @@
+schema_version = "1.0"
+source = "github"
+evaluation_unit = "source_record"
+classification_fields = [
+  "role",
+  "observation_scopes",
+  "observation_objects",
+  "capabilities",
+  "detection_methods",
+  "primary_system_type",
+  "system_types",
+]
+benchmark_name = "GHML23 repository reference set with IDS-Meta taxonomy crosswalk"
+source_repository = "https://github.com/ghml23/ghml23"
+source_dataset = "https://doi.org/10.6084/m9.figshare.24793077"
+source_snapshot = "ground_truth_with_source.csv"
+source_license = "CC BY 4.0"
+source_sha256 = "dfbae7da69071dbce9491c041164ea89496546810ea3adcafcb20e6f2f8ce2da"
+source_repository_count = 120
+source_secumon_count = 100
+source_negative_control_count = 20
+crosswalk_version = "ghml23-to-ids-meta-v3"
+annotation_basis = "GHML23 repository snapshots: description, topics, README, and repository contents"
+annotation_policy = "Source labels are retained as provenance. Project decisions and taxonomy labels follow the IDS-Meta scope and controlled vocabularies."
+adapted_accepted_count = 96
+adapted_excluded_count = 24
+
+# This is the executable evaluation profile. The adjacent CSV is the immutable
+# upstream snapshot and provenance source; it is not used as a coarse runtime
+# decision mapping. Every repository below is explicitly crosswalked to the
+# project taxonomy. IDS system types are explicit reference annotations using the
+# same configured vocabulary presented to the LLM; they are not derived from the
+# other dimensions.
+# A value of "unknown" means that no IDS system type is supported by the evidence.
+
+[[entities]]
+repository = "0x4D31/awesome-threat-detection"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+annotation_note = "Curated resource list rather than a repository-level detection artifact."
+
+[[entities]]
+repository = "0xN3utr0n/Kanis"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["system_calls"]
+detection_methods = ["signature_based", "rule_based", "anomaly_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "airbnb/binaryalert"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["rule_based", "signature_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "airbnb/streamalert"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "ait-aecid/logdata-anomaly-miner"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["anomaly_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "ajaykumarkk/CyberDoc"
+decision = "accept"
+role = "classifier_engine"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["system_calls"]
+detection_methods = ["signature_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "arkime/arkime"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["packet_analysis"]
+detection_methods = ["protocol_analysis"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "atc-project/atomic-threat-coverage"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection"]
+observation_objects = ["unknown"]
+detection_methods = ["rule_based"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "austin-taylor/flare"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["flow_analysis", "log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "BlueTeamLabs/sentinel-attack"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "bytedance/Elkeid"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["signature_based", "anomaly_based"]
+primary_system_type = "XDR"
+system_types = ["XDR"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "certsocietegenerale/FIR"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["application"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "cisco/joy"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["protocol_analysis"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "cisco/mercury"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["signature_based", "ml_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "NIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "CISOfy/lynis"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["rule_based"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "clong/DetectionLab"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "cloudina/hawk"
+decision = "accept"
+role = "detection_platform"
+observation_scopes = ["application"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["signature_based"]
+primary_system_type = "APIDS"
+system_types = ["APIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "ComodoSecurity/openedr"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["signature_based", "anomaly_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "corelight/zeek2es"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis", "flow_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "crowdsecurity/crowdsec"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "prevention", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based", "anomaly_based"]
+primary_system_type = "XDR"
+system_types = ["XDR"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "csirtgadgets/bearded-avenger"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "csirtgadgets/cif-v5"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "Cyb3rWard0g/HELK"
+decision = "accept"
+role = "detection_platform"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["flow_analysis", "log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "dogoncouch/logdissect"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "dogoncouch/LogESP"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based", "anomaly_based"]
+primary_system_type = "XDR"
+system_types = ["XDR"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "dreadl0ck/netcap"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["protocol_analysis"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "droe/xnumon"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "endgameinc/varna"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "evilsocket/opensnitch"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["network"]
+capabilities = ["prevention", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "NIPS"
+system_types = ["NIPS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "fail2ban/fail2ban"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "prevention", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "fleetdm/fleet"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "XDR"
+system_types = ["XDR"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "gamelinux/passivedns"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["packet_analysis"]
+detection_methods = ["protocol_analysis"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "google/grr"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["monitoring"]
+observation_objects = ["system_calls"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "google/stenographer"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["packet_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "google/vxsig"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection"]
+observation_objects = ["unknown"]
+detection_methods = ["signature_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "Graylog2/graylog2-server"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "hslatman/awesome-threat-intelligence"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+annotation_note = "Curated resource list rather than a repository-level detection artifact."
+
+[[entities]]
+repository = "InQuest/python-iocextract"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "InQuest/ThreatKB"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["signature_based"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "intelowlproject/IntelOwl"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "ion-storm/sysmon-config"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "ion-storm/sysmon-edr"
+decision = "accept"
+role = "demo"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "ION28/BLUESPAWN"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "prevention", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["signature_based", "rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "jmpsec/osctrl"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "kismetwireless/kismet"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["wireless"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["packet_analysis"]
+detection_methods = ["anomaly_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "WIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "marshyski/sshwatch"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "prevention"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "matanolabs/matano"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "XDR"
+system_types = ["XDR"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "mattifestation/CimSweep"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["monitoring"]
+observation_objects = ["system_calls"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "MHaggis/sysmon-dfir"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "MISP/MISP"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "mitre-attack/bzar"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["network"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "NIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "mozilla/mig"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["monitoring"]
+observation_objects = ["system_calls"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "Neo23x0/Loki"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["signature_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "Neo23x0/signature-base"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection"]
+observation_objects = ["unknown"]
+detection_methods = ["signature_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "Neo23x0/sysmon-config"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "Netflix/dispatch"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["application"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "NeuromorphicComputationResearchProgram/AutoYara"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection"]
+observation_objects = ["unknown"]
+detection_methods = ["signature_based", "ml_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "ntop/ntopng"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["anomaly_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "NIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "OISF/suricata"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "prevention", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["signature_based", "rule_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "NIDS", "NIPS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "olafhartong/sysmon-modular"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "olafhartong/ThreatHunting"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "onotelli/justniffer"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["packet_analysis"]
+detection_methods = ["protocol_analysis"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "OpenCTI-Platform/opencti"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "osquery/osquery"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "ossec/ossec-hids"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "prevention", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["signature_based", "rule_based", "anomaly_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "P4T12ICK/ypsilon"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "palantir/osquery-configuration"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "Qianlitp/WatchAD"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based", "anomaly_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "quadrantsec/sagan"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["signature_based", "rule_based"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "rabbitstack/fibratus"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["system_calls"]
+detection_methods = ["rule_based", "anomaly_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "sans-blue-team/DeepBlueCLI"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "sbilly/awesome-security"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+annotation_note = "Curated resource list rather than a repository-level detection artifact."
+
+[[entities]]
+repository = "Security-Onion-Solutions/securityonion"
+decision = "accept"
+role = "detection_platform"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis", "log_analysis"]
+detection_methods = ["signature_based", "anomaly_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "XDR"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "shadawck/awesome-endpoint-detection-and-response"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+annotation_note = "Curated resource list rather than a repository-level detection artifact."
+
+[[entities]]
+repository = "SigmaHQ/sigma"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "simsong/tcpflow"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "snort3/snort3"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "prevention", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["signature_based", "rule_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "NIDS", "NIPS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "splunk/security_content"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "XDR"
+system_types = ["XDR"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "stamparm/maltrail"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["signature_based"]
+primary_system_type = "NIDS"
+system_types = ["NIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "SwiftOnSecurity/sysmon-config"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "tenzir/threatbus"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "teoseller/osquery-attck"
+decision = "accept"
+role = "rules_content"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "TheHive-Project/Cortex"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["application"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "TheHive-Project/Hippocampe"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["multi_scope"]
+capabilities = ["monitoring"]
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "TheHive-Project/TheHive"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["application"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "USArmyResearchLab/Dshell"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["protocol_analysis"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "Velocidex/velociraptor"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "wazuh/wazuh"
+decision = "accept"
+role = "detection_framework"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["signature_based", "rule_based", "anomaly_based"]
+primary_system_type = "XDR"
+system_types = ["XDR"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "wecooperate/iMonitor"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["anomaly_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "wecooperate/iMonitorSDK"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["host_endpoint"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis", "system_calls"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "yarox24/attack_monitor"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["signature_based", "rule_based"]
+primary_system_type = "HIDS"
+system_types = ["HIDS", "HIPS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "Yelp/elastalert"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["multi_scope"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["rule_based"]
+primary_system_type = "IDS"
+system_types = ["IDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "zeek/zeek"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis"]
+detection_methods = ["anomaly_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "NIDS"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "StamusNetworks/SELKS"
+decision = "accept"
+role = "detection_platform"
+observation_scopes = ["network"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["packet_analysis", "flow_analysis", "log_analysis"]
+detection_methods = ["signature_based", "protocol_analysis"]
+primary_system_type = "PIDS"
+system_types = ["PIDS", "NIDS", "NIPS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "StamusNetworks/scirius"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["signature_based", "rule_based"]
+primary_system_type = "NIDS"
+system_types = ["NIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "jasonish/evebox"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = ["monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "wazuh/wazuh-packages"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "cedricbonhomme/pyHIDS"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["log_analysis"]
+detection_methods = ["unknown"]
+primary_system_type = "HIDS"
+system_types = ["HIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "alphasoc/flightsim"
+decision = "accept"
+role = "support_tooling"
+observation_scopes = ["network"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "secumon"
+selection_source = "Expert / Google Search"
+
+[[entities]]
+repository = "alphasoc/nfr"
+decision = "accept"
+role = "native_detector"
+observation_scopes = ["network"]
+capabilities = ["detection", "monitoring"]
+observation_objects = ["flow_analysis"]
+detection_methods = ["anomaly_based"]
+primary_system_type = "NIDS"
+system_types = ["NIDS"]
+benchmark_category = "secumon"
+selection_source = "Awesome List / GitHub Search"
+
+[[entities]]
+repository = "zacharywhitley/awesome-ocr"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "hwalsuklee/awesome-deep-text-detection-recognition"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "whitelok/image-text-localization-recognition"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "chongyangtao/Awesome-Scene-Text-Recognition"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "mindee/doctr"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "JaidedAI/EasyOCR"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "weinman/cnn_lstm_ctc_ocr"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "danwald/pytextractor"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "deepinsight/insightocr"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "isi-vista/textDetectionWithScriptID"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "imageocr"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "The-Art-of-Hacking/h4cker"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "vitalysim/Awesome-Hacking-Resources"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "t3l3machus/Villain"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "OWASP/Nettacker"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "frizb/Windows-Privilege-Escalation"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "arch3rPro/PentestTools"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "whiterabb17/sifter"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "hackThacker/advtools"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "rcallaby/Hacking-Study-Guide"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."
+
+[[entities]]
+repository = "gotr00t0day/Gsec"
+decision = "exclude"
+role = "out_of_scope"
+observation_scopes = ["unknown"]
+capabilities = []
+observation_objects = ["unknown"]
+detection_methods = ["unknown"]
+primary_system_type = "unknown"
+system_types = ["unknown"]
+benchmark_category = "pentest"
+selection_source = "Random Sample"
+annotation_note = "GHML23 negative control outside the IDS repository scope."

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import ConfigError, Settings
+from ids_meta.common.config import ConfigError, Settings, load_system_type_profile
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.logging import logger
 from ids_meta.common.ollama import format_evidence
@@ -161,13 +161,15 @@ def load_keyword_taxonomy_profile(settings: Settings, source: str) -> KeywordTax
             raise ConfigError(f"keyword field {name!r} requires minimum_score > 0 and margin >= 0")
         fields.append(KeywordField(str(name), mode, fallback, minimum_score, margin, normalized))
     if source == "github":
-        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, SCOPES
+        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
 
         expected = {
             "role": set(AUDIT_ROLES) - {"uncertain"},
             "observation_scopes": set(SCOPES) - {"unknown"},
+            "observation_objects": set(OBSERVATION_OBJECTS) - {"unknown"},
             "capabilities": set(CAPABILITIES),
             "detection_methods": set(METHODS) - {"unknown"},
+            "system_types": set(system_type_codes(load_system_type_profile(settings, "github"))) - {"unknown"},
         }
     elif source == "openalex":
         from ids_meta.openalex.schema import (

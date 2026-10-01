@@ -10,7 +10,7 @@ from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from ids_meta.github.pipeline import classify, export, prefilter
 from ids_meta.github.reconcile import reconcile
-from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, derive_system_types, normalize_response
+from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, normalize_response, response_schema, system_type_codes
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.common.text import stable_hash
 from ids_meta.github.collect import GitHubClient, _enrich, collect, search_shards
@@ -31,8 +31,9 @@ class FakeGitHubModel:
         self.calls += 1
         return {
             "role": "native_detector",
-            "observation_scopes": ["network"], "capabilities": ["detection", "response"],
-            "detection_methods": ["signature_based", "packet_analysis"],
+            "observation_scopes": ["network"], "observation_objects": ["packet_analysis"],
+            "capabilities": ["detection"], "detection_methods": ["signature_based"],
+            "primary_system_type": "NIDS", "system_types": ["NIDS"],
             "independent_fork": False, "direct_self_description": True,
             "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": False, "research_basis": True, "upstream_full_name": "",
             "primary_reason": "The project directly describes a runnable network detector.",
@@ -94,8 +95,9 @@ class GitHubPipelineTests(unittest.TestCase):
         for role in ROLES:
             with self.subTest(role=role):
                 decision = normalize_response({
-                    "role": role, "observation_scopes": ["unknown"],
+                    "role": role, "observation_scopes": ["unknown"], "observation_objects": ["unknown"],
                     "capabilities": [], "detection_methods": ["unknown"],
+                    "primary_system_type": "unknown", "system_types": ["unknown"],
                     "independent_fork": False, "direct_self_description": True,
                     "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": role == "detection_framework", "research_basis": True, "upstream_full_name": "",
                     "primary_reason": "fixture",
@@ -105,8 +107,9 @@ class GitHubPipelineTests(unittest.TestCase):
     def test_native_detector_requires_independent_runtime_engine_evidence(self) -> None:
         """Verify static or externally delegated implementations cannot pass as native detectors."""
         decision = normalize_response({
-            "role": "native_detector", "observation_scopes": ["network"],
+            "role": "native_detector", "observation_scopes": ["network"], "observation_objects": ["unknown"],
             "capabilities": ["detection"], "detection_methods": ["ml_based"],
+            "primary_system_type": "NIDS", "system_types": ["NIDS"],
             "independent_fork": False, "direct_self_description": True,
             "runtime_observation": False, "reproducible_execution": False,
             "offline_dataset_only": True, "implements_detection_engine": False, "requires_external_detector": False, "integrates_multiple_detectors": False, "cohesive_framework_architecture": False, "research_basis": False, "upstream_full_name": "", "primary_reason": "fixture",
@@ -121,8 +124,9 @@ class GitHubPipelineTests(unittest.TestCase):
         """Keep OSSEC- and Wazuh-style distributed systems on the framework side of the boundary."""
         evidence = [{"source": "README", "quote": "full platform with manager agents log analysis alerting and active response"}]
         raw = {
-            "role": "native_detector", "observation_scopes": ["host_endpoint"],
-            "capabilities": ["detection", "response"], "detection_methods": ["log_analysis", "integrity_based"],
+            "role": "native_detector", "observation_scopes": ["host_endpoint"], "observation_objects": ["log_analysis"],
+            "capabilities": ["detection", "prevention"], "detection_methods": ["rule_based"],
+            "primary_system_type": "HIDS", "system_types": ["HIDS", "HIPS"],
             "independent_fork": False, "direct_self_description": True,
             "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False,
             "implements_detection_engine": True, "requires_external_detector": False,
@@ -139,8 +143,9 @@ class GitHubPipelineTests(unittest.TestCase):
     def test_derivative_fork_requires_independence_evidence(self) -> None:
         """Verify derivative forks need evidence of independent significance."""
         decision = normalize_response({
-            "role": "native_detector", "observation_scopes": ["network"],
+            "role": "native_detector", "observation_scopes": ["network"], "observation_objects": ["packet_analysis"],
             "capabilities": ["detection"], "detection_methods": ["signature_based"],
+            "primary_system_type": "NIDS", "system_types": ["NIDS"],
             "independent_fork": False, "direct_self_description": True,
             "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": False, "research_basis": True, "upstream_full_name": "", "primary_reason": "fixture",
         }, [{"source": "README", "quote": "fixture"}], {}, True)
@@ -295,21 +300,43 @@ class GitHubPipelineTests(unittest.TestCase):
             self.assertEqual(counts["discovered"], 2)
             self.assertEqual(fake.search_calls, 0)
 
-    def test_derived_taxonomy(self) -> None:
-        """Verify normalized dimensions deterministically produce display labels."""
-        self.assertIn("XDR", derive_system_types(["multi_scope"], ["detection", "response"]))
-
-    def test_configured_system_types_are_extensible_and_unambiguous(self) -> None:
-        """Verify configured type rules support standard and newly added codes without code edits."""
+    def test_system_types_are_selected_by_the_llm_not_derived(self) -> None:
+        """Preserve model-selected IDS types even when another dimension differs."""
         settings = load_settings(ROOT / "config/default.toml")
         profile = load_system_type_profile(settings, "github")
-        self.assertEqual(derive_system_types(["database"], ["detection"], profile=profile), ["DBIDS"])
-        self.assertEqual(derive_system_types(["network"], ["detection"], ["protocol_analysis"], profile=profile)[0], "PIDS")
+        schema = response_schema(profile)
+        self.assertEqual(schema["properties"]["system_types"]["items"]["enum"][-1], "unknown")
+        self.assertIn("DBIDS", schema["properties"]["primary_system_type"]["enum"])
+        normalized = normalize_response({
+            "role": "native_detector", "observation_scopes": ["network"],
+            "observation_objects": ["log_analysis"], "capabilities": ["detection"],
+            "detection_methods": ["rule_based"], "primary_system_type": "DBIDS",
+            "system_types": ["DBIDS"], "independent_fork": False,
+            "direct_self_description": True, "runtime_observation": True,
+            "reproducible_execution": True, "offline_dataset_only": False,
+            "implements_detection_engine": True, "requires_external_detector": False,
+            "integrates_multiple_detectors": False, "cohesive_framework_architecture": False,
+            "research_basis": False, "upstream_full_name": "", "primary_reason": "fixture",
+        }, [{"source": "README", "quote": "fixture"}], {}, False, profile)
+        self.assertEqual(normalized["primary_system_type"], "DBIDS")
+        self.assertEqual(normalized["system_types"], "DBIDS")
+        normalized_unknown_list = normalize_response({
+            "role": "uncertain", "observation_scopes": ["unknown"],
+            "observation_objects": ["unknown"], "capabilities": [],
+            "detection_methods": ["unknown"], "primary_system_type": "HIDS",
+            "system_types": ["unknown"],
+        }, [], {"require_verified_quote": False}, False, profile)
+        self.assertEqual(normalized_unknown_list["system_types"], "HIDS")
+
+    def test_configured_system_types_extend_the_llm_schema(self) -> None:
+        """Add a configured LLM output type without changing Python enums."""
+        settings = load_settings(ROOT / "config/default.toml")
+        profile = load_system_type_profile(settings, "github")
         extended = {"types": {**profile["types"], "CLOUDIDS": {
             "name": "Cloud intrusion detection system", "description": "Fixture extension",
-            "priority": 200, "any_scopes": ["multi_scope"], "all_capabilities": ["detection"],
         }}}
-        self.assertEqual(derive_system_types(["multi_scope"], ["detection"], profile=extended), ["CLOUDIDS"])
+        self.assertIn("CLOUDIDS", system_type_codes(extended))
+        self.assertIn("CLOUDIDS", response_schema(extended)["properties"]["system_types"]["items"]["enum"])
 
     def test_enrichment_records_exact_latest_commit_time(self) -> None:
         """Verify enrichment preserves the latest commit's exact timestamp."""
@@ -349,8 +376,10 @@ class GitHubPipelineTests(unittest.TestCase):
                 accepted = expanded or self.calls <= 3
                 return {
                     "role": "native_detector" if accepted else "out_of_scope",
-                    "observation_scopes": ["network"], "capabilities": ["detection"],
-                    "detection_methods": ["unknown"], "independent_fork": False,
+                    "observation_scopes": ["network"], "observation_objects": ["packet_analysis"],
+                    "capabilities": ["detection"], "detection_methods": ["unknown"],
+                    "primary_system_type": "NIDS" if accepted else "unknown",
+                    "system_types": ["NIDS"] if accepted else ["unknown"], "independent_fork": False,
                     "direct_self_description": accepted, "runtime_observation": accepted,
                     "reproducible_execution": accepted, "offline_dataset_only": False,
                     "implements_detection_engine": accepted, "requires_external_detector": False,
@@ -419,7 +448,7 @@ class GitHubPipelineTests(unittest.TestCase):
                 self.assertEqual(first[0]["decision"], "accept")
                 self.assertTrue(first[0]["consensus_field_audit"])
                 self.assertEqual(first[0]["consensus_validation_flags"], "")
-                self.assertIn("NDR", first[0]["system_types"])
+                self.assertEqual(first[0]["system_types"], "NIDS")
                 self.assertEqual(first[0]["primary_system_type"], "NIDS")
                 self.assertIn("Network intrusion detection system", first[0]["system_type_names"])
                 classify(candidates, classified, cache, settings.section("ollama"), generator=model, prompt_config=prompts, system_type_profile=system_types, consecutive_runs=3, consensus_threshold=.66)

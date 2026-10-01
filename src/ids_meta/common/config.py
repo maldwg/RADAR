@@ -72,9 +72,9 @@ def load_prompt_profile(settings: Settings, source: str) -> dict[str, Any]:
         if "${evidence}" not in str(profile[key]):
             raise ConfigError(f"{source} prompt profile {key} must contain ${{evidence}}")
     if source == "github":
-        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, SCOPES
+        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES
 
-        taxonomies = {"roles": AUDIT_ROLES, "scopes": SCOPES, "capabilities": CAPABILITIES, "methods": METHODS}
+        taxonomies = {"roles": AUDIT_ROLES, "scopes": SCOPES, "observation_objects": OBSERVATION_OBJECTS, "capabilities": CAPABILITIES, "methods": METHODS}
     elif source == "openalex":
         from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, TIERS
 
@@ -96,26 +96,18 @@ def load_prompt_profile(settings: Settings, source: str) -> dict[str, Any]:
 
 
 def load_system_type_profile(settings: Settings, source: str) -> dict[str, Any]:
-    """Load and structurally validate one source's extensible system-type rules."""
+    """Load and validate one source system-type vocabulary used by classifiers."""
     profile = _read_toml(settings.path(f"{source}_system_types"))
     if str(profile.get("schema_version", "")) != "1.0":
         raise ConfigError(f"only {source} system-type schema_version 1.0 is supported")
     types = profile.get("types")
     if not isinstance(types, dict) or not types:
         raise ConfigError(f"{source} system-type profile requires a non-empty [types] table")
-    selectors = (
-        "any_scopes", "all_scopes", "any_capabilities", "all_capabilities",
-        "any_methods", "all_methods", "any_roles",
-    )
-    for code, rule in types.items():
-        if not isinstance(rule, dict):
+    for code, definition in types.items():
+        if not isinstance(code, str) or not code.strip() or code.casefold() == "unknown":
+            raise ConfigError("system-type codes must be non-empty and must not redefine unknown")
+        if not isinstance(definition, dict):
             raise ConfigError(f"system type {code!r} must be a table")
-        if not str(rule.get("name", "")).strip() or not str(rule.get("description", "")).strip():
+        if not str(definition.get("name", "")).strip() or not str(definition.get("description", "")).strip():
             raise ConfigError(f"system type {code!r} requires name and description")
-        if not any(rule.get(selector) for selector in selectors):
-            raise ConfigError(f"system type {code!r} requires at least one selector")
-        for selector in selectors:
-            value = rule.get(selector, [])
-            if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
-                raise ConfigError(f"system type {code!r}.{selector} must be an array of non-empty strings")
     return profile

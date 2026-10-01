@@ -9,10 +9,11 @@ import unittest
 from pathlib import Path
 
 from ids_meta.cli import _evaluation_jobs, _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
-from ids_meta.common.config import Settings, load_settings
+from ids_meta.common.config import Settings, load_settings, load_system_type_profile
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
 from ids_meta.common.ollama import decision_profile
+from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
 from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING
 from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
@@ -26,7 +27,7 @@ class EvaluationTests(unittest.TestCase):
     def _write_profile(self, path: Path, source: str, body: str) -> Path:
         """Write a valid evaluation profile with caller-supplied entity tables."""
         fields = (
-            '["role", "observation_scopes", "capabilities", "detection_methods"]'
+            '["role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types"]'
             if source == "github"
             else '["paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"]'
         )
@@ -37,22 +38,38 @@ class EvaluationTests(unittest.TestCase):
         return path
 
     def test_ghml23_profile_preserves_upstream_ground_truth_and_crosswalk(self) -> None:
-        """Keep the external GitHub reference snapshot complete and source-traceable."""
+        """Keep the upstream snapshot and explicit project-taxonomy crosswalk auditable."""
         path = ROOT / "config/evaluation/github_ghml23.toml"
+        with path.open("rb") as handle:
+            raw = tomllib.load(handle)
         profile = load_rating_profile(path, "github")
-        rows = list(profile.entities.values())
+        rows = raw["entities"]
+        self.assertNotIn("entity_source", raw)
         self.assertEqual(len(rows), 120)
+        self.assertEqual(len(profile.entities), 120)
         self.assertEqual(Counter(row["benchmark_category"] for row in rows), {
             "secumon": 100, "imageocr": 10, "pentest": 10,
         })
-        self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 100, "exclude": 20})
-        self.assertTrue(all("role" not in row for row in rows if row["benchmark_category"] == "secumon"))
-        self.assertTrue(all(
-            row.get("role") == "out_of_scope"
-            for row in rows if row["benchmark_category"] in {"imageocr", "pentest"}
-        ))
+        self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 96, "exclude": 24})
+        self.assertEqual(profile.classification_fields, [
+            "role", "observation_scopes", "observation_objects", "capabilities", "detection_methods",
+            "primary_system_type", "system_types",
+        ])
+        configured_types = set(system_type_codes(load_system_type_profile(load_settings(ROOT / "config/default.toml"), "github")))
+        for row in rows:
+            self.assertIn(row["role"], AUDIT_ROLES)
+            self.assertLessEqual(set(row["observation_scopes"]), set(SCOPES))
+            self.assertLessEqual(set(row["observation_objects"]), set(OBSERVATION_OBJECTS))
+            self.assertLessEqual(set(row["capabilities"]), set(CAPABILITIES))
+            self.assertLessEqual(set(row["detection_methods"]), set(METHODS))
+            self.assertLessEqual(set(row["system_types"]), configured_types)
+            self.assertIn(row["primary_system_type"], row["system_types"], row["repository"])
         by_repository = {row["repository"]: row for row in rows}
-        self.assertEqual(by_repository["zeek/zeek"]["decision"], "accept")
+        self.assertEqual(by_repository["zeek/zeek"]["role"], "native_detector")
+        self.assertIn("PIDS", by_repository["zeek/zeek"]["system_types"])
+        self.assertEqual(by_repository["ossec/ossec-hids"]["role"], "detection_framework")
+        self.assertEqual(by_repository["wazuh/wazuh"]["role"], "detection_framework")
+        self.assertEqual(by_repository["Security-Onion-Solutions/securityonion"]["role"], "detection_platform")
         self.assertEqual(by_repository["OWASP/Nettacker"]["decision"], "exclude")
         self.assertEqual(by_repository["JaidedAI/EasyOCR"]["decision"], "exclude")
 
@@ -107,7 +124,7 @@ class EvaluationTests(unittest.TestCase):
             body = (
                 '[[entities]]\nid = "g1"\nname = "Correct detector"\ndecision = "accept"\n'
                 'role = "native_detector"\nobservation_scopes = ["network"]\n'
-                'capabilities = ["detection", "response"]\ndetection_methods = ["signature_based"]\n\n'
+                'capabilities = ["detection", "prevention"]\ndetection_methods = ["signature_based"]\n\n'
                 '[[entities]]\nid = "g2"\ndecision = "exclude"\n\n'
                 '[[entities]]\nid = "g3"\ndecision = "accept"\n\n'
                 '[[entities]]\nid = "g4"\ndecision = "exclude"\n\n'
@@ -116,7 +133,7 @@ class EvaluationTests(unittest.TestCase):
             profile_path = self._write_profile(root / "github.toml", "github", body)
             classifications = root / "classifications.csv"
             atomic_write_csv(classifications, [
-                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "capabilities": "response;detection", "detection_methods": "signature_based"},
+                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "capabilities": "prevention;detection", "detection_methods": "signature_based"},
                 {"github_repo_id": "g2", "decision": "accept"},
                 {"github_repo_id": "g3", "decision": "exclude"},
                 {"github_repo_id": "g4", "decision": "uncertain"},
@@ -313,7 +330,7 @@ class EvaluationTests(unittest.TestCase):
             root = Path(directory)
             body = (
                 '[[entities]]\nid = "g1"\ndecision = "accept"\nrole = "native_detector"\n'
-                'observation_scopes = ["network"]\ncapabilities = ["detection", "response"]\n'
+                'observation_scopes = ["network"]\ncapabilities = ["detection", "prevention"]\n'
                 'detection_methods = ["signature_based"]\n\n'
                 '[[entities]]\nid = "g2"\ndecision = "exclude"\nrole = "out_of_scope"\n'
             )

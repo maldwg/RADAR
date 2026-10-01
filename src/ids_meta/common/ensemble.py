@@ -140,9 +140,11 @@ def _github_field_consensus(
     for field in ("independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution", "offline_dataset_only", "implements_detection_engine", "requires_external_detector", "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "evidence_quote_verified"):
         value, details = _vote_scalar(votes, field, threshold, "false", _bool_text)
         combined[field], audit[field] = value, details
-    for field, fallback in (("observation_scopes", "unknown"), ("capabilities", ""), ("detection_methods", "unknown")):
+    for field, fallback in (("observation_scopes", "unknown"), ("observation_objects", "unknown"), ("capabilities", ""), ("detection_methods", "unknown"), ("system_types", "unknown")):
         value, details = _vote_multilabel(votes, field, threshold, fallback)
         combined[field], audit[field] = value, details
+    value, details = _vote_scalar(votes, "primary_system_type", threshold, "unknown")
+    combined["primary_system_type"], audit["primary_system_type"] = value, details
     value, details = _vote_scalar(votes, "upstream_full_name", threshold, "")
     combined["upstream_full_name"], audit["upstream_full_name"] = value, details
     return combined, audit
@@ -186,8 +188,8 @@ def _validate_github_consensus(
     row: dict[str, object], disposition: str, system_type_profile: dict[str, Any] | None,
     require_verified_quote: bool,
 ) -> tuple[str, list[str]]:
-    """Check GitHub field consistency and recompute all derived system-type fields."""
-    from ids_meta.github.schema import ROLES, derive_system_types, system_type_names
+    """Check GitHub field consistency without replacing model-selected taxonomy fields."""
+    from ids_meta.github.schema import ROLES, system_type_codes, system_type_names
 
     role = str(row.get("role", "uncertain"))
     self_description = _bool_text(row.get("direct_self_description")) == "true"
@@ -240,15 +242,15 @@ def _validate_github_consensus(
             flags.append("independent_fork_evidence_missing")
         if require_verified_quote and not quote:
             flags.append("verified_evidence_missing")
-    scopes = sorted(_split_labels(row.get("observation_scopes"))) or ["unknown"]
-    capabilities = sorted(_split_labels(row.get("capabilities")))
-    methods = sorted(_split_labels(row.get("detection_methods"))) or ["unknown"]
-    codes = derive_system_types(scopes, capabilities, methods, role, system_type_profile)
-    row.update({
-        "primary_system_type": codes[0] if codes else "unknown",
-        "system_types": ";".join(codes) if codes else "unknown",
-        "system_type_names": ";".join(system_type_names(codes, system_type_profile)) if codes else "Unknown",
-    })
+    configured_types = set(system_type_codes(system_type_profile))
+    codes = split_values(row.get("system_types")) or ["unknown"]
+    invalid_types = set(codes) - configured_types
+    if invalid_types:
+        flags.append("invalid_system_types")
+    primary_type = str(row.get("primary_system_type", "unknown")).strip() or "unknown"
+    if primary_type not in configured_types or primary_type not in codes:
+        flags.append("primary_system_type_conflict")
+    row["system_type_names"] = ";".join(system_type_names(codes, system_type_profile))
     if role in ROLES and not flags:
         derived = "accept"
     elif role == "out_of_scope" and (quote or not require_verified_quote):

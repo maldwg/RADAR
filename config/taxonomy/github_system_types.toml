@@ -1,118 +1,63 @@
 schema_version = "1.0"
 
-# System types are derived deterministically from the normalized LLM dimensions.
-# Add another [types.CODE] table to extend this list without changing Python.
-# Supported selectors are any/all_scopes, any/all_capabilities, any/all_methods,
-# and any_roles. Higher priority types become the primary_system_type.
+# The LLM selects one or more system types directly from this controlled
+# vocabulary. These definitions are included in the classification prompt and
+# fingerprint. They are not post-hoc rules over scope, capability, method, or
+# observation object. The LLM also selects one primary type from its selected
+# system_types; use "unknown" when the evidence supports no configured type.
 
 [types.NIDS]
 name = "Network intrusion detection system"
-description = "Detects intrusions from packets, flows, frames, sessions, protocols, or network infrastructure, including enterprise, cloud, IoT/IIoT, industrial, smart-grid, and vehicle networks."
-priority = 100
-any_scopes = ["network"]
-all_capabilities = ["detection"]
+description = "Detects intrusions by observing network communications, traffic, packets, flows, sessions, protocols, or network infrastructure."
 
 [types.NIPS]
-name = "Network intrusion prevention system"
-description = "Actively prevents intrusions at the network observation scope."
-priority = 99
-any_scopes = ["network"]
-all_capabilities = ["prevention"]
-
-[types.NDR]
-name = "Network detection and response"
-description = "Detects network threats and supports or performs response actions."
-priority = 98
-any_scopes = ["network"]
-all_capabilities = ["detection", "response"]
+name = "Network intrusion prevention system / network detection and response"
+description = "Detects network threats and actively blocks, contains, or responds to them."
 
 [types.HIDS]
 name = "Host intrusion detection system"
-description = "Detects intrusions from files, processes, events, system calls, or workload state on servers, desktops, mobile devices, virtual machines, containers, cloud workloads, or embedded hosts."
-priority = 100
-any_scopes = ["host_endpoint"]
-all_capabilities = ["detection"]
+description = "Detects intrusions by observing files, processes, events, system calls, or workload state on hosts or endpoints."
 
 [types.HIPS]
-name = "Host intrusion prevention system"
-description = "Actively prevents intrusions at the host or endpoint scope."
-priority = 99
-any_scopes = ["host_endpoint"]
-all_capabilities = ["prevention"]
-
-[types.EDR]
-name = "Endpoint detection and response"
-description = "Detects endpoint threats and supports or performs response actions."
-priority = 98
-any_scopes = ["host_endpoint"]
-all_capabilities = ["detection", "response"]
+name = "Host intrusion prevention system / endpoint detection and response"
+description = "Detects host or endpoint threats and actively blocks, contains, remediates, isolates, or responds to them."
 
 [types.WIDS]
 name = "Wireless intrusion detection system"
-description = "Detects intrusions in Wi-Fi, cellular, sensor, radio, ad-hoc, or other wireless protocols, networks, signals, or devices."
-priority = 100
-any_scopes = ["wireless"]
-all_capabilities = ["detection"]
+description = "Detects intrusions by observing Wi-Fi, cellular, sensor, radio, ad-hoc, or other wireless activity."
 
 [types.WIPS]
 name = "Wireless intrusion prevention system"
-description = "Actively prevents intrusions at the wireless observation scope."
-priority = 99
-any_scopes = ["wireless"]
-all_capabilities = ["prevention"]
+description = "Detects wireless threats and actively blocks or prevents them."
 
 [types.DBIDS]
 name = "Database intrusion detection system"
 description = "Detects malicious or anomalous database queries, transactions, audit events, or state changes."
-priority = 100
-any_scopes = ["database"]
-all_capabilities = ["detection"]
 
 [types.DBIPS]
 name = "Database intrusion prevention system"
-description = "Actively prevents intrusions at the database observation scope."
-priority = 99
-any_scopes = ["database"]
-all_capabilities = ["prevention"]
+description = "Detects database threats and actively blocks or prevents them."
 
 [types.APIDS]
 name = "Application-protocol intrusion detection system"
-description = "Detects intrusions from application-layer requests, APIs, services, middleware, application protocols, or application events."
-priority = 100
-any_scopes = ["application"]
-all_capabilities = ["detection"]
+description = "Detects intrusions in application-layer requests, APIs, services, middleware, application protocols, or application events."
 
 [types.PIDS]
 name = "Protocol-based intrusion detection system"
-description = "Detects violations or attacks through explicit stateful or semantic protocol analysis; PIDS always has this meaning in this catalogue."
-priority = 110
-any_methods = ["protocol_analysis"]
-all_capabilities = ["detection"]
+description = "Detects protocol violations or attacks through explicit stateful or semantic protocol analysis; PIDS always has this meaning in this catalogue."
 
 [types.ProvIDS]
 name = "Provenance-based intrusion detection system"
 description = "Detects intrusions using information-flow or system-provenance graphs and event lineage."
-priority = 100
-any_scopes = ["provenance"]
-all_capabilities = ["detection"]
 
 [types.XDR]
 name = "Extended detection and response"
-description = "Combines detection and response across materially different observation scopes."
-priority = 105
-any_scopes = ["multi_scope"]
-all_capabilities = ["detection", "response"]
+description = "Combines detection and active response across materially different observation scopes."
 
 [types.IDS]
 name = "Intrusion detection system"
 description = "Detects intrusions, but the evidence does not support a more specific configured system type."
-priority = 10
-all_capabilities = ["detection"]
-fallback_only = true
 
 [types.IPS]
 name = "Intrusion prevention system"
-description = "Prevents intrusions, but the evidence does not support a more specific configured system type."
-priority = 9
-all_capabilities = ["prevention"]
-fallback_only = true
+description = "Detects and prevents intrusions, but the evidence does not support a more specific configured system type."

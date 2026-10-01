@@ -16,8 +16,8 @@ Normalized fields are then voted:
 
 - OpenAlex single-value fields: paper role, relevance tier, artifact type, domain, data form, capture environment, labeling, direct-release evidence, and verified-evidence status.
 - GitHub single-value fields: role, fork independence, direct self-description, runtime observation, runnable-detector status, offline-dataset-only status, upstream repository, and verified-evidence status.
-- GitHub multi-label fields: every observation scope, capability, and detection method is voted independently. A label is retained only when it reaches the threshold.
-- GitHub system types are never voted directly. They are derived again from the consensus scopes, capabilities, methods, role, and configured system-type profile.
+- GitHub multi-label fields: every observation scope, observation object, capability, detection method, and system type is voted independently. A label is retained only when it reaches the threshold.
+- GitHub primary system type is voted as a single value and must also occur in the selected `system_types`.
 - Names, reasons, and evidence quotations are not merged. They remain attached to the representative coherent run.
 
 A missing or below-threshold OpenAlex taxonomy value becomes `unknown` or `uncertain`. A below-threshold GitHub label is omitted; scopes and methods fall back to `unknown` when no concrete label survives. Eligibility-sensitive booleans conservatively fall back to false.
@@ -42,7 +42,7 @@ GitHub checks include:
 - A fork requires independent-significance evidence.
 - An out-of-scope role resolves to exclusion when its evidence is verified.
 - The fields must imply the same disposition as the decision vote.
-- System types are recalculated after validation, so NIDS/HIDS/NDR and related values cannot contradict their scopes and capabilities.
+- System types are direct model outputs. Validation checks that every code belongs to the configured vocabulary and that the primary type also occurs in `system_types`; it does not infer or overwrite a type from other dimensions.
 
 ## Contradictions and fallback
 
@@ -58,4 +58,4 @@ If no coherent supporting run exists, or the overall disposition itself is uncer
 - `consensus_validation_flags`: failed consistency rules and whether a coherent-run fallback was used.
 - `consensus_fallback_run`: the run selected when field voting produced an invalid combination.
 
-Changing `consecutive_runs`, `consensus_threshold`, prompt configuration, model, or taxonomy rules changes the decision fingerprint and prevents incompatible cache reuse.
+Changing `consecutive_runs`, `consensus_threshold`, prompt configuration, model, or taxonomy definitions changes the decision fingerprint and prevents incompatible cache reuse.

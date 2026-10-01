@@ -122,6 +122,23 @@ terms = [
   "network and endpoint", "extended detection and response", "xdr",
 ]
 
+[fields.observation_objects]
+mode = "multilabel"
+fallback = "unknown"
+minimum_score = 1.0
+
+[fields.observation_objects.labels.packet_analysis]
+terms = ["packet analysis", "packet inspection", "packet payload", "packet capture", "pcap"]
+
+[fields.observation_objects.labels.flow_analysis]
+terms = ["flow analysis", "network flow", "flow record", "netflow", "ipfix", "session record"]
+
+[fields.observation_objects.labels.log_analysis]
+terms = ["log analysis", "security log", "event log", "audit log", "log based detection"]
+
+[fields.observation_objects.labels.system_calls]
+terms = ["system call analysis", "system call trace", "syscall", "system calls"]
+
 [fields.capabilities]
 mode = "multilabel"
 fallback = "unknown"
@@ -136,13 +153,8 @@ terms = [
 [fields.capabilities.labels.prevention]
 terms = [
   "intrusion prevention", "attack prevention", "blocks attacks", "block malicious",
-  "inline blocking", "prevent attacks", "active prevention",
-]
-
-[fields.capabilities.labels.response]
-terms = [
-  "incident response", "automated response", "threat response", "containment",
-  "remediation", "quarantine", "response action",
+  "inline blocking", "prevent attacks", "active prevention", "automated response",
+  "containment", "remediation", "quarantine",
 ]
 
 [fields.capabilities.labels.monitoring]
@@ -157,22 +169,16 @@ fallback = "unknown"
 minimum_score = 1.0
 
 [fields.detection_methods.labels.signature_based]
-terms = ["signature based", "signature matching", "attack signature", "pattern matching"]
+terms = ["signature based", "signature matching", "attack signature", "pattern matching", "yara signature"]
 
 [fields.detection_methods.labels.rule_based]
-terms = ["rule based", "detection rule", "security rule", "policy rule", "rule engine"]
+terms = ["rule based", "detection rule", "security rule", "policy rule", "rule engine", "security query", "detection query"]
 
 [fields.detection_methods.labels.anomaly_based]
 terms = [
   "anomaly based", "anomaly detection", "behavior based", "behaviour based",
-  "deviation from normal", "statistical anomaly",
+  "deviation from normal", "statistical anomaly", "behavioral analysis",
 ]
-
-[fields.detection_methods.labels.integrity_based]
-terms = ["file integrity", "integrity monitoring", "integrity check", "checksum monitoring"]
-
-[fields.detection_methods.labels.query_based]
-terms = ["security query", "query based", "detection query", "threat hunting query"]
 
 [fields.detection_methods.labels.protocol_analysis]
 terms = [
@@ -183,31 +189,55 @@ terms = [
 [fields.detection_methods.labels.ml_based]
 terms = ["machine learning", "ml based", "learned classifier", "supervised learning"]
 
-[fields.detection_methods.labels.ann_based]
-terms = ["artificial neural network", "neural network", "ann based"]
-
-[fields.detection_methods.labels.dnn_based]
-terms = ["deep neural network", "deep learning", "dnn based", "convolutional neural network", "lstm"]
-
-[fields.detection_methods.labels.packet_analysis]
-terms = ["packet analysis", "packet inspection", "packet payload", "packet capture", "pcap"]
-
-[fields.detection_methods.labels.flow_analysis]
-terms = ["flow analysis", "network flow", "flow record", "netflow", "ipfix"]
-
-[fields.detection_methods.labels.log_analysis]
-terms = ["log analysis", "security log", "event log", "audit log", "log based detection"]
-
-[fields.detection_methods.labels.system_call_analysis]
-terms = ["system call analysis", "system call trace", "syscall", "system calls"]
-
-[fields.detection_methods.labels.threat_intelligence_based]
+[fields.detection_methods.labels.nn_based]
 terms = [
-  "threat intelligence", "indicator of compromise", "ioc matching", "intelligence feed",
+  "artificial neural network", "neural network", "ann based", "deep neural network",
+  "deep learning", "dnn based", "convolutional neural network", "lstm", "transformer model",
 ]
 
-[fields.detection_methods.labels.hybrid]
-terms = [
-  "hybrid detection", "hybrid intrusion detection", "multiple detection methods",
-  "combines signature and anomaly", "ensemble detection",
-]
+[fields.system_types]
+mode = "multilabel"
+fallback = "unknown"
+minimum_score = 1.0
+
+[fields.system_types.labels.NIDS]
+terms = ["network intrusion detection system", "network ids", "nids"]
+
+[fields.system_types.labels.NIPS]
+terms = ["network intrusion prevention system", "network ips", "nips", "network detection and response", "ndr"]
+
+[fields.system_types.labels.HIDS]
+terms = ["host intrusion detection system", "host based intrusion detection", "host ids", "hids"]
+
+[fields.system_types.labels.HIPS]
+terms = ["host intrusion prevention system", "host ips", "hips", "endpoint detection and response", "edr"]
+
+[fields.system_types.labels.WIDS]
+terms = ["wireless intrusion detection system", "wireless ids", "wids"]
+
+[fields.system_types.labels.WIPS]
+terms = ["wireless intrusion prevention system", "wireless ips", "wips"]
+
+[fields.system_types.labels.DBIDS]
+terms = ["database intrusion detection system", "database ids", "dbids"]
+
+[fields.system_types.labels.DBIPS]
+terms = ["database intrusion prevention system", "database ips", "dbips"]
+
+[fields.system_types.labels.APIDS]
+terms = ["application protocol intrusion detection system", "application intrusion detection", "apids"]
+
+[fields.system_types.labels.PIDS]
+terms = ["protocol based intrusion detection system", "protocol intrusion detection", "pids"]
+
+[fields.system_types.labels.ProvIDS]
+terms = ["provenance based intrusion detection", "provenance intrusion detection", "provids"]
+
+[fields.system_types.labels.XDR]
+terms = ["extended detection and response", "xdr"]
+
+[fields.system_types.labels.IDS]
+terms = ["intrusion detection system", "ids"]
+
+[fields.system_types.labels.IPS]
+terms = ["intrusion prevention system", "ips"]

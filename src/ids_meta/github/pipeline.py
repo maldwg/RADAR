@@ -13,10 +13,10 @@ from ids_meta.common.run import utc_now
 from ids_meta.common.scoring import score_evidence, shortlist_candidates
 from ids_meta.common.text import split_values, stable_hash
 from ids_meta.common.logging import logger
-from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, RESPONSE_SCHEMA, SCOPES, derive_system_types, normalize_response, system_type_names, validate_processed_row
+from ids_meta.github.schema import AUDIT_ROLES, DEFAULT_SYSTEM_TYPE_PROFILE, CAPABILITIES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, OBSERVATION_OBJECTS, SCOPES, normalize_response, response_schema, system_type_names, validate_processed_row, validate_system_type_profile
 from ids_meta.github.enrich import GitHubEvidenceClient
 
-PROMPT_VERSION = "github-10"
+PROMPT_VERSION = "github-11"
 LOG = logger("github.pipeline")
 
 class Generator(Protocol):
@@ -97,14 +97,26 @@ def prefilter(config: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     return rows
 
 
-def prompt(sections: list[EvidenceSection], prompt_config: dict[str, Any] | None = None) -> str:
+def prompt(
+    sections: list[EvidenceSection], prompt_config: dict[str, Any] | None = None,
+    system_type_profile: dict[str, Any] | None = None,
+) -> str:
     """Construct the repository-classification prompt from untrusted evidence."""
     settings = prompt_config or {}
+    types = system_type_profile or DEFAULT_SYSTEM_TYPE_PROFILE
+    validate_system_type_profile(types)
+    type_lines = [
+        f"- {code} ({definition['name']}): {definition['description']}"
+        for code, definition in types["types"].items()
+    ]
+    type_lines.append("- unknown: The evidence supports no configured IDS system type.")
     blocks = {
         "roles": description_block(settings, "roles", AUDIT_ROLES),
         "scopes": description_block(settings, "scopes", SCOPES),
+        "observation_objects": description_block(settings, "observation_objects", OBSERVATION_OBJECTS),
         "capabilities": description_block(settings, "capabilities", CAPABILITIES),
         "methods": description_block(settings, "methods", METHODS),
+        "system_types": "\n".join(type_lines),
     }
     return render_prompt(settings, blocks, format_evidence(sections))
 
@@ -167,7 +179,7 @@ def classify(
         })
         LOG.info("classifying rank=%d/%d score=%s band=%s %s", rank, len(selected), row.get("prefilter_score", ""), row.get("prefilter_band", ""), row.get("full_name", key))
         if dry_run:
-            result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "reproducible_execution": "", "offline_dataset_only": "", "implements_detection_engine": "", "requires_external_detector": "", "integrates_multiple_detectors": "", "cohesive_framework_architecture": "", "research_basis": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})
+            result.update({"decision": "dry_run", "role": "", "observation_scopes": "", "observation_objects": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "reproducible_execution": "", "offline_dataset_only": "", "implements_detection_engine": "", "requires_external_detector": "", "integrates_multiple_detectors": "", "cohesive_framework_architecture": "", "research_basis": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false"})
         else:
             def decide(
                 active_sections: list[EvidenceSection], stop_on_uncertain: bool = False,
@@ -179,11 +191,11 @@ def classify(
                 for run_index in range(len(votes) + 1, consecutive_runs + 1):
                     vote = dict(result)
                     try:
-                        raw = client.generate(prompt(active_sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
+                        raw = client.generate(prompt(active_sections, prompt_config, system_type_profile), response_schema(system_type_profile))  # type: ignore[union-attr]
                         verified, _ = verify_evidence(raw.get("evidence"), active_sections)
                         vote.update(normalize_response(raw, verified, ollama_config, row.get("fork") == "true", system_type_profile))
                     except Exception as exc:
-                        vote.update({"decision": "error", "role": "", "observation_scopes": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "reproducible_execution": "", "offline_dataset_only": "", "implements_detection_engine": "", "requires_external_detector": "", "integrates_multiple_detectors": "", "cohesive_framework_architecture": "", "research_basis": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+                        vote.update({"decision": "error", "role": "", "observation_scopes": "", "observation_objects": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "reproducible_execution": "", "offline_dataset_only": "", "implements_detection_engine": "", "requires_external_detector": "", "integrates_multiple_detectors": "", "cohesive_framework_architecture": "", "research_basis": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
                     votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
                     if stop_on_uncertain and vote.get("decision") == "uncertain":
                         interrupted = True
@@ -244,15 +256,8 @@ def export(
     require_columns(rows, ("decision", "role", "github_repo_id", "project_id", "canonical_repo_id", "repository_relationship"), reconciled_path)
     accepted = [row for row in rows if row.get("decision") == "accept"]
     for row in accepted:
-        codes = derive_system_types(
-            split_values(row.get("observation_scopes")), split_values(row.get("capabilities")),
-            split_values(row.get("detection_methods")), row.get("role", ""), system_type_profile,
-        )
-        row.update({
-            "primary_system_type": codes[0] if codes else "unknown",
-            "system_types": ";".join(codes) if codes else "unknown",
-            "system_type_names": ";".join(system_type_names(codes, system_type_profile)) if codes else "Unknown",
-        })
+        codes = split_values(row.get("system_types"))
+        row["system_type_names"] = ";".join(system_type_names(codes, system_type_profile)) if codes else "Unknown"
         validate_processed_row(row, system_type_profile)
     accepted.sort(key=lambda row: (row.get("role", ""), row.get("full_name", "").casefold()))
     atomic_write_csv(output, accepted, CATALOGUE_COLUMNS)

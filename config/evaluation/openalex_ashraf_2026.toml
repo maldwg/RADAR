@@ -1,5 +1,6 @@
 schema_version = "1.0"
 source = "openalex"
+benchmark_name = "Ashraf and Masoodi (2026) Table 2 dataset reference set"
 evaluation_unit = "artifact"
 classification_fields = ["artifact_type", "domain", "data_form", "capture_environment", "labeling"]
 source_title = "A survey of intrusion detection datasets for communication networks"

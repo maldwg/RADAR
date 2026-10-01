@@ -51,20 +51,20 @@ class RegressionEvaluationTests(unittest.TestCase):
         self.assertEqual(result["consensus_fallback_run"], "run-1")
         self.assertIn("field_consensus_fallback_to_representative", result["consensus_validation_flags"])
 
-    def test_github_multilabel_consensus_recomputes_system_types(self) -> None:
-        """Vote GitHub labels independently and derive system types from the result."""
+    def test_github_multilabel_consensus_votes_system_types_directly(self) -> None:
+        """Vote observation objects and model-selected IDS types as independent fields."""
         base = {"decision": "accept", "role": "native_detector", "independent_fork": "false", "direct_self_description": "true", "runtime_observation": "true", "reproducible_execution": "true", "offline_dataset_only": "false", "implements_detection_engine": "true", "requires_external_detector": "false", "integrates_multiple_detectors": "false", "cohesive_framework_architecture": "false", "research_basis": "false", "evidence_quote_verified": "true", "fork": "false", "upstream_full_name": ""}
         votes = {
-            "run-1": {**base, "observation_scopes": "network", "capabilities": "detection;response", "detection_methods": "packet_analysis"},
-            "run-2": {**base, "observation_scopes": "network", "capabilities": "detection;response", "detection_methods": "packet_analysis"},
-            "run-3": {**base, "role": "support_tooling", "observation_scopes": "host_endpoint", "capabilities": "detection", "detection_methods": "log_analysis"},
+            "run-1": {**base, "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS"},
+            "run-2": {**base, "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS"},
+            "run-3": {**base, "role": "support_tooling", "observation_scopes": "host_endpoint", "observation_objects": "log_analysis", "capabilities": "monitoring", "detection_methods": "rule_based", "primary_system_type": "HIDS", "system_types": "HIDS"},
         }
         result = consensus_classification("github", votes, .66)
         self.assertEqual(result["role"], "native_detector")
         self.assertEqual(result["observation_scopes"], "network")
-        self.assertEqual(result["capabilities"], "detection;response")
+        self.assertEqual(result["observation_objects"], "packet_analysis")
         self.assertEqual(result["primary_system_type"], "NIDS")
-        self.assertIn("NDR", result["system_types"].split(";"))
+        self.assertEqual(result["system_types"], "NIDS")
         self.assertEqual(result["consensus_fallback_run"], "")
 
     def test_query_sampling_takes_x_from_each_query(self) -> None:

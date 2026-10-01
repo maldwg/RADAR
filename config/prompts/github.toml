@@ -9,13 +9,21 @@ ${roles}
 Observation scopes:
 ${scopes}
 
+Observation objects:
+${observation_objects}
+
 Capabilities:
 ${capabilities}
 
 Detection methods:
 ${methods}
 
-An includable repository must make a concrete, material intrusion-detection or intrusion-prevention contribution represented by one configured role. Treat all observation settings equally: network, host or endpoint, wireless, database, application, protocol, provenance, cloud, virtual machine, container, mobile, IoT/IIoT, industrial control, operational technology, smart grid, automotive or vehicle, distributed, collaborative, and hybrid systems may all qualify. NIDS, NDR, EDR, XDR, etc. are only particular subclasses and must not be treated as the default or preferred form of IDS.
+IDS system types:
+${system_types}
+
+An includable repository must make a concrete, material intrusion-detection or intrusion-prevention contribution represented by one configured role. Treat all observation settings equally: network, host or endpoint, wireless, database, application, protocol, provenance, cloud, virtual machine, container, mobile, IoT/IIoT, industrial control, operational technology, smart grid, automotive or vehicle, distributed, collaborative, and hybrid systems may all qualify. NIDS, NIPS/NDR, HIDS, HIPS/EDR, XDR, etc. are particular subclasses and must not be treated as the default or preferred form of IDS. Classify primary_system_type and system_types directly from repository evidence using the configured definitions; do not infer them mechanically from scope, capability, method, or observation object. Use unknown when no configured system type is directly supported.
+
+Observation scope identifies where activity is observed. Observation object identifies the concrete evidence being analyzed, such as packets, flows, logs, or system calls. Detection method identifies how a decision is made, such as signatures, rules, anomalies, protocol semantics, machine learning, or neural networks. Do not use an observation object as a detection method.
 
 A generic machine-learning, monitoring, logging, security, or data-science repository is out_of_scope when intrusion detection or prevention is only an example, benchmark, integration, dependency, or passing claim. Dataset-only repositories are out_of_scope, but a concrete IDS classifier implementation, rules collection, support tool, or research prototype may qualify under its corresponding role.
 
@@ -40,11 +48,11 @@ ${evidence}"""
 
 [roles]
 native_detector = "Independently runnable detector or prevention engine that implements its own detection logic, consumes live operational observations, and does not require another IDS engine to decide intrusions."
-classifier_engine = "Reusable trainable or runnable IDS-specific classification or anomaly-detection engine with implemented decision logic but without a complete live observation pipeline; static datasets are permitted."
+classifier_engine = "Reusable runnable IDS-specific classification or anomaly-detection engine with implemented decision logic but without a complete live observation pipeline; static datasets are permitted."
 detection_framework = "One cohesive extensible detection system and ecosystem with its own material detection components, often using agents, servers, plugins, or a distributed architecture; Wazuh, OSSEC, and Elkeid are archetypes."
 detection_platform = "Deployable composition that integrates and coordinates multiple independently usable detector engines; Security Onion, T-Pot, and Malcolm are archetypes."
 research_project = "Substantive paper- or named-dataset-backed IDS implementation with a reproducible training, inference, evaluation, or detection path; maintained-product maturity and live input are not required."
-demo = "Illustrative notebook, tutorial, toy application, lab walkthrough, or incomplete proof of concept without a reusable research training, inference, evaluation, or detection path."
+demo = "Illustrative notebook, tutorial, toy application, lab walkthrough, or incomplete proof of concept without proper documentation or description of its detection, training, evaluation path. Also includes projects that require extensive retraining or refitting to be usable."
 rules_content = "IDS-relevant detection signatures, rules, policies, queries, or threat content rather than a detector."
 support_tooling = "IDS-specific tooling that prepares, converts, labels, tests, deploys, manages, or visualizes detection evidence without itself deciding intrusions."
 out_of_scope = "Dataset-only repository, offensive-only tool, generic monitor, tutorial without a material implementation, list, unrelated library, or mere IDS mention/use example."
@@ -63,23 +71,20 @@ unknown = "Observation scope is not established by the evidence."
 [capabilities]
 detection = "Identifies suspicious, malicious, anomalous, or policy-violating activity."
 prevention = "Actively blocks, drops, rejects, or prevents detected activity."
-response = "Contains, remediates, isolates, or orchestrates action after detection."
 monitoring = "Collects or presents security-relevant state without necessarily deciding or acting."
 
 [methods]
 signature_based = "Matches known attack signatures or fingerprints."
 rule_based = "Evaluates explicit logical rules, policies, or expert conditions."
 anomaly_based = "Detects deviations from learned or defined normal behavior."
-integrity_based = "Detects unauthorized changes to files, state, or trusted measurements."
-query_based = "Uses detection queries over events, logs, databases, or telemetry."
 protocol_analysis = "Tracks communication, application, industrial, embedded, or vehicle protocol states or semantics to identify invalid, unexpected, or malicious behavior."
-ml_based = "Uses machine learning not more specifically identified as ANN or DNN."
-ann_based = "Uses an artificial neural network without evidence of a deep architecture."
-dnn_based = "Uses a deep-neural architecture."
-packet_analysis = "Inspects packet headers or payloads."
-flow_analysis = "Uses aggregated network-flow or session records."
-log_analysis = "Uses operating-system, application, security, or device logs."
-system_call_analysis = "Uses system-call sequences, arguments, or frequencies."
-threat_intelligence_based = "Correlates indicators, intelligence feeds, or adversary knowledge."
-hybrid = "Directly combines multiple materially distinct detection methods."
+ml_based = "Uses machine learning not more specifically identified as neural network"
+nn_based = "Uses a neural network of any kind."
 unknown = "Detection method is not established by the evidence."
+
+[observation_objects]
+packet_analysis = "Analyzes packet headers or payloads."
+flow_analysis = "Analyzes aggregated network-flow or session records."
+log_analysis = "Analyzes operating-system, application, security, or device logs."
+system_calls = "Analyzes system-call sequences, arguments, or frequencies."
+unknown = "The analyzed observation object is not established by the evidence."

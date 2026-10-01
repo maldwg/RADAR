@@ -171,23 +171,18 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
 
 
 def _system_type_definitions(profile: dict[str, object] | None) -> pd.DataFrame:
-    """Flatten configured system-type rules into an auditable plot-side table."""
+    """Flatten the configured LLM-facing system-type vocabulary for audit."""
     types = (profile or DEFAULT_SYSTEM_TYPE_PROFILE).get("types", {})
     rows: list[dict[str, object]] = []
     if not isinstance(types, dict):
         return pd.DataFrame()
     for code, value in types.items():
-        rule = value if isinstance(value, dict) else {}
+        definition = value if isinstance(value, dict) else {}
         rows.append({
-            "code": code, "name": rule.get("name", code), "description": rule.get("description", ""),
-            "priority": rule.get("priority", 0), "fallback_only": str(bool(rule.get("fallback_only"))).lower(),
-            "any_scopes": ";".join(rule.get("any_scopes", [])), "all_scopes": ";".join(rule.get("all_scopes", [])),
-            "any_capabilities": ";".join(rule.get("any_capabilities", [])), "all_capabilities": ";".join(rule.get("all_capabilities", [])),
-            "any_methods": ";".join(rule.get("any_methods", [])), "all_methods": ";".join(rule.get("all_methods", [])),
-            "any_roles": ";".join(rule.get("any_roles", [])),
+            "code": code, "name": definition.get("name", code),
+            "description": definition.get("description", ""), "prompt_order": len(rows) + 1,
         })
-    return pd.DataFrame(rows).sort_values(["priority", "code"], ascending=[False, True], kind="stable")
-
+    return pd.DataFrame(rows)
 
 
 def _clean_values(value: object) -> list[str]:
@@ -415,6 +410,7 @@ def _metadata_completeness(frame: pd.DataFrame, out_dir: Path, formats: list[str
         ("last_commit_at", "Last commit timestamp"),
         ("system_types", "IDS type"),
         ("detection_methods", "Detection methods"),
+        ("observation_objects", "Observation objects"),
         ("observation_scopes", "Observation scopes"),
         ("capabilities", "Capabilities"),
         ("role", "Repository role"),
@@ -437,7 +433,7 @@ def _metadata_completeness(frame: pd.DataFrame, out_dir: Path, formats: list[str
     record_columns = [
         value for value in [
             "github_repo_id", "project_id", "full_name", "html_url", "description", "topics", "tags", "license_spdx", "language",
-            "created_at", "pushed_at", "last_commit_sha", "last_commit_at", "system_types", "detection_methods", "observation_scopes",
+            "created_at", "pushed_at", "last_commit_sha", "last_commit_at", "system_types", "detection_methods", "observation_objects", "observation_scopes",
             "capabilities", "role", "repository_relationship", "discovery_relations",
         ] if value in frame
     ]
@@ -731,7 +727,7 @@ def build(
     frame = load_frame(
         input_path,
         (
-            "github_repo_id", "project_id", "repository_relationship", "role", "observation_scopes",
+            "github_repo_id", "project_id", "repository_relationship", "role", "observation_scopes", "observation_objects",
             "capabilities", "detection_methods", "language", "stars", "forks", "pushed_at",
         ),
     )
@@ -751,6 +747,7 @@ def build(
         "system_types": type_values,
         "system_type_names": frame.get("system_type_names", pd.Series("", index=frame.index)),
         "observation_scope": frame["observation_scopes"],
+        "observation_objects": frame["observation_objects"],
         "capabilities": frame["capabilities"],
         "methods": frame["detection_methods"],
         "relationship": frame["repository_relationship"],

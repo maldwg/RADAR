@@ -1,15 +1,15 @@
 # Classification evaluation
 
-- Reference set: GHML23 security-monitoring repository ground truth
+- Reference set: GHML23 repository reference set with IDS-Meta taxonomy crosswalk
 - Source: `github`
 - Evaluation unit: `source_record`
 - Rated entities: 120
 - Operational DR: 0.0000
 - Operational FPR: 0.0000
 - Operational FDR: 0.0000
-- Operational accuracy: 0.1667
+- Operational accuracy: 0.2000
 - Operational precision: 0.0000
-- Metadata field accuracy: 0.0000 (20 comparisons)
+- Metadata field accuracy: 0.0361 (720 comparisons)
 - Mean taxonomy-field macro-F1: 0.0000
 - Abstention rate: 1.0000
 

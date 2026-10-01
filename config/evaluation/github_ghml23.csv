@@ -1,0 +1,121 @@
+Repository;Label;Stars;Created;Forks;Contributors;Source
+0x4D31/awesome-threat-detection;secumon;2828;2018-01-13 08-50-29;553;9;Expert / Google Search
+0xN3utr0n/Kanis;secumon;30;2020-04-06 22-03-37;4;1;Awesome List / GitHub Search
+airbnb/binaryalert;secumon;1352;2017-07-12 21-27-13;193;12;Expert / Google Search
+airbnb/streamalert;secumon;2805;2017-01-22 01-10-56;344;25;Awesome List / GitHub Search
+ait-aecid/logdata-anomaly-miner;secumon;42;2020-03-30 17-38-35;20;11;Expert / Google Search
+ajaykumarkk/CyberDoc;secumon;2;2018-10-22 08-59-02;2;1;Awesome List / GitHub Search
+arkime/arkime;secumon;5710;2012-07-06 16-10-55;1035;90;Expert / Google Search
+atc-project/atomic-threat-coverage;secumon;902;2018-12-12 04-45-18;153;16;Expert / Google Search
+austin-taylor/flare;secumon;425;2016-11-10 00-14-39;89;10;Awesome List / GitHub Search
+BlueTeamLabs/sentinel-attack;secumon;996;2019-05-30 18-47-36;205;8;Awesome List / GitHub Search
+bytedance/Elkeid;secumon;1830;2020-12-18 03-15-54;355;18;Awesome List / GitHub Search
+certsocietegenerale/FIR;secumon;1562;2015-03-11 16-23-34;488;23;Expert / Google Search
+cisco/joy;secumon;1243;2016-01-08 20-30-43;325;15;Awesome List / GitHub Search
+cisco/mercury;secumon;377;2019-08-30 21-58-25;67;7;Awesome List / GitHub Search
+CISOfy/lynis;secumon;11034;2013-12-10 14-00-49;1331;180;Expert / Google Search
+clong/DetectionLab;secumon;4237;2017-03-25 05-18-50;934;67;Expert / Google Search
+cloudina/hawk;secumon;9;2021-09-01 15-10-41;1;1;Awesome List / GitHub Search
+ComodoSecurity/openedr;secumon;1881;2020-10-28 20-51-07;380;6;Awesome List / GitHub Search
+corelight/zeek2es;secumon;30;2021-12-28 14-39-54;6;1;Awesome List / GitHub Search
+crowdsecurity/crowdsec;secumon;6817;2020-05-15 09-38-05;370;47;Expert / Google Search
+csirtgadgets/bearded-avenger;secumon;176;2014-09-19 12-07-04;53;21;Awesome List / GitHub Search
+csirtgadgets/cif-v5;secumon;57;2020-03-07 21-43-44;10;4;Awesome List / GitHub Search
+Cyb3rWard0g/HELK;secumon;3549;2017-03-14 19-14-49;667;26;Expert / Google Search
+dogoncouch/logdissect;secumon;129;2017-02-19 20-31-46;18;2;Expert / Google Search
+dogoncouch/LogESP;secumon;169;2018-01-12 23-40-50;58;2;Awesome List / GitHub Search
+dreadl0ck/netcap;secumon;1626;2018-11-28 21-36-04;153;7;Awesome List / GitHub Search
+droe/xnumon;secumon;230;2018-06-14 22-03-31;34;1;Awesome List / GitHub Search
+endgameinc/varna;secumon;47;2019-10-24 21-40-25;5;1;Awesome List / GitHub Search
+evilsocket/opensnitch;secumon;8953;2017-04-16 14-02-50;464;64;Expert / Google Search
+fail2ban/fail2ban;secumon;8407;2011-09-28 16-24-20;1149;213;Expert / Google Search
+fleetdm/fleet;secumon;1470;2020-11-03 22-17-18;262;179;Expert / Google Search
+gamelinux/passivedns;secumon;1602;2011-04-29 07-20-58;392;21;Awesome List / GitHub Search
+google/grr;secumon;4435;2013-12-04 00-17-53;765;42;Expert / Google Search
+google/stenographer;secumon;1768;2014-10-13 21-26-23;238;27;Awesome List / GitHub Search
+google/vxsig;secumon;215;2019-05-17 07-11-02;36;3;Awesome List / GitHub Search
+Graylog2/graylog2-server;secumon;6645;2010-05-17 21-27-02;1009;133;Expert / Google Search
+hslatman/awesome-threat-intelligence;secumon;6308;2015-12-21 11-31-04;1311;80;Expert / Google Search
+InQuest/python-iocextract;secumon;395;2018-04-17 17-37-18;80;10;Awesome List / GitHub Search
+InQuest/ThreatKB;secumon;85;2017-07-26 02-30-20;18;13;Awesome List / GitHub Search
+intelowlproject/IntelOwl;secumon;2832;2019-12-31 15-18-52;356;46;Awesome List / GitHub Search
+ion-storm/sysmon-config;secumon;693;2017-02-18 16-40-59;140;8;Expert / Google Search
+ion-storm/sysmon-edr;secumon;198;2021-03-06 00-34-23;27;1;Expert / Google Search
+ION28/BLUESPAWN;secumon;1109;2019-05-28 22-41-36;167;8;Awesome List / GitHub Search
+jmpsec/osctrl;secumon;278;2018-12-17 22-33-34;44;8;Awesome List / GitHub Search
+kismetwireless/kismet;secumon;1250;2016-09-20 13-26-00;265;55;Expert / Google Search
+marshyski/sshwatch;secumon;35;2013-05-11 03-56-08;6;1;Awesome List / GitHub Search
+matanolabs/matano;secumon;1114;2022-07-03 13-41-35;57;10;Awesome List / GitHub Search
+mattifestation/CimSweep;secumon;625;2016-01-30 04-58-19;163;5;Awesome List / GitHub Search
+MHaggis/sysmon-dfir;secumon;832;2017-01-11 07-09-03;187;2;Expert / Google Search
+MISP/MISP;secumon;4522;2013-02-07 17-10-34;1292;204;Expert / Google Search
+mitre-attack/bzar;secumon;455;2019-05-16 19-47-16;63;4;Awesome List / GitHub Search
+mozilla/mig;secumon;1197;2013-09-10 04-04-40;251;27;Awesome List / GitHub Search
+Neo23x0/Loki;secumon;2946;2015-01-18 08-39-49;556;33;Expert / Google Search
+Neo23x0/signature-base;secumon;2033;2016-02-15 09-16-52;553;42;Expert / Google Search
+Neo23x0/sysmon-config;secumon;378;2021-07-24 06-19-41;52;28;Expert / Google Search
+Netflix/dispatch;secumon;4018;2020-02-10 17-21-28;419;65;Awesome List / GitHub Search
+NeuromorphicComputationResearchProgram/AutoYara;secumon;47;2020-09-05 02-42-34;7;0;Awesome List / GitHub Search
+ntop/ntopng;secumon;5412;2015-04-30 10-07-16;620;106;Expert / Google Search
+OISF/suricata;secumon;3326;2012-08-14 08-30-06;1259;171;Expert / Google Search
+olafhartong/sysmon-modular;secumon;2263;2018-01-13 21-20-59;511;40;Expert / Google Search
+olafhartong/ThreatHunting;secumon;1060;2018-11-13 10-11-17;174;12;Expert / Google Search
+onotelli/justniffer;secumon;152;2012-05-12 16-56-27;61;1;Awesome List / GitHub Search
+OpenCTI-Platform/opencti;secumon;3760;2018-12-17 22-57-34;698;57;Expert / Google Search
+osquery/osquery;secumon;20468;2014-07-29 20-27-33;2444;377;Expert / Google Search
+ossec/ossec-hids;secumon;4032;2013-09-17 17-07-58;1006;133;Expert / Google Search
+P4T12ICK/ypsilon;secumon;153;2018-04-30 09-26-11;19;1;Awesome List / GitHub Search
+palantir/osquery-configuration;secumon;761;2017-11-08 20-26-19;119;2;Awesome List / GitHub Search
+Qianlitp/WatchAD;secumon;1223;2019-10-24 09-46-33;294;2;Awesome List / GitHub Search
+quadrantsec/sagan;secumon;103;2021-01-05 17-39-23;18;6;Expert / Google Search
+rabbitstack/fibratus;secumon;1900;2016-03-25 11-28-46;181;5;Awesome List / GitHub Search
+sans-blue-team/DeepBlueCLI;secumon;1851;2016-09-20 16-06-06;312;7;Awesome List / GitHub Search
+sbilly/awesome-security;secumon;10020;2014-08-22 00-54-48;1699;134;Expert / Google Search
+Security-Onion-Solutions/securityonion;secumon;2071;2018-02-05 17-30-31;380;27;Expert / Google Search
+shadawck/awesome-endpoint-detection-and-response;secumon;35;2020-03-12 10-02-52;10;1;Awesome List / GitHub Search
+SigmaHQ/sigma;secumon;6565;2016-12-24 09-48-49;1885;341;Expert / Google Search
+simsong/tcpflow;secumon;1581;2012-04-01 00-44-11;230;40;Awesome List / GitHub Search
+snort3/snort3;secumon;1882;2014-12-11 14-28-09;452;26;Expert / Google Search
+splunk/security_content;secumon;917;2018-12-18 21-14-15;282;56;Awesome List / GitHub Search
+stamparm/maltrail;secumon;5244;2014-12-04 21-33-46;968;39;Awesome List / GitHub Search
+SwiftOnSecurity/sysmon-config;secumon;4168;2017-02-01 18-49-36;1600;17;Expert / Google Search
+tenzir/threatbus;secumon;242;2019-01-31 09-33-49;13;9;Awesome List / GitHub Search
+teoseller/osquery-attck;secumon;715;2018-07-31 07-17-32;154;2;Awesome List / GitHub Search
+TheHive-Project/Cortex;secumon;1102;2017-01-10 10-52-57;191;12;Awesome List / GitHub Search
+TheHive-Project/Hippocampe;secumon;160;2016-11-04 08-29-51;45;7;Awesome List / GitHub Search
+TheHive-Project/TheHive;secumon;2978;2016-11-03 16-58-39;565;15;Expert / Google Search
+USArmyResearchLab/Dshell;secumon;5412;2014-12-17 12-04-51;1160;18;Awesome List / GitHub Search
+Velocidex/velociraptor;secumon;1965;2018-03-24 07-39-32;352;72;Expert / Google Search
+wazuh/wazuh;secumon;6272;2015-08-11 17-39-03;1075;231;Expert / Google Search
+wecooperate/iMonitor;secumon;566;2021-11-24 11-27-47;139;1;Awesome List / GitHub Search
+wecooperate/iMonitorSDK;secumon;280;2021-09-25 05-31-27;67;1;Awesome List / GitHub Search
+yarox24/attack_monitor;secumon;218;2019-04-03 18-33-49;60;1;Awesome List / GitHub Search
+Yelp/elastalert;secumon;7914;2014-11-24 19-39-19;1775;181;Awesome List / GitHub Search
+zeek/zeek;secumon;5344;2012-07-06 20-30-16;1149;136;Expert / Google Search
+StamusNetworks/SELKS;secumon;1036;2014-05-15 13-13-50;250;8;Awesome List / GitHub Search
+StamusNetworks/scirius;secumon;559;2014-05-04 19-15-32;146;14;Awesome List / GitHub Search
+jasonish/evebox;secumon;369;2014-05-22 21-14-36;68;5;Awesome List / GitHub Search
+wazuh/wazuh-packages;secumon;63;2017-04-21 21-46-13;64;75;Awesome List / GitHub Search
+cedricbonhomme/pyHIDS;secumon;36;2013-12-02 20-21-21;13;1;Awesome List / GitHub Search
+alphasoc/flightsim;secumon;918;2018-01-10 12-31-31;119;7;Expert / Google Search
+alphasoc/nfr;secumon;118;2017-01-06 11-03-25;19;7;Awesome List / GitHub Search
+zacharywhitley/awesome-ocr;imageocr;659;2019-07-23 14-54-48;96;4;Random Sample
+hwalsuklee/awesome-deep-text-detection-recognition;imageocr;2470;2017-11-30 05-43-19;517;5;Random Sample
+whitelok/image-text-localization-recognition;imageocr;924;2017-02-09 07-41-41;239;4;Random Sample
+chongyangtao/Awesome-Scene-Text-Recognition;imageocr;1653;2016-07-07 13-39-08;417;8;Random Sample
+mindee/doctr;imageocr;2010;2021-01-08 16-05-12;276;35;Random Sample
+JaidedAI/EasyOCR;imageocr;19091;2020-03-14 11-46-39;2724;107;Random Sample
+weinman/cnn_lstm_ctc_ocr;imageocr;495;2017-06-02 09-36-41;174;7;Random Sample
+danwald/pytextractor;imageocr;42;2019-02-23 16-00-07;18;2;Random Sample
+deepinsight/insightocr;imageocr;100;2018-06-21 11-21-13;38;2;Random Sample
+isi-vista/textDetectionWithScriptID;imageocr;7;2018-04-24 21-24-08;5;2;Random Sample
+The-Art-of-Hacking/h4cker;pentest;14076;2017-06-19 17-11-19;2400;17;Random Sample
+vitalysim/Awesome-Hacking-Resources;pentest;13644;2017-10-10 19-09-18;2023;57;Random Sample
+t3l3machus/Villain;pentest;2350;2022-10-25 22-02-59;394;1;Random Sample
+OWASP/Nettacker;pentest;2497;2017-04-21 12-14-35;650;38;Random Sample
+frizb/Windows-Privilege-Escalation;pentest;703;2017-05-12 13-09-50;184;1;Random Sample
+arch3rPro/PentestTools;pentest;661;2018-09-08 10-25-48;169;1;Random Sample
+whiterabb17/sifter;pentest;62;2021-09-07 10-08-33;14;1;Random Sample
+hackThacker/advtools;pentest;10;2021-11-19 11-04-19;3;1;Random Sample
+rcallaby/Hacking-Study-Guide;pentest;6;2022-07-25 00-38-00;3;2;Random Sample
+gotr00t0day/Gsec;pentest;34;2022-07-17 14-54-57;11;1;Random Sample

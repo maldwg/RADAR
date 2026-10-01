@@ -257,15 +257,49 @@ def _evaluation_output(args: argparse.Namespace, default: Path) -> Path:
     return default / Path(ratings).stem if ratings else default
 
 
+def _configured_reference_sets(settings: Settings, source: str) -> list[tuple[str, Path]]:
+    """Validate and resolve every external reference profile configured for one source."""
+    configured = settings.section("evaluation").get("reference_sets", [])
+    if not isinstance(configured, list) or any(not isinstance(item, dict) for item in configured):
+        raise ConfigError("evaluation.reference_sets must be an array of tables")
+    selected: list[tuple[str, Path]] = []
+    seen_names: set[str] = set()
+    for index, item in enumerate(configured, 1):
+        configured_source = str(item.get("source", "")).strip()
+        if configured_source not in {"github", "openalex"}:
+            raise ConfigError(f"evaluation.reference_sets entry {index} has unsupported source {configured_source!r}")
+        if configured_source != source:
+            continue
+        name = str(item.get("name", "")).strip()
+        profile_value = item.get("profile")
+        if not name or not isinstance(profile_value, str) or not profile_value.strip():
+            raise ConfigError(
+                f"evaluation.reference_sets entry {index} requires non-empty name, source, and profile"
+            )
+        label = slug(name)
+        if label in seen_names:
+            raise ConfigError(f"duplicate evaluation reference-set name for {source}: {name}")
+        seen_names.add(label)
+        profile = Path(profile_value)
+        selected.append((label, profile if profile.is_absolute() else settings.root / profile))
+    if not selected:
+        raise ConfigError(f"no evaluation.reference_sets entry configured for source {source!r}")
+    return selected
+
+
 def _evaluation_jobs(
     settings: Settings, source: str, args: argparse.Namespace, default_output: Path,
 ) -> list[tuple[Path, Path, str]]:
-    """Resolve the single selected rating profile and its output directory."""
-    primary = _path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml")
+    """Resolve configured reference-set profiles and their output directories."""
     explicit = getattr(args, "ratings", None)
     if args.action in {"evaluate", "baseline"} and explicit:
         return [(Path(explicit), _evaluation_output(args, default_output), "")]
-    return [(primary, _evaluation_output(args, default_output), "")]
+    selected = _configured_reference_sets(settings, source)
+    output = _evaluation_output(args, default_output)
+    if len(selected) == 1:
+        label, profile = selected[0]
+        return [(profile, output, label)]
+    return [(profile, output / label, label) for label, profile in selected]
 
 
 def _evaluation_confidence_level(settings: Settings) -> float:
@@ -287,7 +321,15 @@ def _evaluate(
     ratings_path: Path | None = None,
 ) -> EvaluationResult:
     """Evaluate one source/model result against its centrally configured ratings."""
-    profile_path = ratings_path or _path_with_default(settings, f"{source}_ratings", f"config/evaluation/{source}.toml")
+    if ratings_path is None:
+        jobs = _evaluation_jobs(
+            settings, source, argparse.Namespace(action="run", ratings=None, output=None), output_dir,
+        )
+        if len(jobs) != 1:
+            raise ConfigError("an explicit reference profile is required when multiple sets are configured")
+        profile_path = jobs[0][0]
+    else:
+        profile_path = ratings_path
     profile = load_rating_profile(profile_path, source)
     result = evaluate_results(
         profile, classifications, output_dir, candidates,
@@ -325,7 +367,7 @@ def _classifier_entries(settings: Settings, source: str) -> dict[str, tuple[Path
     single_evaluation = evaluation / "llm" / slug(
         str(settings.section("ollama").get("model", "model"))
     )
-    if single.is_file() and (single_evaluation / "metrics.json").is_file():
+    if single.is_file():
         entries["LLM"] = (single, single_evaluation)
     ensemble = interim / "ensemble" / "classifications.csv"
     if ensemble.is_file():
@@ -347,46 +389,70 @@ def _classifier_entries(settings: Settings, source: str) -> dict[str, tuple[Path
 
 
 def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]:
-    """Build same-profile performance plots across every available classifier family."""
+    """Build classifier comparisons separately for every configured reference set."""
     from ids_meta.plotting.compare import build_classifiers
 
     entries = _classifier_entries(settings, source)
     if len(entries) < 2:
         LOG.warning("skipping all-classifier comparison source=%s available=%d", source, len(entries))
         return []
+    reference_sets = _configured_reference_sets(settings, source)
+    multiple = len(reference_sets) > 1
     comparison_root = _default_paths(settings, source)["evaluation_comparison"]
-    classifications: dict[str, Path] = {}
-    evaluations: dict[str, Path] = {}
-    for label, (classification, evaluation_root) in entries.items():
-        if classification.is_file() and (evaluation_root / "metrics.json").is_file():
-            classifications[label] = classification
-            evaluations[label] = evaluation_root
-    if len(evaluations) < 2:
+    outputs: list[Path] = []
+    compared: list[tuple[str, Path, list[str]]] = []
+    for reference_label, _profile in reference_sets:
+        classifications: dict[str, Path] = {}
+        evaluations: dict[str, Path] = {}
+        classifier_labels: list[str] = []
+        for classifier_label, (classification, evaluation_root) in entries.items():
+            reference_root = evaluation_root / reference_label if multiple else evaluation_root
+            if classification.is_file() and (reference_root / "metrics.json").is_file():
+                classifications[classifier_label] = classification
+                evaluations[classifier_label] = reference_root
+                classifier_labels.append(classifier_label)
+        if len(evaluations) < 2:
+            LOG.warning(
+                "skipping reference-set comparison source=%s reference=%s available=%d",
+                source, reference_label, len(evaluations),
+            )
+            continue
+        target = comparison_root / reference_label if multiple else comparison_root
+        outputs.extend(build_classifiers(
+            source, classifications, evaluations, target, settings.section("plots"),
+        ))
+        compared.append((reference_label, target, classifier_labels))
+    if not compared:
         return []
-    outputs = build_classifiers(
-        source, classifications, evaluations, comparison_root, settings.section("plots"),
-    )
     evaluation_root = _evaluation_root(settings, source)
+    display_source = "OpenAlex" if source == "openalex" else "GitHub"
     lines = [
-        f"# {'OpenAlex' if source == 'openalex' else 'GitHub'} rated evaluation", "",
-        "## Start here", "",
-        "Open `comparison/00_metric_overview.svg` to compare every classifier on the same rated set.",
-        "Exact values are in `comparison/data/00_metric_overview.csv`.", "",
-        "## Directory guide", "",
-        "- `comparison/`: primary cross-classifier reporting figures.",
-        "- `comparison/metrics/`: one larger figure per operational metric.",
-        "- `comparison/taxonomy/`: field- and category-level taxonomy comparisons.",
-        "- `comparison/agreement/`: decision agreement; this is not correctness.",
-        "- `classifiers/`: detailed audit for one classifier at a time.",
-        "- `classifiers/nli/<model>/sensitivity/`: offline robustness check for NLI cutoffs; it is not another model result.",
+        f"# {display_source} external-reference evaluation", "", "## Start here", "",
+    ]
+    for reference_label, target, classifier_labels in compared:
+        relative = target.relative_to(evaluation_root)
+        lines.extend([
+            f"- `{reference_label}`: open `{relative}/00_metric_overview.svg` ",
+            f"  ({len(classifier_labels)} classifiers; exact values in `{relative}/data/00_metric_overview.csv`).",
+        ])
+    lines.extend([
+        "", "## Directory guide", "",
+        "- `comparison/`: cross-classifier reporting, split by reference-set name when several are configured.",
+        "- `classifiers/`: detailed audits for one classifier, likewise split by reference set when needed.",
+        "- `classifiers/nli/<model>/sensitivity/`: offline NLI cutoff robustness; not another model result.",
         "- Matching `.svg` and `.pdf` files are the same figure in screen and publication formats.",
         "", "## Available classifier details", "",
-    ]
-    lines.extend(
-        f"- `{label}` → `{directory.relative_to(evaluation_root)}/`"
-        for label, (_classification, directory) in entries.items()
-        if (directory / "metrics.json").is_file()
-    )
+    ])
+    for classifier_label, (_classification, directory) in entries.items():
+        available = [
+            label for label, _profile in reference_sets
+            if ((directory / label) if multiple else directory).joinpath("metrics.json").is_file()
+        ]
+        if available:
+            lines.append(
+                f"- `{classifier_label}` → `{directory.relative_to(evaluation_root)}/` "
+                f"(reference sets: {', '.join(available)})"
+            )
     lines.append("")
     evaluation_root.mkdir(parents=True, exist_ok=True)
     (evaluation_root / "README.md").write_text("\n".join(lines), encoding="utf-8")

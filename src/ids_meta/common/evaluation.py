@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import hashlib
 import json
 import math
 import tomllib
@@ -15,11 +17,11 @@ from ids_meta.common.text import normalize_text, split_values
 
 
 MULTI_FIELDS = {
-    "github": {"observation_scopes", "capabilities", "detection_methods", "system_types"},
+    "github": {"observation_scopes", "observation_objects", "capabilities", "detection_methods", "system_types"},
     "openalex": {"artifact_aliases"},
 }
 DEFAULT_FIELDS = {
-    "github": ["role", "observation_scopes", "capabilities", "detection_methods"],
+    "github": ["role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types"],
     "openalex": ["paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"],
 }
 IDENTITY_FIELDS = {"github": "github_repo_id", "openalex": "openalex_id"}
@@ -39,6 +41,7 @@ class RatingProfile:
     classification_fields: list[str]
     entities: dict[str, dict[str, Any]]
     path: Path
+    metadata: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,80 @@ def _normalize_match_value(selector: str, value: object) -> str:
     if selector == "openalex_url":
         normalized = normalized.rstrip("/")
     return normalized if selector == "id" else normalized.casefold()
+
+
+def _external_entities(raw: dict[str, Any], profile_path: Path) -> list[dict[str, Any]]:
+    """Load reference entities from a declaratively mapped local CSV snapshot."""
+    source = raw.get("entity_source")
+    if source is None:
+        return []
+    if not isinstance(source, dict):
+        raise ValueError("entity_source must be a table")
+    if str(source.get("format", "csv")).strip().casefold() != "csv":
+        raise ValueError("entity_source.format currently supports only csv")
+    configured_path = source.get("path")
+    if not isinstance(configured_path, str) or not configured_path.strip():
+        raise ValueError("entity_source.path must be a non-empty string")
+    data_path = Path(configured_path)
+    if not data_path.is_absolute():
+        data_path = profile_path.parent / data_path
+    if not data_path.is_file():
+        raise ValueError(f"evaluation entity source does not exist: {data_path}")
+    expected_sha256 = raw.get("source_sha256")
+    if expected_sha256 is not None:
+        if not isinstance(expected_sha256, str) or len(expected_sha256) != 64:
+            raise ValueError("source_sha256 must be a 64-character hexadecimal digest")
+        actual_sha256 = hashlib.sha256(data_path.read_bytes()).hexdigest()
+        if actual_sha256.casefold() != expected_sha256.casefold():
+            raise ValueError(
+                f"evaluation entity source checksum mismatch: {data_path} "
+                f"(expected {expected_sha256}, got {actual_sha256})"
+            )
+    delimiter = source.get("delimiter", ",")
+    if not isinstance(delimiter, str) or len(delimiter) != 1:
+        raise ValueError("entity_source.delimiter must be one character")
+    selector = str(source.get("selector", "")).strip()
+    selector_column = str(source.get("selector_column", "")).strip()
+    if not selector or not selector_column:
+        raise ValueError("entity_source requires selector and selector_column")
+    columns = source.get("columns", {})
+    mappings = source.get("mappings", {})
+    if not isinstance(columns, dict) or any(
+        not isinstance(target, str) or not isinstance(column, str) or not target.strip() or not column.strip()
+        for target, column in columns.items()
+    ):
+        raise ValueError("entity_source.columns must map output names to CSV columns")
+    if not isinstance(mappings, dict) or any(not isinstance(spec, dict) for spec in mappings.values()):
+        raise ValueError("entity_source.mappings must contain mapping tables")
+    with data_path.open("r", encoding=str(source.get("encoding", "utf-8-sig")), newline="") as handle:
+        csv_rows = list(csv.DictReader(handle, delimiter=delimiter))
+    entities: list[dict[str, Any]] = []
+    for row_number, source_row in enumerate(csv_rows, 2):
+        selector_value = str(source_row.get(selector_column, "")).strip()
+        if not selector_value:
+            raise ValueError(f"entity_source row {row_number} has no {selector_column!r}")
+        entity: dict[str, Any] = {selector: selector_value}
+        for target, column in columns.items():
+            entity[target] = str(source_row.get(column, "")).strip()
+        for target, spec in mappings.items():
+            column = str(spec.get("column", "")).strip()
+            values = spec.get("values", {})
+            required = spec.get("required", True)
+            if not column or not isinstance(values, dict):
+                raise ValueError(f"entity_source.mappings.{target} requires column and values")
+            if not isinstance(required, bool):
+                raise ValueError(f"entity_source.mappings.{target}.required must be true or false")
+            input_value = str(source_row.get(column, "")).strip()
+            if input_value in values:
+                entity[target] = values[input_value]
+            elif required:
+                raise ValueError(
+                    f"entity_source row {row_number} has unmapped {column} value {input_value!r}"
+                )
+        entities.append(entity)
+    if not entities:
+        raise ValueError(f"evaluation entity source is empty: {data_path}")
+    return entities
 
 
 def load_rating_profile(path: Path, source: str) -> RatingProfile:
@@ -81,9 +158,13 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
     if not isinstance(fields, list) or any(not isinstance(field, str) or not field.strip() for field in fields):
         raise ValueError("classification_fields must be an array of non-empty strings")
     fields = list(dict.fromkeys(field.strip() for field in fields))
-    rows = raw.get("entities", [])
-    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+    inline_rows = raw.get("entities", [])
+    if not isinstance(inline_rows, list) or any(not isinstance(row, dict) for row in inline_rows):
         raise ValueError("evaluation entities must be an array of tables")
+    external_rows = _external_entities(raw, path)
+    if inline_rows and external_rows:
+        raise ValueError("evaluation profile must use either inline entities or entity_source, not both")
+    rows = external_rows or inline_rows
     entities: dict[str, dict[str, Any]] = {}
     selectors = dict(SELECTOR_FIELDS[source])
     if evaluation_unit != "artifact":
@@ -108,7 +189,13 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
         expected["_evaluation_selector"] = selector
         expected["_evaluation_match_value"] = value
         entities[key] = expected
-    return RatingProfile(source, evaluation_unit, fields, entities, path)
+    metadata = {
+        key: raw[key] for key in (
+            "benchmark_name", "source_repository", "source_dataset", "source_title",
+            "source_doi", "source_url", "source_table", "source_license", "source_sha256", "crosswalk_version",
+        ) if key in raw
+    }
+    return RatingProfile(source, evaluation_unit, fields, entities, path, metadata)
 
 
 def _ratio(numerator: int | float, denominator: int | float) -> float:
@@ -467,6 +554,7 @@ def evaluate_results(
     rated = len(profile.entities)
     metrics: dict[str, Any] = {
         "source": profile.source, "evaluation_unit": profile.evaluation_unit,
+        "reference_set": profile.metadata,
         "benchmark_scope": "positive_reference_set" if profile.evaluation_unit == "artifact" else "screening_decisions",
         "not_estimable_metrics": [
             "false_positive_rate", "false_discovery_rate", "specificity",
@@ -574,6 +662,7 @@ def evaluate_results(
     readme_path = output_dir / "README.md"
     heading = (
         "# Classification evaluation\n\n"
+        f"- Reference set: {profile.metadata.get('benchmark_name', profile.path.stem)}\n"
         f"- Source: `{profile.source}`\n- Evaluation unit: `{profile.evaluation_unit}`\n- Rated entities: {rated}\n"
     )
     field_summary = (

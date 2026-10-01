@@ -31,31 +31,49 @@ provenance = "The implemented detection approach analyzes provenance graphs or p
 application = "The implemented detection approach observes application-layer behavior or application protocols."
 multi_scope = "The implemented detection approach combines multiple distinct observation scopes."
 
+[fields.observation_objects]
+mode = "multilabel"
+fallback = "unknown"
+[fields.observation_objects.hypotheses]
+packet_analysis = "The implemented approach analyzes individual network packet headers or payloads."
+flow_analysis = "The implemented approach analyzes aggregated network flows, sessions, NetFlow, or IPFIX records."
+log_analysis = "The implemented approach analyzes operating-system, application, security, audit, or device logs."
+system_calls = "The implemented approach analyzes operating-system call sequences, arguments, or frequencies."
+
 [fields.capabilities]
 mode = "multilabel"
 fallback = "unknown"
 [fields.capabilities.hypotheses]
 detection = "The system detects malicious, anomalous, or policy-violating activity."
-prevention = "The system actively blocks or prevents detected malicious activity."
-response = "The system performs response, containment, or remediation after detection."
+prevention = "The system actively blocks, contains, remediates, isolates, or otherwise prevents detected malicious activity."
 monitoring = "The system continuously monitors or presents security activity."
 
 [fields.detection_methods]
 mode = "multilabel"
 fallback = "unknown"
 [fields.detection_methods.hypotheses]
-signature_based = "The detection method matches known attack signatures or byte patterns."
-rule_based = "The detection method evaluates explicit detection rules or policies."
-anomaly_based = "The detection method identifies deviations from normal behavior."
-integrity_based = "The detection method checks file, system, or data integrity."
-query_based = "The detection method identifies threats using security queries."
-protocol_analysis = "The detection method analyzes network protocol semantics or state."
-ml_based = "The detection method uses machine learning."
-ann_based = "The detection method uses an artificial neural network."
-dnn_based = "The detection method uses a deep neural network."
-packet_analysis = "The detection method analyzes individual network packets or payloads."
-flow_analysis = "The detection method analyzes network flows or flow records."
-log_analysis = "The detection method analyzes logs or event records."
-system_call_analysis = "The detection method analyzes operating-system calls."
-threat_intelligence_based = "The detection method uses threat-intelligence indicators or feeds."
-hybrid = "The detection method explicitly combines multiple distinct detection techniques."
+signature_based = "The detection method matches known attack signatures, fingerprints, or byte patterns."
+rule_based = "The detection method evaluates explicit detection rules, policies, expert conditions, or security queries."
+anomaly_based = "The detection method identifies deviations from learned or defined normal behavior."
+protocol_analysis = "The detection method analyzes protocol semantics, state, or valid protocol behavior."
+ml_based = "The detection method uses machine learning other than a specifically identified neural network."
+nn_based = "The detection method uses a neural network, including deep neural architectures."
+
+[fields.system_types]
+mode = "multilabel"
+fallback = "unknown"
+[fields.system_types.hypotheses]
+NIDS = "The repository implements a network intrusion detection system."
+NIPS = "The repository implements a network intrusion prevention or network detection-and-response system."
+HIDS = "The repository implements a host intrusion detection system."
+HIPS = "The repository implements a host intrusion prevention or endpoint detection-and-response system."
+WIDS = "The repository implements a wireless intrusion detection system."
+WIPS = "The repository implements a wireless intrusion prevention system."
+DBIDS = "The repository implements a database intrusion detection system."
+DBIPS = "The repository implements a database intrusion prevention system."
+APIDS = "The repository implements an application-protocol intrusion detection system."
+PIDS = "The repository implements a protocol-based intrusion detection system."
+ProvIDS = "The repository implements a provenance-based intrusion detection system."
+XDR = "The repository implements extended detection and response across multiple observation scopes."
+IDS = "The repository implements an intrusion detection system whose subtype is not established."
+IPS = "The repository implements an intrusion prevention system whose subtype is not established."

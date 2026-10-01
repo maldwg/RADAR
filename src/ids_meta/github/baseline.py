@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 from ids_meta.github.schema import (
-    AUDIT_ROLES, CAPABILITIES, METHODS, ROLES, SCOPES,
-    derive_system_types, system_type_names,
+    AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, ROLES, SCOPES,
+    system_type_codes, system_type_names,
 )
 
 
 SUPPORTED_FIELDS = [
-    "decision", "role", "observation_scopes", "capabilities", "detection_methods",
+    "decision", "role", "observation_scopes", "observation_objects", "capabilities", "detection_methods",
     "primary_system_type", "system_types",
 ]
 
@@ -28,18 +28,22 @@ def _normalize_result(
     role = str(predictions.get("role", "uncertain"))
     role = role if role in AUDIT_ROLES else "uncertain"
     scopes = _allowed_list(predictions.get("observation_scopes"), SCOPES, "unknown")
+    objects = _allowed_list(predictions.get("observation_objects"), OBSERVATION_OBJECTS, "unknown")
     capabilities = _allowed_list(predictions.get("capabilities"), CAPABILITIES)
     methods = _allowed_list(predictions.get("detection_methods"), METHODS, "unknown")
     profile = config.get("system_type_profile")
-    types = derive_system_types(scopes, capabilities, methods, role, profile)
+    configured_types = system_type_codes(profile)
+    types = _allowed_list(predictions.get("system_types"), configured_types, "unknown")
+    if len(types) > 1 and "unknown" in types:
+        types.remove("unknown")
     derived_decision = "accept" if role in ROLES else "exclude" if role == "out_of_scope" else "uncertain"
     decision = str(predictions.get("decision", derived_decision))
     decision = decision if decision in {"accept", "exclude", "uncertain"} else derived_decision
     return {
         "decision": decision, "role": role,
-        "observation_scopes": ";".join(scopes), "capabilities": ";".join(capabilities),
+        "observation_scopes": ";".join(scopes), "observation_objects": ";".join(objects), "capabilities": ";".join(capabilities),
         "detection_methods": ";".join(methods),
-        "primary_system_type": types[0] if types else "",
+        "primary_system_type": types[0],
         "system_types": ";".join(types),
         "system_type_names": ";".join(system_type_names(types, profile)),
         "independent_fork": "unknown", "direct_self_description": "unknown",

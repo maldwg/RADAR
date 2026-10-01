@@ -85,7 +85,7 @@ class BaselineTests(unittest.TestCase):
             keyword_profile = load_keyword_taxonomy_profile(settings, "github")
             self.assertEqual(
                 [field.name for field in keyword_profile.fields],
-                ["role", "observation_scopes", "capabilities", "detection_methods"],
+                ["role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "system_types"],
             )
             with self.assertRaisesRegex(ConfigError, "unknown baseline"):
                 configured_baseline_methods(settings, "imaginary")

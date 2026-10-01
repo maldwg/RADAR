@@ -84,7 +84,7 @@ Profiles are validated before evaluation. A missing profile, wrong source/schema
 
 ### Benchmark composition
 
-GitHub uses GHML23's published `ground_truth_with_source.csv`: 100 security-monitoring (`secumon`) repositories, 10 penetration-testing controls, and 10 image/OCR controls. The crosswalk treats `secumon` as expected inclusion and the two control categories as expected exclusion with repository role `out_of_scope`. GHML23 does not distinguish native detectors, classifier engines, frameworks, platforms, research projects, demonstrations, rules/content, or support tooling. Those labels are therefore not inferred from the broad positive category and do not enter its taxonomy metrics.
+GitHub starts from GHML23's published `ground_truth_with_source.csv`: 100 security-monitoring (`secumon`) repositories, 10 penetration-testing controls, and 10 image/OCR controls. The adjacent CSV remains an immutable provenance snapshot. The executable TOML profile explicitly reviews and crosswalks every repository into this project's inclusion decision and controlled role, observation-scope, observation-object, capability, detection-method, and IDS-type vocabularies. The original GHML23 category and selection source remain attached to every reference entity for audit, but do not mechanically determine the richer labels.
 
 OpenAlex uses only the 105-dataset positive-reference fixture extracted from Table 2 of Ashraf and Masoodi (2026). It measures whether each named survey dataset is represented by an accepted release result. Because this retained benchmark has no negative examples, false-positive rate, specificity, accuracy, precision, and F1 are not estimable and are reported as N/A.
 

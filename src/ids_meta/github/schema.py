@@ -14,30 +14,28 @@ ROLES = (
 )
 AUDIT_ROLES = ROLES + ("out_of_scope", "uncertain")
 SCOPES = ("network", "host_endpoint", "wireless", "database", "provenance", "application", "multi_scope", "unknown")
-CAPABILITIES = ("detection", "prevention", "response", "monitoring")
+CAPABILITIES = ("detection", "prevention", "monitoring")
 METHODS = (
-    "signature_based", "rule_based", "anomaly_based", "integrity_based", "query_based",
-    "protocol_analysis", "ml_based", "ann_based", "dnn_based", "packet_analysis", "flow_analysis",
-    "log_analysis", "system_call_analysis", "threat_intelligence_based", "hybrid", "unknown",
+    "signature_based", "rule_based", "anomaly_based", "protocol_analysis",
+    "ml_based", "nn_based", "unknown",
 )
+OBSERVATION_OBJECTS = ("packet_analysis", "flow_analysis", "log_analysis", "system_calls", "unknown")
 
 DEFAULT_SYSTEM_TYPE_PROFILE: dict[str, Any] = {"types": {
-    "NIDS": {"name": "Network intrusion detection system", "priority": 100, "any_scopes": ["network"], "all_capabilities": ["detection"]},
-    "NIPS": {"name": "Network intrusion prevention system", "priority": 99, "any_scopes": ["network"], "all_capabilities": ["prevention"]},
-    "NDR": {"name": "Network detection and response", "priority": 98, "any_scopes": ["network"], "all_capabilities": ["detection", "response"]},
-    "HIDS": {"name": "Host intrusion detection system", "priority": 100, "any_scopes": ["host_endpoint"], "all_capabilities": ["detection"]},
-    "HIPS": {"name": "Host intrusion prevention system", "priority": 99, "any_scopes": ["host_endpoint"], "all_capabilities": ["prevention"]},
-    "EDR": {"name": "Endpoint detection and response", "priority": 98, "any_scopes": ["host_endpoint"], "all_capabilities": ["detection", "response"]},
-    "WIDS": {"name": "Wireless intrusion detection system", "priority": 100, "any_scopes": ["wireless"], "all_capabilities": ["detection"]},
-    "WIPS": {"name": "Wireless intrusion prevention system", "priority": 99, "any_scopes": ["wireless"], "all_capabilities": ["prevention"]},
-    "DBIDS": {"name": "Database intrusion detection system", "priority": 100, "any_scopes": ["database"], "all_capabilities": ["detection"]},
-    "DBIPS": {"name": "Database intrusion prevention system", "priority": 99, "any_scopes": ["database"], "all_capabilities": ["prevention"]},
-    "APIDS": {"name": "Application-protocol intrusion detection system", "priority": 100, "any_scopes": ["application"], "all_capabilities": ["detection"]},
-    "PIDS": {"name": "Protocol-based intrusion detection system", "priority": 110, "any_methods": ["protocol_analysis"], "all_capabilities": ["detection"]},
-    "ProvIDS": {"name": "Provenance-based intrusion detection system", "priority": 100, "any_scopes": ["provenance"], "all_capabilities": ["detection"]},
-    "XDR": {"name": "Extended detection and response", "priority": 105, "any_scopes": ["multi_scope"], "all_capabilities": ["detection", "response"]},
-    "IDS": {"name": "Intrusion detection system", "priority": 10, "all_capabilities": ["detection"], "fallback_only": True},
-    "IPS": {"name": "Intrusion prevention system", "priority": 9, "all_capabilities": ["prevention"], "fallback_only": True},
+    "NIDS": {"name": "Network intrusion detection system", "description": "Detects intrusions in network activity."},
+    "NIPS": {"name": "Network intrusion prevention system / network detection and response", "description": "Detects and responds to network threats."},
+    "HIDS": {"name": "Host intrusion detection system", "description": "Detects intrusions on hosts or endpoints."},
+    "HIPS": {"name": "Host intrusion prevention system / endpoint detection and response", "description": "Detects and responds to host or endpoint threats."},
+    "WIDS": {"name": "Wireless intrusion detection system", "description": "Detects intrusions in wireless activity."},
+    "WIPS": {"name": "Wireless intrusion prevention system", "description": "Detects and prevents wireless threats."},
+    "DBIDS": {"name": "Database intrusion detection system", "description": "Detects intrusions in database activity."},
+    "DBIPS": {"name": "Database intrusion prevention system", "description": "Detects and prevents database threats."},
+    "APIDS": {"name": "Application-protocol intrusion detection system", "description": "Detects intrusions in application activity."},
+    "PIDS": {"name": "Protocol-based intrusion detection system", "description": "Detects protocol violations or attacks."},
+    "ProvIDS": {"name": "Provenance-based intrusion detection system", "description": "Detects intrusions using provenance."},
+    "XDR": {"name": "Extended detection and response", "description": "Detects and responds across observation scopes."},
+    "IDS": {"name": "Intrusion detection system", "description": "Generic intrusion detection system."},
+    "IPS": {"name": "Intrusion prevention system", "description": "Generic intrusion prevention system."},
 }}
 
 METADATA_COLUMNS = [
@@ -56,7 +54,7 @@ ENSEMBLE_COLUMNS = [
 ]
 CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + CLASSIFIER_COLUMNS + [
     "pipeline_version", "profile_hash", "llm_model", "decision", "role",
-    "observation_scopes", "capabilities", "detection_methods", "primary_system_type",
+    "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type",
     "system_types", "system_type_names",
     "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution",
     "offline_dataset_only", "implements_detection_engine", "requires_external_detector",
@@ -76,8 +74,11 @@ RESPONSE_SCHEMA: dict[str, Any] = {
     "properties": {
         "role": {"type": "string", "enum": list(AUDIT_ROLES)},
         "observation_scopes": {"type": "array", "items": {"type": "string", "enum": list(SCOPES)}},
+        "observation_objects": {"type": "array", "items": {"type": "string", "enum": list(OBSERVATION_OBJECTS)}},
         "capabilities": {"type": "array", "items": {"type": "string", "enum": list(CAPABILITIES)}},
         "detection_methods": {"type": "array", "items": {"type": "string", "enum": list(METHODS)}},
+        "primary_system_type": {"type": "string", "enum": [*DEFAULT_SYSTEM_TYPE_PROFILE["types"], "unknown"]},
+        "system_types": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": [*DEFAULT_SYSTEM_TYPE_PROFILE["types"], "unknown"]}},
         "independent_fork": {"type": "boolean"},
         "direct_self_description": {"type": "boolean"},
         "runtime_observation": {"type": "boolean"},
@@ -94,7 +95,7 @@ RESPONSE_SCHEMA: dict[str, Any] = {
             "source": {"type": "string"}, "quote": {"type": "string"}
         }, "required": ["source", "quote"]}},
     },
-    "required": ["role", "observation_scopes", "capabilities", "detection_methods", "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution", "offline_dataset_only", "implements_detection_engine", "requires_external_detector", "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "primary_reason", "evidence"],
+    "required": ["role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types", "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution", "offline_dataset_only", "implements_detection_engine", "requires_external_detector", "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "primary_reason", "evidence"],
 }
 
 
@@ -104,72 +105,34 @@ def _allowed(values: Any, allowed: tuple[str, ...], default: str | None = None) 
     return result or ([default] if default else [])
 
 
-def _matches_system_type(
-    rule: dict[str, Any], scopes: set[str], capabilities: set[str], methods: set[str], role: str,
-) -> bool:
-    """Return whether normalized repository dimensions satisfy one configured type rule."""
-    dimensions = {"scopes": scopes, "capabilities": capabilities, "methods": methods}
-    for name, values in dimensions.items():
-        any_values = {str(value) for value in rule.get(f"any_{name}", [])}
-        all_values = {str(value) for value in rule.get(f"all_{name}", [])}
-        if any_values and not any_values.intersection(values):
-            return False
-        if all_values and not all_values.issubset(values):
-            return False
-    roles = {str(value) for value in rule.get("any_roles", [])}
-    return not roles or role in roles
-
-
 def validate_system_type_profile(profile: dict[str, Any]) -> None:
-    """Reject type rules that reference unsupported normalized dimension values."""
+    """Validate the configured LLM-facing system-type vocabulary."""
     types = profile.get("types", {})
     if not isinstance(types, dict) or not types:
         raise ValueError("system-type profile requires a non-empty types table")
-    dimensions = {
-        "scopes": set(SCOPES), "capabilities": set(CAPABILITIES),
-        "methods": set(METHODS), "roles": set(AUDIT_ROLES),
-    }
-    for code, value in types.items():
-        if not isinstance(value, dict):
+    for code, definition in types.items():
+        if not isinstance(code, str) or not code.strip() or code.casefold() == "unknown":
+            raise ValueError("system-type codes must be non-empty and must not redefine unknown")
+        if not isinstance(definition, dict):
             raise ValueError(f"system type {code!r} must be a table")
-        for dimension, allowed in dimensions.items():
-            selectors = (f"any_{dimension}",) if dimension == "roles" else (f"any_{dimension}", f"all_{dimension}")
-            for selector in selectors:
-                invalid = {str(item) for item in value.get(selector, [])} - allowed
-                if invalid:
-                    raise ValueError(f"system type {code!r} has invalid {selector}: {sorted(invalid)}")
-        try:
-            float(value.get("priority", 0) or 0)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"system type {code!r}.priority must be numeric") from exc
+        if not str(definition.get("name", "")).strip() or not str(definition.get("description", "")).strip():
+            raise ValueError(f"system type {code!r} requires name and description")
 
 
-def derive_system_types(
-    scopes: list[str], capabilities: list[str], methods: list[str] | None = None,
-    role: str = "", profile: dict[str, Any] | None = None,
-) -> list[str]:
-    """Derive an ordered, extensible system-type list from configured dimension rules."""
-    active_profile = profile or DEFAULT_SYSTEM_TYPE_PROFILE
-    validate_system_type_profile(active_profile)
-    types = active_profile.get("types", {})
-    if not isinstance(types, dict):
-        return []
-    ordered = sorted(
-        ((str(code), rule) for code, rule in types.items() if isinstance(rule, dict)),
-        key=lambda item: (-float(item[1].get("priority", 0) or 0), item[0].casefold()),
-    )
-    scope_values, capability_values = set(scopes), set(capabilities)
-    method_values = set(methods or [])
-    specific = [
-        code for code, rule in ordered
-        if not bool(rule.get("fallback_only")) and _matches_system_type(rule, scope_values, capability_values, method_values, role)
-    ]
-    if specific:
-        return specific
-    return [
-        code for code, rule in ordered
-        if bool(rule.get("fallback_only")) and _matches_system_type(rule, scope_values, capability_values, method_values, role)
-    ]
+def system_type_codes(profile: dict[str, Any] | None = None) -> tuple[str, ...]:
+    """Return configured system-type codes in prompt order, plus the unknown fallback."""
+    active = profile or DEFAULT_SYSTEM_TYPE_PROFILE
+    validate_system_type_profile(active)
+    return tuple(str(code) for code in active["types"]) + ("unknown",)
+
+
+def response_schema(profile: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build the structured LLM schema using the configured system-type vocabulary."""
+    schema = json.loads(json.dumps(RESPONSE_SCHEMA))
+    codes = list(system_type_codes(profile))
+    schema["properties"]["primary_system_type"]["enum"] = codes
+    schema["properties"]["system_types"]["items"]["enum"] = codes
+    return schema
 
 
 def system_type_names(codes: list[str], profile: dict[str, Any] | None = None) -> list[str]:
@@ -182,13 +145,23 @@ def normalize_response(
     raw: dict[str, Any], verified: list[dict[str, str]], config: dict[str, Any], is_fork: bool,
     system_type_profile: dict[str, Any] | None = None,
 ) -> dict[str, str]:
-    """Validate a repository model response and derive its auditable decision fields."""
+    """Validate and normalize a repository model response into auditable decision fields."""
     role = str(raw.get("role", "uncertain"))
     role = role if role in AUDIT_ROLES else "uncertain"
     scopes = _allowed(raw.get("observation_scopes", []), SCOPES, "unknown")
+    objects = _allowed(raw.get("observation_objects", []), OBSERVATION_OBJECTS, "unknown")
     capabilities = _allowed(raw.get("capabilities", []), CAPABILITIES)
     methods = _allowed(raw.get("detection_methods", []), METHODS, "unknown")
-    type_codes = derive_system_types(scopes, capabilities, methods, role, system_type_profile)
+    configured_types = system_type_codes(system_type_profile)
+    type_codes = _allowed(raw.get("system_types", []), configured_types, "unknown")
+    primary_type = str(raw.get("primary_system_type", "unknown")).strip()
+    primary_type = primary_type if primary_type in configured_types else "unknown"
+    if primary_type != "unknown":
+        type_codes = [primary_type, *(code for code in type_codes if code != primary_type)]
+    elif any(code != "unknown" for code in type_codes):
+        primary_type = next(code for code in type_codes if code != "unknown")
+    if len(type_codes) > 1 and "unknown" in type_codes:
+        type_codes.remove("unknown")
     independent = bool(raw.get("independent_fork"))
     self_description = bool(raw.get("direct_self_description"))
     runtime_observation = bool(raw.get("runtime_observation"))
@@ -252,9 +225,10 @@ def normalize_response(
         "decision": decision,
         "role": role,
         "observation_scopes": ";".join(scopes),
+        "observation_objects": ";".join(objects),
         "capabilities": ";".join(capabilities),
         "detection_methods": ";".join(methods),
-        "primary_system_type": type_codes[0] if type_codes else "unknown",
+        "primary_system_type": primary_type,
         "system_types": ";".join(type_codes) if type_codes else "unknown",
         "system_type_names": ";".join(system_type_names(type_codes, system_type_profile)) if type_codes else "Unknown",
         "independent_fork": str(independent).lower(),
@@ -283,11 +257,14 @@ def validate_processed_row(row: dict[str, str], system_type_profile: dict[str, A
         raise ValueError(f"processed GitHub row is missing {', '.join(missing)}: {row.get('full_name', '<unknown>')}")
     if row.get("role") not in ROLES:
         raise ValueError(f"processed GitHub row has invalid role: {row.get('role')}")
-    for field, allowed in (("observation_scopes", SCOPES), ("capabilities", CAPABILITIES), ("detection_methods", METHODS)):
+    for field, allowed in (("observation_scopes", SCOPES), ("observation_objects", OBSERVATION_OBJECTS), ("capabilities", CAPABILITIES), ("detection_methods", METHODS)):
         invalid = set(split_values(row.get(field))) - set(allowed)
         if invalid:
             raise ValueError(f"invalid {field}: {sorted(invalid)}")
-    configured = set((system_type_profile or DEFAULT_SYSTEM_TYPE_PROFILE).get("types", {})) | {"unknown"}
+    configured = set(system_type_codes(system_type_profile))
     invalid_types = set(split_values(row.get("system_types"))) - configured
     if invalid_types:
         raise ValueError(f"invalid system_types: {sorted(invalid_types)}")
+    primary = str(row.get("primary_system_type", ""))
+    if primary not in configured or primary not in set(split_values(row.get("system_types"))):
+        raise ValueError(f"invalid primary_system_type: {primary!r}")
