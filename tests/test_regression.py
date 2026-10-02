@@ -85,6 +85,31 @@ class RegressionEvaluationTests(unittest.TestCase):
                 if runnable == "false":
                     self.assertIn("reproducible_execution_missing", result["consensus_validation_flags"])
 
+    def test_antivirus_consensus_preserves_external_offline_scanning_and_gates(self) -> None:
+        """Repeated votes retain scanner semantics and reject missing file-detection evidence."""
+        base = {
+            "decision": "accept", "role": "antivirus", "direct_self_description": "true",
+            "reproducible_execution": "true", "runtime_observation": "false",
+            "offline_dataset_only": "true", "implements_detection_engine": "false",
+            "requires_external_detector": "true", "evidence_quote_verified": "true", "fork": "false",
+            "observation_scopes": "host_endpoint", "observation_objects": "file_analysis",
+            "capabilities": "detection", "detection_methods": "signature_based",
+            "primary_system_type": "AV", "system_types": "AV",
+        }
+        for change, expected, flag in (
+            ({}, "accept", ""),
+            ({"reproducible_execution": "false"}, "uncertain", "reproducible_execution_missing"),
+            ({"observation_objects": "unknown"}, "uncertain", "file_analysis_missing"),
+            ({"capabilities": "monitoring"}, "uncertain", "detection_capability_missing"),
+        ):
+            with self.subTest(flag=flag):
+                row = {**base, **change}
+                result = consensus_classification("github", {"run-1": row, "run-2": row}, .66)
+                self.assertEqual(result["decision"], expected)
+                self.assertEqual(result["role"], "antivirus")
+                if flag:
+                    self.assertIn(flag, result["consensus_validation_flags"])
+
     def test_query_sampling_takes_x_from_each_query(self) -> None:
         """Sample exactly x native-ranked works per query without oversampling."""
         class Client:

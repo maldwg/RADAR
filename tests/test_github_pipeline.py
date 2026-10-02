@@ -86,7 +86,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_all_meaningful_roles_can_enter_combined_catalogue(self) -> None:
         """Verify every supported meaningful role can be accepted."""
-        self.assertEqual(ROLES, ("native_detector", "classifier_engine", "detection_framework", "detection_platform", "traffic_analyzer", "research_project", "demo", "rules_content", "support_tooling"))
+        self.assertEqual(ROLES, ("native_detector", "classifier_engine", "detection_framework", "detection_platform", "traffic_analyzer", "antivirus", "research_project", "demo", "rules_content", "support_tooling"))
         self.assertNotIn("confidence", RESPONSE_SCHEMA["properties"])
         self.assertNotIn("runnable_detector", RESPONSE_SCHEMA["properties"])
         self.assertNotIn("derived_labels", CLASSIFICATION_COLUMNS)
@@ -95,8 +95,9 @@ class GitHubPipelineTests(unittest.TestCase):
         for role in ROLES:
             with self.subTest(role=role):
                 decision = normalize_response({
-                    "role": role, "observation_scopes": ["unknown"], "observation_objects": ["unknown"],
-                    "capabilities": [], "detection_methods": ["unknown"],
+                    "role": role, "observation_scopes": ["unknown"],
+                    "observation_objects": ["file_analysis"] if role == "antivirus" else ["unknown"],
+                    "capabilities": ["detection"], "detection_methods": ["unknown"],
                     "primary_system_type": "unknown", "system_types": ["unknown"],
                     "independent_fork": False, "direct_self_description": True,
                     "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": role == "detection_framework", "research_basis": True, "upstream_full_name": "",
@@ -122,6 +123,34 @@ class GitHubPipelineTests(unittest.TestCase):
         rejected = normalize_response({**raw, "reproducible_execution": False}, evidence, {}, False)
         self.assertEqual(rejected["decision"], "uncertain")
         self.assertEqual(rejected["classification_validation_flags"], "reproducible_execution_missing")
+
+    def test_antivirus_accepts_offline_and_external_scanners_with_file_detection(self) -> None:
+        """File scanning needs execution and file detection, independently of live IDS gates."""
+        raw = {
+            "role": "antivirus", "observation_scopes": ["host_endpoint"],
+            "observation_objects": ["file_analysis"], "capabilities": ["detection"],
+            "detection_methods": ["signature_based"], "primary_system_type": "AV", "system_types": ["AV"],
+            "direct_self_description": True, "reproducible_execution": True,
+            "runtime_observation": False, "offline_dataset_only": True,
+            "implements_detection_engine": False, "requires_external_detector": True,
+        }
+        evidence = [{"source": "README", "quote": "Run scan uploads/ to scan files with ClamAV."}]
+        accepted = normalize_response(raw, evidence, {}, False)
+        self.assertEqual(accepted["decision"], "accept")
+        self.assertEqual(accepted["system_types"], "AV")
+        self.assertEqual(accepted["observation_objects"], "file_analysis")
+        self.assertEqual(accepted["classification_validation_flags"], "")
+        for change, flag in (
+            ({"reproducible_execution": False}, "reproducible_execution_missing"),
+            ({"observation_objects": ["log_analysis"]}, "file_analysis_missing"),
+            ({"capabilities": ["monitoring"]}, "detection_capability_missing"),
+        ):
+            with self.subTest(flag=flag):
+                result = normalize_response({**raw, **change}, evidence, {}, False)
+                self.assertEqual(result["decision"], "uncertain")
+                self.assertIn(flag, result["classification_validation_flags"])
+        unknown = normalize_response({**raw, "primary_system_type": "unknown", "system_types": ["unknown"]}, evidence, {}, False)
+        self.assertEqual(unknown["system_types"], "unknown")
 
     def test_native_detector_requires_independent_runtime_engine_evidence(self) -> None:
         """Verify static or externally delegated implementations cannot pass as native detectors."""

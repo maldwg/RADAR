@@ -43,6 +43,7 @@ OpenAlex checks include:
 GitHub checks include:
 
 - A standalone detector requires runtime observation and a runnable detector and cannot be offline-dataset-only.
+- Antivirus/file scanners require reproducible execution, `file_analysis`, and a detection capability. Offline and externally delegated scanning are permitted; a native engine and runtime observations are not required.
 - An included role requires direct self-description and verified evidence when configured.
 - A fork requires independent-significance evidence.
 - An out-of-scope role resolves to exclusion when its evidence is verified.

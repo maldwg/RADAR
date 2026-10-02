@@ -31,7 +31,7 @@ weight = 3.0
 terms = [
   "intrusion", "intrusive activity", "network attack", "cyber attack", "cyberattack",
   "malicious activity", "malicious traffic", "unauthorized access", "security anomaly",
-  "threat detection", "attack detection", "adversarial behavior",
+  "threat detection", "attack detection", "adversarial behavior", "malware detection", "malicious file",
 ]
 
 [positive.detector_identity]
@@ -52,7 +52,7 @@ terms = [
   "audit log", "security log", "event log", "system call", "host event", "endpoint telemetry",
   "file integrity", "wireless frame", "database query", "dns traffic", "provenance graph",
   "industrial protocol", "vehicle network", "can bus", "cloud workload", "container event",
-  "mobile device", "application request",
+  "mobile device", "application request", "file scanning", "file content", "uploaded files", "cloud storage objects",
 ]
 
 [positive.detection_method]

@@ -22,9 +22,9 @@ source_sha256 = "dfbae7da69071dbce9491c041164ea89496546810ea3adcafcb20e6f2f8ce2d
 source_repository_count = 120
 source_secumon_count = 100
 source_negative_control_count = 20
-crosswalk_version = "ghml23-to-ids-meta-v9"
-taxonomy_revision = "input-and-enforcement-boundaries-v5"
-annotation_basis = "GHML23 source membership; current repository descriptions, topics, READMEs, contents, and linked official documentation reviewed 2026-10-01; traffic analyzers and all 13 prior flow_analysis annotations rechecked against official docs and source configs 2026-10-02; non-network security monitoring annotations reviewed 2026-10-02; packet/endpoint/service-log detection and enforcement boundaries rechecked 2026-10-02"
+crosswalk_version = "ghml23-to-ids-meta-v10"
+taxonomy_revision = "antivirus-file-scanning-v6"
+annotation_basis = "GHML23 source membership; current repository descriptions, topics, READMEs, contents, and linked official documentation reviewed 2026-10-01; traffic analyzers and all 13 prior flow_analysis annotations rechecked against official docs and source configs 2026-10-02; non-network security monitoring annotations reviewed 2026-10-02; packet/endpoint/service-log detection and enforcement boundaries rechecked 2026-10-02; BinaryAlert, Hawk, Loki, and signature-base malware-scanning/content evidence rechecked 2026-10-02; CyberDoc retains the prior demo evidence"
 annotation_policy = "Source labels are retained only as provenance. Every project decision and taxonomy value is an explicit reference annotation: scope records where observation occurs, object records what evidence is analyzed, method records how detection is decided, and IDS type is selected directly rather than derived from another dimension."
 adapted_accepted_count = 71
 adapted_excluded_count = 47
@@ -33,7 +33,7 @@ adapted_uncertain_count = 2
 [taxonomy_semantics]
 centralization = "Where detection decisions are made: one logical analysis node (centralized), coordinated local analysis under managers (hierarchical), or autonomous cooperating peers without a required central coordinator (fully_distributed). This is not derived from role, scope, or system type."
 observation_scopes = "Where the repository observes activity; this is independent of the evidence representation and detection method."
-observation_objects = "What concrete evidence the repository analyzes as input: packets, aggregated flow/session records, logs, system calls, or unknown. PCAP/live capture, internal stream reconstruction, and flow export alone are packet_analysis, not flow_analysis."
+observation_objects = "What concrete evidence the repository analyzes as input: packets, aggregated flow/session records, logs, system calls, files, or unknown. PCAP/live capture, internal stream reconstruction, and flow export alone are packet_analysis, not flow_analysis."
 detection_methods = "How the repository decides that activity is malicious or anomalous; observation objects must not appear here."
 system_types = "Direct human reference annotations using the same vocabulary presented to the LLM; they are not derived from scope, object, capability, method, or role."
 
@@ -44,6 +44,7 @@ system_types = "Direct human reference annotations using the same vocabulary pre
 # same configured vocabulary presented to the LLM; they are not derived from the
 # other dimensions.
 # NSM represents principal security traffic analysis with limited or optional detections.
+# AV represents malware file scanning; it does not imply an intrusion-system type.
 # A value of "unknown" means that no configured system type is supported by the evidence.
 
 [[entities]]
@@ -81,16 +82,17 @@ selection_source = "Awesome List / GitHub Search"
 repository = "airbnb/binaryalert"
 centralization = "unknown"
 decision = "accept"
-role = "native_detector"
+role = "antivirus"
 observation_scopes = ["host_endpoint"]
 capabilities = ["detection", "monitoring"]
-observation_objects = ["unknown"]
+observation_objects = ["file_analysis"]
 detection_methods = ["rule_based", "signature_based"]
-primary_system_type = "unknown"
-system_types = ["unknown"]
+primary_system_type = "AV"
+system_types = ["AV"]
 benchmark_category = "secumon"
 selection_source = "Expert / Google Search"
-annotation_note = "Scans S3 objects for malware with YARA; no host intrusion observation is shown."
+annotation_note = "2026-10-02: Principal executable contribution scans newly uploaded and stored S3 files with YARA and alerts on matches. This is antivirus/file scanning (AV), not host activity intrusion detection. File bytes are the observation input; upload-triggered scanning alone does not establish HIDS."
+annotation_sources = ["https://github.com/airbnb/binaryalert"]
 
 [[entities]]
 repository = "airbnb/streamalert"
@@ -132,13 +134,13 @@ decision = "accept"
 role = "demo"
 observation_scopes = ["host_endpoint"]
 capabilities = ["detection", "monitoring"]
-observation_objects = ["unknown"]
+observation_objects = ["file_analysis"]
 detection_methods = ["signature_based"]
-primary_system_type = "HIDS"
-system_types = ["HIDS"]
+primary_system_type = "AV"
+system_types = ["AV"]
 benchmark_category = "secumon"
 selection_source = "Awesome List / GitHub Search"
-annotation_note = "README calls this a proof of concept for endpoint malware scanning; no reusable classifier engine is documented."
+annotation_note = "Prior repository review describes a proof of concept for endpoint malware scanning without a reusable classifier engine. Retain demo; malware file scanning supports AV and file_analysis rather than HIDS. This taxonomy correction carries forward the existing reviewed evidence; the source could not be fetched in the 2026-10-02 follow-up."
 
 [[entities]]
 repository = "arkime/arkime"
@@ -295,16 +297,17 @@ annotation_note = "Builds a lab with Zeek, Suricata and host telemetry; this rep
 repository = "cloudina/hawk"
 centralization = "unknown"
 decision = "accept"
-role = "detection_platform"
-observation_scopes = ["unknown"]
-capabilities = ["detection", "monitoring"]
-observation_objects = ["unknown"]
+role = "antivirus"
+observation_scopes = ["host_endpoint"]
+capabilities = ["detection", "prevention"]
+observation_objects = ["file_analysis"]
 detection_methods = ["signature_based"]
-primary_system_type = "unknown"
-system_types = ["unknown"]
+primary_system_type = "AV"
+system_types = ["AV"]
 benchmark_category = "secumon"
 selection_source = "Awesome List / GitHub Search"
-annotation_note = "Coordinates ClamAV and YARA scans of cloud objects; API delivery does not make it an application-protocol IDS."
+annotation_note = "2026-10-02: Runnable antivirus API scans uploaded streams and S3 objects with ClamAV/YARA and quarantines infected S3 objects. Principal file-scanning function takes antivirus precedence over multi-engine platform packaging. File quarantine supports prevention but does not alone establish HIPS; an HTTP API does not establish APIDS. Azure/GCP support is marked TODO, so it is not treated as implemented."
+annotation_sources = ["https://github.com/cloudina/hawk"]
 
 [[entities]]
 repository = "ComodoSecurity/openedr"
@@ -849,15 +852,17 @@ centralization = "centralized"
 centralization_sources = ["https://github.com/Neo23x0/Loki"]
 centralization_note = "IOC and YARA checks execute in the scanner on one host; the published local invocation is the detection architecture."
 decision = "accept"
-role = "native_detector"
+role = "antivirus"
 observation_scopes = ["host_endpoint"]
 capabilities = ["detection", "monitoring"]
-observation_objects = ["unknown"]
+observation_objects = ["file_analysis"]
 detection_methods = ["signature_based"]
-primary_system_type = "HIDS"
-system_types = ["HIDS"]
+primary_system_type = "AV"
+system_types = ["AV"]
 benchmark_category = "secumon"
 selection_source = "Expert / Google Search"
+annotation_note = "2026-10-02: Principal executable contribution is an on-demand IOC/YARA scanner of file names, bytes, and malicious hashes, with supplementary process-memory/connection checks. Role/type are antivirus/AV; local deployment and supplementary IOC checks alone do not establish a principal host IDS. File-analysis input replaces unknown."
+annotation_sources = ["https://github.com/Neo23x0/Loki"]
 
 [[entities]]
 repository = "Neo23x0/signature-base"
@@ -866,12 +871,14 @@ decision = "accept"
 role = "rules_content"
 observation_scopes = ["host_endpoint"]
 capabilities = ["detection"]
-observation_objects = ["unknown"]
+observation_objects = ["file_analysis"]
 detection_methods = ["signature_based"]
-primary_system_type = "HIDS"
-system_types = ["HIDS"]
+primary_system_type = "AV"
+system_types = ["AV"]
 benchmark_category = "secumon"
 selection_source = "Expert / Google Search"
+annotation_note = "2026-10-02: YARA/IOC database for Loki and THOR scanners. Retain rules_content because the repository supplies signatures rather than the runnable scanner. AV records the directly documented target system; file_analysis records the intended signature input, not an implemented scanner."
+annotation_sources = ["https://github.com/Neo23x0/signature-base"]
 
 [[entities]]
 repository = "Neo23x0/sysmon-config"

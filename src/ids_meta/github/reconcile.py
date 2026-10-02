@@ -98,7 +98,7 @@ def _relationship(row: dict[str, str], canonical: dict[str, str]) -> str:
     role = row.get("role", "")
     if role in {"rules_content", "research_project", "demo"}:
         return role
-    if role in {"support_tooling", "traffic_analyzer", "classifier_engine", "detection_framework", "detection_platform"}:
+    if role in {"support_tooling", "traffic_analyzer", "antivirus", "classifier_engine", "detection_framework", "detection_platform"}:
         return role
     return "related_repository"
 

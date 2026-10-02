@@ -51,8 +51,8 @@ class EvaluationTests(unittest.TestCase):
             "secumon": 100, "imageocr": 10, "pentest": 10,
         })
         self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 71, "exclude": 47, "uncertain": 2})
-        self.assertEqual(raw["crosswalk_version"], "ghml23-to-ids-meta-v9")
-        self.assertEqual(raw["taxonomy_revision"], "input-and-enforcement-boundaries-v5")
+        self.assertEqual(raw["crosswalk_version"], "ghml23-to-ids-meta-v10")
+        self.assertEqual(raw["taxonomy_revision"], "antivirus-file-scanning-v6")
         self.assertIn("what concrete evidence", raw["taxonomy_semantics"]["observation_objects"].casefold())
         self.assertIn("how", raw["taxonomy_semantics"]["detection_methods"].casefold())
         self.assertIn("not derived", raw["taxonomy_semantics"]["system_types"].casefold())
@@ -73,6 +73,16 @@ class EvaluationTests(unittest.TestCase):
             self.assertFalse((set(row["observation_objects"]) - {"unknown"}) & set(row["detection_methods"]), row["repository"])
             self.assertIn(row["primary_system_type"], row["system_types"], row["repository"])
         by_repository = {row["repository"]: row for row in rows}
+        for repository in ("airbnb/binaryalert", "cloudina/hawk", "Neo23x0/Loki"):
+            self.assertEqual(by_repository[repository]["role"], "antivirus")
+            self.assertEqual(by_repository[repository]["system_types"], ["AV"])
+            self.assertEqual(by_repository[repository]["observation_objects"], ["file_analysis"])
+            self.assertTrue(by_repository[repository]["annotation_sources"])
+        self.assertIn("prevention", by_repository["cloudina/hawk"]["capabilities"])
+        self.assertEqual(by_repository["Neo23x0/signature-base"]["role"], "rules_content")
+        self.assertEqual(by_repository["Neo23x0/signature-base"]["system_types"], ["AV"])
+        self.assertEqual(by_repository["ajaykumarkk/CyberDoc"]["role"], "demo")
+        self.assertEqual(by_repository["ajaykumarkk/CyberDoc"]["system_types"], ["AV"])
         self.assertEqual(by_repository["0xN3utr0n/Kanis"]["observation_objects"], ["system_calls"])
         self.assertNotIn("system_calls", by_repository["0xN3utr0n/Kanis"]["detection_methods"])
         for repository in ("zeek/zeek", "arkime/arkime", "cisco/joy", "cisco/mercury", "USArmyResearchLab/Dshell"):
@@ -466,8 +476,8 @@ class EvaluationTests(unittest.TestCase):
             self.assertIn("figures/04_taxonomy_categories.svg", readme)
             field_svg = (output_dir / "figures/03_taxonomy_fields.svg").read_text(encoding="utf-8")
             self.assertIn("Observation object", field_svg)
-            self.assertIn("Primary IDS system type", field_svg)
-            self.assertIn("IDS system types", field_svg)
+            self.assertIn("Primary security system type", field_svg)
+            self.assertIn("Security system types", field_svg)
             self.assertIn("Label F1", field_svg)
             self.assertNotIn("Jaccard", field_svg)
             category_data = read_csv(output_dir / "figures/data/04_taxonomy_categories.csv")

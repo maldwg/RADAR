@@ -7,9 +7,9 @@
 - Operational DR: 0.0000
 - Operational FPR: 0.0000
 - Operational FDR: 0.0000
-- Operational accuracy: 0.2000
+- Operational accuracy: 0.3983
 - Operational precision: 0.0000
-- Metadata field accuracy: 0.0361 (720 comparisons)
+- Metadata field accuracy: 0.0655 (855 comparisons)
 - Mean taxonomy-field macro-F1: 0.0000
 - Abstention rate: 1.0000
 
@@ -26,6 +26,7 @@ Example: if exclusion was expected but the result is uncertain, operational coun
 - `figures/01_decision_views.svg`
 - `figures/02_decision_confusion.svg`
 - `figures/03_taxonomy_fields.svg`
-- `figures/04_pipeline_coverage.svg`
+- `figures/04_taxonomy_categories.svg`
+- `figures/05_pipeline_coverage.svg`
 
 Each listed SVG has a matching PDF for publication; they are two formats of the same figure. These are single-classifier diagnostics. Use the source-level `comparison/` directory for cross-classifier reporting. Companion aggregate tables are stored under `figures/data/`.

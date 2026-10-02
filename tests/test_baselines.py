@@ -96,6 +96,21 @@ class BaselineTests(unittest.TestCase):
             with self.assertRaisesRegex(ConfigError, "greater than"):
                 load_keyword_baseline_config(Settings(settings.root, invalid), "github")
 
+    def test_keyword_profile_distinguishes_malware_file_scanning_from_intrusion_detection(self) -> None:
+        """Recognize antivirus input and method without fabricating an IDS type."""
+        with tempfile.TemporaryDirectory() as directory:
+            profile = load_keyword_taxonomy_profile(self._settings(Path(directory)), "github")
+            predictions, _, _ = infer_keyword_fields(
+                "Antivirus malware scanner. Scan uploaded files using signature matching. Run the CLI.", profile,
+            )
+            self.assertEqual(predictions["role"], "antivirus")
+            self.assertEqual(predictions["system_types"], ["AV"])
+            self.assertIn("file_analysis", predictions["observation_objects"])
+            self.assertIn("detection", predictions["capabilities"])
+            self.assertIn("signature_based", predictions["detection_methods"])
+            rules, _, _ = infer_keyword_fields("YARA rules and signature collection", profile)
+            self.assertEqual(rules["role"], "rules_content")
+
     def test_keyword_baseline_scores_all_bands_and_invalidates_cache_by_profile(self) -> None:
         """Classify candidate, boundary, and rejected evidence with fingerprinted decisions."""
         with tempfile.TemporaryDirectory() as directory:

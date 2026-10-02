@@ -80,7 +80,12 @@ class PlottingTests(unittest.TestCase):
                             "full_name": "example/analyzer", "role": "traffic_analyzer", "capabilities": "monitoring",
                             "detection_methods": "unknown", "primary_system_type": "NSM", "system_types": "NSM",
                             "system_type_names": "Network security monitoring / traffic analysis system"}
-            atomic_write_csv(github_csv, [github_row, analyzer_row], GITHUB_COLUMNS)
+            antivirus_row = {**github_row, "github_repo_id": "3", "project_id": "p3", "canonical_repo_id": "3",
+                             "full_name": "example/file-scanner", "role": "antivirus",
+                             "observation_scopes": "host_endpoint", "observation_objects": "file_analysis",
+                             "primary_system_type": "AV", "system_types": "AV",
+                             "system_type_names": "Antivirus / malware file scanner"}
+            atomic_write_csv(github_csv, [github_row, analyzer_row, antivirus_row], GITHUB_COLUMNS)
             outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg", "pdf"], "dpi": 72, "top_n": 5}, classifications_path=github_csv)
             self.assertTrue(outputs)
             self.assertTrue((root / "github-plots/data/01_repository_timeline.csv").is_file())
@@ -93,6 +98,14 @@ class PlottingTests(unittest.TestCase):
             role_matrix = (root / "github-plots/data/02_role_type_matrix.csv").read_text(encoding="utf-8")
             self.assertIn("traffic_analyzer", role_matrix)
             self.assertIn("NSM", role_matrix)
+            self.assertIn("antivirus", role_matrix)
+            self.assertIn("AV", role_matrix)
+            overview_rows = pd.read_csv(overview, keep_default_na=False).set_index("repository")
+            self.assertEqual(overview_rows.loc["example/file-scanner", "reporting_segment"], "other_relevant_type")
+            self.assertEqual(overview_rows.loc["example/file-scanner", "system_role"], "Antivirus / file scanner")
+            for name in ("01_repository_timeline", "04_detection_method_type_matrix_records"):
+                self.assertNotIn("example/file-scanner", (root / "github-plots/data" / f"{name}.csv").read_text())
+            self.assertIn("Antivirus / file scanner", (root / "github-plots/00_repository_overview.svg").read_text())
             self.assertTrue((root / "github-plots/00_repository_overview.svg").is_file())
             self.assertTrue((root / "github-plots/00_repository_overview.pdf").is_file())
             self.assertTrue((root / "github-plots/10_evidence_escalation.svg").is_file())

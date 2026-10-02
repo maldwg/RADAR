@@ -1,0 +1,9 @@
+classification_pattern,count
+LLM · gemma4-31b=accept | LLM · qwen3-8-27b=∅,749
+LLM · gemma4-31b=exclude | LLM · qwen3-8-27b=∅,324
+LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=∅,183
+LLM · gemma4-31b=accept | LLM · qwen3-8-27b=exclude,63
+LLM · gemma4-31b=accept | LLM · qwen3-8-27b=uncertain,35
+LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=exclude,16
+LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=accept,3
+LLM · gemma4-31b=exclude | LLM · qwen3-8-27b=accept,2

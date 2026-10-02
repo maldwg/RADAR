@@ -1,7 +1,7 @@
 view,metric,metric_key,value
 Operational,Detection rate,DR,0.0
 Operational,Precision,PREC,0.0
-Operational,Accuracy,ACC,0.2
+Operational,Accuracy,ACC,0.3983050847457627
 Operational,F1,f1,0.0
 Operational,False-positive rate,FPR,0.0
 Operational,False-discovery rate,FDR,0.0

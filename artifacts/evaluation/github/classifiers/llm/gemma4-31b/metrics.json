@@ -1,14 +1,14 @@
 {
   "abstention_rate": 1.0,
-  "actual_entities": 1522,
+  "actual_entities": 2000,
   "benchmark_scope": "screening_decisions",
   "classification_coverage": 0.0,
-  "classification_field_accuracy": 0.03611111111111111,
-  "classification_field_comparisons": 720,
+  "classification_field_accuracy": 0.06549707602339182,
+  "classification_field_comparisons": 855,
   "classification_field_macro_f1": 0.0,
   "classifications_path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/github/models/gemma4-31b/classifications.csv",
   "classifier_evidence_source_counts": {
-    "raw_cache": 1522
+    "raw_cache": 2000
   },
   "classifier_id": "gemma4:31b",
   "classifier_method": "llm",
@@ -20,21 +20,21 @@
       1.0
     ],
     "accuracy": [
-      0.13824476478840253,
-      0.28036673506281956
+      0.314526855599215,
+      0.4884958574223093
     ],
     "definitive_coverage": [
       0.0,
       0.031019166418703472
     ],
     "detection_rate": [
-      0.0,
-      0.038475587857675665
+      3.469446951953614e-18,
+      0.05132795219689032
     ],
     "false_discovery_rate": null,
     "false_positive_rate": [
-      0.0,
-      0.13797620467498012
+      6.938893903907228e-18,
+      0.07555760416399626
     ],
     "precision": null
   },
@@ -44,38 +44,49 @@
   "evaluation_unit": "source_record",
   "not_estimable_metrics": [],
   "operational": {
-    "ACC": 0.2,
+    "ACC": 0.3983050847457627,
     "DR": 0.0,
     "FDR": 0.0,
     "FNR": 1.0,
     "FPR": 0.0,
     "PREC": 0.0,
-    "accuracy": 0.2,
+    "accuracy": 0.3983050847457627,
     "balanced_accuracy": 0.5,
     "detection_rate": 0.0,
     "f1": 0.0,
     "false_discovery_rate": 0.0,
     "false_negative_rate": 1.0,
     "false_positive_rate": 0.0,
-    "fn": 96,
+    "fn": 71,
     "fp": 0,
-    "negative_predictive_value": 0.2,
+    "negative_predictive_value": 0.3983050847457627,
     "precision": 0.0,
     "recall": 0.0,
     "sensitivity": 0.0,
     "specificity": 1.0,
-    "tn": 24,
+    "tn": 47,
     "tp": 0
   },
   "rated_entities": 120,
   "ratings_path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml",
+  "reference_disposition_counts": {
+    "exclude": 47,
+    "include": 71,
+    "uncertain": 2
+  },
   "reference_set": {
     "benchmark_name": "GHML23 repository reference set with IDS-Meta taxonomy crosswalk",
-    "crosswalk_version": "ghml23-to-ids-meta-v2",
+    "centralization_annotation_policy": "Reference topology follows documented decision-making architecture, independently of role and IDS type. Unknown includes insufficient evidence, inapplicable tooling, and multiple equally supported architectures; unknown reference topology is not scored. CIDS/DIDS are lexical signals, not unconditional architecture labels. Sources and rationales accompany supported ratings.",
+    "crosswalk_version": "ghml23-to-ids-meta-v10",
     "source_dataset": "https://doi.org/10.6084/m9.figshare.24793077",
     "source_license": "CC BY 4.0",
     "source_repository": "https://github.com/ghml23/ghml23",
-    "source_sha256": "dfbae7da69071dbce9491c041164ea89496546810ea3adcafcb20e6f2f8ce2da"
+    "source_sha256": "dfbae7da69071dbce9491c041164ea89496546810ea3adcafcb20e6f2f8ce2da",
+    "unscored_field_values": {
+      "centralization": [
+        "unknown"
+      ]
+    }
   },
   "retrieval_coverage": 0.0,
   "selective": {
@@ -120,8 +131,8 @@
     "false_discovery_rate": 1.0,
     "false_negative_rate": 1.0,
     "false_positive_rate": 1.0,
-    "fn": 96,
-    "fp": 24,
+    "fn": 71,
+    "fp": 47,
     "negative_predictive_value": 0.0,
     "precision": 0.0,
     "recall": 0.0,
@@ -130,6 +141,576 @@
     "tn": 0,
     "tp": 0
   },
-  "unrated_actual_entities": 1522,
+  "taxonomy_field_metrics": {
+    "capabilities": {
+      "comparisons": 120,
+      "exact_accuracy": 0.4666666666666667,
+      "exact_matches": 56,
+      "label_f1": 0.0,
+      "macro_f1": 0.0,
+      "per_label": {
+        "detection": {
+          "f1": 0.0,
+          "fn": 44,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "monitoring": {
+          "f1": 0.0,
+          "fn": 60,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "prevention": {
+          "f1": 0.0,
+          "fn": 13,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "centralization": {
+      "comparisons": 15,
+      "exact_accuracy": 0.0,
+      "exact_matches": 0,
+      "label_f1": null,
+      "macro_f1": 0.0,
+      "per_label": {
+        "centralized": {
+          "f1": 0.0,
+          "fn": 12,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "hierarchical": {
+          "f1": 0.0,
+          "fn": 3,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "detection_methods": {
+      "comparisons": 120,
+      "exact_accuracy": 0.0,
+      "exact_matches": 0,
+      "label_f1": 0.0,
+      "macro_f1": 0.0,
+      "per_label": {
+        "anomaly_based": {
+          "f1": 0.0,
+          "fn": 8,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "nn_based": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "protocol_analysis": {
+          "f1": 0.0,
+          "fn": 6,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "rule_based": {
+          "f1": 0.0,
+          "fn": 35,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "signature_based": {
+          "f1": 0.0,
+          "fn": 18,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "unknown": {
+          "f1": 0.0,
+          "fn": 78,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "observation_objects": {
+      "comparisons": 120,
+      "exact_accuracy": 0.0,
+      "exact_matches": 0,
+      "label_f1": 0.0,
+      "macro_f1": 0.0,
+      "per_label": {
+        "file_analysis": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "flow_analysis": {
+          "f1": 0.0,
+          "fn": 8,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "log_analysis": {
+          "f1": 0.0,
+          "fn": 33,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "packet_analysis": {
+          "f1": 0.0,
+          "fn": 15,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "system_calls": {
+          "f1": 0.0,
+          "fn": 8,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "unknown": {
+          "f1": 0.0,
+          "fn": 66,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "observation_scopes": {
+      "comparisons": 120,
+      "exact_accuracy": 0.0,
+      "exact_matches": 0,
+      "label_f1": 0.0,
+      "macro_f1": 0.0,
+      "per_label": {
+        "application": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "host_endpoint": {
+          "f1": 0.0,
+          "fn": 31,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "multi_scope": {
+          "f1": 0.0,
+          "fn": 12,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "network": {
+          "f1": 0.0,
+          "fn": 19,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "unknown": {
+          "f1": 0.0,
+          "fn": 56,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "wireless": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "primary_system_type": {
+      "comparisons": 120,
+      "exact_accuracy": 0.0,
+      "exact_matches": 0,
+      "label_f1": null,
+      "macro_f1": 0.0,
+      "per_label": {
+        "apids": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "av": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "hids": {
+          "f1": 0.0,
+          "fn": 12,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "hips": {
+          "f1": 0.0,
+          "fn": 3,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "ids": {
+          "f1": 0.0,
+          "fn": 7,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "ips": {
+          "f1": 0.0,
+          "fn": 4,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "nids": {
+          "f1": 0.0,
+          "fn": 4,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "nips": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "nsm": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "pids": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "sm": {
+          "f1": 0.0,
+          "fn": 4,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "unknown": {
+          "f1": 0.0,
+          "fn": 70,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "wids": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "xdr": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "role": {
+      "comparisons": 120,
+      "exact_accuracy": 0.0,
+      "exact_matches": 0,
+      "label_f1": null,
+      "macro_f1": 0.0,
+      "per_label": {
+        "antivirus": {
+          "f1": 0.0,
+          "fn": 3,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "demo": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "detection_framework": {
+          "f1": 0.0,
+          "fn": 10,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "detection_platform": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "native_detector": {
+          "f1": 0.0,
+          "fn": 19,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "out_of_scope": {
+          "f1": 0.0,
+          "fn": 47,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "rules_content": {
+          "f1": 0.0,
+          "fn": 6,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "support_tooling": {
+          "f1": 0.0,
+          "fn": 25,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "traffic_analyzer": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "uncertain": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "system_types": {
+      "comparisons": 120,
+      "exact_accuracy": 0.0,
+      "exact_matches": 0,
+      "label_f1": 0.0,
+      "macro_f1": 0.0,
+      "per_label": {
+        "apids": {
+          "f1": 0.0,
+          "fn": 3,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "av": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "hids": {
+          "f1": 0.0,
+          "fn": 16,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "hips": {
+          "f1": 0.0,
+          "fn": 6,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "ids": {
+          "f1": 0.0,
+          "fn": 10,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "ips": {
+          "f1": 0.0,
+          "fn": 4,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "nids": {
+          "f1": 0.0,
+          "fn": 7,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "nips": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "nsm": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "pids": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "sm": {
+          "f1": 0.0,
+          "fn": 4,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "unknown": {
+          "f1": 0.0,
+          "fn": 70,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "wids": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "xdr": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    }
+  },
+  "unrated_actual_entities": 2000,
   "unresolved_artifact_rate": null
 }

@@ -10,10 +10,10 @@ Additional first-party evidence used for disputed labels: [Kismet WIDS alerts](h
 | ---: | --- | --- | --- | --- | --- |
 | 1 | [0x4D31/awesome-threat-detection](https://github.com/0x4D31/awesome-threat-detection) | exclude | out_of_scope | unknown | ✨ A curated list of awesome threat detection and hunting resources 🕵️‍♂️ - 0x4D31/awesome-threat-detection |
 | 2 | [0xN3utr0n/Kanis](https://github.com/0xN3utr0n/Kanis) | accept | native_detector | HIDS | Advanced threat detection solution for Linux. Contribute to 0xN3utr0n/Kanis development by creating an account on GitHub. |
-| 3 | [airbnb/binaryalert](https://github.com/airbnb/binaryalert) | accept | native_detector | unknown | BinaryAlert: Serverless, Real-time & Retroactive Malware Detection. - airbnb/binaryalert |
+| 3 | [airbnb/binaryalert](https://github.com/airbnb/binaryalert) | accept | antivirus | AV | BinaryAlert: Serverless, Real-time & Retroactive Malware Detection. - airbnb/binaryalert |
 | 4 | [airbnb/streamalert](https://github.com/airbnb/streamalert) | accept | detection_framework | IDS | StreamAlert is a serverless, realtime data analysis framework which empowers you to ingest, analyze, and alert on data from any environment, using datasources and alerting logic yo… |
 | 5 | [ait-aecid/logdata-anomaly-miner](https://github.com/ait-aecid/logdata-anomaly-miner) | accept | native_detector | HIDS | This tool parses log data and allows to define analysis pipelines for anomaly detection. It was designed to run the analysis with limited resources and lowest possible permissions… |
-| 6 | [ajaykumarkk/CyberDoc](https://github.com/ajaykumarkk/CyberDoc) | accept | demo | HIDS | A python based approach to endpoint security. Contribute to ajaykumarkk/CyberDoc development by creating an account on GitHub. |
+| 6 | [ajaykumarkk/CyberDoc](https://github.com/ajaykumarkk/CyberDoc) | accept | demo | AV | A python based approach to endpoint security. Contribute to ajaykumarkk/CyberDoc development by creating an account on GitHub. |
 | 7 | [arkime/arkime](https://github.com/arkime/arkime) | accept | traffic_analyzer | NSM | Arkime is an open source, large scale, full packet capturing, indexing, and database system. - arkime/arkime |
 | 8 | [atc-project/atomic-threat-coverage](https://github.com/atc-project/atomic-threat-coverage) | accept | support_tooling | unknown | Actionable analytics designed to combat threats. Contribute to atc-project/atomic-threat-coverage development by creating an account on GitHub. |
 | 9 | [austin-taylor/flare](https://github.com/austin-taylor/flare) | accept | native_detector | IDS | An analytical framework for network traffic and behavioral analytics - austin-taylor/flare |
@@ -24,7 +24,7 @@ Additional first-party evidence used for disputed labels: [Kismet WIDS alerts](h
 | 14 | [cisco/mercury](https://github.com/cisco/mercury) | accept | traffic_analyzer | NSM | Mercury: network metadata capture and analysis. Contribute to cisco/mercury development by creating an account on GitHub. |
 | 15 | [CISOfy/lynis](https://github.com/CISOfy/lynis) | exclude | out_of_scope | unknown | Lynis - Security auditing tool for Linux, macOS, and UNIX-based systems. Assists with compliance testing (HIPAA/ISO27001/PCI DSS) and system hardening. Agentless, and installation… |
 | 16 | [clong/DetectionLab](https://github.com/clong/DetectionLab) | accept | support_tooling | unknown | Automate the creation of a lab environment complete with security tooling and logging best practices - clong/DetectionLab |
-| 17 | [cloudina/hawk](https://github.com/cloudina/hawk) | accept | detection_platform | unknown | Multi Cloud Antivirus Scanning API using YARA and CLAMAV for AWS S3, Azure Blob Storage and GCP Cloud Storage - cloudina/hawk |
+| 17 | [cloudina/hawk](https://github.com/cloudina/hawk) | accept | antivirus | AV | Multi Cloud Antivirus Scanning API using YARA and CLAMAV for AWS S3, Azure Blob Storage and GCP Cloud Storage - cloudina/hawk |
 | 18 | [ComodoSecurity/openedr](https://github.com/ComodoSecurity/openedr) | accept | detection_framework | HIDS | Open EDR public repository. Contribute to ComodoSecurity/openedr development by creating an account on GitHub. |
 | 19 | [corelight/zeek2es](https://github.com/corelight/zeek2es) | accept | support_tooling | unknown | A Python application to filter and transfer Zeek logs to Elastic/OpenSearch+Humio. This app can also output pure JSON logs to stdout for further processing! - corelight/zeek2es |
 | 20 | [crowdsecurity/crowdsec](https://github.com/crowdsecurity/crowdsec) | accept | detection_framework | IPS, IDS, APIDS | Open-source IDS/IPS, WAF and bot detection for Linux, Windows, Docker and Kubernetes, with a crowdsourced blocklist of malicious IPs. - crowdsecurity/crowdsec |
@@ -60,8 +60,8 @@ Additional first-party evidence used for disputed labels: [Kismet WIDS alerts](h
 | 50 | [MISP/MISP](https://github.com/MISP/MISP) | exclude | out_of_scope | unknown | MISP (core software) - Open Source Threat Intelligence and Sharing Platform - MISP/MISP |
 | 51 | [mitre-attack/bzar](https://github.com/mitre-attack/bzar) | accept | rules_content | PIDS, NIDS | A set of Zeek scripts to detect ATT&CK techniques. - mitre-attack/bzar |
 | 52 | [mozilla/mig](https://github.com/mozilla/mig) | accept | support_tooling | unknown | Distributed & real time digital forensics at the speed of the cloud - mozilla/mig |
-| 53 | [Neo23x0/Loki](https://github.com/Neo23x0/Loki) | accept | native_detector | HIDS | Loki - Simple IOC and YARA Scanner. Contribute to Neo23x0/Loki development by creating an account on GitHub. |
-| 54 | [Neo23x0/signature-base](https://github.com/Neo23x0/signature-base) | accept | rules_content | HIDS | YARA signature and IOC database for my scanners and tools - Neo23x0/signature-base |
+| 53 | [Neo23x0/Loki](https://github.com/Neo23x0/Loki) | accept | antivirus | AV | Loki - Simple IOC and YARA Scanner. Contribute to Neo23x0/Loki development by creating an account on GitHub. |
+| 54 | [Neo23x0/signature-base](https://github.com/Neo23x0/signature-base) | accept | rules_content | AV | YARA signature and IOC database for my scanners and tools - Neo23x0/signature-base |
 | 55 | [Neo23x0/sysmon-config](https://github.com/Neo23x0/sysmon-config) | accept | support_tooling | unknown | Sysmon configuration file template with default high-quality event tracing - NextronSystems/sysmon-config |
 | 56 | [Netflix/dispatch](https://github.com/Netflix/dispatch) | exclude | out_of_scope | unknown | All of the ad-hoc things you're doing to manage incidents today, done for you, and much more! - Netflix/dispatch |
 | 57 | [NeuromorphicComputationResearchProgram/AutoYara](https://github.com/NeuromorphicComputationResearchProgram/AutoYara) | accept | support_tooling | unknown | Automated Yara Rule generation using Biclustering - FutureComputing4AI/AutoYara |
@@ -210,6 +210,20 @@ Firewall-only blocking and network isolation do not establish HIPS. Packet inter
 | [Fibratus](https://github.com/rabbitstack/fibratus/blob/master/pkg/rules/action/kill_windows.go) | HIDS/HIPS: endpoint behavioral detection includes implemented process termination as a rule action. |
 
 Packet engines such as Suricata and Snort retain NIDS/NIPS. Existing endpoint detectors and endpoint rule packs retain HIDS where they actually inspect files, processes, syscalls, or endpoint audit activity. All acceptance decisions, centralization judgments, and aggregate-flow labels remain unchanged by this boundary review: 71 accepted, 47 excluded, and two uncertain repositories.
+
+## Antivirus and malware file scanning (2026-10-02)
+
+The `antivirus` role describes a runnable system whose principal contribution scans files, uploads, binaries, archives, or cloud-storage objects for malware. The `AV` type records that function, and `file_analysis` records its evidence input. Signature, hash, IOC, YARA, heuristic, and learned-model approaches may qualify. Live activity monitoring and a repository-owned scanning engine are not required: on-demand scans and services integrating external engines qualify. Merely integrating several antivirus engines does not make a principal file-scanning service an IDS platform. File scanning, upload rejection, and malware quarantine alone do not establish HIDS/HIPS/APIDS. File-integrity monitoring against a trusted baseline and behavioral intrusion detection remain distinct.
+
+| Repository | Revised role / type | Evidence and reason |
+| --- | --- | --- |
+| [BinaryAlert](https://github.com/airbnb/binaryalert) | `antivirus` / `AV` | Its README documents a serverless pipeline that scans S3 uploads with YARA and alerts on matches. File bytes, rather than endpoint activity events, are the input. |
+| [Hawk](https://github.com/cloudina/hawk) | `antivirus` / `AV` | Its README documents runnable ClamAV/YARA stream and S3-object scanning and infected-object quarantine. Quarantine supports prevention; HTTP delivery does not establish APIDS. Azure/GCP support is marked TODO and is not counted as implemented. |
+| [Loki](https://github.com/Neo23x0/Loki) | `antivirus` / `AV` | Its README documents on-demand file-name, YARA, and malicious-hash scanning, with supplementary process-memory and connection IOC checks. The principal scanner role is distinct from an operational host IDS. |
+| [signature-base](https://github.com/Neo23x0/signature-base) | `rules_content` / `AV` | Its README identifies the YARA/IOC database used by Loki and THOR. It supplies scanner content rather than a runnable scanner. |
+| [CyberDoc](https://github.com/ajaykumarkk/CyberDoc) | `demo` / `AV` | Carries forward the prior review's endpoint-malware-scanning proof-of-concept evidence. The source could not be fetched during this follow-up, so this is a taxonomy correction to existing evidence, not a fresh repository review. |
+
+All five annotations now use `file_analysis`. Roles remain principal-contribution labels: signature content and demos do not become runnable antivirus implementations. Mixed detection systems retain their principal role; additional AV or IDS types require direct evidence of the corresponding path. The screening counts remain 71 accepted, 47 excluded, and two uncertain. Centralization and flow-record labels are unchanged. Antivirus appears separately in all-role catalogue plots and evaluation label tables, outside the operational IDS reporting segment. The executable crosswalk is version 10; its original GHML23 CSV is unchanged.
 
 ## Evidence gaps
 

@@ -26,8 +26,8 @@ TAXONOMY_FIELD_LABELS = {
     "observation_objects": "Observation object",
     "capabilities": "Capability",
     "detection_methods": "Detection method",
-    "primary_system_type": "Primary IDS system type",
-    "system_types": "IDS system types",
+    "primary_system_type": "Primary security system type",
+    "system_types": "Security system types",
     "paper_role": "Paper role",
     "relevance_tier": "Security relevance",
     "artifact_type": "Artifact type",
@@ -45,8 +45,10 @@ def taxonomy_field_label(field: object) -> str:
 
 
 def taxonomy_value_label(field: object, value: object) -> str:
-    """Return a readable taxonomy value while preserving IDS acronyms."""
+    """Return a readable taxonomy value while preserving security-system acronyms."""
     raw = str(value)
+    if str(field) == "role" and raw == "antivirus":
+        return "antivirus / file scanner"
     if str(field) in {"primary_system_type", "system_types"}:
         return {
             "provids": "ProvIDS",

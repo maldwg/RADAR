@@ -24,7 +24,7 @@ terms = ["distributed IDS", "distributed intrusion detection", "DIDS", "fully di
 field = "role"
 include_labels = [
   "native_detector", "classifier_engine", "detection_framework", "detection_platform",
-  "traffic_analyzer", "research_project", "demo", "rules_content", "support_tooling",
+  "traffic_analyzer", "antivirus", "research_project", "demo", "rules_content", "support_tooling",
 ]
 exclude_labels = ["out_of_scope"]
 
@@ -75,6 +75,13 @@ terms = [
   "packet inspection tool", "packet inspection engine", "packet dissection",
 ]
 
+[fields.role.labels.antivirus]
+terms = [
+  "antivirus", "anti virus", "antimalware", "anti malware", "malware scanner",
+  "file scanner", "virus scanner", "malware file scanning", "antivirus scanning",
+  "scan uploaded files", "scan files for malware", "ioc scanner", "yara scanner",
+]
+
 [fields.role.labels.demo]
 terms = [
   "jupyter notebook", "notebook demo", "demonstration", "tutorial", "example project",
@@ -121,6 +128,7 @@ terms = [
 terms = [
   "host intrusion", "host ids", "endpoint", "host event", "system call", "process activity",
   "file activity", "file integrity", "endpoint telemetry", "operating system audit",
+  "file scanning", "file scanner", "malware scanner", "antivirus",
 ]
 
 [fields.observation_scopes.labels.wireless]
@@ -162,6 +170,9 @@ terms = ["log analysis", "security log", "event log", "audit log", "log based de
 [fields.observation_objects.labels.system_calls]
 terms = ["system call analysis", "system call trace", "syscall", "system calls"]
 
+[fields.observation_objects.labels.file_analysis]
+terms = ["file scanning", "file scanner", "scan files", "scan uploaded files", "malware scanner", "antivirus", "file content", "file hash", "file integrity", "yara scanner", "ioc scanner"]
+
 [fields.capabilities]
 mode = "multilabel"
 fallback = "unknown"
@@ -170,7 +181,7 @@ minimum_score = 1.0
 [fields.capabilities.labels.detection]
 terms = [
   "intrusion detection", "attack detection", "threat detection", "anomaly detection",
-  "malware detection", "detects attacks", "detect malicious",
+  "malware detection", "detects attacks", "detect malicious", "antivirus", "malware scanner", "virus scanner", "yara scanner", "ioc scanner",
 ]
 
 [fields.capabilities.labels.prevention]
@@ -192,7 +203,7 @@ fallback = "unknown"
 minimum_score = 1.0
 
 [fields.detection_methods.labels.signature_based]
-terms = ["signature based", "signature matching", "attack signature", "pattern matching", "yara signature"]
+terms = ["signature based", "signature matching", "attack signature", "pattern matching", "yara signature", "malware signature", "malicious hash"]
 
 [fields.detection_methods.labels.rule_based]
 terms = ["rule based", "detection rule", "security rule", "policy rule", "rule engine", "security query", "detection query"]
@@ -222,6 +233,9 @@ terms = [
 mode = "multilabel"
 fallback = "unknown"
 minimum_score = 1.0
+
+[fields.system_types.labels.AV]
+terms = ["antivirus", "anti virus", "antimalware", "anti malware", "malware scanner", "virus scanner", "malware file scanning", "scan files for malware", "yara scanner", "ioc scanner"]
 
 [fields.system_types.labels.NIDS]
 terms = ["network intrusion detection system", "network ids", "nids"]

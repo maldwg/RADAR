@@ -1,0 +1,3 @@
+classifier,classifier_method,metric,classifier_id,value,rated_entities,confidence_level,ci_low,ci_high,tp,fp,tn,fn,rating_profile
+LLM · gemma4-31b,llm,definitive_coverage,gemma4:31b,0.0,120,0.95,0.0,0.031019166418703472,0,0,47,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · qwen3-8-27b,llm,definitive_coverage,qwen3.8:27b,0.0,120,0.95,0.0,0.031019166418703472,0,0,47,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml

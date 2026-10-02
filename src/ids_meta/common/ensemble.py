@@ -240,6 +240,13 @@ def _validate_github_consensus(
     elif role == "traffic_analyzer":
         if not runnable:
             flags.append("reproducible_execution_missing")
+    elif role == "antivirus":
+        if not runnable:
+            flags.append("reproducible_execution_missing")
+        if "file_analysis" not in split_values(row.get("observation_objects")):
+            flags.append("file_analysis_missing")
+        if "detection" not in split_values(row.get("capabilities")):
+            flags.append("detection_capability_missing")
     if role in ROLES:
         if not self_description:
             flags.append("direct_self_description_missing")

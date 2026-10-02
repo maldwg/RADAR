@@ -19,6 +19,7 @@ ROLE_LABELS = {
     "native_detector": "Native detector", "classifier_engine": "Classifier engine",
     "detection_framework": "Detection framework", "detection_platform": "Detection platform",
     "traffic_analyzer": "Traffic analyzer",
+    "antivirus": "Antivirus / file scanner",
     "research_project": "Research project", "demo": "Demo",
     "rules_content": "Rules/content", "support_tooling": "Support tooling",
 }
@@ -28,6 +29,7 @@ ROLE_MATRIX = [
     ("detection_framework", "Frame", "Detection framework", "#7B5EA7"),
     ("detection_platform", "Plat.", "Detection platform", "#4C78A8"),
     ("traffic_analyzer", "Traffic", "Traffic analyzer", "#558B83"),
+    ("antivirus", "AV", "Antivirus / file scanner", "#C94F4F"),
     ("research_project", "Res.", "Research project", "#9A7D0A"),
     ("demo", "Demo", "Demo", "#B59B6A"),
     ("rules_content", "Rules", "Rules/content", "#2F6F9F"),
@@ -99,7 +101,7 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
     view = view.sort_values(["family_order", "variant_order", "role", "stars_numeric", "full_name"], ascending=[True, True, True, False, True], kind="stable")
 
     group_count = view["overview_family"].nunique() if not view.empty else 1
-    total_units = 4.2 + len(view) * .78 + group_count * .92 + 2.1
+    total_units = 4.2 + len(view) * .78 + group_count * .92 + 2.5
     fig, ax = plt.subplots(figsize=(18, max(7, total_units * .34)))
     ax.set_xlim(0, 100); ax.set_ylim(total_units, 0); ax.axis("off")
     ax.text(50, .55, "Repository feature matrix", ha="center", va="center", fontsize=17, fontweight="bold", color="#263238")
@@ -159,15 +161,15 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
             row_index += 1
         cursor += .10
 
-    legend_y = total_units - 1.45
+    legend_y = total_units - 1.85
     ax.text(1.2, legend_y, "Role:", fontsize=7.2, fontweight="bold", color="#43505C", va="center")
     for index, (_role, _abbreviation, full, role_color) in enumerate(ROLE_MATRIX):
         legend_x = 5.0 + (index % 5) * 18.0
         role_y = legend_y + (index // 5) * .4
         ax.scatter([legend_x], [role_y], s=18, marker="o", facecolor=role_color, edgecolor=role_color, linewidth=.7, zorder=3)
         ax.text(legend_x + .45, role_y, full, fontsize=6.7, color="#59636F", va="center")
-    ax.scatter([77.0], [legend_y + .4], s=14, marker="o", facecolor="#2F6F9F", edgecolor="#2F6F9F", linewidth=.7, zorder=3); ax.text(77.45, legend_y + .4, "canonical", fontsize=6.7, color="#59636F", va="center")
-    ax.scatter([86.0], [legend_y + .4], s=14, marker="o", facecolor="white", edgecolor="#9AA5AE", linewidth=.7, zorder=3); ax.text(86.45, legend_y + .4, "related variant", fontsize=6.7, color="#59636F", va="center")
+    ax.scatter([5.0], [legend_y + .8], s=14, marker="o", facecolor="#2F6F9F", edgecolor="#2F6F9F", linewidth=.7, zorder=3); ax.text(5.45, legend_y + .8, "canonical", fontsize=6.7, color="#59636F", va="center")
+    ax.scatter([23.0], [legend_y + .8], s=14, marker="o", facecolor="white", edgecolor="#9AA5AE", linewidth=.7, zorder=3); ax.text(23.45, legend_y + .8, "related variant", fontsize=6.7, color="#59636F", va="center")
     ax.text(1.2, total_units - .65, metadata_caption(frame, "bars use log scaling; popularity is descriptive only"), fontsize=6.5, color="#6F7782", va="center")
     return save_figure(fig, out_dir, "00_repository_overview", formats, dpi)
 
@@ -206,7 +208,7 @@ def _display_system_type(value: object) -> str:
     text = str(value or "unknown").strip()
     if not text:
         return "Unknown"
-    upper_codes = {"nids", "hids", "pids", "wids", "xdr", "ndr", "ids", "ips"}
+    upper_codes = {"av", "nsm", "sm", "nids", "nips", "hids", "hips", "pids", "wids", "wips", "dbids", "dbips", "apids", "xdr", "ndr", "ids", "ips"}
     if text.casefold() in upper_codes:
         return text.upper()
     return text.replace("_", " ").title()
@@ -328,7 +330,7 @@ def _role_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dp
 
     display = matrix if not matrix.empty else pd.DataFrame([[0]], index=["no data"], columns=["no data"])
     fig, ax = plt.subplots(figsize=(max(10.5, 6.5 + .8 * len(display.columns)), max(5.7, 3.0 + .55 * len(display.index))))
-    add_heading(fig, "Repository role by IDS type", metadata_caption(canonical, "canonical projects; multi-label IDS types"), top=.84)
+    add_heading(fig, "Repository role by security system type", metadata_caption(canonical, "canonical projects; multi-label security system types"), top=.84)
     image = ax.imshow(display.values, cmap="Blues", aspect="auto", vmin=0)
     maximum = max(1, int(display.to_numpy().max()))
     for r in range(len(display.index)):
@@ -337,7 +339,7 @@ def _role_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dp
             ax.text(c, r, str(count), ha="center", va="center", fontsize=8, fontweight="bold", color="white" if count > maximum * .52 else "#263238")
     ax.set_xticks(range(len(display.columns)), [_display_system_type(value) for value in display.columns], rotation=30, ha="right")
     ax.set_yticks(range(len(display.index)), [ROLE_LABELS.get(str(value), str(value).replace("_", " ").title()) for value in display.index])
-    ax.set_xlabel("IDS type")
+    ax.set_xlabel("Security system type")
     ax.set_ylabel("Repository role")
     ax.grid(False)
     fig.colorbar(image, ax=ax, pad=.02, label="Repositories")
@@ -377,7 +379,7 @@ def _detection_type_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str
             ax.text(c, r, str(count), ha="center", va="center", fontsize=8, fontweight="bold", color="white" if count > maximum * .52 else "#263238")
     ax.set_xticks(range(len(display.columns)), [_display_system_type(value) for value in display.columns], rotation=30, ha="right")
     ax.set_yticks(range(len(display.index)), [str(value).replace("_", " ") for value in display.index])
-    ax.set_xlabel("IDS type")
+    ax.set_xlabel("Security system type")
     ax.set_ylabel("Detection method")
     ax.grid(False)
     fig.colorbar(image, ax=ax, pad=.02, label="Repositories")
@@ -410,7 +412,7 @@ def _metadata_completeness(frame: pd.DataFrame, out_dir: Path, formats: list[str
         ("pushed_at", "Pushed at"),
         ("last_commit_sha", "Last commit SHA"),
         ("last_commit_at", "Last commit timestamp"),
-        ("system_types", "IDS type"),
+        ("system_types", "Security system type"),
         ("centralization", "IDS centralization"),
         ("detection_methods", "Detection methods"),
         ("observation_objects", "Observation objects"),
@@ -854,7 +856,7 @@ def build(
     outputs.append(write_index(out_dir, input_path, frame, outputs, [
         "00_repository_overview keeps the existing detailed repository feature matrix and exports every accepted row.",
         "01_repository_timeline reports operational systems (native detectors, classifier engines, and detection frameworks) using repository creation time on x, GitHub stars on y, and primary IDS type as color; every repository is named below its point.",
-        "02_role_type_matrix reports every accepted role and crosses native detectors, classifier engines, frameworks, platforms, research projects, demos, content, and tooling with normalized IDS types such as NIDS/HIDS/PIDS.",
+        "02_role_type_matrix reports every accepted role and crosses native detectors, classifier engines, frameworks, platforms, traffic analyzers, antivirus/file scanners, research projects, demos, content, and tooling with security system types such as AV/NSM/SM/NIDS/HIDS/PIDS. Antivirus/file scanners are reported separately from operational IDS systems.",
         "03_repository_relationships retains the existing repository-relationship count view.",
         "04_detection_method_type_matrix covers operational systems only and crosses detection methods with IDS types; both dimensions may be multi-label.",
         "05_activity retains the existing pushed_at activity-age bar chart.",

@@ -1,0 +1,7 @@
+model,decision,count
+LLM · gemma4-31b,accept,1430
+LLM · gemma4-31b,exclude,364
+LLM · gemma4-31b,uncertain,206
+LLM · qwen3-8-27b,accept,588
+LLM · qwen3-8-27b,exclude,117
+LLM · qwen3-8-27b,uncertain,39
