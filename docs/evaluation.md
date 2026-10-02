@@ -84,9 +84,9 @@ Profiles are validated before evaluation. A missing profile, wrong source/schema
 
 ### Benchmark composition
 
-GitHub starts from GHML23's published `ground_truth_with_source.csv`: 100 security-monitoring (`secumon`) repositories, 10 penetration-testing controls, and 10 image/OCR controls. The adjacent CSV remains an immutable provenance snapshot. The executable TOML profile explicitly reviews and crosswalks every repository into this project's inclusion decision and controlled role, observation-scope, observation-object, capability, detection-method, and IDS-type vocabularies. The original GHML23 category and selection source remain attached to every reference entity for audit, but do not mechanically determine the richer labels.
+GitHub starts from GHML23's published `ground_truth_with_source.csv`: 100 security-monitoring (`secumon`) repositories, 10 penetration-testing controls, and 10 image/OCR controls. The adjacent CSV remains an immutable provenance snapshot. The executable TOML profile explicitly reviews and crosswalks every repository into this project's inclusion decision and controlled role, observation-scope, observation-object, capability, detection-method, and IDS-type vocabularies. The original GHML23 category and selection source remain attached to every reference entity for audit, but do not mechanically determine the richer labels. The current repository review yields 71 accepts, 47 exclusions, and two uncertain records; the [repository evidence index](ghml23_repository_audit.md) records the checked GitHub source for all 120 rows. The 2026-10-02 follow-up adds the `traffic_analyzer` role and `NSM` type and rechecks all 13 prior `flow_analysis` labels against documented aggregate-record input paths (seven retained, six removed), with Arkime gaining the label for its separate session-record Viewer. A further 2026-10-02 review adds `SM` for non-network and mixed-source security telemetry monitoring, assigning it to HELK, xnumon, osctrl, and ThreatHunting while preserving their support-tool roles. The packet/endpoint/enforcement follow-up revises Fail2ban, sshwatch, Flare, OpenSnitch, and CrowdSec; it records direct endpoint enforcement evidence for retained HIPS labels and corrects the OpenSnitch/BZAR analysis-input labels. The crosswalk is version 9; screening counts, centralization judgments, and flow labels are unchanged.
 
-OpenAlex uses only the 105-dataset positive-reference fixture extracted from Table 2 of Ashraf and Masoodi (2026). It measures whether each named survey dataset is represented by an accepted release result. Because this retained benchmark has no negative examples, false-positive rate, specificity, accuracy, precision, and F1 are not estimable and are reported as N/A.
+OpenAlex uses a 105-row artifact fixture extracted from Table 2 of Ashraf and Masoodi (2026), cross-checked against Figure 1 and SHIELD dataset descriptions. The published survey fields are preserved verbatim; project labels may deliberately correct them (for example, LBNL is an enterprise network trace, not an electrical-grid dataset). The selected rows contain 96 core accepts, five adjacent accepts, and four excluded audit controls. FPR, specificity, accuracy, precision, and F1 are calculable for this selected fixture, but four non-random negative controls do **not** support a corpus-wide false-positive or prevalence claim. `artifact_type = "dataset"` for every row because the source inventory is of released datasets; a testbed used to produce data is not automatically a released generator framework. Taxonomy-field accuracy and dataset-identified coverage use only positive artifacts; excluded audit controls contribute to decision metrics, not missing-metadata penalties.
 
 Regression tests lock the exact GHML23 row/category/decision counts and representative crosswalk entries, plus the source counts, exclusions, aliases, requested domain taxonomy, and provenance fields of the SHIELD dataset profile.
 
@@ -130,7 +130,7 @@ Automatic LLM evaluation runs immediately after classification and consensus, be
 
 Every rated result lives under `artifacts/evaluation/<source>/`. The source-level README is the directory index. Classifier details use `classifiers/keyword/`, `classifiers/nli/<model-slug>/`, `classifiers/llm/<model-slug>/`, and `classifiers/ensemble/`. Ratings and candidates are shared, which makes comparisons use the same reference set.
 
-Cross-approach plots are in the sibling `comparison/` directory. `00_metric_overview` is the single starting matrix: its rows contain DR, FNR, FPR, FDR, precision, accuracy, decision-F1, coverage, abstention, and aggregate taxonomy scores; its columns contain every available Keyword, NLI, LLM, and Ensemble result. Arrows state whether higher or lower is preferable, grey cells mean N/A, and exact values are in `data/00_metric_overview.csv`. Enlarged operational-metric plots are grouped under `metrics/`, field/category comparisons under `taxonomy/`, and decision agreement under `agreement/`. Agreement is descriptive and must not be read as correctness. Single-classifier operational/strict/selective views and audit diagnostics remain under that classifier's `figures/` directory rather than being mixed with the comparison figures. The OpenAlex comparison uses the 105-dataset artifact benchmark. Numeric values are deliberately not printed on the figures; companion CSVs retain exact values, per-label TP/FP/FN, classifier IDs, rating paths, and Wilson intervals. Metrics that a positive-only artifact fixture cannot estimate are shown as N/A, not as zero.
+Cross-approach plots are in the sibling `comparison/` directory. `00_metric_overview` is the single starting matrix: its rows contain DR, FNR, FPR, FDR, precision, accuracy, decision-F1, coverage, abstention, and aggregate taxonomy scores; its columns contain every available Keyword, NLI, LLM, and Ensemble result. Arrows state whether higher or lower is preferable, grey cells mean N/A, and exact values are in `data/00_metric_overview.csv`. Enlarged operational-metric plots are grouped under `metrics/`, field/category comparisons under `taxonomy/`, and decision agreement under `agreement/`. Agreement is descriptive and must not be read as correctness. Single-classifier operational/strict/selective views and audit diagnostics remain under that classifier's `figures/` directory rather than being mixed with the comparison figures. The OpenAlex comparison uses the 105-row artifact benchmark, including selected negative controls. Numeric values are deliberately not printed on the figures; companion CSVs retain exact values, per-label TP/FP/FN, classifier IDs, rating paths, and Wilson intervals. Metrics that a custom positive-only artifact fixture cannot estimate are shown as N/A, not as zero.
 
 NLI evaluation also writes `classifiers/nli/<model-slug>/sensitivity/`. This is not a second NLI result. It replays the aggregate probabilities already stored in `nli_scores_json` over the finite grid configured in `[baselines.nli.sensitivity]`, so it performs no inference and needs no network access. An entailment score says how strongly the text supports a label hypothesis; it is not a probability that the final answer is correct. The six-panel heatmap has minimum label evidence on its columns and the required lead over the runner-up label on its rows. Moving right or upward demands stronger, less ambiguous evidence and usually increases abstention. The black outline marks the cutoffs actually used for the reported NLI result. Blue panels prefer darker cells; red error-rate panels prefer lighter cells. The sweep describes robustness and trade-offs; it must not silently tune the operating point on the same fixture used for final reporting.
 
@@ -174,20 +174,48 @@ The report also records exact decision accuracy, classification-field exact accu
 
 Each evaluation directory contains:
 
-- `metrics.json`: machine-readable summary and all three metric views.
+- `metrics.json`: machine-readable summary, all three metric views, and `taxonomy_field_metrics` with per-field and per-category results.
 - `instances.csv`: one rated entity per row, configured selector and resolved stable ID, progression status, expected/actual decision, exact field results, and full JSON snapshots.
 - `decision_confusion.csv`: exact expected-to-actual disposition counts, including uncertain and unavailable.
 - `field_metrics.csv`: support status plus exact and multi-label metrics for every configured field; unsupported baseline fields are N/A.
 - `README.md`: compact human-readable headline values, metadata accuracy, metric semantics, and figure links.
 - `figures/01_decision_views.svg`/`.pdf`: operational, strict, and selective DR, precision, accuracy, F1, FPR, FDR, and FNR.
 - `figures/02_decision_confusion.svg`/`.pdf`: exact expected-to-actual dispositions, retaining uncertain and unavailable outcomes.
-- `figures/03_taxonomy_fields.svg`/`.pdf`: exact metadata accuracy per configured field plus directly labeled multi-label F1 bars where applicable.
-- `figures/04_pipeline_coverage.svg`/`.pdf`: retrieval, classification, definitive-decision, abstention, and final-status summaries.
+- `figures/03_taxonomy_fields.svg`/`.pdf`: exact accuracy and macro/multi-label F1 for every configured taxonomy dimension, including observation objects and directly classified IDS types.
+- `figures/04_taxonomy_categories.svg`/`.pdf`: precision, recall, and F1 for every controlled-vocabulary value, grouped by taxonomy dimension.
+- `figures/05_pipeline_coverage.svg`/`.pdf`: retrieval, classification, definitive-decision, abstention, and final-status summaries.
 - `figures/data/`: the exact aggregate CSVs behind the four single-classifier figures.
 
 Figure formats and resolution use the shared `[plots]` `formats` and `dpi` settings. The run manifest additionally records the operational TP, FP, TN, FN, rated entity count, and artifact count. This makes recurring runs comparable without treating the rating profiles as inputs to the classifier itself.
 
 ## Regression tests
+
+GitHub includes the single-label `centralization` dimension: `centralized`,
+`hierarchical`, `fully_distributed`, or `unknown`. It describes detection/analysis
+topology, not observation scope, repository role, or IDS type. The LLM judges it
+directly; keyword and NLI baselines emit the same vocabulary. Central/single-node
+phrases indicate centralized systems; collaborative IDS/CIDS indicate hierarchical
+systems in the keyword baseline; distributed IDS/DIDS and peer-to-peer phrases
+indicate fully distributed systems. These are lexical proxies: the LLM and reference
+annotations prioritize explicit topology over acronyms. Bare "distributed" is not
+a keyword because it also occurs in DDoS descriptions.
+
+The GHML23 profile records per-repository topology plus sources/rationales for
+supported annotations. `unscored_field_values = { centralization = ["unknown"] }`
+excludes only unknown **reference** topology from field scoring; those repositories
+still participate in screening and other taxonomy metrics. A prediction of unknown
+against known reference topology remains an error. The current audited subset has
+centralized and hierarchical examples, but no verified fully distributed examples;
+metrics therefore cannot establish performance on that class yet.
+
+Centralization appears in single-classifier taxonomy/category figures and in the
+shared keyword/NLI/LLM/ensemble taxonomy comparison heatmaps. General GitHub figures
+`13_ids_centralization` and `14_centralization_role_matrix` summarize canonical
+operational systems, retaining unknowns. Each has CSV records and the configured
+figure formats (SVG and PDF by default). Adding the field changes the GitHub
+classification fingerprint; existing classifications cannot acquire model-judged
+topology from replotting or reevaluation alone. No OpenAlex taxonomy changes are
+required.
 
 `tests/test_evaluation.py` validates the imported GHML23 snapshot, the survey-derived SHIELD fixture, generic TOML/CSV loading, configurable job selection, and temporary saved classification rows. It checks exact confusion matrices, requested metric aliases, abstention and missing-result behavior, field comparisons, validation failures, artifact creation, both CLI stages, and manifest counts. These tests are deterministic and network-free.
 

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from ids_meta.common.logging import logger
-from ids_meta.plotting.common import COLORS, add_heading, configure_style, save_figure, stamp, write_table
+from ids_meta.plotting.common import COLORS, add_heading, configure_style, save_figure, stamp, taxonomy_field_label, taxonomy_value_label, write_table
 
 
 LOG = logger("plotting.evaluation")
@@ -119,7 +119,7 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
     for column in ("comparisons", "exact_matches", "exact_accuracy", "label_f1"):
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
     plot_frame = frame[frame["comparisons"] > 0].copy()
-    plot_frame["field_label"] = plot_frame["field"].astype(str).str.replace("_", " ").str.title()
+    plot_frame["field_label"] = plot_frame["field"].map(taxonomy_field_label)
     write_table(plot_frame.drop(columns=["field_label"]), out_dir / "data", "03_taxonomy_fields")
 
     fig, ax = plt.subplots(figsize=(12.5, max(5.2, .72 * max(1, len(plot_frame)) + 2.0)))
@@ -155,6 +155,48 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
     return save_figure(fig, out_dir, "03_taxonomy_fields", formats, dpi)
 
 
+def _field_categories(input_dir: Path, metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Plot precision, recall, and F1 for every rated taxonomy category."""
+    source = input_dir / "field_label_metrics.csv"
+    frame = pd.read_csv(source, keep_default_na=False)
+    for column in ("precision", "recall", "f1"):
+        frame[column] = pd.to_numeric(frame[column], errors="coerce")
+    frame = frame[frame["supported"].astype(str).str.casefold() == "true"].copy()
+    field_order = list(dict.fromkeys(frame["field"].astype(str)))
+    order = {field: index for index, field in enumerate(field_order)}
+    frame["field_order"] = frame["field"].astype(str).map(order)
+    frame = frame.sort_values(["field_order", "label"], kind="stable").reset_index(drop=True)
+    frame["category_label"] = frame.apply(
+        lambda row: f"{taxonomy_field_label(row['field'])} — {taxonomy_value_label(row['field'], row['label'])}",
+        axis=1,
+    )
+    write_table(
+        frame.drop(columns=["field_order", "category_label"]),
+        out_dir / "data", "04_taxonomy_categories",
+    )
+
+    fig, ax = plt.subplots(figsize=(11.5, max(6.0, .34 * max(1, len(frame)) + 2.6)))
+    add_heading(
+        fig, "Taxonomy performance by category",
+        f"{metrics.get('rated_entities', 0)} rated entities; each row is one controlled-vocabulary value",
+    )
+    if frame.empty:
+        ax.axis("off")
+        ax.text(.5, .5, "No supported taxonomy categories", transform=ax.transAxes, ha="center", va="center")
+    else:
+        values = frame[["precision", "recall", "f1"]].to_numpy(dtype=float)
+        image = ax.imshow(values, vmin=0, vmax=1, cmap="Blues", aspect="auto")
+        ax.set_xticks(range(3), labels=["Precision", "Recall", "F1"])
+        ax.set_yticks(range(len(frame)), labels=frame["category_label"], fontsize=7)
+        boundaries = [index - .5 for index in range(1, len(frame)) if frame.loc[index, "field"] != frame.loc[index - 1, "field"]]
+        for boundary in boundaries:
+            ax.axhline(boundary, color="white", linewidth=2.0)
+        fig.colorbar(image, ax=ax, label="One-vs-rest score")
+        fig.subplots_adjust(left=.38)
+    stamp(fig, "Rows are grouped by taxonomy dimension; exact TP/FP/FN and scores are in the companion CSV.")
+    return save_figure(fig, out_dir, "04_taxonomy_categories", formats, dpi)
+
+
 def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Plot pipeline coverage percentages and mutually exclusive entity statuses."""
     artifact_profile = metrics.get("evaluation_unit") == "artifact"
@@ -180,8 +222,8 @@ def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: i
         for key, value in statuses.items()
     ]
     table = pd.DataFrame(coverage_rows)
-    write_table(table, out_dir / "data", "04_coverage_rates")
-    write_table(pd.DataFrame(status_rows, columns=["status", "count"]), out_dir / "data", "04_status_counts")
+    write_table(table, out_dir / "data", "05_coverage_rates")
+    write_table(pd.DataFrame(status_rows, columns=["status", "count"]), out_dir / "data", "05_status_counts")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.8), gridspec_kw={"width_ratios": [1.25, 1]})
     add_heading(
@@ -213,7 +255,7 @@ def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: i
         "Survey-reference diagnostics distinguish name matches, accepted release fallbacks, retrieval gaps, and unresolved references."
         if artifact_profile else "Candidate input distinguishes not retrieved from retrieved-but-not-classified entities.",
     )
-    return save_figure(fig, out_dir, "04_pipeline_coverage", formats, dpi)
+    return save_figure(fig, out_dir, "05_pipeline_coverage", formats, dpi)
 
 
 def _append_readme(input_dir: Path, outputs: list[Path]) -> None:
@@ -246,6 +288,7 @@ def build(input_dir: Path, config: dict[str, object]) -> list[Path]:
     outputs += _decision_performance(metrics, figure_dir, formats, dpi)
     outputs += _decision_confusion(input_dir, metrics, figure_dir, formats, dpi)
     outputs += _field_accuracy(input_dir, metrics, figure_dir, formats, dpi)
+    outputs += _field_categories(input_dir, metrics, figure_dir, formats, dpi)
     outputs += _coverage(metrics, figure_dir, formats, dpi)
     _append_readme(input_dir, outputs)
     LOG.info("evaluation plot bundle complete source=%s files=%d output=%s", metrics.get("source", "unknown"), len(outputs), figure_dir)

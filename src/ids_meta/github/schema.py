@@ -10,7 +10,7 @@ from ids_meta.common.text import normalize_text, split_values
 
 ROLES = (
     "native_detector", "classifier_engine", "detection_framework", "detection_platform",
-    "research_project", "demo", "rules_content", "support_tooling",
+    "traffic_analyzer", "research_project", "demo", "rules_content", "support_tooling",
 )
 AUDIT_ROLES = ROLES + ("out_of_scope", "uncertain")
 SCOPES = ("network", "host_endpoint", "wireless", "database", "provenance", "application", "multi_scope", "unknown")
@@ -20,12 +20,15 @@ METHODS = (
     "ml_based", "nn_based", "unknown",
 )
 OBSERVATION_OBJECTS = ("packet_analysis", "flow_analysis", "log_analysis", "system_calls", "unknown")
+CENTRALIZATION = ("centralized", "hierarchical", "fully_distributed", "unknown")
 
 DEFAULT_SYSTEM_TYPE_PROFILE: dict[str, Any] = {"types": {
-    "NIDS": {"name": "Network intrusion detection system", "description": "Detects intrusions in network activity."},
-    "NIPS": {"name": "Network intrusion prevention system / network detection and response", "description": "Detects and responds to network threats."},
-    "HIDS": {"name": "Host intrusion detection system", "description": "Detects intrusions on hosts or endpoints."},
-    "HIPS": {"name": "Host intrusion prevention system / endpoint detection and response", "description": "Detects and responds to host or endpoint threats."},
+    "NIDS": {"name": "Network intrusion detection system", "description": "Detects intrusions through inspection of network packets, frames, or protocol streams from network interfaces, taps, or saved packet captures, including a materially integrated packet detector. Requires an implemented traffic-inspection detection path; service logs, aggregated flow records, or endpoint connection permissions alone do not establish NIDS. Running a packet intrusion detector on one host does not disqualify it."},
+    "NSM": {"name": "Network security monitoring / traffic analysis system", "description": "Principally analyzes network traffic for security telemetry and investigation; limited notices or detection hooks do not establish an IDS or response system."},
+    "SM": {"name": "Security monitoring / telemetry analysis system", "description": "Principally collects, aggregates, searches, or analyzes security logs and non-network or mixed-source telemetry for visibility and investigation; intrusion decisions and alerts are not required. Generic observability and configuration or forwarding alone do not establish this type."},
+    "NIPS": {"name": "Network intrusion prevention system", "description": "Combines network packet/interface intrusion inspection as defined for NIDS with implemented network enforcement, such as dropping or rejecting traffic or updating firewall rules. Firewall updates alone, log-derived IP bans, endpoint application connection policies, and an NDR marketing label do not establish NIPS."},
+    "HIDS": {"name": "Host intrusion detection system", "description": "Detects intrusions from host or endpoint activity and state: files, processes, execution, system calls, registry, accounts, or operating-system audit events and logs describing these. Endpoint observations or local analysis may be forwarded to a central manager; centralized correlation does not remove HIDS. Local installation or reading network-service authentication/traffic logs alone does not establish HIDS."},
+    "HIPS": {"name": "Host intrusion prevention system", "description": "Combines host or endpoint intrusion detection as defined for HIDS with implemented enforcement on endpoint activity or state, such as blocking execution, terminating malicious processes, quarantining files, removing persistence, or disabling compromised accounts. Network-only firewall rules, source-IP bans, or connection isolation alone do not establish HIPS, even when executed on the protected host. An EDR label or an unimplemented response hook is insufficient."},
     "WIDS": {"name": "Wireless intrusion detection system", "description": "Detects intrusions in wireless activity."},
     "WIPS": {"name": "Wireless intrusion prevention system", "description": "Detects and prevents wireless threats."},
     "DBIDS": {"name": "Database intrusion detection system", "description": "Detects intrusions in database activity."},
@@ -34,8 +37,8 @@ DEFAULT_SYSTEM_TYPE_PROFILE: dict[str, Any] = {"types": {
     "PIDS": {"name": "Protocol-based intrusion detection system", "description": "Detects protocol violations or attacks."},
     "ProvIDS": {"name": "Provenance-based intrusion detection system", "description": "Detects intrusions using provenance."},
     "XDR": {"name": "Extended detection and response", "description": "Detects and responds across observation scopes."},
-    "IDS": {"name": "Intrusion detection system", "description": "Generic intrusion detection system."},
-    "IPS": {"name": "Intrusion prevention system", "description": "Generic intrusion prevention system."},
+    "IDS": {"name": "Intrusion detection system", "description": "General intrusion detection, including detectors analyzing network-service authentication/traffic logs, aggregated flow records, or local connection-policy events without a packet intrusion inspection path or endpoint activity detection as defined for NIDS/HIDS. Also covers detection when a more specific configured type is not supported. Single-host deployment does not imply HIDS; network-related evidence does not imply NIDS. Select alongside a specific type only for a separately evidenced general detection path."},
+    "IPS": {"name": "Intrusion prevention system", "description": "General intrusion prevention with implemented enforcement, including network-service log detection followed by source-IP bans or firewall updates, and endpoint application connection-policy enforcement without a NIPS packet intrusion inspection path or HIPS endpoint enforcement. Fail2ban is an archetype. Also covers prevention when a more specific configured type is not supported. Alerts or response hooks alone are insufficient; select alongside a specific type only for a separately evidenced general prevention path."},
 }}
 
 METADATA_COLUMNS = [
@@ -55,7 +58,7 @@ ENSEMBLE_COLUMNS = [
 CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + CLASSIFIER_COLUMNS + [
     "pipeline_version", "profile_hash", "llm_model", "decision", "role",
     "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type",
-    "system_types", "system_type_names",
+    "system_types", "system_type_names", "centralization",
     "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution",
     "offline_dataset_only", "implements_detection_engine", "requires_external_detector",
     "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "classification_validation_flags", "primary_reason", "evidence_json",
@@ -73,6 +76,7 @@ RESPONSE_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
     "properties": {
         "role": {"type": "string", "enum": list(AUDIT_ROLES)},
+        "centralization": {"type": "string", "enum": list(CENTRALIZATION)},
         "observation_scopes": {"type": "array", "items": {"type": "string", "enum": list(SCOPES)}},
         "observation_objects": {"type": "array", "items": {"type": "string", "enum": list(OBSERVATION_OBJECTS)}},
         "capabilities": {"type": "array", "items": {"type": "string", "enum": list(CAPABILITIES)}},
@@ -95,7 +99,7 @@ RESPONSE_SCHEMA: dict[str, Any] = {
             "source": {"type": "string"}, "quote": {"type": "string"}
         }, "required": ["source", "quote"]}},
     },
-    "required": ["role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types", "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution", "offline_dataset_only", "implements_detection_engine", "requires_external_detector", "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "primary_reason", "evidence"],
+    "required": ["role", "centralization", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types", "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution", "offline_dataset_only", "implements_detection_engine", "requires_external_detector", "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "primary_reason", "evidence"],
 }
 
 
@@ -148,6 +152,8 @@ def normalize_response(
     """Validate and normalize a repository model response into auditable decision fields."""
     role = str(raw.get("role", "uncertain"))
     role = role if role in AUDIT_ROLES else "uncertain"
+    centralization = str(raw.get("centralization", "unknown")).strip()
+    centralization = centralization if centralization in CENTRALIZATION else "unknown"
     scopes = _allowed(raw.get("observation_scopes", []), SCOPES, "unknown")
     objects = _allowed(raw.get("observation_objects", []), OBSERVATION_OBJECTS, "unknown")
     capabilities = _allowed(raw.get("capabilities", []), CAPABILITIES)
@@ -212,6 +218,9 @@ def normalize_response(
             validation_flags.append("reproducible_execution_missing")
         if not research_basis:
             validation_flags.append("research_basis_missing")
+    elif role == "traffic_analyzer":
+        if not reproducible_execution:
+            validation_flags.append("reproducible_execution_missing")
     role_ok = not validation_flags
     require_quote = bool(config.get("require_verified_quote", True))
     evidence_ok = bool(verified) or not require_quote
@@ -229,6 +238,7 @@ def normalize_response(
         "capabilities": ";".join(capabilities),
         "detection_methods": ";".join(methods),
         "primary_system_type": primary_type,
+        "centralization": centralization,
         "system_types": ";".join(type_codes) if type_codes else "unknown",
         "system_type_names": ";".join(system_type_names(type_codes, system_type_profile)) if type_codes else "Unknown",
         "independent_fork": str(independent).lower(),
@@ -257,6 +267,8 @@ def validate_processed_row(row: dict[str, str], system_type_profile: dict[str, A
         raise ValueError(f"processed GitHub row is missing {', '.join(missing)}: {row.get('full_name', '<unknown>')}")
     if row.get("role") not in ROLES:
         raise ValueError(f"processed GitHub row has invalid role: {row.get('role')}")
+    if row.get("centralization") not in CENTRALIZATION:
+        raise ValueError(f"processed GitHub row has invalid centralization: {row.get('centralization')}")
     for field, allowed in (("observation_scopes", SCOPES), ("observation_objects", OBSERVATION_OBJECTS), ("capabilities", CAPABILITIES), ("detection_methods", METHODS)):
         invalid = set(split_values(row.get(field))) - set(allowed)
         if invalid:

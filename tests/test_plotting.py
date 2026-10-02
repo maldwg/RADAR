@@ -76,7 +76,11 @@ class PlottingTests(unittest.TestCase):
             github_csv = root / "github.csv"
             github_row = {column: "" for column in GITHUB_COLUMNS}
             github_row.update({"schema_version": "1.0", "run_id": "run", "github_repo_id": "1", "project_id": "p1", "canonical_repo_id": "1", "repository_relationship": "canonical", "full_name": "example/repo", "role": "native_detector", "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", "system_type_names": "Network intrusion detection system", "language": "Python", "stars": "5", "forks": "1", "pushed_at": "2025-01-01T00:00:00Z", "html_url": "https://example.invalid", "evidence_json": "[]", "prefilter_band": "candidate", "prefilter_score": "10", "decision": "accept", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true"})
-            atomic_write_csv(github_csv, [github_row], GITHUB_COLUMNS)
+            analyzer_row = {**github_row, "github_repo_id": "2", "project_id": "p2", "canonical_repo_id": "2",
+                            "full_name": "example/analyzer", "role": "traffic_analyzer", "capabilities": "monitoring",
+                            "detection_methods": "unknown", "primary_system_type": "NSM", "system_types": "NSM",
+                            "system_type_names": "Network security monitoring / traffic analysis system"}
+            atomic_write_csv(github_csv, [github_row, analyzer_row], GITHUB_COLUMNS)
             outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg", "pdf"], "dpi": 72, "top_n": 5}, classifications_path=github_csv)
             self.assertTrue(outputs)
             self.assertTrue((root / "github-plots/data/01_repository_timeline.csv").is_file())
@@ -86,6 +90,9 @@ class PlottingTests(unittest.TestCase):
             self.assertIn("primary_system_type", overview.read_text(encoding="utf-8").splitlines()[0])
             self.assertTrue((root / "github-plots/data/00_system_type_definitions.csv").is_file())
             self.assertTrue((root / "github-plots/data/02_role_type_matrix.csv").is_file())
+            role_matrix = (root / "github-plots/data/02_role_type_matrix.csv").read_text(encoding="utf-8")
+            self.assertIn("traffic_analyzer", role_matrix)
+            self.assertIn("NSM", role_matrix)
             self.assertTrue((root / "github-plots/00_repository_overview.svg").is_file())
             self.assertTrue((root / "github-plots/00_repository_overview.pdf").is_file())
             self.assertTrue((root / "github-plots/10_evidence_escalation.svg").is_file())

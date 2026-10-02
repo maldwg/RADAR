@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from ids_meta.github.schema import (
-    AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, ROLES, SCOPES,
+    AUDIT_ROLES, CAPABILITIES, CENTRALIZATION, METHODS, OBSERVATION_OBJECTS, ROLES, SCOPES,
     system_type_codes, system_type_names,
 )
 
 
 SUPPORTED_FIELDS = [
     "decision", "role", "observation_scopes", "observation_objects", "capabilities", "detection_methods",
-    "primary_system_type", "system_types",
+    "primary_system_type", "system_types", "centralization",
 ]
 
 
@@ -27,6 +27,8 @@ def _normalize_result(
     """Normalize one non-LLM taxonomy result into the GitHub output contract."""
     role = str(predictions.get("role", "uncertain"))
     role = role if role in AUDIT_ROLES else "uncertain"
+    centralization = str(predictions.get("centralization", "unknown"))
+    centralization = centralization if centralization in CENTRALIZATION else "unknown"
     scopes = _allowed_list(predictions.get("observation_scopes"), SCOPES, "unknown")
     objects = _allowed_list(predictions.get("observation_objects"), OBSERVATION_OBJECTS, "unknown")
     capabilities = _allowed_list(predictions.get("capabilities"), CAPABILITIES)
@@ -41,6 +43,7 @@ def _normalize_result(
     decision = decision if decision in {"accept", "exclude", "uncertain"} else derived_decision
     return {
         "decision": decision, "role": role,
+        "centralization": centralization,
         "observation_scopes": ";".join(scopes), "observation_objects": ";".join(objects), "capabilities": ";".join(capabilities),
         "detection_methods": ";".join(methods),
         "primary_system_type": types[0],

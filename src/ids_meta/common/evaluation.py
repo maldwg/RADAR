@@ -21,7 +21,7 @@ MULTI_FIELDS = {
     "openalex": {"artifact_aliases"},
 }
 DEFAULT_FIELDS = {
-    "github": ["role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types"],
+    "github": ["role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types", "centralization"],
     "openalex": ["paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"],
 }
 IDENTITY_FIELDS = {"github": "github_repo_id", "openalex": "openalex_id"}
@@ -158,6 +158,13 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
     if not isinstance(fields, list) or any(not isinstance(field, str) or not field.strip() for field in fields):
         raise ValueError("classification_fields must be an array of non-empty strings")
     fields = list(dict.fromkeys(field.strip() for field in fields))
+    unscored = raw.get("unscored_field_values", {})
+    if not isinstance(unscored, dict) or any(
+        field not in fields or not isinstance(values, list)
+        or any(not isinstance(value, str) or not value.strip() for value in values)
+        for field, values in unscored.items()
+    ):
+        raise ValueError("unscored_field_values must map classification fields to arrays of non-empty strings")
     inline_rows = raw.get("entities", [])
     if not isinstance(inline_rows, list) or any(not isinstance(row, dict) for row in inline_rows):
         raise ValueError("evaluation entities must be an array of tables")
@@ -193,6 +200,7 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
         key: raw[key] for key in (
             "benchmark_name", "source_repository", "source_dataset", "source_title",
             "source_doi", "source_url", "source_table", "source_license", "source_sha256", "crosswalk_version",
+            "unscored_field_values", "centralization_annotation_policy",
         ) if key in raw
     }
     return RatingProfile(source, evaluation_unit, fields, entities, path, metadata)
@@ -376,6 +384,7 @@ def evaluate_results(
     selective = Counter({"tp": 0, "fp": 0, "tn": 0, "fn": 0})
     binary_total = definitive_total = decision_correct = 0
     classified_count = 0
+    positive_classified_count = 0
     matched_actual_ids: set[str] = set()
     field_state: dict[str, dict[str, Any]] = {
         field: {
@@ -410,7 +419,10 @@ def evaluate_results(
                         candidate_rows, profile.source, "openalex_url", reference_url,
                         candidates_path or classifications_path,
                     )
-            if row is None and reference_row is not None and decision_disposition(reference_row.get("decision")) == "include":
+            if (
+                row is None and decision_disposition(expected.get("decision")) == "include"
+                and reference_row is not None and decision_disposition(reference_row.get("decision")) == "include"
+            ):
                 actual_key, row = reference_actual_key, reference_row
                 match_method = "accepted_survey_reference"
         else:
@@ -425,6 +437,8 @@ def evaluate_results(
         public_expected = {key: value for key, value in expected.items() if not key.startswith("_evaluation_")}
         display_name = expected.get("name") or expected.get("repository") or expected.get("title") or match_value
         expected_disposition = decision_disposition(expected.get("decision"))
+        if expected_disposition == "include" and row is not None:
+            positive_classified_count += 1
         actual_disposition = decision_disposition((row or {}).get("decision"))
         if profile.evaluation_unit != "artifact" or row is not None:
             status = _status(row, candidate_present, candidates_supplied and profile.evaluation_unit != "artifact")
@@ -467,11 +481,17 @@ def evaluate_results(
                     selective["fp" if actual_disposition == "include" else "tn"] += 1
         field_results: dict[str, bool] = {}
         for field in profile.classification_fields:
+            # Excluded artifacts are screening controls, not expected catalogue entries.
+            if profile.evaluation_unit == "artifact" and expected_disposition != "include":
+                continue
             if not field_state[field]["supported"]:
                 continue
             if field not in expected:
                 continue
             expected_values = _values(expected[field])
+            unscored_values = _values(profile.metadata.get("unscored_field_values", {}).get(field, []))
+            if expected_values and expected_values <= unscored_values:
+                continue
             actual_values = _values((row or {}).get(field))
             exact = expected_values == actual_values
             field_results[field] = exact
@@ -552,15 +572,36 @@ def evaluate_results(
     strict_metrics = _binary_metrics(strict["tp"], strict["fp"], strict["tn"], strict["fn"], binary_total)
     selective_metrics = _binary_metrics(selective["tp"], selective["fp"], selective["tn"], selective["fn"], definitive_total)
     rated = len(profile.entities)
+    reference_dispositions = Counter(
+        decision_disposition(entity.get("decision")) for entity in profile.entities.values()
+    )
+    positive_only = profile.evaluation_unit == "artifact" and not reference_dispositions["exclude"]
+    taxonomy_field_metrics = {
+        str(row["field"]): {
+            "supported": str(row["supported"]).casefold() == "true",
+            "comparisons": int(row["comparisons"]),
+            "exact_matches": int(row["exact_matches"]),
+            "exact_accuracy": row["exact_accuracy"],
+            "label_f1": row["label_f1"],
+            "macro_f1": row["macro_f1"],
+            "per_label": json.loads(str(row["per_label_metrics_json"])),
+        }
+        for row in field_metrics
+    }
     metrics: dict[str, Any] = {
         "source": profile.source, "evaluation_unit": profile.evaluation_unit,
         "reference_set": profile.metadata,
-        "benchmark_scope": "positive_reference_set" if profile.evaluation_unit == "artifact" else "screening_decisions",
+        "benchmark_scope": (
+            "positive_reference_set" if positive_only else
+            "mixed_artifact_reference_set" if profile.evaluation_unit == "artifact" else
+            "screening_decisions"
+        ),
+        "reference_disposition_counts": dict(sorted(reference_dispositions.items())),
         "not_estimable_metrics": [
             "false_positive_rate", "false_discovery_rate", "specificity",
             "balanced_accuracy", "accuracy", "precision", "f1",
         ]
-        if profile.evaluation_unit == "artifact" else [],
+        if positive_only else [],
         "ratings_path": str(profile.path), "classifications_path": str(classifications_path),
         **classifier_metadata,
         "classifier_supported_fields": "*" if supported_fields is None else sorted(supported_fields),
@@ -576,11 +617,17 @@ def evaluate_results(
             if field_macro_f1_values else None
         ),
         "classification_field_comparisons": total_field_comparisons,
+        "taxonomy_field_metrics": taxonomy_field_metrics,
         "retrieval_coverage": _ratio(rated - status_counts["not_retrieved"], rated)
         if candidates_supplied and profile.evaluation_unit != "artifact" else None,
-        "classification_coverage": _ratio(classified_count, rated),
-        "unresolved_artifact_rate": 1.0 - _ratio(classified_count, rated)
-        if profile.evaluation_unit == "artifact" else None,
+        "classification_coverage": (
+            _ratio(positive_classified_count, reference_dispositions["include"])
+            if profile.evaluation_unit == "artifact" else _ratio(classified_count, rated)
+        ),
+        "unresolved_artifact_rate": (
+            1.0 - _ratio(positive_classified_count, reference_dispositions["include"])
+            if profile.evaluation_unit == "artifact" else None
+        ),
         "definitive_coverage": _ratio(status_counts["classified"], rated),
         "abstention_rate": _ratio(
             sum(status_counts[name] for name in (
@@ -621,7 +668,7 @@ def evaluate_results(
         },
         "operational": operational_metrics, "strict": strict_metrics, "selective": selective_metrics,
     }
-    if profile.evaluation_unit == "artifact":
+    if positive_only:
         unavailable_keys = {
             "false_positive_rate", "false_discovery_rate", "specificity",
             "balanced_accuracy", "accuracy", "precision", "f1",
@@ -678,12 +725,18 @@ def evaluate_results(
             f"- Dataset miss rate: {operational_metrics['false_negative_rate']:.4f}\n"
             + field_summary
             + f"- Classifier abstention rate: {metrics['abstention_rate']:.4f}\n"
-            f"- Unresolved artifact rate: {metrics['unresolved_artifact_rate']:.4f}\n\n"
-            "This artifact fixture is a positive reference set. Exact artifact names and aliases are matched first; an accepted release paper cited by the survey is a traceable fallback match. Other cited-paper outcomes remain diagnostics rather than being treated as artifact decisions, because a survey citation may be an analysis or documentation paper. Metadata accuracy is end-to-end across the rated inventory. False-positive rate, false-discovery rate, specificity, accuracy, precision, decision-F1, and balanced accuracy are not estimable because the profile contains no negative artifacts.\n\n"
-            "## Interpreting the three views\n\n"
-            "- **Operational:** dataset recall across the complete positive reference set.\n"
-            "- **Strict:** identical here because every unresolved positive is a miss.\n"
-            "- **Selective:** recall only among datasets with definitive artifact decisions; read it with coverage and abstention.\n"
+            f"- Unresolved artifact rate: {metrics['unresolved_artifact_rate']:.4f}\n"
+            f"- Reference positives/negatives: {reference_dispositions['include']}/{reference_dispositions['exclude']}\n\n"
+            "Exact artifact names and aliases are matched first. An accepted cited paper is a fallback only for positive artifacts; cited-paper outcomes for negative artifacts remain diagnostics, since a citation may be an analysis or documentation paper. Metadata accuracy is end-to-end across the rated inventory.\n\n"
+            + (
+                "This is a positive-only reference set; FPR, FDR, specificity, accuracy, precision, decision-F1 and balanced accuracy are not estimable.\n\n"
+                if positive_only else
+                "This fixture includes a small, selected set of negative controls. FPR and related rates are calculable for these controls, but do not estimate corpus-wide specificity or prevalence. An unmatched negative is operationally correct but counts as an error under the strict view.\n\n"
+            )
+            + "## Interpreting the three views\n\n"
+            "- **Operational:** complete-inventory decisions; unresolved positives are misses and unresolved negatives are non-inclusions.\n"
+            "- **Strict:** unresolved negatives are counted as errors.\n"
+            "- **Selective:** only definitive artifact decisions; read with coverage and abstention.\n"
         )
     else:
         body = (

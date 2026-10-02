@@ -13,10 +13,10 @@ from ids_meta.common.run import utc_now
 from ids_meta.common.scoring import score_evidence, shortlist_candidates
 from ids_meta.common.text import split_values, stable_hash
 from ids_meta.common.logging import logger
-from ids_meta.github.schema import AUDIT_ROLES, DEFAULT_SYSTEM_TYPE_PROFILE, CAPABILITIES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, OBSERVATION_OBJECTS, SCOPES, normalize_response, response_schema, system_type_names, validate_processed_row, validate_system_type_profile
+from ids_meta.github.schema import AUDIT_ROLES, DEFAULT_SYSTEM_TYPE_PROFILE, CAPABILITIES, CENTRALIZATION, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, OBSERVATION_OBJECTS, SCOPES, normalize_response, response_schema, system_type_names, validate_processed_row, validate_system_type_profile
 from ids_meta.github.enrich import GitHubEvidenceClient
 
-PROMPT_VERSION = "github-11"
+PROMPT_VERSION = "github-15"
 LOG = logger("github.pipeline")
 
 class Generator(Protocol):
@@ -109,13 +109,14 @@ def prompt(
         f"- {code} ({definition['name']}): {definition['description']}"
         for code, definition in types["types"].items()
     ]
-    type_lines.append("- unknown: The evidence supports no configured IDS system type.")
+    type_lines.append("- unknown: The evidence supports no configured security system type.")
     blocks = {
         "roles": description_block(settings, "roles", AUDIT_ROLES),
         "scopes": description_block(settings, "scopes", SCOPES),
         "observation_objects": description_block(settings, "observation_objects", OBSERVATION_OBJECTS),
         "capabilities": description_block(settings, "capabilities", CAPABILITIES),
         "methods": description_block(settings, "methods", METHODS),
+        "centralization": description_block(settings, "centralization", CENTRALIZATION),
         "system_types": "\n".join(type_lines),
     }
     return render_prompt(settings, blocks, format_evidence(sections))
@@ -176,6 +177,7 @@ def classify(
             "classifier_profile_hash": profile_hash, "classifier_supported_fields": "*",
             "classifier_evidence_source": "raw_cache",
             "classified_at": utc_now(), "error": "",
+            "centralization": "unknown",
         })
         LOG.info("classifying rank=%d/%d score=%s band=%s %s", rank, len(selected), row.get("prefilter_score", ""), row.get("prefilter_band", ""), row.get("full_name", key))
         if dry_run:

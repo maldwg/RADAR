@@ -1,6 +1,20 @@
 schema_version = "1.0"
 source = "github"
 
+# These are lexical architecture proxies, not universal acronym definitions.
+# In particular, never match bare "distributed" (e.g. distributed denial of service).
+[fields.centralization]
+mode = "exclusive"
+fallback = "unknown"
+minimum_score = 1.0
+margin = 1.0
+[fields.centralization.labels.centralized]
+terms = ["central", "centralized", "centralised", "single node", "single process", "single host", "standalone detector", "standalone IDS", "central server", "central detection engine"]
+[fields.centralization.labels.hierarchical]
+terms = ["hierarchical", "hierarchical IDS", "multi tier", "collaborative IDS", "collaborative intrusion detection", "CIDS", "manager agent architecture", "manager coordinated", "local detectors"]
+[fields.centralization.labels.fully_distributed]
+terms = ["distributed IDS", "distributed intrusion detection", "DIDS", "fully distributed", "decentralized", "decentralised", "peer to peer"]
+
 # This is a fixed, training-free taxonomy profile. A label score is the number of
 # matched concepts multiplied by its configured weight. Exclusive fields abstain
 # when the winner is below minimum_score or does not clear the runner-up by margin.
@@ -10,7 +24,7 @@ source = "github"
 field = "role"
 include_labels = [
   "native_detector", "classifier_engine", "detection_framework", "detection_platform",
-  "research_project", "demo", "rules_content", "support_tooling",
+  "traffic_analyzer", "research_project", "demo", "rules_content", "support_tooling",
 ]
 exclude_labels = ["out_of_scope"]
 
@@ -23,8 +37,7 @@ margin = 1.0
 [fields.role.labels.native_detector]
 terms = [
   "intrusion detection system", "intrusion prevention system", "intrusion detector",
-  "network ids", "host ids", "wireless ids", "security sensor", "packet inspection engine",
-  "network security monitor", "inline prevention",
+  "network ids", "host ids", "wireless ids", "security sensor", "inline prevention",
 ]
 
 [fields.role.labels.classifier_engine]
@@ -55,6 +68,13 @@ terms = [
   "research prototype", "dataset linked project",
 ]
 
+[fields.role.labels.traffic_analyzer]
+terms = [
+  "network security monitor", "network traffic analyzer", "network traffic analysis",
+  "network forensic analysis", "network metadata capture and analysis",
+  "packet inspection tool", "packet inspection engine", "packet dissection",
+]
+
 [fields.role.labels.demo]
 terms = [
   "jupyter notebook", "notebook demo", "demonstration", "tutorial", "example project",
@@ -73,6 +93,8 @@ terms = [
   "support tool", "parser", "rule converter", "dashboard", "visualization",
   "integration plugin", "deployment files", "helm chart", "docker compose",
   "log shipper", "management console", "configuration utility",
+  "security log aggregation", "security telemetry analysis", "monitoring agent",
+  "hunt platform", "hunting platform", "system activity logs", "osquery management",
 ]
 
 [fields.role.labels.out_of_scope]
@@ -131,7 +153,8 @@ minimum_score = 1.0
 terms = ["packet analysis", "packet inspection", "packet payload", "packet capture", "pcap"]
 
 [fields.observation_objects.labels.flow_analysis]
-terms = ["flow analysis", "network flow", "flow record", "netflow", "ipfix", "session record"]
+# Lexical cues cannot fully resolve input/output direction; the LLM prompt does.
+terms = ["flow record analysis", "analyzing network flow data", "flow collector", "netflow", "ipfix", "conn.log", "session record analysis"]
 
 [fields.observation_objects.labels.log_analysis]
 terms = ["log analysis", "security log", "event log", "audit log", "log based detection"]
@@ -203,14 +226,21 @@ minimum_score = 1.0
 [fields.system_types.labels.NIDS]
 terms = ["network intrusion detection system", "network ids", "nids"]
 
+[fields.system_types.labels.NSM]
+terms = ["network security monitoring", "network security monitor", "network traffic analyzer", "network forensic analysis", "network metadata capture and analysis"]
+
+[fields.system_types.labels.SM]
+terms = ["security log aggregation", "security telemetry analysis", "security monitoring agent", "endpoint activity monitoring", "endpoint telemetry monitoring", "hunting platform", "hunt platform", "monitor systems running osquery", "collect status and result logs", "sysmon data into splunk"]
+
 [fields.system_types.labels.NIPS]
-terms = ["network intrusion prevention system", "network ips", "nips", "network detection and response", "ndr"]
+# NDR/EDR marketing terms alone do not establish the required enforcement path.
+terms = ["network intrusion prevention system", "network ips", "nips"]
 
 [fields.system_types.labels.HIDS]
 terms = ["host intrusion detection system", "host based intrusion detection", "host ids", "hids"]
 
 [fields.system_types.labels.HIPS]
-terms = ["host intrusion prevention system", "host ips", "hips", "endpoint detection and response", "edr"]
+terms = ["host intrusion prevention system", "host ips", "hips", "terminate malicious processes", "block malicious execution", "quarantine malicious files", "disable compromised accounts"]
 
 [fields.system_types.labels.WIDS]
 terms = ["wireless intrusion detection system", "wireless ids", "wids"]
@@ -237,7 +267,7 @@ terms = ["provenance based intrusion detection", "provenance intrusion detection
 terms = ["extended detection and response", "xdr"]
 
 [fields.system_types.labels.IDS]
-terms = ["intrusion detection system", "ids"]
+terms = ["intrusion detection system", "ids", "detect repeated authentication failures", "detect failed logins", "anomaly detection from flow records"]
 
 [fields.system_types.labels.IPS]
-terms = ["intrusion prevention system", "ips"]
+terms = ["intrusion prevention system", "ips", "ban source ips", "bans ip addresses", "interactive application firewall", "block unwanted connections"]

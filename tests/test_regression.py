@@ -67,6 +67,24 @@ class RegressionEvaluationTests(unittest.TestCase):
         self.assertEqual(result["system_types"], "NIDS")
         self.assertEqual(result["consensus_fallback_run"], "")
 
+    def test_traffic_analyzer_consensus_keeps_offline_execution_gate(self) -> None:
+        """Repeated votes must accept offline analyzers only with an execution path."""
+        base = {
+            "decision": "accept", "role": "traffic_analyzer", "direct_self_description": "true",
+            "reproducible_execution": "true", "runtime_observation": "false",
+            "offline_dataset_only": "true", "implements_detection_engine": "false",
+            "evidence_quote_verified": "true", "fork": "false", "observation_scopes": "network",
+            "observation_objects": "packet_analysis", "capabilities": "monitoring",
+            "detection_methods": "unknown", "primary_system_type": "NSM", "system_types": "NSM",
+        }
+        for runnable, expected in (("true", "accept"), ("false", "uncertain")):
+            with self.subTest(runnable=runnable):
+                row = {**base, "reproducible_execution": runnable}
+                result = consensus_classification("github", {"run-1": row, "run-2": row}, .66)
+                self.assertEqual(result["decision"], expected)
+                if runnable == "false":
+                    self.assertIn("reproducible_execution_missing", result["consensus_validation_flags"])
+
     def test_query_sampling_takes_x_from_each_query(self) -> None:
         """Sample exactly x native-ranked works per query without oversampling."""
         class Client:

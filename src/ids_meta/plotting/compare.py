@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.lines import Line2D
 
-from ids_meta.plotting.common import COLORS, configure_style, load_frame, metadata_caption, save_figure, stamp, write_table
+from ids_meta.plotting.common import COLORS, configure_style, load_frame, metadata_caption, save_figure, stamp, taxonomy_field_label, taxonomy_value_label, write_table
 from ids_meta.common.logging import logger
 
 LOG = logger("plotting.compare")
@@ -269,11 +269,6 @@ def build_classifiers(
     for stem, metric_label, direction, section, key in OVERVIEW_SPECS:
         for label, metrics in loaded.items():
             not_estimable = set(metrics.get("not_estimable_metrics", []))
-            if metrics.get("evaluation_unit") == "artifact":
-                not_estimable.update({
-                    "false_positive_rate", "false_discovery_rate", "accuracy",
-                    "precision", "f1",
-                })
             value = None if stem in not_estimable else _metric_value(metrics, section, key)
             method = str(metrics.get("classifier_method", "")) or (
                 "ensemble" if label.casefold() == "ensemble" else "llm"
@@ -332,11 +327,6 @@ def build_classifiers(
         rows: list[dict[str, object]] = []
         for label, metrics in loaded.items():
             not_estimable = set(metrics.get("not_estimable_metrics", []))
-            if metrics.get("evaluation_unit") == "artifact":
-                not_estimable.update({
-                    "false_positive_rate", "false_discovery_rate", "accuracy",
-                    "precision", "f1",
-                })
             value = None if stem in not_estimable else _metric_value(metrics, section, key)
             method = str(metrics.get("classifier_method", "")) or (
                 "ensemble" if label.casefold() == "ensemble" else "llm"
@@ -459,7 +449,7 @@ def build_classifiers(
                 range(len(labels)), labels=[_display_label(label) for label in labels],
                 rotation=25, ha="right",
             )
-            ax.set_yticks(range(len(pivot)), labels=[str(field).replace("_", " ") for field in pivot.index])
+            ax.set_yticks(range(len(pivot)), labels=[taxonomy_field_label(field) for field in pivot.index])
             ax.set_xlabel("")
             ax.set_ylabel("")
             fig.colorbar(image, ax=ax, label=title)
@@ -490,8 +480,9 @@ def build_classifiers(
     if not label_table.empty:
         label_table["f1"] = pd.to_numeric(label_table["f1"], errors="coerce")
         write_table(label_table, taxonomy_dir / "data", "03_category_f1")
-        label_table["field_label"] = (
-            label_table["field"].astype(str) + ": " + label_table["label"].astype(str)
+        label_table["field_label"] = label_table.apply(
+            lambda row: f"{taxonomy_field_label(row['field'])} — {taxonomy_value_label(row['field'], row['label'])}",
+            axis=1,
         )
         pivot = label_table.pivot(index="field_label", columns="classifier", values="f1")
         pivot = pivot.reindex(columns=labels)

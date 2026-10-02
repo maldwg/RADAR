@@ -50,10 +50,15 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(Counter(row["benchmark_category"] for row in rows), {
             "secumon": 100, "imageocr": 10, "pentest": 10,
         })
-        self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 96, "exclude": 24})
+        self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 71, "exclude": 47, "uncertain": 2})
+        self.assertEqual(raw["crosswalk_version"], "ghml23-to-ids-meta-v9")
+        self.assertEqual(raw["taxonomy_revision"], "input-and-enforcement-boundaries-v5")
+        self.assertIn("what concrete evidence", raw["taxonomy_semantics"]["observation_objects"].casefold())
+        self.assertIn("how", raw["taxonomy_semantics"]["detection_methods"].casefold())
+        self.assertIn("not derived", raw["taxonomy_semantics"]["system_types"].casefold())
         self.assertEqual(profile.classification_fields, [
             "role", "observation_scopes", "observation_objects", "capabilities", "detection_methods",
-            "primary_system_type", "system_types",
+            "primary_system_type", "system_types", "centralization",
         ])
         configured_types = set(system_type_codes(load_system_type_profile(load_settings(ROOT / "config/default.toml"), "github")))
         for row in rows:
@@ -63,13 +68,58 @@ class EvaluationTests(unittest.TestCase):
             self.assertLessEqual(set(row["capabilities"]), set(CAPABILITIES))
             self.assertLessEqual(set(row["detection_methods"]), set(METHODS))
             self.assertLessEqual(set(row["system_types"]), configured_types)
+            for field in ("observation_scopes", "observation_objects", "detection_methods", "system_types"):
+                self.assertFalse("unknown" in row[field] and len(row[field]) > 1, (row["repository"], field))
+            self.assertFalse((set(row["observation_objects"]) - {"unknown"}) & set(row["detection_methods"]), row["repository"])
             self.assertIn(row["primary_system_type"], row["system_types"], row["repository"])
         by_repository = {row["repository"]: row for row in rows}
-        self.assertEqual(by_repository["zeek/zeek"]["role"], "native_detector")
-        self.assertIn("PIDS", by_repository["zeek/zeek"]["system_types"])
+        self.assertEqual(by_repository["0xN3utr0n/Kanis"]["observation_objects"], ["system_calls"])
+        self.assertNotIn("system_calls", by_repository["0xN3utr0n/Kanis"]["detection_methods"])
+        for repository in ("zeek/zeek", "arkime/arkime", "cisco/joy", "cisco/mercury", "USArmyResearchLab/Dshell"):
+            self.assertEqual(by_repository[repository]["role"], "traffic_analyzer")
+            self.assertEqual(by_repository[repository]["system_types"], ["NSM"])
+        self.assertEqual(by_repository["zeek/zeek"]["observation_objects"], ["packet_analysis"])
+        # Installation on an endpoint and firewall responses do not imply HIDS/HIPS.
+        for repository, primary, types in (
+            ("fail2ban/fail2ban", "IPS", ["IPS", "IDS"]),
+            ("marshyski/sshwatch", "IPS", ["IPS", "IDS"]),
+            ("austin-taylor/flare", "IDS", ["IDS"]),
+            ("evilsocket/opensnitch", "IPS", ["IPS"]),
+            ("crowdsecurity/crowdsec", "IPS", ["IPS", "IDS", "APIDS"]),
+        ):
+            with self.subTest(repository=repository):
+                self.assertEqual(by_repository[repository]["primary_system_type"], primary)
+                self.assertEqual(by_repository[repository]["system_types"], types)
+                self.assertTrue(by_repository[repository]["annotation_sources"])
+        self.assertEqual(by_repository["fail2ban/fail2ban"]["observation_scopes"], ["host_endpoint"])
+        self.assertEqual(by_repository["evilsocket/opensnitch"]["observation_objects"], ["packet_analysis"])
+        self.assertEqual(by_repository["mitre-attack/bzar"]["observation_objects"], ["packet_analysis"])
+        self.assertEqual(by_repository["mitre-attack/bzar"]["system_types"], ["PIDS", "NIDS"])
+        for repository in ("ossec/ossec-hids", "wazuh/wazuh", "Velocidex/velociraptor",
+                           "ION28/BLUESPAWN", "ion-storm/sysmon-edr", "rabbitstack/fibratus"):
+            self.assertIn("HIPS", by_repository[repository]["system_types"], repository)
+        for repository in ("ait-aecid/logdata-anomaly-miner", "Qianlitp/WatchAD", "sans-blue-team/DeepBlueCLI"):
+            self.assertEqual(by_repository[repository]["system_types"], ["HIDS"], repository)
+        for repository in ("OISF/suricata", "snort3/snort3"):
+            self.assertIn("NIPS", by_repository[repository]["system_types"], repository)
+        self.assertEqual(by_repository["dreadl0ck/netcap"]["role"], "detection_framework")
+        self.assertEqual({row["repository"] for row in rows if "flow_analysis" in row["observation_objects"]}, {
+            "arkime/arkime", "austin-taylor/flare", "cisco/joy", "corelight/zeek2es", "Cyb3rWard0g/HELK",
+            "dreadl0ck/netcap", "ntop/ntopng", "Security-Onion-Solutions/securityonion",
+        })
         self.assertEqual(by_repository["ossec/ossec-hids"]["role"], "detection_framework")
         self.assertEqual(by_repository["wazuh/wazuh"]["role"], "detection_framework")
         self.assertEqual(by_repository["Security-Onion-Solutions/securityonion"]["role"], "detection_platform")
+        self.assertEqual(by_repository["kismetwireless/kismet"]["primary_system_type"], "WIDS")
+        self.assertNotIn("PIDS", by_repository["kismetwireless/kismet"]["system_types"])
+        self.assertEqual(by_repository["cisco/mercury"]["primary_system_type"], "NSM")
+        self.assertEqual({row["repository"] for row in rows if row["primary_system_type"] == "SM"}, {
+            "Cyb3rWard0g/HELK", "droe/xnumon", "jmpsec/osctrl", "olafhartong/ThreatHunting",
+        })
+        self.assertEqual(by_repository["StamusNetworks/SELKS"]["role"], "support_tooling")
+        self.assertEqual(by_repository["droe/xnumon"]["role"], "support_tooling")
+        self.assertEqual(by_repository["BlueTeamLabs/sentinel-attack"]["decision"], "uncertain")
+        self.assertEqual(by_repository["alphasoc/nfr"]["decision"], "uncertain")
         self.assertEqual(by_repository["OWASP/Nettacker"]["decision"], "exclude")
         self.assertEqual(by_repository["JaidedAI/EasyOCR"]["decision"], "exclude")
 
@@ -93,8 +143,9 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(raw["excluded_dataset_count"], 18)
         self.assertEqual(raw["excluded_survey_categories"], ["Botnet", "IOV", "MANET network", "Satellites"])
         self.assertEqual(len(rows), 105)
-        self.assertTrue(all(row["decision"] == "accept" for row in rows))
+        self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 96, "accept_adjacent": 5, "exclude": 4})
         self.assertTrue({row["artifact_type"] for row in rows}.issubset(set(ARTIFACT_TYPES)))
+        self.assertEqual({row["artifact_type"] for row in rows}, {"dataset"})
         requested_domains = {
             "general_network", "host_endpoint", "iot_iiot", "cloud", "mobile_android",
             "electrical_smartgrid", "uav", "vpn",
@@ -103,9 +154,7 @@ class EvaluationTests(unittest.TestCase):
         self.assertTrue({row["data_form"] for row in rows}.issubset(set(DATA_FORMS)))
         self.assertTrue({row["capture_environment"] for row in rows}.issubset(set(ENVIRONMENTS)))
         self.assertTrue({row["labeling"] for row in rows}.issubset(set(LABELING)))
-        self.assertEqual(
-            {row["domain"] for row in rows}, requested_domains,
-        )
+        self.assertEqual({row["domain"] for row in rows}, requested_domains | {"unknown"})
         by_name = {row["artifact"]: row for row in rows}
         self.assertNotIn("Kitsune Network", by_name)
         self.assertEqual(by_name["ISOT-CID"]["domain"], "cloud")
@@ -114,6 +163,19 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(by_name["VPN-NONVPN"]["domain"], "vpn")
         self.assertEqual(by_name["CIC-IDS 2017"]["aliases"], ["CICIDS2017", "CIC-IDS2017"])
         self.assertEqual(by_name["TON-IOT"]["survey_category"], "IOT/IIOT")
+        self.assertEqual(by_name["LBNL"]["survey_category"], "Electrical network")
+        self.assertEqual(by_name["LBNL"]["domain"], "general_network")
+        self.assertEqual(by_name["LBNL"]["decision"], "accept_adjacent")
+        self.assertEqual(by_name["MAWI"]["data_form"], "packet")
+        self.assertEqual(by_name["NSL-KDD"]["data_form"], "tabular_features")
+        self.assertEqual(by_name["ADFA"]["data_form"], "host_system_call")
+        self.assertEqual(by_name["OPCUA"]["domain"], "iot_iiot")
+        self.assertEqual(by_name["OPCUA"]["capture_environment"], "synthetic_lab")
+        self.assertEqual(by_name["CIC-IDS-2018"]["capture_environment"], "synthetic_lab")
+        self.assertEqual(by_name["STPID"]["decision"], "exclude")
+        self.assertEqual(by_name["STPID"]["domain"], "unknown")
+        self.assertEqual(by_name["BLEBeacon"]["decision"], "exclude")
+        self.assertEqual(by_name["IEEE-300-BUS POWER TEST SYSTEM"]["decision"], "exclude")
         self.assertIn("survey_reference", by_name["DARPA98"])
         self.assertEqual(len(load_rating_profile(path, "openalex").entities), 105)
 
@@ -305,6 +367,38 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(result.instances[0]["entity_id"], "W-original")
             self.assertEqual(result.instances[1]["match_method"], "accepted_survey_reference")
 
+    def test_mixed_artifact_profile_scores_negative_controls_without_citation_fallback(self) -> None:
+        """Negative artifacts make FPR estimable, but a cited paper alone is not an artifact match."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile_path = root / "ratings.toml"
+            profile_path.write_text(
+                'schema_version = "1.0"\nsource = "openalex"\nevaluation_unit = "artifact"\n'
+                'classification_fields = ["artifact_type"]\n\n'
+                '[[entities]]\nartifact = "GoodIDS"\ndecision = "accept"\nartifact_type = "dataset"\n\n'
+                '[[entities]]\nartifact = "NoIDS"\ndecision = "exclude"\nartifact_type = "dataset"\n'
+                'survey_reference_openalex_url = "https://openalex.org/W-citation"\n\n'
+                '[[entities]]\nartifact = "BadIDS"\ndecision = "exclude"\nartifact_type = "dataset"\n',
+                encoding="utf-8",
+            )
+            actual = root / "classifications.csv"
+            atomic_write_csv(actual, [
+                {"openalex_id": "https://openalex.org/W-good", "artifact_name": "GoodIDS", "decision": "accept", "artifact_type": "dataset"},
+                {"openalex_id": "https://openalex.org/W-citation", "artifact_name": "Other Dataset", "decision": "accept", "artifact_type": "dataset"},
+                {"openalex_id": "https://openalex.org/W-bad", "artifact_name": "BadIDS", "decision": "accept", "artifact_type": "dataset"},
+            ], ["openalex_id", "artifact_name", "decision", "artifact_type"])
+            result = evaluate_results(load_rating_profile(profile_path, "openalex"), actual, root / "evaluation")
+            self.assertEqual(result.metrics["benchmark_scope"], "mixed_artifact_reference_set")
+            self.assertEqual(result.metrics["not_estimable_metrics"], [])
+            self.assertEqual(result.metrics["operational"]["tp"], 1)
+            self.assertEqual(result.metrics["operational"]["fp"], 1)
+            self.assertEqual(result.metrics["operational"]["tn"], 1)
+            self.assertEqual(result.metrics["operational"]["FPR"], .5)
+            self.assertEqual(result.metrics["classification_coverage"], 1.0)
+            self.assertEqual(result.metrics["classification_field_comparisons"], 1)
+            self.assertIsNotNone(result.metrics["confidence_intervals"]["false_positive_rate"])
+            self.assertNotEqual(result.instances[1]["match_method"], "accepted_survey_reference")
+
     def test_readable_selectors_resolve_and_ambiguous_titles_fail(self) -> None:
         """Resolve repository names safely and reject non-unique paper titles."""
         with tempfile.TemporaryDirectory() as directory:
@@ -330,38 +424,59 @@ class EvaluationTests(unittest.TestCase):
             root = Path(directory)
             body = (
                 '[[entities]]\nid = "g1"\ndecision = "accept"\nrole = "native_detector"\n'
-                'observation_scopes = ["network"]\ncapabilities = ["detection", "prevention"]\n'
-                'detection_methods = ["signature_based"]\n\n'
+                'observation_scopes = ["network"]\nobservation_objects = ["packet_analysis"]\n'
+                'capabilities = ["detection", "prevention"]\n'
+                'detection_methods = ["signature_based"]\nprimary_system_type = "NIDS"\n'
+                'system_types = ["NIDS"]\n\n'
                 '[[entities]]\nid = "g2"\ndecision = "exclude"\nrole = "out_of_scope"\n'
+                'observation_scopes = ["unknown"]\nobservation_objects = ["unknown"]\n'
+                'capabilities = []\ndetection_methods = ["unknown"]\n'
+                'primary_system_type = "unknown"\nsystem_types = ["unknown"]\n'
             )
             profile = load_rating_profile(self._write_profile(root / "github.toml", "github", body), "github")
             classifications = root / "classifications.csv"
             atomic_write_csv(classifications, [
-                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "capabilities": "detection", "detection_methods": "signature_based"},
-                {"github_repo_id": "g2", "decision": "uncertain", "role": "uncertain"},
-            ], ["github_repo_id", "decision", "role", "observation_scopes", "capabilities", "detection_methods"])
+                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS"},
+                {"github_repo_id": "g2", "decision": "uncertain", "role": "uncertain", "observation_scopes": "unknown", "observation_objects": "unknown", "capabilities": "", "detection_methods": "unknown", "primary_system_type": "unknown", "system_types": "unknown"},
+            ], ["github_repo_id", "decision", "role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types"])
             candidates = root / "candidates.csv"
             atomic_write_csv(candidates, [{"github_repo_id": "g1"}, {"github_repo_id": "g2"}], ["github_repo_id"])
             output_dir = root / "evaluation"
-            evaluate_results(profile, classifications, output_dir, candidates)
+            result = evaluate_results(profile, classifications, output_dir, candidates)
+            self.assertEqual(set(result.metrics["taxonomy_field_metrics"]), set(profile.classification_fields))
+            self.assertEqual(result.metrics["taxonomy_field_metrics"]["observation_objects"]["comparisons"], 2)
+            self.assertIn("packet_analysis", result.metrics["taxonomy_field_metrics"]["observation_objects"]["per_label"])
+            self.assertIn("nids", result.metrics["taxonomy_field_metrics"]["system_types"]["per_label"])
             outputs = build_evaluation_plots(output_dir, {"formats": ["svg"], "dpi": 72})
             self.assertEqual([str(output.relative_to(output_dir)) for output in outputs], [
                 "figures/01_decision_views.svg", "figures/02_decision_confusion.svg",
-                "figures/03_taxonomy_fields.svg", "figures/04_pipeline_coverage.svg",
+                "figures/03_taxonomy_fields.svg", "figures/04_taxonomy_categories.svg",
+                "figures/05_pipeline_coverage.svg",
             ])
             self.assertTrue(all(output.is_file() and output.stat().st_size > 1000 for output in outputs))
             self.assertEqual(
                 {item.name for item in (output_dir / "figures/data").iterdir()},
-                {"01_decision_views.csv", "02_decision_confusion.csv", "03_taxonomy_fields.csv", "04_coverage_rates.csv", "04_status_counts.csv"},
+                {"01_decision_views.csv", "02_decision_confusion.csv", "03_taxonomy_fields.csv", "04_taxonomy_categories.csv", "05_coverage_rates.csv", "05_status_counts.csv"},
             )
             readme = (output_dir / "README.md").read_text(encoding="utf-8")
             self.assertIn("Metadata field accuracy", readme)
             self.assertIn("Interpreting the three views", readme)
             self.assertIn("definitive coverage and abstention rate", readme)
             self.assertIn("figures/03_taxonomy_fields.svg", readme)
+            self.assertIn("figures/04_taxonomy_categories.svg", readme)
             field_svg = (output_dir / "figures/03_taxonomy_fields.svg").read_text(encoding="utf-8")
+            self.assertIn("Observation object", field_svg)
+            self.assertIn("Primary IDS system type", field_svg)
+            self.assertIn("IDS system types", field_svg)
             self.assertIn("Label F1", field_svg)
             self.assertNotIn("Jaccard", field_svg)
+            category_data = read_csv(output_dir / "figures/data/04_taxonomy_categories.csv")
+            self.assertIn({"field": "observation_objects", "label": "packet_analysis"}, [
+                {"field": row["field"], "label": row["label"]} for row in category_data
+            ])
+            self.assertIn({"field": "system_types", "label": "nids"}, [
+                {"field": row["field"], "label": row["label"]} for row in category_data
+            ])
 
     def test_rating_profiles_reject_duplicate_or_invalid_entities(self) -> None:
         """Reject ambiguous ground truth before producing misleading metrics."""
@@ -483,7 +598,7 @@ class EvaluationTests(unittest.TestCase):
             self.assertTrue((root / "github-report/metrics.json").is_file())
             self.assertTrue((root / "openalex-report/metrics.json").is_file())
             self.assertTrue((root / "github-report/figures/03_taxonomy_fields.svg").is_file())
-            self.assertTrue((root / "openalex-report/figures/04_pipeline_coverage.svg").is_file())
+            self.assertTrue((root / "openalex-report/figures/05_pipeline_coverage.svg").is_file())
             manifests = list((root / "runs").glob("*.json"))
             self.assertEqual(len(manifests), 2)
 

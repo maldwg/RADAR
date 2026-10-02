@@ -72,9 +72,10 @@ def load_prompt_profile(settings: Settings, source: str) -> dict[str, Any]:
         if "${evidence}" not in str(profile[key]):
             raise ConfigError(f"{source} prompt profile {key} must contain ${{evidence}}")
     if source == "github":
-        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES
+        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, CENTRALIZATION, METHODS, OBSERVATION_OBJECTS, SCOPES
 
         taxonomies = {"roles": AUDIT_ROLES, "scopes": SCOPES, "observation_objects": OBSERVATION_OBJECTS, "capabilities": CAPABILITIES, "methods": METHODS}
+        taxonomies["centralization"] = CENTRALIZATION
     elif source == "openalex":
         from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, TIERS
 

@@ -18,6 +18,7 @@ LOG = logger("plotting.github")
 ROLE_LABELS = {
     "native_detector": "Native detector", "classifier_engine": "Classifier engine",
     "detection_framework": "Detection framework", "detection_platform": "Detection platform",
+    "traffic_analyzer": "Traffic analyzer",
     "research_project": "Research project", "demo": "Demo",
     "rules_content": "Rules/content", "support_tooling": "Support tooling",
 }
@@ -26,6 +27,7 @@ ROLE_MATRIX = [
     ("classifier_engine", "Class.", "Classifier engine", "#D1842F"),
     ("detection_framework", "Frame", "Detection framework", "#7B5EA7"),
     ("detection_platform", "Plat.", "Detection platform", "#4C78A8"),
+    ("traffic_analyzer", "Traffic", "Traffic analyzer", "#558B83"),
     ("research_project", "Res.", "Research project", "#9A7D0A"),
     ("demo", "Demo", "Demo", "#B59B6A"),
     ("rules_content", "Rules", "Rules/content", "#2F6F9F"),
@@ -105,7 +107,7 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
     headers = [(1.3, "Repository"), (20.5, "System"), (30.5, "Detection method(s)"), (68.5, "Activity"), (75, "Stars"), (84.2, "Forks"), (91.2, "Last commit")]
     for x, label in headers:
         ax.text(x, 2.25, label, fontsize=8, color="#59636F", va="center")
-    role_x = [47.0 + index * 2.8 for index in range(len(ROLE_MATRIX))]
+    role_x = [47.0 + index * 19.6 / max(1, len(ROLE_MATRIX) - 1) for index in range(len(ROLE_MATRIX))]
     for x, (_role, abbreviation, full, _color) in zip(role_x, ROLE_MATRIX):
         ax.text(x, 2.25, abbreviation, fontsize=7.2, color="#59636F", ha="center", va="center")
         ax.text(x, 2.58, full, fontsize=.01, alpha=0)  # Retains the semantic label in vector output.
@@ -159,13 +161,13 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
 
     legend_y = total_units - 1.45
     ax.text(1.2, legend_y, "Role:", fontsize=7.2, fontweight="bold", color="#43505C", va="center")
-    legend_x = 5.0
-    for _role, _abbreviation, full, role_color in ROLE_MATRIX:
-        ax.scatter([legend_x], [legend_y], s=18, marker="o", facecolor=role_color, edgecolor=role_color, linewidth=.7, zorder=3)
-        ax.text(legend_x + .45, legend_y, full, fontsize=6.7, color="#59636F", va="center")
-        legend_x += 10.7
-    ax.scatter([72.0], [legend_y], s=14, marker="o", facecolor="#2F6F9F", edgecolor="#2F6F9F", linewidth=.7, zorder=3); ax.text(72.45, legend_y, "canonical", fontsize=6.7, color="#59636F", va="center")
-    ax.scatter([79.2], [legend_y], s=14, marker="o", facecolor="white", edgecolor="#9AA5AE", linewidth=.7, zorder=3); ax.text(79.65, legend_y, "related variant", fontsize=6.7, color="#59636F", va="center")
+    for index, (_role, _abbreviation, full, role_color) in enumerate(ROLE_MATRIX):
+        legend_x = 5.0 + (index % 5) * 18.0
+        role_y = legend_y + (index // 5) * .4
+        ax.scatter([legend_x], [role_y], s=18, marker="o", facecolor=role_color, edgecolor=role_color, linewidth=.7, zorder=3)
+        ax.text(legend_x + .45, role_y, full, fontsize=6.7, color="#59636F", va="center")
+    ax.scatter([77.0], [legend_y + .4], s=14, marker="o", facecolor="#2F6F9F", edgecolor="#2F6F9F", linewidth=.7, zorder=3); ax.text(77.45, legend_y + .4, "canonical", fontsize=6.7, color="#59636F", va="center")
+    ax.scatter([86.0], [legend_y + .4], s=14, marker="o", facecolor="white", edgecolor="#9AA5AE", linewidth=.7, zorder=3); ax.text(86.45, legend_y + .4, "related variant", fontsize=6.7, color="#59636F", va="center")
     ax.text(1.2, total_units - .65, metadata_caption(frame, "bars use log scaling; popularity is descriptive only"), fontsize=6.5, color="#6F7782", va="center")
     return save_figure(fig, out_dir, "00_repository_overview", formats, dpi)
 
@@ -409,6 +411,7 @@ def _metadata_completeness(frame: pd.DataFrame, out_dir: Path, formats: list[str
         ("last_commit_sha", "Last commit SHA"),
         ("last_commit_at", "Last commit timestamp"),
         ("system_types", "IDS type"),
+        ("centralization", "IDS centralization"),
         ("detection_methods", "Detection methods"),
         ("observation_objects", "Observation objects"),
         ("observation_scopes", "Observation scopes"),
@@ -434,7 +437,7 @@ def _metadata_completeness(frame: pd.DataFrame, out_dir: Path, formats: list[str
         value for value in [
             "github_repo_id", "project_id", "full_name", "html_url", "description", "topics", "tags", "license_spdx", "language",
             "created_at", "pushed_at", "last_commit_sha", "last_commit_at", "system_types", "detection_methods", "observation_objects", "observation_scopes",
-            "capabilities", "role", "repository_relationship", "discovery_relations",
+            "capabilities", "role", "centralization", "repository_relationship", "discovery_relations",
         ] if value in frame
     ]
     write_table(frame[record_columns].copy(), out_dir / "data", "06_metadata_completeness_records")
@@ -714,6 +717,39 @@ def _classification_audit(frame: pd.DataFrame, out_dir: Path, formats: list[str]
     return save_figure(fig, out_dir, "09_classification_audit", formats, dpi)
 
 
+def _centralization_plots(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Report detection topology for canonical operational systems with auditable counts."""
+    view = frame.loc[_operational_mask(frame)].copy()
+    view["centralization"] = view["centralization"].replace("", "unknown")
+    caption = metadata_caption(view, "canonical operational systems; unknown topology retained")
+    _write_count_table(view, "centralization", out_dir, "13_ids_centralization")
+    outputs = count_plot(view, "centralization", "IDS centralization", caption,
+                         out_dir, "13_ids_centralization", formats, dpi)
+    columns = ["centralized", "hierarchical", "fully_distributed", "unknown"]
+    matrix = pd.crosstab(view["role"], view["centralization"]).reindex(columns=columns, fill_value=0)
+    write_table(matrix.rename_axis("role").reset_index(), out_dir / "data", "14_centralization_role_matrix")
+    write_table(view[["github_repo_id", "full_name", "role", "centralization"]],
+                out_dir / "data", "14_centralization_role_matrix_records")
+    fig, ax = plt.subplots(figsize=(9, 5))
+    add_heading(fig, "Detection topology by repository role", caption)
+    if matrix.empty:
+        ax.axis("off")
+        ax.text(.5, .5, "No canonical operational systems", transform=ax.transAxes, ha="center")
+    else:
+        image = ax.imshow(matrix.to_numpy(), cmap="Blues", aspect="auto", vmin=0)
+        ax.set_xticks(range(len(columns)), ["Centralized", "Hierarchical", "Fully distributed", "Unknown"])
+        ax.set_yticks(range(len(matrix)), [ROLE_LABELS.get(role, role) for role in matrix.index])
+        for row_index in range(len(matrix)):
+            for col_index in range(len(columns)):
+                count = int(matrix.iloc[row_index, col_index])
+                ax.text(col_index, row_index, str(count), ha="center", va="center",
+                        color="white" if count > matrix.to_numpy().max() / 2 else "#243746")
+        ax.grid(False)
+        fig.colorbar(image, ax=ax, pad=.02, label="Repositories")
+    outputs += save_figure(fig, out_dir, "14_centralization_role_matrix", formats, dpi)
+    return outputs
+
+
 def build(
     input_path: Path,
     out_dir: Path,
@@ -728,7 +764,7 @@ def build(
         input_path,
         (
             "github_repo_id", "project_id", "repository_relationship", "role", "observation_scopes", "observation_objects",
-            "capabilities", "detection_methods", "language", "stars", "forks", "pushed_at",
+            "capabilities", "detection_methods", "centralization", "language", "stars", "forks", "pushed_at",
         ),
     )
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
@@ -750,6 +786,7 @@ def build(
         "observation_objects": frame["observation_objects"],
         "capabilities": frame["capabilities"],
         "methods": frame["detection_methods"],
+        "centralization": frame["centralization"],
         "relationship": frame["repository_relationship"],
         "reporting_segment": frame["role"].map(lambda role: "operational_system" if role in OPERATIONAL_ROLES else "other_relevant_type"),
         "stars": frame["stars"],
@@ -793,6 +830,7 @@ def build(
 
     # 06 — expanded metadata completeness including GitHub topics/tags and taxonomy fields.
     outputs += _metadata_completeness(frame, out_dir, formats, dpi)
+    outputs += _centralization_plots(frame, out_dir, formats, dpi)
 
     # 07 — most common topics/tags.
     outputs += _tag_counts(frame, out_dir, formats, dpi, top_n)
@@ -828,6 +866,7 @@ def build(
         "11_keyword_score_vs_decision shows every scored item as a dot by final decision; the box is the middle 50%, its line is the median, and whiskers reach the furthest non-outlier within 1.5 x IQR. Dots beyond the whiskers are valid outliers; the companion summary exports the fences, actual whisker endpoints, and outlier count.",
         "12_why_not_included uses plain-language reasons for repositories absent from the catalogue; its definitions and records tables preserve each criterion, assignment basis, validation flag, exact model explanation, and evidence.",
         "Every plotted aggregate has a matching CSV under data/, and matrix/tag/discovery/classification figures also export row-level *_records.csv files for traceability.",
+        "13_ids_centralization and 14_centralization_role_matrix report model-selected topology for canonical operational systems; unknown values remain visible, and counts and source records are exported.",
     ]))
     LOG.info("GitHub plot bundle complete files=%d output=%s", len(outputs), out_dir)
     return outputs

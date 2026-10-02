@@ -1,12 +1,17 @@
 # Classification consensus
 
-Consecutive classification runs combine both the overall decision and normalized taxonomy fields. This applies to repeated runs of one configured model. The separate cross-model ensemble remains a decision-disposition ensemble.
+Consecutive classification runs combine both the overall decision and normalized taxonomy fields. This applies to repeated runs of one configured model. The separate cross-model ensemble votes decision dispositions and GitHub centralization; other taxonomy fields retain the representative model's values.
 
 ## Independence of runs
 
 Every run is a separate generation request with the same evidence and prompt. Earlier responses are never inserted into later prompts, so there is no conversational history between runs. The model process is not explicitly restarted and the configured seed is not changed. With temperature zero and a fixed seed, repeated responses may therefore be identical. Use multiple models or a deliberately stochastic inference configuration when independent diversity is required.
 
 ## Voting
+
+GitHub centralization is voted as an independent single-value field in both
+consecutive-run consensus and the cross-model ensemble. Missing/error votes remain
+in the denominator; ties or insufficient agreement yield `unknown`. Other
+cross-model taxonomy fields still follow the selected representative model.
 
 All configured runs remain in every denominator, including errors and unavailable results.
 

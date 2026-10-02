@@ -1,6 +1,14 @@
 schema_version = "1.0"
 source = "github"
 
+[fields.centralization]
+mode = "exclusive"
+fallback = "unknown"
+[fields.centralization.hypotheses]
+centralized = "This repository makes detection decisions at one central or single-node analysis engine, possibly receiving raw events from remote collectors."
+hierarchical = "This repository implements hierarchical or manager-coordinated collaborative intrusion detection (CIDS), with local analysis components reporting to higher-level detection coordinators."
+fully_distributed = "This repository implements fully distributed intrusion detection (DIDS), with autonomous cooperating peers and no required central detection coordinator."
+
 # Each sentence is evaluated against repository metadata and documentation. Exclusive
 # fields select one label; multilabel fields may select several; boolean fields compare
 # entailment and contradiction for their single positive proposition.
@@ -13,11 +21,12 @@ native_detector = "This repository itself implements a deployable intrusion dete
 classifier_engine = "This repository itself implements a runnable classifier or detector that users can train or execute independently."
 detection_framework = "This repository is a cohesive, extensible detection framework with its own components and ecosystem."
 detection_platform = "This repository is an integration platform that orchestrates multiple distinct detection engines or security tools."
+traffic_analyzer = "This repository principally implements runnable security traffic inspection, network metadata analysis, or packet forensics, with limited or optional intrusion alerting."
 research_project = "This repository contains a paper-linked or dataset-linked research detection project whose code is trainable or runnable."
 demo = "This repository is mainly a demonstration, tutorial, example, or notebook rather than a reusable detection implementation."
 rules_content = "This repository mainly distributes detection rules, signatures, policies, or other content and does not implement the engine that executes them."
-support_tooling = "This repository mainly provides supporting utilities, parsers, visualizations, deployment files, or integrations for a separate detector."
-out_of_scope = "This repository does not itself provide an intrusion detection, prevention, classification, or detection-framework approach."
+support_tooling = "This repository mainly provides IDS support utilities, deployment files, integrations, or security telemetry collection, aggregation, search, monitoring, and visualization without a principal intrusion decision engine."
+out_of_scope = "This repository provides no material intrusion detection, prevention, classification, security traffic or telemetry monitoring and analysis, detection content, or IDS support contribution."
 
 [fields.observation_scopes]
 mode = "multilabel"
@@ -36,7 +45,7 @@ mode = "multilabel"
 fallback = "unknown"
 [fields.observation_objects.hypotheses]
 packet_analysis = "The implemented approach analyzes individual network packet headers or payloads."
-flow_analysis = "The implemented approach analyzes aggregated network flows, sessions, NetFlow, or IPFIX records."
+flow_analysis = "The implemented approach reads and analyzes aggregated network-flow or session records as input, rather than merely reconstructing or exporting them from packets or PCAPs."
 log_analysis = "The implemented approach analyzes operating-system, application, security, audit, or device logs."
 system_calls = "The implemented approach analyzes operating-system call sequences, arguments, or frequencies."
 
@@ -55,7 +64,7 @@ fallback = "unknown"
 signature_based = "The detection method matches known attack signatures, fingerprints, or byte patterns."
 rule_based = "The detection method evaluates explicit detection rules, policies, expert conditions, or security queries."
 anomaly_based = "The detection method identifies deviations from learned or defined normal behavior."
-protocol_analysis = "The detection method analyzes protocol semantics, state, or valid protocol behavior."
+protocol_analysis = "The detection method uses protocol semantics or state to decide that activity is an attack or violation, beyond merely decoding or reconstructing traffic."
 ml_based = "The detection method uses machine learning other than a specifically identified neural network."
 nn_based = "The detection method uses a neural network, including deep neural architectures."
 
@@ -63,10 +72,12 @@ nn_based = "The detection method uses a neural network, including deep neural ar
 mode = "multilabel"
 fallback = "unknown"
 [fields.system_types.hypotheses]
-NIDS = "The repository implements a network intrusion detection system."
-NIPS = "The repository implements a network intrusion prevention or network detection-and-response system."
-HIDS = "The repository implements a host intrusion detection system."
-HIPS = "The repository implements a host intrusion prevention or endpoint detection-and-response system."
+NIDS = "The repository detects intrusions by inspecting network packets or protocol streams from interfaces or packet captures, directly or through an integrated packet detector."
+NSM = "The repository principally implements network security monitoring or traffic analysis for investigations, possibly with limited notices or optional detection policies."
+SM = "The repository principally implements collection, aggregation, search, or analysis of security logs and endpoint, application, database, cloud, or mixed-source telemetry for monitoring and investigation; intrusion decisions and alerts are optional."
+NIPS = "The repository detects intrusions through network packet/interface inspection and enforces network prevention by dropping traffic or changing firewall rules."
+HIDS = "The repository detects intrusions in endpoint processes, files, execution, system calls, accounts, or operating-system audit activity, with local analysis or forwarding to a central manager."
+HIPS = "The repository detects endpoint intrusions and enforces endpoint protection by blocking execution, terminating malicious processes, quarantining files, removing persistence, or disabling accounts."
 WIDS = "The repository implements a wireless intrusion detection system."
 WIPS = "The repository implements a wireless intrusion prevention system."
 DBIDS = "The repository implements a database intrusion detection system."
@@ -75,5 +86,5 @@ APIDS = "The repository implements an application-protocol intrusion detection s
 PIDS = "The repository implements a protocol-based intrusion detection system."
 ProvIDS = "The repository implements a provenance-based intrusion detection system."
 XDR = "The repository implements extended detection and response across multiple observation scopes."
-IDS = "The repository implements an intrusion detection system whose subtype is not established."
-IPS = "The repository implements an intrusion prevention system whose subtype is not established."
+IDS = "The repository implements general intrusion detection, including network-service log, authentication-failure, or aggregate-flow detection without packet intrusion inspection or endpoint activity detection, or detection with an unspecified subtype."
+IPS = "The repository implements general intrusion prevention, including service-log detection followed by source-IP bans or firewall changes, endpoint application connection-policy enforcement, or prevention with an unspecified subtype."

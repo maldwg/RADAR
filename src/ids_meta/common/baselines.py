@@ -161,10 +161,11 @@ def load_keyword_taxonomy_profile(settings: Settings, source: str) -> KeywordTax
             raise ConfigError(f"keyword field {name!r} requires minimum_score > 0 and margin >= 0")
         fields.append(KeywordField(str(name), mode, fallback, minimum_score, margin, normalized))
     if source == "github":
-        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
+        from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, CENTRALIZATION, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
 
         expected = {
             "role": set(AUDIT_ROLES) - {"uncertain"},
+            "centralization": set(CENTRALIZATION) - {"unknown"},
             "observation_scopes": set(SCOPES) - {"unknown"},
             "observation_objects": set(OBSERVATION_OBJECTS) - {"unknown"},
             "capabilities": set(CAPABILITIES),

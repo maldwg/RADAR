@@ -19,6 +19,41 @@ LOG = logger("plotting")
 
 COLORS = ["#2F6B9A", "#4E9A62", "#D9902F", "#7A5FA8", "#C94F4F", "#3B8C8C", "#B85C9E", "#8C6D31", "#6C7A89"]
 
+TAXONOMY_FIELD_LABELS = {
+    "centralization": "IDS centralization",
+    "role": "Repository role",
+    "observation_scopes": "Observation scope",
+    "observation_objects": "Observation object",
+    "capabilities": "Capability",
+    "detection_methods": "Detection method",
+    "primary_system_type": "Primary IDS system type",
+    "system_types": "IDS system types",
+    "paper_role": "Paper role",
+    "relevance_tier": "Security relevance",
+    "artifact_type": "Artifact type",
+    "domain": "Domain",
+    "data_form": "Data form",
+    "capture_environment": "Capture environment",
+    "labeling": "Label availability",
+}
+
+
+def taxonomy_field_label(field: object) -> str:
+    """Return an explicit reader-facing label for a taxonomy field."""
+    value = str(field)
+    return TAXONOMY_FIELD_LABELS.get(value, value.replace("_", " ").title())
+
+
+def taxonomy_value_label(field: object, value: object) -> str:
+    """Return a readable taxonomy value while preserving IDS acronyms."""
+    raw = str(value)
+    if str(field) in {"primary_system_type", "system_types"}:
+        return {
+            "provids": "ProvIDS",
+            "unknown": "Unknown",
+        }.get(raw.casefold(), raw.upper())
+    return raw.replace("_", " ")
+
 
 def configure_style() -> None:
     """Apply the shared non-interactive matplotlib theme."""

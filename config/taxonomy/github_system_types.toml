@@ -8,19 +8,27 @@ schema_version = "1.0"
 
 [types.NIDS]
 name = "Network intrusion detection system"
-description = "Detects intrusions by observing network communications, traffic, packets, flows, sessions, protocols, or network infrastructure."
+description = "Detects intrusions through inspection of network packets, frames, or protocol streams from network interfaces, taps, or saved packet captures, including a materially integrated packet detector. Requires an implemented traffic-inspection detection path; service logs, aggregated flow records, or endpoint connection permissions alone do not establish NIDS. Running a packet intrusion detector on one host does not disqualify it."
+
+[types.NSM]
+name = "Network security monitoring / traffic analysis system"
+description = "Principally inspects, decodes, reconstructs, or analyzes network traffic to produce security telemetry and evidence for investigation or threat hunting. May provide limited notices, optional detections, or programmable detection hooks; these alone do not make its principal function intrusion detection, prevention, or response. Zeek, Arkime, and Joy are archetypes."
+
+[types.SM]
+name = "Security monitoring / telemetry analysis system"
+description = "Principally collects, aggregates, searches, analyzes, or presents security logs, audit events, endpoint activity, or application, database, and cloud telemetry for security visibility, investigation, or threat hunting. Covers non-network and mixed-source monitoring; use NSM for principal network-traffic inspection and analysis. Intrusion decisions, alerts, prevention, and response are not required; limited or optional checks are permitted. Requires an implemented security-monitoring contribution: generic observability, configuration-only content, deployment packaging, and bare forwarding alone do not establish this system type."
 
 [types.NIPS]
-name = "Network intrusion prevention system / network detection and response"
-description = "Detects network threats and actively blocks, contains, or responds to them."
+name = "Network intrusion prevention system"
+description = "Combines network packet/interface intrusion inspection as defined for NIDS with implemented network enforcement, such as dropping or rejecting traffic or updating firewall rules. Firewall updates alone, log-derived IP bans, endpoint application connection policies, and an NDR marketing label do not establish NIPS."
 
 [types.HIDS]
 name = "Host intrusion detection system"
-description = "Detects intrusions by observing files, processes, events, system calls, or workload state on hosts or endpoints."
+description = "Detects intrusions from host or endpoint activity and state: files, processes, execution, system calls, registry, accounts, or operating-system audit events and logs describing these. Endpoint observations or local analysis may be forwarded to a central manager; centralized correlation does not remove HIDS. Local installation or reading network-service authentication/traffic logs alone does not establish HIDS."
 
 [types.HIPS]
-name = "Host intrusion prevention system / endpoint detection and response"
-description = "Detects host or endpoint threats and actively blocks, contains, remediates, isolates, or responds to them."
+name = "Host intrusion prevention system"
+description = "Combines host or endpoint intrusion detection as defined for HIDS with implemented enforcement on endpoint activity or state, such as blocking execution, terminating malicious processes, quarantining files, removing persistence, or disabling compromised accounts. Network-only firewall rules, source-IP bans, or connection isolation alone do not establish HIPS, even when executed on the protected host. An EDR label or an unimplemented response hook is insufficient."
 
 [types.WIDS]
 name = "Wireless intrusion detection system"
@@ -56,8 +64,8 @@ description = "Combines detection and active response across materially differen
 
 [types.IDS]
 name = "Intrusion detection system"
-description = "Detects intrusions, but the evidence does not support a more specific configured system type."
+description = "General intrusion detection, including detectors analyzing network-service authentication/traffic logs, aggregated flow records, or local connection-policy events without a packet intrusion inspection path or endpoint activity detection as defined for NIDS/HIDS. Also covers detection when a more specific configured type is not supported. Single-host deployment does not imply HIDS; network-related evidence does not imply NIDS. Select alongside a specific type only for a separately evidenced general detection path."
 
 [types.IPS]
 name = "Intrusion prevention system"
-description = "Detects and prevents intrusions, but the evidence does not support a more specific configured system type."
+description = "General intrusion prevention with implemented enforcement, including network-service log detection followed by source-IP bans or firewall updates, and endpoint application connection-policy enforcement without a NIPS packet intrusion inspection path or HIPS endpoint enforcement. Fail2ban is an archetype. Also covers prevention when a more specific configured type is not supported. Alerts or response hooks alone are insufficient; select alongside a specific type only for a separately evidenced general prevention path."

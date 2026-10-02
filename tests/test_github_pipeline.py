@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
-from ids_meta.github.pipeline import classify, export, prefilter
+from ids_meta.github.pipeline import classify, export, prefilter, prompt
 from ids_meta.github.reconcile import reconcile
 from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, normalize_response, response_schema, system_type_codes
 from ids_meta.common.csvio import atomic_write_csv
@@ -86,7 +86,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_all_meaningful_roles_can_enter_combined_catalogue(self) -> None:
         """Verify every supported meaningful role can be accepted."""
-        self.assertEqual(ROLES, ("native_detector", "classifier_engine", "detection_framework", "detection_platform", "research_project", "demo", "rules_content", "support_tooling"))
+        self.assertEqual(ROLES, ("native_detector", "classifier_engine", "detection_framework", "detection_platform", "traffic_analyzer", "research_project", "demo", "rules_content", "support_tooling"))
         self.assertNotIn("confidence", RESPONSE_SCHEMA["properties"])
         self.assertNotIn("runnable_detector", RESPONSE_SCHEMA["properties"])
         self.assertNotIn("derived_labels", CLASSIFICATION_COLUMNS)
@@ -103,6 +103,25 @@ class GitHubPipelineTests(unittest.TestCase):
                     "primary_reason": "fixture",
                 }, [{"source": "README", "quote": "fixture"}], config, False)
                 self.assertEqual(decision["decision"], "accept")
+
+    def test_traffic_analyzer_accepts_offline_inspection_without_detection_engine(self) -> None:
+        """Accept a runnable forensic analyzer while retaining the execution gate."""
+        raw = {
+            "role": "traffic_analyzer", "observation_scopes": ["network"],
+            "observation_objects": ["packet_analysis"], "capabilities": ["monitoring"],
+            "detection_methods": ["unknown"], "primary_system_type": "NSM", "system_types": ["NSM"],
+            "direct_self_description": True, "reproducible_execution": True,
+            "runtime_observation": False, "offline_dataset_only": True,
+            "implements_detection_engine": False,
+        }
+        evidence = [{"source": "README", "quote": "Inspect a saved packet capture with analyze -r trace.pcap."}]
+        accepted = normalize_response(raw, evidence, {}, False)
+        self.assertEqual(accepted["decision"], "accept")
+        self.assertEqual(accepted["primary_system_type"], "NSM")
+        self.assertEqual(accepted["classification_validation_flags"], "")
+        rejected = normalize_response({**raw, "reproducible_execution": False}, evidence, {}, False)
+        self.assertEqual(rejected["decision"], "uncertain")
+        self.assertEqual(rejected["classification_validation_flags"], "reproducible_execution_missing")
 
     def test_native_detector_requires_independent_runtime_engine_evidence(self) -> None:
         """Verify static or externally delegated implementations cannot pass as native detectors."""
@@ -337,6 +356,50 @@ class GitHubPipelineTests(unittest.TestCase):
         }}}
         self.assertIn("CLOUDIDS", system_type_codes(extended))
         self.assertIn("CLOUDIDS", response_schema(extended)["properties"]["system_types"]["items"]["enum"])
+        rendered = prompt([], load_prompt_profile(settings, "github"), extended)
+        for code, definition in extended["types"].items():
+            self.assertIn(f"- {code} ({definition['name']}): {definition['description']}", rendered)
+        self.assertNotIn("${system_types}", rendered)
+
+    def test_general_ids_types_are_preserved_for_specific_observation_scopes(self) -> None:
+        """Keep service-log and flow detectors general despite endpoint/network scopes."""
+        settings = load_settings(ROOT / "config/default.toml")
+        profile = load_system_type_profile(settings, "github")
+        for scope, objects, capabilities, primary, types in (
+            ("host_endpoint", ["log_analysis"], ["detection", "prevention"], "IPS", ["IPS", "IDS"]),
+            ("network", ["flow_analysis", "log_analysis"], ["detection"], "IDS", ["IDS"]),
+            ("network", ["packet_analysis"], ["detection", "prevention"], "IPS", ["IPS"]),
+        ):
+            with self.subTest(scope=scope, objects=objects):
+                normalized = normalize_response({
+                    "role": "native_detector", "observation_scopes": [scope],
+                    "observation_objects": objects, "capabilities": capabilities,
+                    "detection_methods": ["rule_based"], "primary_system_type": primary,
+                    "system_types": types, "implements_detection_engine": True,
+                    "runtime_observation": True, "reproducible_execution": True,
+                }, [], {"require_verified_quote": False}, False, profile)
+                self.assertEqual(normalized["primary_system_type"], primary)
+                self.assertEqual(normalized["system_types"], ";".join(types))
+
+    def test_security_monitoring_type_does_not_require_detection_or_alerting(self) -> None:
+        """Preserve a monitoring-only SM annotation through configured and fallback schemas."""
+        settings = load_settings(ROOT / "config/default.toml")
+        profile = load_system_type_profile(settings, "github")
+        for selected in (profile, None):
+            with self.subTest(configured=selected is not None):
+                self.assertIn("SM", response_schema(selected)["properties"]["primary_system_type"]["enum"])
+                normalized = normalize_response({
+                    "role": "support_tooling", "observation_scopes": ["host_endpoint"],
+                    "observation_objects": ["log_analysis"], "capabilities": ["monitoring"],
+                    "detection_methods": ["unknown"], "primary_system_type": "SM", "system_types": ["SM"],
+                    "direct_self_description": True, "reproducible_execution": True,
+                    "implements_detection_engine": False,
+                }, [{"source": "README", "quote": "Aggregates endpoint audit logs for security monitoring."}],
+                    {}, False, selected)
+                self.assertEqual(normalized["decision"], "accept")
+                self.assertEqual(normalized["system_types"], "SM")
+                self.assertEqual(normalized["capabilities"], "monitoring")
+                self.assertEqual(normalized["detection_methods"], "unknown")
 
     def test_enrichment_records_exact_latest_commit_time(self) -> None:
         """Verify enrichment preserves the latest commit's exact timestamp."""

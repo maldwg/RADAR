@@ -43,19 +43,24 @@ class ClassifierComparisonTests(unittest.TestCase):
                 }
                 (evaluation / "metrics.json").write_text(json.dumps(metrics), encoding="utf-8")
                 atomic_write_csv(evaluation / "field_metrics.csv", [{
-                    "field": "role", "supported": "true", "comparisons": 20,
+                    "field": field, "supported": "true", "comparisons": 20,
                     "exact_matches": int(value * 20), "exact_accuracy": value,
-                    "label_f1": "", "macro_f1": value - .05,
+                    "label_f1": value if field != "role" else "", "macro_f1": value - .05,
                     "per_label_metrics_json": "{}",
-                }], [
+                } for field in ("role", "observation_objects", "primary_system_type", "system_types")], [
                     "field", "supported", "comparisons", "exact_matches", "exact_accuracy",
                     "label_f1", "macro_f1", "per_label_metrics_json",
                 ])
                 atomic_write_csv(evaluation / "field_label_metrics.csv", [{
-                    "field": "role", "label": "native_detector", "supported": "true",
+                    "field": field, "label": category, "supported": "true",
                     "tp": 1, "fp": 0, "fn": 0, "precision": 1.0, "recall": 1.0,
                     "f1": value,
-                }], [
+                } for field, category in (
+                    ("role", "native_detector"),
+                    ("observation_objects", "packet_analysis"),
+                    ("primary_system_type", "nids"),
+                    ("system_types", "nids"),
+                )], [
                     "field", "label", "supported", "tp", "fp", "fn",
                     "precision", "recall", "f1",
                 ])
@@ -87,6 +92,18 @@ class ClassifierComparisonTests(unittest.TestCase):
             self.assertTrue((root / "plots/taxonomy/01_exact_accuracy_by_field.svg").is_file())
             self.assertTrue((root / "plots/taxonomy/02_macro_f1_by_field.svg").is_file())
             self.assertTrue((root / "plots/taxonomy/03_category_f1.svg").is_file())
+            exact_rows = read_csv(root / "plots/taxonomy/data/01_exact_accuracy_by_field.csv")
+            self.assertEqual(
+                {row["field"] for row in exact_rows},
+                {"role", "observation_objects", "primary_system_type", "system_types"},
+            )
+            category_rows = read_csv(root / "plots/taxonomy/data/03_category_f1.csv")
+            self.assertIn({"field": "observation_objects", "label": "packet_analysis"}, [
+                {"field": row["field"], "label": row["label"]} for row in category_rows
+            ])
+            self.assertIn({"field": "system_types", "label": "nids"}, [
+                {"field": row["field"], "label": row["label"]} for row in category_rows
+            ])
             self.assertTrue((root / "plots/agreement/data/02_pairwise_agreement.csv").is_file())
             self.assertTrue((root / "plots/README.md").is_file())
             detection_svg = (root / "plots/metrics/01_detection_rate.svg").read_text(encoding="utf-8")

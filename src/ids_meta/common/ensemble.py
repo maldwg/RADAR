@@ -137,6 +137,8 @@ def _github_field_consensus(
     audit: dict[str, Any] = {}
     value, details = _vote_scalar(votes, "role", threshold, "uncertain")
     combined["role"], audit["role"] = value, details
+    value, details = _vote_scalar(votes, "centralization", threshold, "unknown")
+    combined["centralization"], audit["centralization"] = value, details
     for field in ("independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution", "offline_dataset_only", "implements_detection_engine", "requires_external_detector", "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "evidence_quote_verified"):
         value, details = _vote_scalar(votes, field, threshold, "false", _bool_text)
         combined[field], audit[field] = value, details
@@ -235,6 +237,9 @@ def _validate_github_consensus(
             flags.append("reproducible_execution_missing")
         if not research_basis:
             flags.append("research_basis_missing")
+    elif role == "traffic_analyzer":
+        if not runnable:
+            flags.append("reproducible_execution_missing")
     if role in ROLES:
         if not self_description:
             flags.append("direct_self_description_missing")
@@ -435,6 +440,22 @@ def ensemble_classifications(
             "ensemble_decision_counts": json.dumps(dict(sorted(exact_counts.items())), ensure_ascii=False, sort_keys=True),
             "ensemble_vote_status": vote_status,
         })
+        if source == "github":
+            # Topology is independent of the screening decision and representative role.
+            # Missing models still contribute to the voting denominator.
+            topology_votes = {model: indexed[model].get(key, {}) for model in models}
+            value, details = _vote_scalar(topology_votes, "centralization", threshold, "unknown")
+            combined["centralization"] = value
+            try:
+                existing_audit = json.loads(str(combined.get("consensus_field_audit") or "{}"))
+            except (TypeError, ValueError):
+                existing_audit = {}
+            if not isinstance(existing_audit, dict):
+                existing_audit = {}
+            existing_audit["centralization"] = details
+            combined["consensus_field_audit"] = json.dumps(
+                existing_audit, ensure_ascii=False, sort_keys=True,
+            )
         if source == "openalex" and identity_audit:
             combined["consensus_field_audit"] = json.dumps({"artifact_identity": identity_audit}, ensure_ascii=False, sort_keys=True)
             if identity_conflict:
