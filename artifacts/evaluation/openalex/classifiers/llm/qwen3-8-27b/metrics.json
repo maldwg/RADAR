@@ -1,0 +1,410 @@
+{
+  "abstention_rate": 0.02857142857142857,
+  "actual_entities": 1000,
+  "benchmark_scope": "mixed_artifact_reference_set",
+  "classification_coverage": 0.43564356435643564,
+  "classification_field_accuracy": 0.33861386138613864,
+  "classification_field_comparisons": 505,
+  "classification_field_macro_f1": 0.3016272119311335,
+  "classifications_path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/openalex/models/qwen3-8-27b/classifications.csv",
+  "classifier_evidence_source_counts": {
+    "raw_cache": 1000
+  },
+  "classifier_id": "qwen3.8:27b",
+  "classifier_method": "llm",
+  "classifier_profile_hash": "3fc3bd40ad05f4fd07f2",
+  "classifier_supported_fields": "*",
+  "confidence_intervals": {
+    "abstention_rate": [
+      0.009763839038702336,
+      0.08065629063731555
+    ],
+    "accuracy": [
+      0.25905721856144326,
+      0.43774949133056273
+    ],
+    "definitive_coverage": [
+      0.31142601371826345,
+      0.4956328016675586
+    ],
+    "detection_rate": [
+      0.2342352631167658,
+      0.41285091427724097
+    ],
+    "false_discovery_rate": [
+      0.0,
+      0.10717919825507058
+    ],
+    "false_positive_rate": [
+      0.0,
+      0.4898908364545972
+    ],
+    "precision": [
+      0.8928208017449296,
+      1.0
+    ]
+  },
+  "confidence_level": 0.95,
+  "decision_accuracy": 0.3047619047619048,
+  "definitive_coverage": 0.4,
+  "evaluation_unit": "artifact",
+  "not_estimable_metrics": [],
+  "operational": {
+    "ACC": 0.34285714285714286,
+    "DR": 0.31683168316831684,
+    "FDR": 0.0,
+    "FNR": 0.6831683168316832,
+    "FPR": 0.0,
+    "PREC": 1.0,
+    "accuracy": 0.34285714285714286,
+    "balanced_accuracy": 0.6584158415841584,
+    "detection_rate": 0.31683168316831684,
+    "f1": 0.48120300751879697,
+    "false_discovery_rate": 0.0,
+    "false_negative_rate": 0.6831683168316832,
+    "false_positive_rate": 0.0,
+    "fn": 69,
+    "fp": 0,
+    "negative_predictive_value": 0.0547945205479452,
+    "precision": 1.0,
+    "recall": 0.31683168316831684,
+    "sensitivity": 0.31683168316831684,
+    "specificity": 1.0,
+    "tn": 4,
+    "tp": 32
+  },
+  "rated_entities": 105,
+  "ratings_path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml",
+  "reference_disposition_counts": {
+    "exclude": 4,
+    "include": 101
+  },
+  "reference_set": {
+    "benchmark_name": "Ashraf and Masoodi (2026) Table 2 dataset reference set",
+    "crosswalk_version": "ashraf-shield-figure1-to-openalex-taxonomy-v2",
+    "source_doi": "10.1007/s10791-026-10486-2",
+    "source_table": "Table 2; Figure 1; SHIELD dataset descriptions",
+    "source_title": "A survey of intrusion detection datasets for communication networks",
+    "source_url": "https://link.springer.com/article/10.1007/s10791-026-10486-2"
+  },
+  "retrieval_coverage": null,
+  "selective": {
+    "ACC": 0.7619047619047619,
+    "DR": 0.7619047619047619,
+    "FDR": 0.0,
+    "FNR": 0.23809523809523808,
+    "FPR": 0.0,
+    "PREC": 1.0,
+    "accuracy": 0.7619047619047619,
+    "balanced_accuracy": 0.38095238095238093,
+    "detection_rate": 0.7619047619047619,
+    "f1": 0.8648648648648648,
+    "false_discovery_rate": 0.0,
+    "false_negative_rate": 0.23809523809523808,
+    "false_positive_rate": 0.0,
+    "fn": 10,
+    "fp": 0,
+    "negative_predictive_value": 0.0,
+    "precision": 1.0,
+    "recall": 0.7619047619047619,
+    "sensitivity": 0.7619047619047619,
+    "specificity": 0.0,
+    "tn": 0,
+    "tp": 32
+  },
+  "source": "openalex",
+  "status_counts": {
+    "classified": 42,
+    "survey_reference_classification_uncertain": 1,
+    "survey_reference_classified_nonrelease": 1,
+    "survey_reference_not_retrieved": 45,
+    "survey_reference_unresolved": 14,
+    "uncertain": 2
+  },
+  "strict": {
+    "ACC": 0.3047619047619048,
+    "DR": 0.31683168316831684,
+    "FDR": 0.1111111111111111,
+    "FNR": 0.6831683168316832,
+    "FPR": 1.0,
+    "PREC": 0.8888888888888888,
+    "accuracy": 0.3047619047619048,
+    "balanced_accuracy": 0.15841584158415842,
+    "detection_rate": 0.31683168316831684,
+    "f1": 0.46715328467153283,
+    "false_discovery_rate": 0.1111111111111111,
+    "false_negative_rate": 0.6831683168316832,
+    "false_positive_rate": 1.0,
+    "fn": 69,
+    "fp": 4,
+    "negative_predictive_value": 0.0,
+    "precision": 0.8888888888888888,
+    "recall": 0.31683168316831684,
+    "sensitivity": 0.31683168316831684,
+    "specificity": 0.0,
+    "tn": 0,
+    "tp": 32
+  },
+  "taxonomy_field_metrics": {
+    "artifact_type": {
+      "comparisons": 101,
+      "exact_accuracy": 0.4158415841584158,
+      "exact_matches": 42,
+      "label_f1": null,
+      "macro_f1": 0.5874125874125874,
+      "per_label": {
+        "dataset": {
+          "f1": 0.5874125874125874,
+          "fn": 59,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 0.4158415841584158,
+          "tp": 42
+        }
+      },
+      "supported": true
+    },
+    "capture_environment": {
+      "comparisons": 101,
+      "exact_accuracy": 0.26732673267326734,
+      "exact_matches": 27,
+      "label_f1": null,
+      "macro_f1": 0.18962962962962962,
+      "per_label": {
+        "hybrid": {
+          "f1": 0.0,
+          "fn": 7,
+          "fp": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "real_world": {
+          "f1": 0.24,
+          "fn": 34,
+          "fp": 4,
+          "precision": 0.6,
+          "recall": 0.15,
+          "tp": 6
+        },
+        "synthetic_lab": {
+          "f1": 0.5185185185185185,
+          "fn": 32,
+          "fp": 7,
+          "precision": 0.75,
+          "recall": 0.39622641509433965,
+          "tp": 21
+        },
+        "unknown": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 3,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "data_form": {
+      "comparisons": 101,
+      "exact_accuracy": 0.16831683168316833,
+      "exact_matches": 17,
+      "label_f1": null,
+      "macro_f1": 0.26153846153846155,
+      "per_label": {
+        "flow": {
+          "f1": 0.4102564102564102,
+          "fn": 20,
+          "fp": 3,
+          "precision": 0.7272727272727273,
+          "recall": 0.2857142857142857,
+          "tp": 8
+        },
+        "host_system_call": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 1
+        },
+        "log": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "mixed": {
+          "f1": 0.16666666666666669,
+          "fn": 27,
+          "fp": 3,
+          "precision": 0.5,
+          "recall": 0.1,
+          "tp": 3
+        },
+        "network_traffic": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 17,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "packet": {
+          "f1": 0.07692307692307693,
+          "fn": 23,
+          "fp": 1,
+          "precision": 0.5,
+          "recall": 0.041666666666666664,
+          "tp": 1
+        },
+        "tabular_features": {
+          "f1": 0.4615384615384615,
+          "fn": 4,
+          "fp": 3,
+          "precision": 0.5,
+          "recall": 0.42857142857142855,
+          "tp": 3
+        },
+        "telemetry": {
+          "f1": 0.5,
+          "fn": 2,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 0.3333333333333333,
+          "tp": 1
+        },
+        "unknown": {
+          "f1": 0.0,
+          "fn": 5,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "wireless": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "domain": {
+      "comparisons": 101,
+      "exact_accuracy": 0.4158415841584158,
+      "exact_matches": 42,
+      "label_f1": null,
+      "macro_f1": 0.25720970206264326,
+      "per_label": {
+        "cloud": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "electrical_smartgrid": {
+          "f1": 0.0,
+          "fn": 3,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "general_network": {
+          "f1": 0.6753246753246753,
+          "fn": 25,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 0.5098039215686274,
+          "tp": 26
+        },
+        "host_endpoint": {
+          "f1": 0.33333333333333337,
+          "fn": 4,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 0.2,
+          "tp": 1
+        },
+        "iot_iiot": {
+          "f1": 0.5490196078431373,
+          "fn": 22,
+          "fp": 1,
+          "precision": 0.9333333333333333,
+          "recall": 0.3888888888888889,
+          "tp": 14
+        },
+        "mobile_android": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "uav": {
+          "f1": 0.5,
+          "fn": 1,
+          "fp": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "tp": 1
+        },
+        "vpn": {
+          "f1": 0.0,
+          "fn": 1,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    },
+    "labeling": {
+      "comparisons": 101,
+      "exact_accuracy": 0.42574257425742573,
+      "exact_matches": 43,
+      "label_f1": null,
+      "macro_f1": 0.2123456790123457,
+      "per_label": {
+        "labeled": {
+          "f1": 0.6370370370370371,
+          "fn": 49,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 0.4673913043478261,
+          "tp": 43
+        },
+        "unknown": {
+          "f1": 0.0,
+          "fn": 2,
+          "fp": 1,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "unlabeled": {
+          "f1": 0.0,
+          "fn": 7,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        }
+      },
+      "supported": true
+    }
+  },
+  "unrated_actual_entities": 956,
+  "unresolved_artifact_rate": 0.5643564356435644
+}

@@ -8,6 +8,8 @@ import tomllib
 import unittest
 from pathlib import Path
 
+import pandas as pd
+
 from ids_meta.cli import _evaluation_jobs, _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
 from ids_meta.common.config import Settings, load_settings, load_system_type_profile
 from ids_meta.common.csvio import atomic_write_csv, read_csv
@@ -15,7 +17,11 @@ from ids_meta.common.evaluation import evaluate_results, load_rating_profile
 from ids_meta.common.ollama import decision_profile
 from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
 from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING
-from ids_meta.plotting.evaluation import build as build_evaluation_plots
+from ids_meta.plotting.evaluation import _recovered_taxonomy_accuracy, _reference_uncertainty, _taxonomy_accuracy_overview, build as build_evaluation_plots
+from ids_meta.plotting.compare import _reference_uncertainty_overview
+from ids_meta.plotting.common import configure_style
+from ids_meta.plotting.recovery import recovered_taxonomy_table
+from ids_meta.plotting.uncertainty import reference_uncertainty
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +29,135 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class EvaluationTests(unittest.TestCase):
     """Exercise centrally rated evaluation for both discovery sources."""
+
+    def test_reference_uncertainty_separates_attempts_errors_and_missing_references(self) -> None:
+        """Count survey fallback attempts once and keep retrieval gaps out of the rate."""
+        columns = ["classification_present", "actual_disposition", "status", "survey_reference_classification_present", "survey_reference_actual_disposition"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = [
+                {"classification_present": "true", "actual_disposition": disposition, "status": status}
+                for disposition, status in [("include", "classified"), ("exclude", "classified"), ("uncertain", "uncertain"), ("uncertain", "error")]
+            ]
+            rows[0].update(survey_reference_classification_present="true", survey_reference_actual_disposition="uncertain")
+            rows += [
+                {"classification_present": "false", "survey_reference_classification_present": "true", "survey_reference_actual_disposition": disposition, "status": status}
+                for disposition, status in [("uncertain", "survey_reference_classification_uncertain"), ("unavailable", "survey_reference_classification_error"), ("exclude", "survey_reference_classified_nonrelease")]
+            ]
+            rows += [{"classification_present": "false", "status": status} for status in ["survey_reference_not_retrieved", "survey_reference_retrieved_not_classified"]]
+            atomic_write_csv(root / "instances.csv", rows, columns)
+            counts = reference_uncertainty(root)
+            self.assertEqual(counts["attempted"], 7)
+            self.assertEqual(counts["uncertain"], 2)
+            self.assertEqual(counts["error"], 2)
+            self.assertEqual(counts["exclude"], 2)
+            self.assertEqual(counts["accept"], 1)
+            self.assertEqual(counts["not_attempted"], 2)
+            self.assertAlmostEqual(counts["value"], 2 / 7)
+            configure_style({"show_subcaptions": False})
+            try:
+                _reference_uncertainty(root, {"source": "openalex"}, root / "figures", ["svg"], 72)
+                svg = (root / "figures/08_reference_uncertainty.svg").read_text()
+                for label in ["28.6%", "2/7 attempts", "Uncertain decisions among attempted reference classifications (%)"]:
+                    self.assertIn(label, svg)
+            finally:
+                configure_style()
+
+    def test_reference_uncertainty_shows_no_attempts_as_unavailable_not_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inputs = {}
+            for label, rows in {
+                "Available": [{"classification_present": "true", "actual_disposition": "exclude", "status": "classified"}],
+                "Missing": [{"classification_present": "false", "actual_disposition": "unavailable", "status": "not_retrieved"}],
+            }.items():
+                inputs[label] = root / label
+                atomic_write_csv(inputs[label] / "instances.csv", rows, ["classification_present", "actual_disposition", "status"])
+            self.assertIsNone(reference_uncertainty(inputs["Missing"])["value"])
+            _reference_uncertainty_overview("github", inputs, root, ["svg"], 72)
+            table = pd.read_csv(root / "data/02_reference_uncertainty.csv").set_index("classifier")
+            self.assertEqual(table.loc["Available", "value"], 0)
+            self.assertTrue(pd.isna(table.loc["Missing", "value"]))
+            svg = (root / "02_reference_uncertainty.svg").read_text()
+            for label in ["0.0%", "N/A", "0/1 attempts", "0/0 attempts"]:
+                self.assertIn(label, svg)
+
+    def test_recovered_taxonomy_uses_only_accepted_reference_positives(self) -> None:
+        """Separate 72/80 labeling quality from 80/100 recovery and negative controls."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            atomic_write_csv(root / "field_metrics.csv", [
+                {"field": field, "supported": supported, "comparisons": count}
+                for field, supported, count in [
+                    ("artifact_type", True, 101), ("domain", True, 101),
+                    ("data_form", True, 100), ("labeling", False, 0),
+                ]
+            ], ["field", "supported", "comparisons"])
+            instances = []
+            for index in range(100):
+                checks = {"artifact_type": index < 72, "domain": False}
+                if index < 60:
+                    checks["data_form"] = True
+                instances.append({
+                    "expected_disposition": "include",
+                    "actual_disposition": "include" if index < 80 else "uncertain" if index < 90 else "exclude",
+                    "field_results_json": json.dumps(checks),
+                })
+            instances.append({
+                "expected_disposition": "exclude", "actual_disposition": "include",
+                "field_results_json": json.dumps({"artifact_type": True, "domain": True}),
+            })
+            atomic_write_csv(root / "instances.csv", instances, [
+                "expected_disposition", "actual_disposition", "field_results_json",
+            ])
+            table = recovered_taxonomy_table(root).set_index("field")
+            self.assertEqual(table.loc["artifact_type", "comparisons"], 80)
+            self.assertEqual(table.loc["artifact_type", "exact_matches"], 72)
+            self.assertAlmostEqual(table.loc["artifact_type", "value"], .9)
+            self.assertEqual(table.loc["domain", "value"], 0)
+            self.assertEqual(table.loc["data_form", "comparisons"], 60)
+            self.assertEqual(table.loc["data_form", "value"], 1)
+            self.assertTrue(pd.isna(table.loc["labeling", "value"]))
+            self.assertTrue((table["recovered"] == 80).all())
+            self.assertTrue((table["expected_positive_entities"] == 100).all())
+            self.assertTrue((table["recovery_rate"] == .8).all())
+            configure_style({"show_subcaptions": False})
+            try:
+                _recovered_taxonomy_accuracy(root, {"source": "openalex"}, root, ["svg"], 72)
+                svg = (root / "07_recovered_taxonomy_accuracy.svg").read_text()
+                for label in ["90.0%", "0.0%", "N/A", "n=80", "n=60", "recovered 80/100"]:
+                    self.assertIn(label, svg)
+                self.assertNotIn("ids-meta-subcaption", svg)
+            finally:
+                configure_style()
+
+            # Empty recovery is undefined accuracy, even on a supported field.
+            for row in instances:
+                row["actual_disposition"] = "unavailable"
+            atomic_write_csv(root / "instances.csv", instances, list(instances[0]))
+            empty = recovered_taxonomy_table(root)
+            self.assertTrue(empty["value"].isna().all())
+            self.assertTrue((empty["comparisons"] == 0).all())
+            _recovered_taxonomy_accuracy(root, {"source": "github"}, root, ["svg"], 72)
+            self.assertIn("recovered 0/100", (root / "07_recovered_taxonomy_accuracy.svg").read_text())
+
+    def test_taxonomy_overview_keeps_full_field_counts_and_unsupported_na(self) -> None:
+        """Use rated comparisons rather than recovered items and retain unsupported fields."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            atomic_write_csv(root / "field_metrics.csv", [
+                {"field": "artifact_type", "supported": "true", "comparisons": 3, "exact_matches": 1, "exact_accuracy": 1 / 3},
+                {"field": "domain", "supported": "true", "comparisons": 3, "exact_matches": 0, "exact_accuracy": 0},
+                {"field": "data_form", "supported": "false", "comparisons": 0, "exact_matches": 0, "exact_accuracy": ""},
+            ], ["field", "supported", "comparisons", "exact_matches", "exact_accuracy"])
+            _taxonomy_accuracy_overview(root, {"source": "openalex", "classifier_id": "ensemble"}, root, ["svg"], 72)
+            rows = {row["field"]: row for row in read_csv(root / "data/06_taxonomy_accuracy.csv")}
+            self.assertAlmostEqual(float(rows["artifact_type"]["percentage"]), 100 / 3)
+            self.assertEqual(float(rows["domain"]["value"]), 0)
+            self.assertEqual(rows["data_form"]["value"], "")
+            svg = (root / "06_taxonomy_accuracy.svg").read_text()
+            for label in ("33.3%", "0.0%", "N/A", "3 rated entities per field"):
+                self.assertIn(label, svg)
 
     def _write_profile(self, path: Path, source: str, body: str) -> Path:
         """Write a valid evaluation profile with caller-supplied entity tables."""
@@ -153,6 +288,8 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(raw["excluded_dataset_count"], 18)
         self.assertEqual(raw["excluded_survey_categories"], ["Botnet", "IOV", "MANET network", "Satellites"])
         self.assertEqual(len(rows), 105)
+        self.assertNotIn("centralization", raw["classification_fields"])
+        self.assertTrue(all("centralization" not in row for row in rows))
         self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 96, "accept_adjacent": 5, "exclude": 4})
         self.assertTrue({row["artifact_type"] for row in rows}.issubset(set(ARTIFACT_TYPES)))
         self.assertEqual({row["artifact_type"] for row in rows}, {"dataset"})
@@ -187,7 +324,9 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(by_name["BLEBeacon"]["decision"], "exclude")
         self.assertEqual(by_name["IEEE-300-BUS POWER TEST SYSTEM"]["decision"], "exclude")
         self.assertIn("survey_reference", by_name["DARPA98"])
-        self.assertEqual(len(load_rating_profile(path, "openalex").entities), 105)
+        profile = load_rating_profile(path, "openalex")
+        self.assertEqual(len(profile.entities), 105)
+        self.assertTrue(all("centralization" not in row for row in profile.entities.values()))
 
     def test_github_metrics_penalize_boundary_and_missing_results_transparently(self) -> None:
         """Verify operational, strict, and selective matrices use their documented denominators."""
@@ -462,11 +601,14 @@ class EvaluationTests(unittest.TestCase):
                 "figures/01_decision_views.svg", "figures/02_decision_confusion.svg",
                 "figures/03_taxonomy_fields.svg", "figures/04_taxonomy_categories.svg",
                 "figures/05_pipeline_coverage.svg",
+                "figures/06_taxonomy_accuracy.svg",
+                "figures/07_recovered_taxonomy_accuracy.svg",
+                "figures/08_reference_uncertainty.svg",
             ])
             self.assertTrue(all(output.is_file() and output.stat().st_size > 1000 for output in outputs))
             self.assertEqual(
                 {item.name for item in (output_dir / "figures/data").iterdir()},
-                {"01_decision_views.csv", "02_decision_confusion.csv", "03_taxonomy_fields.csv", "04_taxonomy_categories.csv", "05_coverage_rates.csv", "05_status_counts.csv"},
+                {"01_decision_views.csv", "02_decision_confusion.csv", "03_taxonomy_fields.csv", "04_taxonomy_categories.csv", "05_coverage_rates.csv", "05_status_counts.csv", "06_taxonomy_accuracy.csv", "07_recovered_taxonomy_accuracy.csv", "08_reference_uncertainty.csv"},
             )
             readme = (output_dir / "README.md").read_text(encoding="utf-8")
             self.assertIn("Metadata field accuracy", readme)
@@ -480,6 +622,17 @@ class EvaluationTests(unittest.TestCase):
             self.assertIn("Security system types", field_svg)
             self.assertIn("Label F1", field_svg)
             self.assertNotIn("Jaccard", field_svg)
+            accuracy_rows = read_csv(output_dir / "figures/data/06_taxonomy_accuracy.csv")
+            for row in accuracy_rows:
+                self.assertAlmostEqual(float(row["value"]), int(row["exact_matches"]) / int(row["comparisons"]))
+            self.assertIn("Correct labels across the reference inventory (%)", (output_dir / "figures/06_taxonomy_accuracy.svg").read_text())
+            recovered_rows = read_csv(output_dir / "figures/data/07_recovered_taxonomy_accuracy.csv")
+            for row in recovered_rows:
+                self.assertEqual(int(row["recovered"]), 1)
+                self.assertEqual(int(row["comparisons"]), 1)
+            conditional = {row["field"]: row for row in recovered_rows}
+            self.assertEqual(float(conditional["role"]["value"]), 1)
+            self.assertEqual(float(conditional["capabilities"]["value"]), 0)
             category_data = read_csv(output_dir / "figures/data/04_taxonomy_categories.csv")
             self.assertIn({"field": "observation_objects", "label": "packet_analysis"}, [
                 {"field": row["field"], "label": row["label"]} for row in category_data

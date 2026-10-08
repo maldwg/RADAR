@@ -1,4 +1,126 @@
 classifier,classifier_method,field,label,tp,fp,fn,precision,recall,f1
+Keyword,keyword,role,antivirus,0,0,3,0.0,0.0,0.0
+Keyword,keyword,role,demo,0,0,2,0.0,0.0,0.0
+Keyword,keyword,role,detection_framework,0,0,10,0.0,0.0,0.0
+Keyword,keyword,role,detection_platform,0,0,1,0.0,0.0,0.0
+Keyword,keyword,role,native_detector,0,0,19,0.0,0.0,0.0
+Keyword,keyword,role,out_of_scope,0,0,47,0.0,0.0,0.0
+Keyword,keyword,role,rules_content,0,0,6,0.0,0.0,0.0
+Keyword,keyword,role,support_tooling,0,0,25,0.0,0.0,0.0
+Keyword,keyword,role,traffic_analyzer,0,0,5,0.0,0.0,0.0
+Keyword,keyword,role,uncertain,0,0,2,0.0,0.0,0.0
+Keyword,keyword,observation_scopes,application,0,0,1,0.0,0.0,0.0
+Keyword,keyword,observation_scopes,host_endpoint,0,0,31,0.0,0.0,0.0
+Keyword,keyword,observation_scopes,multi_scope,0,0,13,0.0,0.0,0.0
+Keyword,keyword,observation_scopes,network,0,0,19,0.0,0.0,0.0
+Keyword,keyword,observation_scopes,unknown,0,0,55,0.0,0.0,0.0
+Keyword,keyword,observation_scopes,wireless,0,0,1,0.0,0.0,0.0
+Keyword,keyword,observation_objects,file_analysis,0,0,7,0.0,0.0,0.0
+Keyword,keyword,observation_objects,flow_analysis,0,0,9,0.0,0.0,0.0
+Keyword,keyword,observation_objects,log_analysis,0,0,33,0.0,0.0,0.0
+Keyword,keyword,observation_objects,packet_analysis,0,0,15,0.0,0.0,0.0
+Keyword,keyword,observation_objects,system_calls,0,0,8,0.0,0.0,0.0
+Keyword,keyword,observation_objects,unknown,0,0,66,0.0,0.0,0.0
+Keyword,keyword,capabilities,detection,0,0,44,0.0,0.0,0.0
+Keyword,keyword,capabilities,monitoring,0,0,59,0.0,0.0,0.0
+Keyword,keyword,capabilities,prevention,0,0,14,0.0,0.0,0.0
+Keyword,keyword,detection_methods,anomaly_based,0,0,8,0.0,0.0,0.0
+Keyword,keyword,detection_methods,nn_based,0,0,1,0.0,0.0,0.0
+Keyword,keyword,detection_methods,protocol_analysis,0,0,6,0.0,0.0,0.0
+Keyword,keyword,detection_methods,rule_based,0,0,35,0.0,0.0,0.0
+Keyword,keyword,detection_methods,signature_based,0,0,18,0.0,0.0,0.0
+Keyword,keyword,detection_methods,unknown,0,0,78,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,apids,0,0,1,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,av,0,0,5,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,hids,0,0,11,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,hips,0,0,4,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,ids,0,0,7,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,ips,0,0,4,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,nids,0,0,4,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,nips,0,0,2,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,nsm,0,0,5,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,pids,0,0,1,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,sm,0,0,4,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,unknown,0,0,70,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,wids,0,0,1,0.0,0.0,0.0
+Keyword,keyword,primary_system_type,xdr,0,0,1,0.0,0.0,0.0
+Keyword,keyword,system_types,apids,0,0,2,0.0,0.0,0.0
+Keyword,keyword,system_types,av,0,0,5,0.0,0.0,0.0
+Keyword,keyword,system_types,hids,0,0,15,0.0,0.0,0.0
+Keyword,keyword,system_types,hips,0,0,7,0.0,0.0,0.0
+Keyword,keyword,system_types,ids,0,0,10,0.0,0.0,0.0
+Keyword,keyword,system_types,ips,0,0,4,0.0,0.0,0.0
+Keyword,keyword,system_types,nids,0,0,7,0.0,0.0,0.0
+Keyword,keyword,system_types,nips,0,0,2,0.0,0.0,0.0
+Keyword,keyword,system_types,nsm,0,0,5,0.0,0.0,0.0
+Keyword,keyword,system_types,pids,0,0,5,0.0,0.0,0.0
+Keyword,keyword,system_types,sm,0,0,4,0.0,0.0,0.0
+Keyword,keyword,system_types,unknown,0,0,70,0.0,0.0,0.0
+Keyword,keyword,system_types,wids,0,0,1,0.0,0.0,0.0
+Keyword,keyword,system_types,xdr,0,0,1,0.0,0.0,0.0
+Keyword,keyword,centralization,centralized,0,0,13,0.0,0.0,0.0
+Keyword,keyword,centralization,hierarchical,0,0,3,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,antivirus,0,0,3,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,demo,0,0,2,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,detection_framework,0,0,10,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,detection_platform,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,native_detector,0,0,19,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,out_of_scope,0,0,47,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,rules_content,0,0,6,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,support_tooling,0,0,25,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,traffic_analyzer,0,0,5,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,role,uncertain,0,0,2,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_scopes,application,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_scopes,host_endpoint,0,0,31,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_scopes,multi_scope,0,0,13,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_scopes,network,0,0,19,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_scopes,unknown,0,0,55,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_scopes,wireless,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_objects,file_analysis,0,0,7,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_objects,flow_analysis,0,0,9,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_objects,log_analysis,0,0,33,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_objects,packet_analysis,0,0,15,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_objects,system_calls,0,0,8,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,observation_objects,unknown,0,0,66,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,capabilities,detection,0,0,44,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,capabilities,monitoring,0,0,59,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,capabilities,prevention,0,0,14,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,detection_methods,anomaly_based,0,0,8,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,detection_methods,nn_based,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,detection_methods,protocol_analysis,0,0,6,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,detection_methods,rule_based,0,0,35,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,detection_methods,signature_based,0,0,18,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,detection_methods,unknown,0,0,78,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,apids,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,av,0,0,5,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,hids,0,0,11,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,hips,0,0,4,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,ids,0,0,7,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,ips,0,0,4,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,nids,0,0,4,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,nips,0,0,2,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,nsm,0,0,5,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,pids,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,sm,0,0,4,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,unknown,0,0,70,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,wids,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,primary_system_type,xdr,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,apids,0,0,2,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,av,0,0,5,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,hids,0,0,15,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,hips,0,0,7,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,ids,0,0,10,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,ips,0,0,4,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,nids,0,0,7,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,nips,0,0,2,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,nsm,0,0,5,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,pids,0,0,5,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,sm,0,0,4,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,unknown,0,0,70,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,wids,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,system_types,xdr,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,centralization,centralized,0,0,13,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,centralization,hierarchical,0,0,3,0.0,0.0,0.0
 LLM · gemma4-31b,llm,role,antivirus,0,0,3,0.0,0.0,0.0
 LLM · gemma4-31b,llm,role,demo,0,0,2,0.0,0.0,0.0
 LLM · gemma4-31b,llm,role,detection_framework,0,0,10,0.0,0.0,0.0
@@ -11,19 +133,19 @@ LLM · gemma4-31b,llm,role,traffic_analyzer,0,0,5,0.0,0.0,0.0
 LLM · gemma4-31b,llm,role,uncertain,0,0,2,0.0,0.0,0.0
 LLM · gemma4-31b,llm,observation_scopes,application,0,0,1,0.0,0.0,0.0
 LLM · gemma4-31b,llm,observation_scopes,host_endpoint,0,0,31,0.0,0.0,0.0
-LLM · gemma4-31b,llm,observation_scopes,multi_scope,0,0,12,0.0,0.0,0.0
+LLM · gemma4-31b,llm,observation_scopes,multi_scope,0,0,13,0.0,0.0,0.0
 LLM · gemma4-31b,llm,observation_scopes,network,0,0,19,0.0,0.0,0.0
-LLM · gemma4-31b,llm,observation_scopes,unknown,0,0,56,0.0,0.0,0.0
+LLM · gemma4-31b,llm,observation_scopes,unknown,0,0,55,0.0,0.0,0.0
 LLM · gemma4-31b,llm,observation_scopes,wireless,0,0,1,0.0,0.0,0.0
-LLM · gemma4-31b,llm,observation_objects,file_analysis,0,0,5,0.0,0.0,0.0
-LLM · gemma4-31b,llm,observation_objects,flow_analysis,0,0,8,0.0,0.0,0.0
+LLM · gemma4-31b,llm,observation_objects,file_analysis,0,0,7,0.0,0.0,0.0
+LLM · gemma4-31b,llm,observation_objects,flow_analysis,0,0,9,0.0,0.0,0.0
 LLM · gemma4-31b,llm,observation_objects,log_analysis,0,0,33,0.0,0.0,0.0
 LLM · gemma4-31b,llm,observation_objects,packet_analysis,0,0,15,0.0,0.0,0.0
 LLM · gemma4-31b,llm,observation_objects,system_calls,0,0,8,0.0,0.0,0.0
 LLM · gemma4-31b,llm,observation_objects,unknown,0,0,66,0.0,0.0,0.0
 LLM · gemma4-31b,llm,capabilities,detection,0,0,44,0.0,0.0,0.0
-LLM · gemma4-31b,llm,capabilities,monitoring,0,0,60,0.0,0.0,0.0
-LLM · gemma4-31b,llm,capabilities,prevention,0,0,13,0.0,0.0,0.0
+LLM · gemma4-31b,llm,capabilities,monitoring,0,0,59,0.0,0.0,0.0
+LLM · gemma4-31b,llm,capabilities,prevention,0,0,14,0.0,0.0,0.0
 LLM · gemma4-31b,llm,detection_methods,anomaly_based,0,0,8,0.0,0.0,0.0
 LLM · gemma4-31b,llm,detection_methods,nn_based,0,0,1,0.0,0.0,0.0
 LLM · gemma4-31b,llm,detection_methods,protocol_analysis,0,0,6,0.0,0.0,0.0
@@ -32,8 +154,8 @@ LLM · gemma4-31b,llm,detection_methods,signature_based,0,0,18,0.0,0.0,0.0
 LLM · gemma4-31b,llm,detection_methods,unknown,0,0,78,0.0,0.0,0.0
 LLM · gemma4-31b,llm,primary_system_type,apids,0,0,1,0.0,0.0,0.0
 LLM · gemma4-31b,llm,primary_system_type,av,0,0,5,0.0,0.0,0.0
-LLM · gemma4-31b,llm,primary_system_type,hids,0,0,12,0.0,0.0,0.0
-LLM · gemma4-31b,llm,primary_system_type,hips,0,0,3,0.0,0.0,0.0
+LLM · gemma4-31b,llm,primary_system_type,hids,0,0,11,0.0,0.0,0.0
+LLM · gemma4-31b,llm,primary_system_type,hips,0,0,4,0.0,0.0,0.0
 LLM · gemma4-31b,llm,primary_system_type,ids,0,0,7,0.0,0.0,0.0
 LLM · gemma4-31b,llm,primary_system_type,ips,0,0,4,0.0,0.0,0.0
 LLM · gemma4-31b,llm,primary_system_type,nids,0,0,4,0.0,0.0,0.0
@@ -44,10 +166,10 @@ LLM · gemma4-31b,llm,primary_system_type,sm,0,0,4,0.0,0.0,0.0
 LLM · gemma4-31b,llm,primary_system_type,unknown,0,0,70,0.0,0.0,0.0
 LLM · gemma4-31b,llm,primary_system_type,wids,0,0,1,0.0,0.0,0.0
 LLM · gemma4-31b,llm,primary_system_type,xdr,0,0,1,0.0,0.0,0.0
-LLM · gemma4-31b,llm,system_types,apids,0,0,3,0.0,0.0,0.0
+LLM · gemma4-31b,llm,system_types,apids,0,0,2,0.0,0.0,0.0
 LLM · gemma4-31b,llm,system_types,av,0,0,5,0.0,0.0,0.0
-LLM · gemma4-31b,llm,system_types,hids,0,0,16,0.0,0.0,0.0
-LLM · gemma4-31b,llm,system_types,hips,0,0,6,0.0,0.0,0.0
+LLM · gemma4-31b,llm,system_types,hids,0,0,15,0.0,0.0,0.0
+LLM · gemma4-31b,llm,system_types,hips,0,0,7,0.0,0.0,0.0
 LLM · gemma4-31b,llm,system_types,ids,0,0,10,0.0,0.0,0.0
 LLM · gemma4-31b,llm,system_types,ips,0,0,4,0.0,0.0,0.0
 LLM · gemma4-31b,llm,system_types,nids,0,0,7,0.0,0.0,0.0
@@ -58,7 +180,7 @@ LLM · gemma4-31b,llm,system_types,sm,0,0,4,0.0,0.0,0.0
 LLM · gemma4-31b,llm,system_types,unknown,0,0,70,0.0,0.0,0.0
 LLM · gemma4-31b,llm,system_types,wids,0,0,1,0.0,0.0,0.0
 LLM · gemma4-31b,llm,system_types,xdr,0,0,1,0.0,0.0,0.0
-LLM · gemma4-31b,llm,centralization,centralized,0,0,12,0.0,0.0,0.0
+LLM · gemma4-31b,llm,centralization,centralized,0,0,13,0.0,0.0,0.0
 LLM · gemma4-31b,llm,centralization,hierarchical,0,0,3,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,role,antivirus,0,0,3,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,role,demo,0,0,2,0.0,0.0,0.0
@@ -72,19 +194,19 @@ LLM · qwen3-8-27b,llm,role,traffic_analyzer,0,0,5,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,role,uncertain,0,0,2,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,observation_scopes,application,0,0,1,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,observation_scopes,host_endpoint,0,0,31,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,observation_scopes,multi_scope,0,0,12,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,observation_scopes,multi_scope,0,0,13,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,observation_scopes,network,0,0,19,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,observation_scopes,unknown,0,0,56,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,observation_scopes,unknown,0,0,55,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,observation_scopes,wireless,0,0,1,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,observation_objects,file_analysis,0,0,5,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,observation_objects,flow_analysis,0,0,8,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,observation_objects,file_analysis,0,0,7,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,observation_objects,flow_analysis,0,0,9,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,observation_objects,log_analysis,0,0,33,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,observation_objects,packet_analysis,0,0,15,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,observation_objects,system_calls,0,0,8,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,observation_objects,unknown,0,0,66,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,capabilities,detection,0,0,44,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,capabilities,monitoring,0,0,60,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,capabilities,prevention,0,0,13,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,capabilities,monitoring,0,0,59,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,capabilities,prevention,0,0,14,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,detection_methods,anomaly_based,0,0,8,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,detection_methods,nn_based,0,0,1,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,detection_methods,protocol_analysis,0,0,6,0.0,0.0,0.0
@@ -93,8 +215,8 @@ LLM · qwen3-8-27b,llm,detection_methods,signature_based,0,0,18,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,detection_methods,unknown,0,0,78,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,primary_system_type,apids,0,0,1,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,primary_system_type,av,0,0,5,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,primary_system_type,hids,0,0,12,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,primary_system_type,hips,0,0,3,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,primary_system_type,hids,0,0,11,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,primary_system_type,hips,0,0,4,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,primary_system_type,ids,0,0,7,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,primary_system_type,ips,0,0,4,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,primary_system_type,nids,0,0,4,0.0,0.0,0.0
@@ -105,10 +227,10 @@ LLM · qwen3-8-27b,llm,primary_system_type,sm,0,0,4,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,primary_system_type,unknown,0,0,70,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,primary_system_type,wids,0,0,1,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,primary_system_type,xdr,0,0,1,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,system_types,apids,0,0,3,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,system_types,apids,0,0,2,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,system_types,av,0,0,5,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,system_types,hids,0,0,16,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,system_types,hips,0,0,6,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,system_types,hids,0,0,15,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,system_types,hips,0,0,7,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,system_types,ids,0,0,10,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,system_types,ips,0,0,4,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,system_types,nids,0,0,7,0.0,0.0,0.0
@@ -119,5 +241,66 @@ LLM · qwen3-8-27b,llm,system_types,sm,0,0,4,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,system_types,unknown,0,0,70,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,system_types,wids,0,0,1,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,system_types,xdr,0,0,1,0.0,0.0,0.0
-LLM · qwen3-8-27b,llm,centralization,centralized,0,0,12,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,centralization,centralized,0,0,13,0.0,0.0,0.0
 LLM · qwen3-8-27b,llm,centralization,hierarchical,0,0,3,0.0,0.0,0.0
+Ensemble,ensemble,role,antivirus,0,0,3,0.0,0.0,0.0
+Ensemble,ensemble,role,demo,0,0,2,0.0,0.0,0.0
+Ensemble,ensemble,role,detection_framework,0,0,10,0.0,0.0,0.0
+Ensemble,ensemble,role,detection_platform,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,role,native_detector,0,0,19,0.0,0.0,0.0
+Ensemble,ensemble,role,out_of_scope,0,0,47,0.0,0.0,0.0
+Ensemble,ensemble,role,rules_content,0,0,6,0.0,0.0,0.0
+Ensemble,ensemble,role,support_tooling,0,0,25,0.0,0.0,0.0
+Ensemble,ensemble,role,traffic_analyzer,0,0,5,0.0,0.0,0.0
+Ensemble,ensemble,role,uncertain,0,0,2,0.0,0.0,0.0
+Ensemble,ensemble,observation_scopes,application,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,observation_scopes,host_endpoint,0,0,31,0.0,0.0,0.0
+Ensemble,ensemble,observation_scopes,multi_scope,0,0,13,0.0,0.0,0.0
+Ensemble,ensemble,observation_scopes,network,0,0,19,0.0,0.0,0.0
+Ensemble,ensemble,observation_scopes,unknown,0,0,55,0.0,0.0,0.0
+Ensemble,ensemble,observation_scopes,wireless,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,observation_objects,file_analysis,0,0,7,0.0,0.0,0.0
+Ensemble,ensemble,observation_objects,flow_analysis,0,0,9,0.0,0.0,0.0
+Ensemble,ensemble,observation_objects,log_analysis,0,0,33,0.0,0.0,0.0
+Ensemble,ensemble,observation_objects,packet_analysis,0,0,15,0.0,0.0,0.0
+Ensemble,ensemble,observation_objects,system_calls,0,0,8,0.0,0.0,0.0
+Ensemble,ensemble,observation_objects,unknown,0,0,66,0.0,0.0,0.0
+Ensemble,ensemble,capabilities,detection,0,0,44,0.0,0.0,0.0
+Ensemble,ensemble,capabilities,monitoring,0,0,59,0.0,0.0,0.0
+Ensemble,ensemble,capabilities,prevention,0,0,14,0.0,0.0,0.0
+Ensemble,ensemble,detection_methods,anomaly_based,0,0,8,0.0,0.0,0.0
+Ensemble,ensemble,detection_methods,nn_based,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,detection_methods,protocol_analysis,0,0,6,0.0,0.0,0.0
+Ensemble,ensemble,detection_methods,rule_based,0,0,35,0.0,0.0,0.0
+Ensemble,ensemble,detection_methods,signature_based,0,0,18,0.0,0.0,0.0
+Ensemble,ensemble,detection_methods,unknown,0,0,78,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,apids,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,av,0,0,5,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,hids,0,0,11,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,hips,0,0,4,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,ids,0,0,7,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,ips,0,0,4,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,nids,0,0,4,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,nips,0,0,2,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,nsm,0,0,5,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,pids,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,sm,0,0,4,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,unknown,0,0,70,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,wids,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,primary_system_type,xdr,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,system_types,apids,0,0,2,0.0,0.0,0.0
+Ensemble,ensemble,system_types,av,0,0,5,0.0,0.0,0.0
+Ensemble,ensemble,system_types,hids,0,0,15,0.0,0.0,0.0
+Ensemble,ensemble,system_types,hips,0,0,7,0.0,0.0,0.0
+Ensemble,ensemble,system_types,ids,0,0,10,0.0,0.0,0.0
+Ensemble,ensemble,system_types,ips,0,0,4,0.0,0.0,0.0
+Ensemble,ensemble,system_types,nids,0,0,7,0.0,0.0,0.0
+Ensemble,ensemble,system_types,nips,0,0,2,0.0,0.0,0.0
+Ensemble,ensemble,system_types,nsm,0,0,5,0.0,0.0,0.0
+Ensemble,ensemble,system_types,pids,0,0,5,0.0,0.0,0.0
+Ensemble,ensemble,system_types,sm,0,0,4,0.0,0.0,0.0
+Ensemble,ensemble,system_types,unknown,0,0,70,0.0,0.0,0.0
+Ensemble,ensemble,system_types,wids,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,system_types,xdr,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,centralization,centralized,0,0,13,0.0,0.0,0.0
+Ensemble,ensemble,centralization,hierarchical,0,0,3,0.0,0.0,0.0

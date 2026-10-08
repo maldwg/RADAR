@@ -350,9 +350,8 @@ def export(reconciled_path: Path, main_output: Path, adjacent_output: Path) -> t
     """Validate and export core and adjacent accepted-paper catalogues."""
     rows = read_csv(reconciled_path)
     require_columns(rows, ("decision", "paper_role", "openalex_id", "publication_family_id", "canonical_openalex_id", "paper_relationship"), reconciled_path)
-    dataset_types = {"dataset", "dataset_and_generator"}
-    main = [row for row in rows if row.get("decision") == "accept" and row.get("artifact_type") in dataset_types]
-    adjacent = [row for row in rows if row.get("decision") == "accept_adjacent" and row.get("artifact_type") in dataset_types]
+    main = [row for row in rows if row.get("decision") == "accept"]
+    adjacent = [row for row in rows if row.get("decision") == "accept_adjacent"]
     for row in main + adjacent:
         ensure_resource_name(row)
         validate_processed_row(row)

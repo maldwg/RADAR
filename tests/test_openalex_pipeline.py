@@ -12,7 +12,7 @@ from ids_meta.openalex.collect import OpenAlexClient, balanced_search, collect, 
 from ids_meta.openalex.pipeline import classify, export, export_survey_sources, prefilter
 from ids_meta.openalex.reconcile import reconcile
 from ids_meta.openalex.entities import canonicalize_artifact_ids
-from ids_meta.openalex.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ensure_resource_name, normalize_response
+from ids_meta.openalex.schema import CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ensure_resource_name, normalize_response
 from ids_meta.common.csvio import atomic_write_csv
 
 
@@ -509,6 +509,40 @@ class OpenAlexPipelineTests(unittest.TestCase):
                 )
             self.assertEqual(model.calls, 2)
             self.assertEqual(second[0]["decision"], "accept")
+
+    def test_export_preserves_accepted_generators_in_both_catalogues(self) -> None:
+        """Keep generator releases alongside datasets without another inclusion gate."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = []
+            for decision in ("accept", "accept_adjacent"):
+                for artifact_type in ("dataset", "dataset_and_generator", "generator_framework"):
+                    identity = f"{decision}-{artifact_type}"
+                    rows.append({
+                        "openalex_id": identity, "artifact_id": identity,
+                        "artifact_name": identity, "artifact_display_name": identity,
+                        "resource_name": identity, "title": identity,
+                        "publication_year": "2024", "decision": decision,
+                        "artifact_type": artifact_type,
+                        "paper_role": "generator_release" if artifact_type == "generator_framework" else "original_release",
+                        "run_id": "fixture", "evidence_json": "[]",
+                        "publication_family_id": identity,
+                        "canonical_openalex_id": identity,
+                        "paper_relationship": "canonical_base",
+                    })
+            rows.extend([
+                dict(rows[-1], openalex_id="excluded-generator", decision="exclude"),
+                dict(rows[-1], openalex_id="uncertain-generator", decision="uncertain"),
+            ])
+            reconciled = root / "reconciled.csv"
+            atomic_write_csv(reconciled, rows, CATALOGUE_COLUMNS)
+            main, adjacent = export(reconciled, root / "base.csv", root / "adjacent.csv")
+            self.assertEqual(len(main), 3)
+            self.assertEqual(len(adjacent), 3)
+            self.assertEqual(
+                {row["openalex_id"] for row in main + adjacent},
+                {row["openalex_id"] for row in rows if row["decision"] in {"accept", "accept_adjacent"}},
+            )
 
     def test_work_level_classification_and_export(self) -> None:
         """Verify work-level adjudication excludes downstream applications."""

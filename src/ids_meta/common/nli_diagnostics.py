@@ -83,6 +83,71 @@ def _columns(rows: Sequence[dict[str, str]]) -> list[str]:
     return ordered
 
 
+def plot_nli_threshold_sensitivity(
+    source: str, frame: pd.DataFrame, out_dir: Path, plot_config: dict[str, object],
+) -> list[Path]:
+    """Render persisted sensitivity values without rescoring or running inference."""
+    configure_style(plot_config)
+    formats = [str(value) for value in plot_config.get("formats", ["svg", "pdf"])]
+    dpi = int(plot_config.get("dpi", 160))
+    panels = [
+        ("detection_rate", "Detection rate ↑", "higher"),
+        (
+            "false_positive_rate" if source == "github" else "definitive_coverage",
+            "False-positive rate ↓" if source == "github" else "Definitive coverage ↑",
+            "lower" if source == "github" else "higher",
+        ),
+        ("definitive_coverage", "Definitive coverage ↑", "higher"),
+        ("abstention_rate", "Abstention rate ↓", "lower"),
+        ("field_accuracy", "Taxonomy exact accuracy ↑", "higher"),
+        ("field_macro_f1", "Taxonomy macro-F1 ↑", "higher"),
+    ]
+    if source != "github":
+        panels[2] = ("classification_coverage", "Dataset identified ↑", "higher")
+    fig, axes = plt.subplots(2, 3, figsize=(14.5, 9.2), constrained_layout=False)
+    threshold_values = sorted(frame["entailment_threshold"].unique())
+    margin_values = sorted(frame["label_margin"].unique())
+    operating_points = frame[frame["configured_operating_point"].astype(str).str.casefold().eq("true")]
+    for ax, (metric, title, direction) in zip(axes.flat, panels):
+        pivot = frame.pivot(
+            index="label_margin", columns="entailment_threshold", values=metric,
+        ).reindex(index=margin_values, columns=threshold_values)
+        cmap = plt.get_cmap("Blues" if direction == "higher" else "Reds").copy()
+        cmap.set_bad("#E6E8EB")
+        image = ax.imshow(
+            pivot.astype(float).values, vmin=0, vmax=1,
+            cmap=cmap, aspect="auto", origin="lower",
+        )
+        ax.set_xticks(range(len(threshold_values)), labels=[f"{value:g}" for value in threshold_values])
+        ax.set_yticks(range(len(margin_values)), labels=[f"{value:g}" for value in margin_values])
+        ax.set_xlabel("Minimum label evidence (entailment)")
+        ax.set_ylabel("Minimum lead over runner-up")
+        ax.set_title(title, loc="center", fontweight="bold", fontsize=10)
+        for row_index in range(len(margin_values)):
+            for column_index in range(len(threshold_values)):
+                if pd.isna(pivot.iloc[row_index, column_index]):
+                    ax.text(column_index, row_index, "N/A", ha="center", va="center", fontsize=7)
+        for point in operating_points.itertuples():
+            column_index = threshold_values.index(point.entailment_threshold)
+            row_index = margin_values.index(point.label_margin)
+            ax.add_patch(Rectangle(
+                (column_index - .5, row_index - .5), 1, 1,
+                fill=False, edgecolor="#111111", linewidth=2.2,
+            ))
+        fig.colorbar(image, ax=ax, fraction=.046, pad=.04)
+    fig.suptitle(
+        f"{'OpenAlex' if source == 'openalex' else 'GitHub'} — What changes when NLI abstention cutoffs move?",
+        x=.5, ha="center", fontsize=16, fontweight="bold",
+    )
+    stamp(
+        fig,
+        "move right/up = demand stronger, less ambiguous NLI evidence; black outline=configured cutoffs; "
+        "offline sensitivity check only—not another classifier and not automatic tuning",
+    )
+    fig.subplots_adjust(left=.08, right=.97, top=.89, bottom=.11, wspace=.32, hspace=.38)
+    return save_figure(fig, out_dir, "00_threshold_sensitivity", formats, dpi)
+
+
 def build_nli_threshold_diagnostics(
     source: str, classifications_path: Path, candidates_path: Path,
     rating_profile: RatingProfile, nli_profile: NLIProfile,
@@ -164,68 +229,8 @@ def build_nli_threshold_diagnostics(
     frame = pd.DataFrame(result_rows)
     data_dir = out_dir / "data"
     table_path = write_table(frame, data_dir, "nli_threshold_sensitivity")
-    configure_style()
-    formats = [str(value) for value in plot_config.get("formats", ["svg", "pdf"])]
-    dpi = int(plot_config.get("dpi", 160))
-    panels = [
-        ("detection_rate", "Detection rate ↑", "higher"),
-        (
-            "false_positive_rate" if source == "github" else "definitive_coverage",
-            "False-positive rate ↓" if source == "github" else "Definitive coverage ↑",
-            "lower" if source == "github" else "higher",
-        ),
-        ("definitive_coverage", "Definitive coverage ↑", "higher"),
-        ("abstention_rate", "Abstention rate ↓", "lower"),
-        ("field_accuracy", "Taxonomy exact accuracy ↑", "higher"),
-        ("field_macro_f1", "Taxonomy macro-F1 ↑", "higher"),
-    ]
-    if source != "github":
-        panels[2] = ("classification_coverage", "Dataset identified ↑", "higher")
-    fig, axes = plt.subplots(2, 3, figsize=(14.5, 9.2), constrained_layout=False)
-    threshold_values = list(grid.entailment_thresholds)
-    margin_values = list(grid.label_margins)
-    for ax, (metric, title, direction) in zip(axes.flat, panels):
-        pivot = frame.pivot(
-            index="label_margin", columns="entailment_threshold", values=metric,
-        ).reindex(index=margin_values, columns=threshold_values)
-        cmap = plt.get_cmap("Blues" if direction == "higher" else "Reds").copy()
-        cmap.set_bad("#E6E8EB")
-        image = ax.imshow(
-            pivot.astype(float).values, vmin=0, vmax=1,
-            cmap=cmap, aspect="auto", origin="lower",
-        )
-        ax.set_xticks(range(len(threshold_values)), labels=[f"{value:g}" for value in threshold_values])
-        ax.set_yticks(range(len(margin_values)), labels=[f"{value:g}" for value in margin_values])
-        ax.set_xlabel("Minimum label evidence (entailment)")
-        ax.set_ylabel("Minimum lead over runner-up")
-        ax.set_title(title, loc="left", fontweight="bold", fontsize=10)
-        for row_index in range(len(margin_values)):
-            for column_index in range(len(threshold_values)):
-                if pd.isna(pivot.iloc[row_index, column_index]):
-                    ax.text(column_index, row_index, "N/A", ha="center", va="center", fontsize=7)
-        if (
-            runtime_config.entailment_threshold in threshold_values
-            and runtime_config.label_margin in margin_values
-        ):
-            column_index = threshold_values.index(runtime_config.entailment_threshold)
-            row_index = margin_values.index(runtime_config.label_margin)
-            ax.add_patch(Rectangle(
-                (column_index - .5, row_index - .5), 1, 1,
-                fill=False, edgecolor="#111111", linewidth=2.2,
-            ))
-        fig.colorbar(image, ax=ax, fraction=.046, pad=.04)
-    fig.suptitle(
-        f"{'OpenAlex' if source == 'openalex' else 'GitHub'} — What changes when NLI abstention cutoffs move?",
-        x=.06, ha="left", fontsize=16, fontweight="bold",
-    )
-    stamp(
-        fig,
-        "move right/up = demand stronger, less ambiguous NLI evidence; black outline=configured cutoffs; "
-        "offline sensitivity check only—not another classifier and not automatic tuning",
-    )
-    fig.subplots_adjust(left=.08, right=.97, top=.89, bottom=.11, wspace=.32, hspace=.38)
     outputs: list[Path] = [table_path]
-    outputs += save_figure(fig, out_dir, "00_threshold_sensitivity", formats, dpi)
+    outputs += plot_nli_threshold_sensitivity(source, frame, out_dir, plot_config)
     readme = out_dir / "README.md"
     readme.write_text(
         "# NLI cutoff sensitivity\n\n"

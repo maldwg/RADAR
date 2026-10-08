@@ -1,0 +1,16 @@
+classification_pattern,count
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=exclude | LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=exclude | Ensemble=uncertain,264
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=uncertain | LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=exclude | Ensemble=uncertain,136
+Keyword=exclude | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=exclude | LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=exclude | Ensemble=uncertain,98
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=exclude | LLM · gemma4-31b=exclude | LLM · qwen3-8-27b=exclude | Ensemble=exclude,93
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=uncertain | LLM · gemma4-31b=exclude | LLM · qwen3-8-27b=exclude | Ensemble=exclude,93
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=exclude | LLM · gemma4-31b=accept | LLM · qwen3-8-27b=accept | Ensemble=accept,39
+Keyword=exclude | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=uncertain | LLM · gemma4-31b=exclude | LLM · qwen3-8-27b=exclude | Ensemble=exclude,34
+Keyword=exclude | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=uncertain | LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=exclude | Ensemble=uncertain,33
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=uncertain | LLM · gemma4-31b=accept | LLM · qwen3-8-27b=accept | Ensemble=accept,26
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=accept | LLM · gemma4-31b=accept | LLM · qwen3-8-27b=accept | Ensemble=accept,13
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=exclude | LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=uncertain | Ensemble=uncertain,11
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=exclude | LLM · gemma4-31b=accept | LLM · qwen3-8-27b=uncertain | Ensemble=uncertain,11
+Keyword=accept | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=exclude | LLM · gemma4-31b=accept | LLM · qwen3-8-27b=accept | Ensemble=accept,10
+Keyword=uncertain | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=uncertain | LLM · gemma4-31b=uncertain | LLM · qwen3-8-27b=accept | Ensemble=uncertain,7
+Keyword=exclude | NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli=uncertain | LLM · gemma4-31b=accept | LLM · qwen3-8-27b=accept | Ensemble=accept,6

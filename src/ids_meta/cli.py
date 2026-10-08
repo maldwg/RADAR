@@ -434,11 +434,16 @@ def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]
         lines.extend([
             f"- `{reference_label}`: open `{relative}/00_metric_overview.svg` ",
             f"  ({len(classifier_labels)} classifiers; exact values in `{relative}/data/00_metric_overview.csv`).",
+            f"  Horizontal recovery overview: `{relative}/01_reference_recovery.svg`.",
+            f"  Compact taxonomy comparison: `{relative}/taxonomy/04_taxonomy_comparison.svg`.",
+            f"  Taxonomy accuracy among recovered items: `{relative}/taxonomy/05_recovered_taxonomy_comparison.svg`.",
         ])
     lines.extend([
         "", "## Directory guide", "",
         "- `comparison/`: cross-classifier reporting, split by reference-set name when several are configured.",
         "- `classifiers/`: detailed audits for one classifier, likewise split by reference set when needed.",
+        "- `classifiers/.../figures/06_taxonomy_accuracy`: horizontal exact field-accuracy overview with percentage labels.",
+        "- `classifiers/.../figures/07_recovered_taxonomy_accuracy`: field accuracy among recovered reference positives, with field-rated sample counts and recovery totals. No recovered comparisons means N/A; compare alongside recovery because approaches can recover different subsets.",
         "- `classifiers/nli/<model>/sensitivity/`: offline NLI cutoff robustness; not another model result.",
         "- Matching `.svg` and `.pdf` files are the same figure in screen and publication formats.",
         "", "## Available classifier details", "",
@@ -927,6 +932,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ids-meta", description="IDS meta-study discovery, classification, export, and plotting")
     parser.add_argument("--config", type=Path, default=Path("config/default.toml"))
     parser.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), help="stdout logging verbosity; defaults to config logging.level")
+    parser.add_argument("--subcaptions", action=argparse.BooleanOptionalAction, default=None, help="show or hide explanatory plot subcaptions; overrides plots.show_subcaptions")
     subparsers = parser.add_subparsers(dest="command", required=True)
     for source in ("github", "openalex"):
         source_parser = subparsers.add_parser(source)
@@ -982,6 +988,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         configure_logging("INFO")
         settings = load_settings(args.config)
+        if args.subcaptions is not None:
+            settings.values.setdefault("plots", {})["show_subcaptions"] = args.subcaptions
         configure_logging(args.log_level or str(settings.section("logging").get("level", "INFO")))
         LOG.info("loaded configuration %s", Path(args.config).resolve())
         if args.command == "github":

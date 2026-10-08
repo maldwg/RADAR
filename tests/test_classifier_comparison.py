@@ -5,12 +5,67 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pandas as pd
+
 from ids_meta.common.csvio import atomic_write_csv, read_csv
-from ids_meta.plotting.compare import build_classifiers
+from ids_meta.plotting.compare import _reference_recovery_overview, _taxonomy_comparison_overview, build_classifiers
 
 
 class ClassifierComparisonTests(unittest.TestCase):
     """Exercise unified keyword, NLI, LLM, and ensemble performance plots."""
+
+    def test_taxonomy_comparison_includes_every_approach_without_hiding_missing_fields(self) -> None:
+        """Keep each field's rated denominator and distinguish unsupported from zero accuracy."""
+        rows = [
+            {"classifier": model, "classifier_method": method, "field": field,
+             "supported": supported, "comparisons": count, "exact_matches": matches}
+            for model, method, field, supported, count, matches in [
+                ("Keyword", "keyword", "artifact_type", True, 5, 1),
+                ("LLM · first", "llm", "artifact_type", True, 20, 5),
+                ("LLM · second", "llm", "artifact_type", False, 0, 0),
+                ("Keyword", "keyword", "domain", True, 5, 0),
+                ("LLM · second", "llm", "domain", True, 5, 5),
+            ]
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            labels = ["Keyword", "LLM · first", "LLM · second"]
+            _taxonomy_comparison_overview("openalex", pd.DataFrame(rows), labels, root, ["svg"], 72)
+            data = read_csv(root / "data/04_taxonomy_comparison.csv")
+            self.assertEqual(len(data), 6)
+            keyed = {(row["classifier"], row["field"]): row for row in data}
+            self.assertEqual(float(keyed[("Keyword", "artifact_type")]["percentage"]), 20)
+            self.assertEqual(float(keyed[("LLM · first", "artifact_type")]["percentage"]), 25)
+            self.assertEqual(float(keyed[("Keyword", "domain")]["percentage"]), 0)
+            self.assertEqual(keyed[("LLM · first", "domain")]["value"], "")
+            self.assertEqual(keyed[("LLM · second", "artifact_type")]["value"], "")
+            svg = (root / "04_taxonomy_comparison.svg").read_text()
+            for text in [*labels, "20.0%", "25.0%", "0.0%", "100.0%", "N/A", "n varies"]:
+                self.assertIn(text, svg)
+
+    def test_recovery_overview_uses_positive_denominators_and_preserves_na(self) -> None:
+        """Count misses in recall and distinguish no recovery from no positive ratings."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            metrics = {
+                label: {
+                    "evaluation_unit": "artifact", "rated_entities": 8,
+                    "operational": {"tp": tp, "fn": fn, "tn": 3, "fp": 0},
+                }
+                for label, tp, fn in [("Partial", 2, 3), ("No recovery", 0, 5), ("No positives", 0, 0)]
+            }
+            _reference_recovery_overview("openalex", metrics, root, ["svg"], 72)
+            rows = {row["classifier"]: row for row in read_csv(root / "data/01_reference_recovery.csv")}
+            self.assertEqual(int(rows["Partial"]["expected_positive_entities"]), 5)
+            self.assertEqual(float(rows["Partial"]["percentage"]), 40)
+            self.assertEqual(float(rows["No recovery"]["value"]), 0)
+            self.assertEqual(rows["No positives"]["value"], "")
+            self.assertEqual(rows["No positives"]["ci_low"], "")
+            svg = (root / "01_reference_recovery.svg").read_text()
+            self.assertIn("40.0%", svg)
+            self.assertIn("0.0%", svg)
+            self.assertIn("N/A", svg)
+            self.assertIn("Known reference datasets recovered (%)", svg)
 
     def test_every_metric_places_all_approaches_in_one_table_and_plot(self) -> None:
         """Keep classifier families together instead of emitting incomparable plot trees."""
@@ -42,6 +97,15 @@ class ClassifierComparisonTests(unittest.TestCase):
                                     "PREC": value, "f1": value, "tp": 8, "fp": 2, "tn": 8, "fn": 2},
                 }
                 (evaluation / "metrics.json").write_text(json.dumps(metrics), encoding="utf-8")
+                atomic_write_csv(evaluation / "instances.csv", [
+                    {"expected_disposition": "include", "actual_disposition": "include" if i < 8 else "unavailable",
+                     "classification_present": "true" if i < 8 else "false",
+                     "status": "classified" if i < 8 else "not_retrieved",
+                     "field_results_json": json.dumps({field: i < 6 for field in (
+                         "role", "observation_objects", "primary_system_type", "system_types",
+                     )})}
+                    for i in range(10)
+                ], ["expected_disposition", "actual_disposition", "classification_present", "status", "field_results_json"])
                 atomic_write_csv(evaluation / "field_metrics.csv", [{
                     "field": field, "supported": "true", "comparisons": 20,
                     "exact_matches": int(value * 20), "exact_accuracy": value,
@@ -74,6 +138,12 @@ class ClassifierComparisonTests(unittest.TestCase):
             overview = root / "plots/data/00_metric_overview.csv"
             self.assertEqual(len(overview.read_text(encoding="utf-8").splitlines()), 45)
             self.assertTrue((root / "plots/00_metric_overview.svg").is_file())
+            self.assertTrue((root / "plots/01_reference_recovery.svg").is_file())
+            self.assertTrue((root / "plots/02_reference_uncertainty.svg").is_file())
+            for row in read_csv(root / "plots/data/02_reference_uncertainty.csv"):
+                self.assertEqual(int(row["attempted"]), 8)
+                self.assertEqual(int(row["not_attempted"]), 2)
+                self.assertEqual(float(row["value"]), 0)
             self.assertIn(
                 "N/A", (root / "plots/00_metric_overview.svg").read_text(encoding="utf-8"),
             )
@@ -92,6 +162,21 @@ class ClassifierComparisonTests(unittest.TestCase):
             self.assertTrue((root / "plots/taxonomy/01_exact_accuracy_by_field.svg").is_file())
             self.assertTrue((root / "plots/taxonomy/02_macro_f1_by_field.svg").is_file())
             self.assertTrue((root / "plots/taxonomy/03_category_f1.svg").is_file())
+            self.assertTrue((root / "plots/taxonomy/04_taxonomy_comparison.svg").is_file())
+            self.assertTrue((root / "plots/taxonomy/05_recovered_taxonomy_comparison.svg").is_file())
+            conditional_rows = read_csv(root / "plots/taxonomy/data/05_recovered_taxonomy_comparison.csv")
+            self.assertEqual(len(conditional_rows), 16)
+            for row in conditional_rows:
+                self.assertEqual(int(row["comparisons"]), 8)
+                self.assertEqual(int(row["exact_matches"]), 6)
+                self.assertEqual(float(row["value"]), .75)
+                self.assertEqual(int(row["expected_positive_entities"]), 10)
+            conditional_svg = (root / "plots/taxonomy/05_recovered_taxonomy_comparison.svg").read_text()
+            for text in ["75.0% (n=8)", "8/10 recovered", "Correct labels among recovered reference items (%)"]:
+                self.assertIn(text, conditional_svg)
+            taxonomy_comparison = read_csv(root / "plots/taxonomy/data/04_taxonomy_comparison.csv")
+            self.assertEqual(len(taxonomy_comparison), 16)
+            self.assertEqual({row["classifier"] for row in taxonomy_comparison}, set(classifications))
             exact_rows = read_csv(root / "plots/taxonomy/data/01_exact_accuracy_by_field.csv")
             self.assertEqual(
                 {row["field"] for row in exact_rows},

@@ -71,7 +71,7 @@ decision = "accept"
 role = "native_detector"
 observation_scopes = ["host_endpoint"]
 capabilities = ["detection", "monitoring"]
-observation_objects = ["system_calls"]
+observation_objects = ["system_calls", "file_analysis"]
 detection_methods = ["signature_based", "rule_based", "anomaly_based"]
 primary_system_type = "HIDS"
 system_types = ["HIDS"]
@@ -80,7 +80,7 @@ selection_source = "Awesome List / GitHub Search"
 
 [[entities]]
 repository = "airbnb/binaryalert"
-centralization = "unknown"
+centralization = "centralized"
 decision = "accept"
 role = "antivirus"
 observation_scopes = ["host_endpoint"]
@@ -99,7 +99,7 @@ repository = "airbnb/streamalert"
 centralization = "unknown"
 decision = "accept"
 role = "detection_framework"
-observation_scopes = ["unknown"]
+observation_scopes = ["host_endpoint"]
 capabilities = ["detection", "monitoring"]
 observation_objects = ["log_analysis"]
 detection_methods = ["rule_based"]
@@ -132,9 +132,9 @@ repository = "ajaykumarkk/CyberDoc"
 centralization = "unknown"
 decision = "accept"
 role = "demo"
-observation_scopes = ["host_endpoint"]
+observation_scopes = ["multi_scope"]
 capabilities = ["detection", "monitoring"]
-observation_objects = ["file_analysis"]
+observation_objects = ["file_analysis", "flow_analysis"]
 detection_methods = ["signature_based"]
 primary_system_type = "AV"
 system_types = ["AV"]
@@ -191,7 +191,7 @@ annotation_sources = ["https://github.com/austin-taylor/flare/blob/master/flare/
 [[entities]]
 repository = "BlueTeamLabs/sentinel-attack"
 centralization = "unknown"
-decision = "uncertain"
+decision = "exclude"
 role = "uncertain"
 observation_scopes = ["unknown"]
 capabilities = []
@@ -209,11 +209,11 @@ centralization = "unknown"
 decision = "accept"
 role = "detection_framework"
 observation_scopes = ["multi_scope"]
-capabilities = ["detection", "monitoring"]
-observation_objects = ["log_analysis", "system_calls"]
+capabilities = ["detection", "monitoring", "prevention"]
+observation_objects = ["log_analysis", "system_calls", "file_analysis"]
 detection_methods = ["rule_based"]
-primary_system_type = "HIDS"
-system_types = ["HIDS", "APIDS"]
+primary_system_type = "HIPS"
+system_types = ["HIPS"]
 benchmark_category = "secumon"
 selection_source = "Awesome List / GitHub Search"
 annotation_note = "Community edition lists host/container and RASP detection, while process/network/file response and isolation are enterprise-only; XDR response is unsupported for this repository."
@@ -284,7 +284,7 @@ centralization = "unknown"
 decision = "accept"
 role = "support_tooling"
 observation_scopes = ["multi_scope"]
-capabilities = ["monitoring"]
+capabilities = []
 observation_objects = ["unknown"]
 detection_methods = ["unknown"]
 primary_system_type = "unknown"
@@ -308,6 +308,9 @@ benchmark_category = "secumon"
 selection_source = "Awesome List / GitHub Search"
 annotation_note = "2026-10-02: Runnable antivirus API scans uploaded streams and S3 objects with ClamAV/YARA and quarantines infected S3 objects. Principal file-scanning function takes antivirus precedence over multi-engine platform packaging. File quarantine supports prevention but does not alone establish HIPS; an HTTP API does not establish APIDS. Azure/GCP support is marked TODO, so it is not treated as implemented."
 annotation_sources = ["https://github.com/cloudina/hawk"]
+
+
+##### hier weiteremachen
 
 [[entities]]
 repository = "ComodoSecurity/openedr"

@@ -1,7 +1,15 @@
 model,decision,count
-LLM · gemma4-31b,accept,1430
-LLM · gemma4-31b,exclude,364
-LLM · gemma4-31b,uncertain,206
-LLM · qwen3-8-27b,accept,588
-LLM · qwen3-8-27b,exclude,117
-LLM · qwen3-8-27b,uncertain,39
+Ensemble,accept,1026
+Ensemble,exclude,306
+Ensemble,uncertain,668
+Keyword,accept,818
+Keyword,exclude,107
+Keyword,uncertain,1075
+LLM · gemma4-31b,accept,1446
+LLM · gemma4-31b,exclude,310
+LLM · gemma4-31b,uncertain,244
+LLM · qwen3-8-27b,accept,1050
+LLM · qwen3-8-27b,exclude,732
+LLM · qwen3-8-27b,uncertain,218
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,accept,1017
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,uncertain,983

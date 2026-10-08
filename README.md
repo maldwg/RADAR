@@ -171,6 +171,24 @@ All catalogue, evaluation, comparison, and funnel builders use `plots.formats`.
 The default `formats = ["svg", "pdf"]` therefore writes a matching PDF beside
 every SVG figure.
 
+Set `[plots] show_subcaptions = false` to hide explanatory subtitles and footnotes
+across catalogue, evaluation, comparison, funnel, NLI sensitivity, and presentation
+figures. Titles, axes, legends, and record/percentage labels remain. Set it to `true`
+to restore them; omitted settings default to `true`. A command can override the
+configuration with `ids-meta --no-subcaptions <command>` or
+`ids-meta --subcaptions <command>`.
+
+Evaluation bundles include `figures/07_recovered_taxonomy_accuracy.{svg,pdf}`
+and source comparisons include `taxonomy/05_recovered_taxonomy_comparison.{svg,pdf}`.
+These measure exact field accuracy among recovered reference positives: expected
+relevant items matched to accepted (`accept` or `accept_adjacent`) outputs. Each
+field shows its rated recovered count; recovery totals remain visible in the axis
+or legend. Missing field predictions are incorrect; unsupported fields or zero
+recovered comparisons are N/A. Read alongside the full-inventory taxonomy and
+reference-recovery plots, since approaches may recover different subsets.
+Companion CSVs retain the numerator, denominator and recovery totals. These plots
+reuse saved entity audits and require no new inference.
+
 Generate the source-to-catalogue reverse-pyramid independently from collection or inference:
 
 ```bash
@@ -182,7 +200,9 @@ ids-meta funnel github --output artifacts/paper/funnel
 python -m ids_meta.funnel github
 ```
 
-The funnel reads the active source cache and compatible candidate, classification, and catalogue CSVs when they exist. If no database snapshot exists, it falls back to acquisition and collection capacities from the selected TOML configuration and marks those segments as configured capacity rather than observed results. Query counts are displayed as acquisition context instead of being compared geometrically with record counts. Every normal `classify`, `baseline`, or complete `run` refreshes the default bundle under `artifacts/plots/<source>/pipeline_funnel/`; custom-input/output experiments remain opt-in through the standalone command. Multi-model and baseline outputs receive separate funnels with a shared discovery denominator. Each transition labels the exact number and percentage removed, while companion CSVs preserve the counts, provenance, and denominators.
+The funnel reads the active source cache and compatible candidate, classification, and catalogue CSVs when they exist. GitHub and OpenAlex use the same sequence: **Crawler hits (overlap) → Candidate selection → Enrichment / prefilter → Classification → Inclusion → Export**. All six layers remain visible; unavailable counts are grey N/A, with no inferred loss across those stages or from overlapping crawler hits to selected candidates. If no database snapshot exists, it falls back to collection capacity from the selected TOML configuration and marks it as configured capacity rather than an observed count. Every normal `classify`, `baseline`, or complete `run` refreshes the default bundle under `artifacts/plots/<source>/pipeline_funnel/`; custom-input/output experiments remain opt-in through the standalone command. Multi-model and baseline outputs receive separate funnels with a shared selected-candidate denominator. Short labels name the pipeline steps, with the number and percentage removed printed on the right at each observed main-path transition. Companion CSVs and the bundle README preserve detailed explanations, provenance, and denominators; the figures omit subcaptions.
+
+The top funnel layer shows the total crawler hits, which can overlap across queries and discovery routes. Detailed query matches, unique search matches, source-route counts and auxiliary surveys remain in `data/discovery_context.csv`; the figures have no separate discovery-input panel. An unavailable unique discovery pool is recorded in that table rather than inferred from crawler hits. Discovery sampling (`query_sample_size`, `survey_query_sample_size`, `reference_sample_size`, and the search page cap) happens before the retained-candidate `collection_limit` and the model-input `classification_limit`. Auxiliary surveys are discovery sources, not classification removals. This alignment changes reporting only; collection, ranking, prefiltering and classification behavior are preserved.
 
 ### Multiple models and ensembles
 
@@ -270,6 +290,11 @@ reevaluation/replotting alone cannot supply missing topology evidence.
 - `data/interim/openalex/reconciled.csv`: complete paper audit plus artifact-family, manifestation, and canonical-base fields.
 - `data/processed/openalex/base_papers.csv`: security-intended dataset and generator base papers. `title` is the publication title, `artifact_name` is the canonical LLM-extracted resource identity, and `artifact_display_name`/`resource_name` is the explicit concise label used in tables and plots.
 - `data/processed/openalex/adjacent_base_papers.csv`: neutral foundational data releases.
+
+OpenAlex exports all accepted dataset and generator papers, including standalone
+`generator_framework` releases. Export preserves the inclusion decisions; it does
+not apply another resource-type filter. Evaluation scores use classification
+outputs and are independent of catalogue export.
 - `artifacts/plots/`: source-specific SVG/PDF catalogue figures plus the exact aggregate CSV behind each plot.
 - `artifacts/plots/<source>/pipeline_funnel/`: database-aware, paper-ready reverse pyramids for every current classifier variant, including exact transition-loss CSVs and configuration-only fallbacks.
 - `artifacts/evaluation/<source>/comparison/`: the primary rated cross-approach overview, metric, taxonomy, and agreement figures.
@@ -282,7 +307,9 @@ Popularity fields never determine eligibility or relevance. The default GitHub s
 
 The GitHub plot bundle starts with one tall, scrollable feature matrix of every accepted repository and a lossless `data/00_repository_overview.csv`. It groups repositories by normalized system family and shows role dots, system labels, methods, activity, stars, forks, canonical/variant status, and latest commit time. New collections obtain the exact latest commit timestamp; older cached records transparently use `pushed_at` and mark that fallback in the CSV.
 
-The OpenAlex bundle starts with a scrollable publication timeline: publication year is on x, citations use zero-safe logarithmic spacing on y, color identifies the dataset domain, and marker shape distinguishes datasets, generators, and combined dataset/generator releases. Same-year points receive small deterministic horizontal offsets. Every resource name is placed in a compact bordered callout connected to its marker by a domain-colored leader line; callouts are collision-spread within each year, and the vector canvas scales moderately with both result count and maximum same-year density. Point and label coordinates are recorded in the companion CSV. The classifier extracts `artifact_display_name` separately from the publication title: it prefers an explicit short name or acronym, never invents one, and otherwise supplies a concise evidence-grounded descriptor. Existing pre-`openalex-3` rows fall back to their shortest recorded canonical name or alias until they are reclassified.
+GitHub plot `01_repository_timeline` is a density heatmap: repository creation year on x and primary IDS type on y. Each type has a stable colour across models, and darker cells represent more canonical operational systems using the same count-to-intensity scale. Cells print exact counts; blank cells are zero, and missing creation dates appear under `Unknown`. Every repository contributes once through its primary type. The aggregate CSV contains every type/year bin, while `data/01_repository_timeline_records.csv` preserves repository names, stars, URLs, and bin membership. This replaces the crowded scatter plot with repository names under individual points.
+
+The OpenAlex publication timeline uses a continuous horizontal year axis on a 36-inch-wide landscape canvas and a linear citation axis from zero through 250. Above 250, equal citation differences use 2.5% of the lower range’s vertical spacing (40-fold compression), so the upper range remains uniformly linear rather than logarithmic. The mapping is continuous at 250, the change is marked, and tick labels show actual citation counts. Resource labels form year columns in citation order, with the most-cited at the top; there are no scatter dots. Measured label boxes are placed as close to their true citation heights as possible and shifted locally when necessary to avoid overlaps. Short styled leaders end at exact citation-height ticks beside each year column. Domain colors identify application areas; solid borders/lines indicate datasets, dashed generators, dotted combined releases, and dash-dot unknown types. The companion CSV records true citation coordinates, displayed label coordinates, displacement flags/offsets, line styles, and measured box boundaries. SVG and PDF preserve the full wide landscape canvas. The classifier extracts `artifact_display_name` separately from the publication title: it prefers an explicit short name or acronym, never invents one, and otherwise supplies a concise evidence-grounded descriptor. Existing pre-`openalex-3` rows fall back to their shortest recorded canonical name or alias until they are reclassified.
 
 The remaining figures deliberately avoid overloaded scatterplots. Citation context is an ordered dot plot whose logarithmically spaced axis is labelled with actual citation counts. Discovery provenance is an exact row matrix showing direct search, survey snowballing, and the number of distinct surveys citing each accepted resource; auxiliary survey papers remain in their separate survey-source figure. Domain/data-form and capture/label relationships are annotated count heatmaps; growth uses cumulative counts with integer axes; and classifier outcomes show counts plus within-prefilter-band percentages. Survey sources use three aligned panels for retrieval score, citations, and referenced-work count. Labels occupy dedicated rows rather than being placed on top of data points. Exact citation, provenance, score, and identifier tables are exported beside every figure. Large SVG/PDF canvases are intended for scrolling and zooming.
 

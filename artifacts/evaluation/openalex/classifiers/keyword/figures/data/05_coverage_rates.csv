@@ -1,0 +1,5 @@
+measure,key,value
+Dataset identified,classification_coverage,0.019801980198019802
+Definitive artifact decision,definitive_coverage,0.01904761904761905
+Classifier abstention,abstention_rate,0.23809523809523808
+Dataset unresolved,unresolved_artifact_rate,0.9801980198019802

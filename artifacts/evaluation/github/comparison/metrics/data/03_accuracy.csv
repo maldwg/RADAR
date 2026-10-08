@@ -1,3 +1,6 @@
 classifier,classifier_method,metric,classifier_id,value,rated_entities,confidence_level,ci_low,ci_high,tp,fp,tn,fn,rating_profile
-LLM · gemma4-31b,llm,accuracy,gemma4:31b,0.3983050847457627,120,0.95,0.314526855599215,0.4884958574223093,0,0,47,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-LLM · qwen3-8-27b,llm,accuracy,qwen3.8:27b,0.3983050847457627,120,0.95,0.314526855599215,0.4884958574223093,0,0,47,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,accuracy,keyword-score,0.40336134453781514,120,0.95,0.31957898698671233,0.4931878083541667,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,accuracy,MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,0.40336134453781514,120,0.95,0.31957898698671233,0.4931878083541667,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · gemma4-31b,llm,accuracy,gemma4:31b,0.40336134453781514,120,0.95,0.31957898698671233,0.4931878083541667,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · qwen3-8-27b,llm,accuracy,qwen3.8:27b,0.40336134453781514,120,0.95,0.31957898698671233,0.4931878083541667,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,accuracy,ensemble,0.40336134453781514,120,0.95,0.31957898698671233,0.4931878083541667,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml

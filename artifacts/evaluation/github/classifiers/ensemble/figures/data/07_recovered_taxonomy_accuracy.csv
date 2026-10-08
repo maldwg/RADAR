@@ -1,0 +1,9 @@
+field,supported,comparisons,exact_matches,value,percentage,expected_positive_entities,recovered,missed,recovery_rate,inventory_comparisons,population
+role,True,0,0,,,71,0,71,0.0,120,recovered_reference_positives
+observation_scopes,True,0,0,,,71,0,71,0.0,120,recovered_reference_positives
+observation_objects,True,0,0,,,71,0,71,0.0,120,recovered_reference_positives
+capabilities,True,0,0,,,71,0,71,0.0,120,recovered_reference_positives
+detection_methods,True,0,0,,,71,0,71,0.0,120,recovered_reference_positives
+primary_system_type,True,0,0,,,71,0,71,0.0,120,recovered_reference_positives
+system_types,True,0,0,,,71,0,71,0.0,120,recovered_reference_positives
+centralization,True,0,0,,,71,0,71,0.0,16,recovered_reference_positives

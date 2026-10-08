@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import os
 import textwrap
+from contextvars import ContextVar
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.text import Text
 from matplotlib.patches import Patch
 import pandas as pd
 
@@ -18,6 +20,7 @@ from ids_meta.common.logging import logger
 LOG = logger("plotting")
 
 COLORS = ["#2F6B9A", "#4E9A62", "#D9902F", "#7A5FA8", "#C94F4F", "#3B8C8C", "#B85C9E", "#8C6D31", "#6C7A89"]
+_SHOW_SUBCAPTIONS: ContextVar[bool] = ContextVar("show_subcaptions", default=True)
 
 TAXONOMY_FIELD_LABELS = {
     "centralization": "IDS centralization",
@@ -44,6 +47,14 @@ def taxonomy_field_label(field: object) -> str:
     return TAXONOMY_FIELD_LABELS.get(value, value.replace("_", " ").title())
 
 
+def taxonomy_overview_label(field: object) -> str:
+    """Use the same plain-language field names in taxonomy overview figures."""
+    return {
+        "artifact_type": "Resource type", "domain": "Application area", "data_form": "Data format",
+        "capture_environment": "How data was collected", "labeling": "Label availability",
+    }.get(str(field), taxonomy_field_label(field))
+
+
 def taxonomy_value_label(field: object, value: object) -> str:
     """Return a readable taxonomy value while preserving security-system acronyms."""
     raw = str(value)
@@ -57,12 +68,17 @@ def taxonomy_value_label(field: object, value: object) -> str:
     return raw.replace("_", " ")
 
 
-def configure_style() -> None:
+def configure_style(config: dict[str, object] | None = None) -> None:
     """Apply the shared non-interactive matplotlib theme."""
+    show_subcaptions = (config or {}).get("show_subcaptions", True)
+    if not isinstance(show_subcaptions, bool):
+        raise ValueError("plots.show_subcaptions must be true or false")
+    _SHOW_SUBCAPTIONS.set(show_subcaptions)
     plt.rcParams.update({
         "figure.figsize": (9, 5.4), "figure.dpi": 120, "savefig.bbox": "tight",
         "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
         "axes.axisbelow": True, "grid.alpha": .22, "font.size": 10,
+        "axes.titlelocation": "center",
     })
 
 
@@ -94,9 +110,18 @@ def metadata_caption(frame: pd.DataFrame, extra: str = "") -> str:
     return f"n={len(frame)}" + (f"; {extra}" if extra else "")
 
 
+def subcaption(target: plt.Figure | plt.Axes, x: float, y: float, text: str, **kwargs: Any) -> Text | None:
+    """Add optional explanatory text without affecting titles, legends, or data labels."""
+    if not _SHOW_SUBCAPTIONS.get():
+        return None
+    artist = target.text(x, y, text, **kwargs)
+    artist.set_gid("ids-meta-subcaption")
+    return artist
+
+
 def stamp(fig: plt.Figure, caption: str) -> None:
     """Add a small provenance caption at the bottom of a figure."""
-    fig.text(.01, .005, caption, fontsize=7.5, color="#5f6c76", ha="left")
+    subcaption(fig, .01, .005, caption, fontsize=7.5, color="#5f6c76", ha="left")
 
 
 def add_heading(fig: plt.Figure, title: str, subtitle: str, *, top: float | None = None) -> None:
@@ -104,17 +129,55 @@ def add_heading(fig: plt.Figure, title: str, subtitle: str, *, top: float | None
     height = max(1.0, float(fig.get_figheight()))
     title_y = 1.0 - .12 / height
     subtitle_y = 1.0 - .48 / height
-    physical_top = 1.0 - .90 / height
+    physical_top = 1.0 - (.90 if _SHOW_SUBCAPTIONS.get() else .60) / height
     axes_top = max(top, physical_top) if top is not None else physical_top
     axes_bottom = max(.10, .95 / height)
     fig.subplots_adjust(top=axes_top, bottom=axes_bottom)
-    fig.suptitle(title, x=.08, y=title_y, ha="left", va="top", fontsize=14, fontweight="bold")
-    fig.text(.08, subtitle_y, textwrap.fill(subtitle, width=115), ha="left", va="top", fontsize=8.5, color="#5f6c76")
+    fig.suptitle(title, x=.5, y=title_y, ha="center", va="top", fontsize=14, fontweight="bold")
+    subcaption(fig, .08, subtitle_y, textwrap.fill(subtitle, width=115), ha="left", va="top", fontsize=8.5, color="#5f6c76")
 
 
 def count_legend(ax: plt.Axes, label: str, color: str = COLORS[0]) -> None:
     """Add a compact single-series legend to a count chart."""
     ax.legend(handles=[Patch(facecolor=color, label=label)], loc="best", frameon=False, fontsize=8)
+
+
+def percentage_bars(
+    labels: list[str], values: list[float | None], *, title: str, xlabel: str,
+    caption: str, colors: list[str] | None = None,
+) -> plt.Figure:
+    """Render annotated horizontal rates, preserving zero and unavailable values."""
+    fig, ax = plt.subplots(figsize=(12.5, max(4.5, .70 * len(labels) + 1.7)))
+    fig.subplots_adjust(left=.32, right=.97, top=.85, bottom=.23)
+    if not labels:
+        ax.axis("off")
+        ax.text(.5, .5, "No rated comparisons", transform=ax.transAxes, ha="center", va="center")
+    else:
+        for index, value in enumerate(values):
+            if value is None or pd.isna(value):
+                ax.text(1.5, index, "N/A", va="center", fontsize=13, color="#5f6c76")
+                continue
+            percent = float(value) * 100
+            color = colors[index] if colors else "#286f9b"
+            ax.barh(index, percent, height=.65, color=color)
+            inside = percent >= 90
+            ax.text(
+                percent - 1.5 if inside else percent + 1.5, index, f"{percent:.1f}%",
+                ha="right" if inside else "left", va="center", fontsize=14,
+                fontweight="bold", color="white" if inside else "#24323d",
+            )
+        ax.set_yticks(range(len(labels)), labels=[textwrap.fill(label, 38) for label in labels])
+        ax.set_ylim(len(labels) - .4, -.6)
+        ax.set_xlim(0, 100)
+        ax.set_xticks([0, 25, 50, 75, 100])
+        ax.set_xlabel(xlabel)
+        ax.spines["left"].set_visible(False)
+        ax.tick_params(axis="y", length=0)
+        ax.grid(False)
+        ax.grid(axis="x", alpha=.16)
+    ax.set_title(title, loc="center", fontweight="bold", fontsize=14, pad=18)
+    subcaption(fig, .32, .035, textwrap.fill(caption, 110), fontsize=8.5, color="#5f6c76", va="bottom")
+    return fig
 
 
 def save_figure(fig: plt.Figure, out_dir: Path, stem: str, formats: list[str], dpi: int) -> list[Path]:

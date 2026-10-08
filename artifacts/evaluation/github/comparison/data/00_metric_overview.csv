@@ -1,23 +1,56 @@
 classifier,classifier_method,metric,metric_label,preferred_direction,value,estimable,rated_entities,rating_profile
+Keyword,keyword,detection_rate,DR (recall) ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,detection_rate,DR (recall) ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,detection_rate,DR (recall) ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,detection_rate,DR (recall) ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,detection_rate,DR (recall) ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,false_negative_rate,FNR ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,false_negative_rate,FNR ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,false_negative_rate,FNR ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,false_negative_rate,FNR ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,false_negative_rate,FNR ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,false_positive_rate,FPR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,false_positive_rate,FPR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,false_positive_rate,FPR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,false_positive_rate,FPR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,false_positive_rate,FPR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,false_discovery_rate,FDR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,false_discovery_rate,FDR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,false_discovery_rate,FDR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,false_discovery_rate,FDR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,false_discovery_rate,FDR ↓,lower,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,precision,Precision ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,precision,Precision ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,precision,Precision ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,precision,Precision ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-LLM · gemma4-31b,llm,accuracy,Accuracy ↑,higher,0.3983050847457627,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-LLM · qwen3-8-27b,llm,accuracy,Accuracy ↑,higher,0.3983050847457627,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,precision,Precision ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,accuracy,Accuracy ↑,higher,0.40336134453781514,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,accuracy,Accuracy ↑,higher,0.40336134453781514,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · gemma4-31b,llm,accuracy,Accuracy ↑,higher,0.40336134453781514,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · qwen3-8-27b,llm,accuracy,Accuracy ↑,higher,0.40336134453781514,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,accuracy,Accuracy ↑,higher,0.40336134453781514,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,f1,Decision F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,f1,Decision F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,f1,Decision F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,f1,Decision F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,f1,Decision F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,definitive_coverage,Definitive-decision coverage ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,definitive_coverage,Definitive-decision coverage ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,definitive_coverage,Definitive-decision coverage ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,definitive_coverage,Definitive-decision coverage ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,definitive_coverage,Definitive-decision coverage ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,abstention_rate,Abstention rate ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,abstention_rate,Abstention rate ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,abstention_rate,Abstention rate ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,abstention_rate,Abstention rate ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-LLM · gemma4-31b,llm,field_accuracy,Taxonomy exact accuracy ↑,higher,0.06549707602339182,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-LLM · qwen3-8-27b,llm,field_accuracy,Taxonomy exact accuracy ↑,higher,0.06549707602339182,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,abstention_rate,Abstention rate ↓,lower,1.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,field_accuracy,Taxonomy exact accuracy ↑,higher,0.06658878504672897,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,field_accuracy,Taxonomy exact accuracy ↑,higher,0.06658878504672897,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · gemma4-31b,llm,field_accuracy,Taxonomy exact accuracy ↑,higher,0.06658878504672897,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · qwen3-8-27b,llm,field_accuracy,Taxonomy exact accuracy ↑,higher,0.06658878504672897,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,field_accuracy,Taxonomy exact accuracy ↑,higher,0.06658878504672897,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,field_macro_f1,Taxonomy macro-F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,field_macro_f1,Taxonomy macro-F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · gemma4-31b,llm,field_macro_f1,Taxonomy macro-F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
 LLM · qwen3-8-27b,llm,field_macro_f1,Taxonomy macro-F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,field_macro_f1,Taxonomy macro-F1 ↑,higher,0.0,True,120,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml

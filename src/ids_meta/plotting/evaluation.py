@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +9,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from ids_meta.common.logging import logger
-from ids_meta.plotting.common import COLORS, add_heading, configure_style, save_figure, stamp, taxonomy_field_label, taxonomy_value_label, write_table
+from ids_meta.plotting.common import COLORS, add_heading, configure_style, percentage_bars, save_figure, stamp, taxonomy_field_label, taxonomy_overview_label, taxonomy_value_label, write_table
+from ids_meta.plotting.recovery import recovered_taxonomy_table
+from ids_meta.plotting.uncertainty import reference_uncertainty
 
 
 LOG = logger("plotting.evaluation")
@@ -66,7 +69,7 @@ def _decision_performance(metrics: dict[str, Any], out_dir: Path, formats: list[
         ax.set_xticks(x_values, labels=metrics_order, rotation=18, ha="right")
         ax.set_ylim(0, 1.12)
         ax.set_ylabel("Rate")
-        ax.set_title(title, loc="left", fontweight="bold")
+        ax.set_title(title, loc="center", fontweight="bold")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(.52, .875), ncol=3, frameon=False, fontsize=8)
     stamp(fig, "Operational includes all outcomes; strict penalizes abstentions; selective uses definitive predictions only.")
@@ -155,6 +158,77 @@ def _field_accuracy(input_dir: Path, metrics: dict[str, Any], out_dir: Path, for
     return save_figure(fig, out_dir, "03_taxonomy_fields", formats, dpi)
 
 
+def _taxonomy_accuracy_overview(
+    input_dir: Path, metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int,
+) -> list[Path]:
+    """Summarize exact field matches against each field's full rated denominator."""
+    frame = pd.read_csv(input_dir / "field_metrics.csv", keep_default_na=False)
+    for column in ("comparisons", "exact_matches", "exact_accuracy"):
+        frame[column] = pd.to_numeric(frame[column], errors="coerce")
+    supported = frame["supported"].astype(str).str.casefold().eq("true")
+    estimable = supported & frame["comparisons"].gt(0)
+    frame["value"] = (frame["exact_matches"] / frame["comparisons"].where(estimable)).where(estimable)
+    frame["percentage"] = frame["value"] * 100
+    write_table(frame, out_dir / "data", "06_taxonomy_accuracy")
+    labels = [taxonomy_overview_label(field) for field in frame["field"]]
+    counts = sorted(set(int(value) for value in frame.loc[estimable, "comparisons"]))
+    source = "OpenAlex" if metrics.get("source") == "openalex" else "GitHub"
+    denominators = (
+        f"{counts[0]:,} rated entities per field" if len(counts) == 1
+        else "Rated denominator varies by field; see companion CSV"
+    )
+    fig = percentage_bars(
+        labels, frame["value"].tolist(),
+        title=f"{source} taxonomy accuracy",
+        xlabel="Correct labels across the reference inventory (%)",
+        caption=f"{denominators}. Missing and unresolved results remain in each rated denominator. Multi-label fields require an exact set match; N/A means no supported comparisons.",
+    )
+    return save_figure(fig, out_dir, "06_taxonomy_accuracy", formats, dpi)
+
+
+def _recovered_taxonomy_accuracy(
+    input_dir: Path, metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int,
+) -> list[Path]:
+    """Show labeling accuracy conditional on successful reference recovery."""
+    frame = recovered_taxonomy_table(input_dir)
+    if frame is None or frame.empty:
+        return []
+    write_table(frame, out_dir / "data", "07_recovered_taxonomy_accuracy")
+    recovered = int(frame.iloc[0]["recovered"])
+    expected = int(frame.iloc[0]["expected_positive_entities"])
+    source = "OpenAlex" if metrics.get("source") == "openalex" else "GitHub"
+    labels = [
+        f"{taxonomy_overview_label(row['field'])}\n(n={row['comparisons']:,})"
+        for row in frame.to_dict("records")
+    ]
+    fig = percentage_bars(
+        labels, frame["value"].tolist(),
+        title=f"{source} taxonomy accuracy among recovered items",
+        xlabel=f"Correct labels among recovered reference items (%) · recovered {recovered:,}/{expected:,}",
+        caption="Only expected relevant items accepted by the classifier are evaluated. n=field-rated recovered items; missing field predictions are incorrect. Multi-label fields require an exact set match. N/A=no recovered field comparisons or unsupported field.",
+    )
+    return save_figure(fig, out_dir, "07_recovered_taxonomy_accuracy", formats, dpi)
+
+
+def _reference_uncertainty(
+    input_dir: Path, metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int,
+) -> list[Path]:
+    """Show uncertainty conditional on an attempted reference classification."""
+    counts = reference_uncertainty(input_dir)
+    if counts is None:
+        return []
+    write_table(pd.DataFrame([counts]), out_dir / "data", "08_reference_uncertainty")
+    source = "OpenAlex" if metrics.get("source") == "openalex" else "GitHub"
+    fig = percentage_bars(
+        [f"Uncertain ({counts['uncertain']:,}/{counts['attempted']:,} attempts)"], [counts["value"]],
+        title=f"{source} classifier uncertainty on reference items",
+        xlabel="Uncertain decisions among attempted reference classifications (%)",
+        caption="All rated reference items; missing retrieval/classification is excluded. Errors stay in the attempted denominator but do not count as uncertain. OpenAlex uses a classified cited paper when no artifact match exists. N/A=no attempts.",
+        colors=[COLORS[2]],
+    )
+    return save_figure(fig, out_dir, "08_reference_uncertainty", formats, dpi)
+
+
 def _field_categories(input_dir: Path, metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Plot precision, recall, and F1 for every rated taxonomy category."""
     source = input_dir / "field_label_metrics.csv"
@@ -231,25 +305,32 @@ def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: i
         f"n={metrics.get('rated_entities', 0)} rated entities; actual output also contains {metrics.get('unrated_actual_entities', 0)} unrated entities",
         top=.82,
     )
+    # Reserve room between panels for the wrapped status labels.
+    fig.subplots_adjust(left=.09, right=.97, wspace=.85)
     if table.empty:
         axes[0].axis("off")
     else:
         axes[0].bar(table["measure"], pd.to_numeric(table["value"]), color=[COLORS[1], COLORS[0], COLORS[3], COLORS[4]][:len(table)])
         axes[0].set_ylim(0, 1.12)
         axes[0].set_ylabel("Share of rated entities")
-        axes[0].tick_params(axis="x", rotation=22)
-    axes[0].set_title("Pipeline coverage", loc="left", fontweight="bold")
+        axes[0].set_xticks(range(len(table)), labels=[textwrap.fill(label, 18) for label in table["measure"]])
+        axes[0].tick_params(axis="x", labelsize=9)
+    axes[0].set_title("Pipeline coverage", loc="center", fontweight="bold")
     status_frame = pd.DataFrame(status_rows)
     if status_frame.empty:
         axes[1].axis("off")
         axes[1].text(.5, .5, "No rated entities", transform=axes[1].transAxes, ha="center", va="center")
     else:
         status_frame = status_frame.sort_values(["count", "status"], kind="stable")
-        bars = axes[1].barh(status_frame["status"], status_frame["count"], color=COLORS[0])
+        positions = range(len(status_frame))
+        bars = axes[1].barh(positions, status_frame["count"], color=COLORS[0])
+        axes[1].set_yticks(positions, labels=[textwrap.fill(label, 26) for label in status_frame["status"]])
+        axes[1].tick_params(axis="y", labelsize=9)
         axes[1].set_xlabel("Rated entities")
+        axes[1].set_xlim(0, max(1, float(status_frame["count"].max()) * 1.15))
         for bar in bars:
             axes[1].text(bar.get_width() + .06, bar.get_y() + bar.get_height() / 2, str(int(bar.get_width())), va="center", fontsize=8)
-    axes[1].set_title("Final status", loc="left", fontweight="bold")
+    axes[1].set_title("Final status", loc="center", fontweight="bold")
     stamp(
         fig,
         "Survey-reference diagnostics distinguish name matches, accepted release fallbacks, retrieval gaps, and unresolved references."
@@ -270,7 +351,8 @@ def _append_readme(input_dir: Path, outputs: list[Path]) -> None:
         f"- `{output.relative_to(input_dir)}`" for output in outputs
         if output.suffix == ".svg"
     )
-    lines.extend(["", "Each listed SVG has a matching PDF for publication; they are two formats of the same figure. These are single-classifier diagnostics. Use the source-level `comparison/` directory for cross-classifier reporting. Companion aggregate tables are stored under `figures/data/`.", ""])
+    lines.extend(["", "Each listed SVG has a matching PDF for publication; they are two formats of the same figure. These are single-classifier diagnostics. Use the source-level `comparison/` directory for cross-classifier reporting. Companion aggregate tables are stored under `figures/data/`.", "", "`06_taxonomy_accuracy` is a horizontal overview of exact field accuracy with percentage labels. Each field uses its exported rated comparison count, retaining unresolved results; unsupported or empty comparisons are N/A. `03_taxonomy_fields` additionally reports multi-label F1.", "", "`07_recovered_taxonomy_accuracy` evaluates taxonomy fields only among expected relevant reference items matched to accepted outputs (`accept` or `accept_adjacent`). Its denominator excludes missed references and negative controls. Each field displays its own rated recovered count, and the axis reports recovery against all reference positives. Missing field predictions count as incorrect; multi-label fields require an exact set match. N/A means an unsupported field or no recovered field comparisons. Read this conditional quality alongside reference recovery: different classifiers may recover different subsets. Matching and field checks reuse `instances.csv`, including the OpenAlex cited-paper fallback. Older bundles without that audit cannot render this view.", ""])
+    lines.extend(["`08_reference_uncertainty` shows uncertain decisions divided by attempted classifications of rated reference items. Accept and exclude are definitive outcomes. Errors and unavailable outputs remain in the attempted denominator but are counted separately in the CSV; references without a classification attempt are excluded. A matched artifact classification takes priority over the OpenAlex cited-paper fallback, so each reference entity contributes once. N/A means zero attempts. This differs from the legacy abstention metric and from end-to-end unresolved artifact coverage.", ""])
     path.write_text(current.rstrip() + "\n" + "\n".join(lines), encoding="utf-8")
 
 
@@ -280,7 +362,7 @@ def build(input_dir: Path, config: dict[str, object]) -> list[Path]:
     if not metrics_path.is_file():
         raise ValueError(f"evaluation metrics do not exist: {metrics_path}")
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
-    configure_style()
+    configure_style(config)
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
     dpi = int(config.get("dpi", 160))
     figure_dir = input_dir / "figures"
@@ -290,6 +372,9 @@ def build(input_dir: Path, config: dict[str, object]) -> list[Path]:
     outputs += _field_accuracy(input_dir, metrics, figure_dir, formats, dpi)
     outputs += _field_categories(input_dir, metrics, figure_dir, formats, dpi)
     outputs += _coverage(metrics, figure_dir, formats, dpi)
+    outputs += _taxonomy_accuracy_overview(input_dir, metrics, figure_dir, formats, dpi)
+    outputs += _recovered_taxonomy_accuracy(input_dir, metrics, figure_dir, formats, dpi)
+    outputs += _reference_uncertainty(input_dir, metrics, figure_dir, formats, dpi)
     _append_readme(input_dir, outputs)
     LOG.info("evaluation plot bundle complete source=%s files=%d output=%s", metrics.get("source", "unknown"), len(outputs), figure_dir)
     return outputs

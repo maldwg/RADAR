@@ -1,0 +1,131 @@
+classifier,classifier_method,field,label,tp,fp,fn,precision,recall,f1
+Keyword,keyword,artifact_type,dataset,2,0,99,1.0,0.0198019801980198,0.0388349514563106
+Keyword,keyword,domain,cloud,0,0,1,0.0,0.0,0.0
+Keyword,keyword,domain,electrical_smartgrid,0,0,3,0.0,0.0,0.0
+Keyword,keyword,domain,general_network,2,0,49,1.0,0.0392156862745098,0.0754716981132075
+Keyword,keyword,domain,host_endpoint,0,0,5,0.0,0.0,0.0
+Keyword,keyword,domain,iot_iiot,0,0,36,0.0,0.0,0.0
+Keyword,keyword,domain,mobile_android,0,0,2,0.0,0.0,0.0
+Keyword,keyword,domain,uav,0,0,2,0.0,0.0,0.0
+Keyword,keyword,domain,vpn,0,0,1,0.0,0.0,0.0
+Keyword,keyword,data_form,flow,0,0,28,0.0,0.0,0.0
+Keyword,keyword,data_form,host_system_call,0,0,1,0.0,0.0,0.0
+Keyword,keyword,data_form,log,0,0,1,0.0,0.0,0.0
+Keyword,keyword,data_form,mixed,0,0,30,0.0,0.0,0.0
+Keyword,keyword,data_form,network_traffic,0,2,1,0.0,0.0,0.0
+Keyword,keyword,data_form,packet,0,0,24,0.0,0.0,0.0
+Keyword,keyword,data_form,tabular_features,0,0,7,0.0,0.0,0.0
+Keyword,keyword,data_form,telemetry,0,0,3,0.0,0.0,0.0
+Keyword,keyword,data_form,unknown,0,0,5,0.0,0.0,0.0
+Keyword,keyword,data_form,wireless,0,0,1,0.0,0.0,0.0
+Keyword,keyword,capture_environment,hybrid,0,0,7,0.0,0.0,0.0
+Keyword,keyword,capture_environment,real_world,0,2,40,0.0,0.0,0.0
+Keyword,keyword,capture_environment,synthetic_lab,0,0,53,0.0,0.0,0.0
+Keyword,keyword,capture_environment,unknown,0,0,1,0.0,0.0,0.0
+Keyword,keyword,labeling,labeled,0,0,92,0.0,0.0,0.0
+Keyword,keyword,labeling,unknown,0,2,2,0.0,0.0,0.0
+Keyword,keyword,labeling,unlabeled,0,0,7,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,artifact_type,dataset,3,0,98,1.0,0.0297029702970297,0.0576923076923076
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,domain,cloud,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,domain,electrical_smartgrid,0,0,3,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,domain,general_network,1,0,50,1.0,0.0196078431372549,0.0384615384615384
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,domain,host_endpoint,0,0,5,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,domain,iot_iiot,0,0,36,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,domain,mobile_android,0,0,2,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,domain,uav,1,0,1,1.0,0.5,0.6666666666666666
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,domain,vpn,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,flow,0,0,28,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,host_system_call,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,log,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,mixed,2,4,28,0.3333333333333333,0.0666666666666666,0.1111111111111111
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,network_traffic,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,packet,0,0,24,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,tabular_features,0,0,7,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,telemetry,0,0,3,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,unknown,0,2,5,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,data_form,wireless,0,0,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,capture_environment,hybrid,0,1,7,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,capture_environment,real_world,0,0,40,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,capture_environment,synthetic_lab,0,0,53,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,capture_environment,unknown,0,7,1,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,labeling,labeled,0,0,92,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,labeling,unknown,0,8,2,0.0,0.0,0.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,labeling,unlabeled,0,0,7,0.0,0.0,0.0
+LLM · gemma4-31b,llm,artifact_type,dataset,41,0,60,1.0,0.4059405940594059,0.5774647887323945
+LLM · gemma4-31b,llm,domain,cloud,0,0,1,0.0,0.0,0.0
+LLM · gemma4-31b,llm,domain,electrical_smartgrid,0,0,3,0.0,0.0,0.0
+LLM · gemma4-31b,llm,domain,general_network,25,0,26,1.0,0.4901960784313725,0.6578947368421052
+LLM · gemma4-31b,llm,domain,host_endpoint,1,0,4,1.0,0.2,0.3333333333333333
+LLM · gemma4-31b,llm,domain,iot_iiot,12,1,24,0.9230769230769232,0.3333333333333333,0.489795918367347
+LLM · gemma4-31b,llm,domain,mobile_android,0,0,2,0.0,0.0,0.0
+LLM · gemma4-31b,llm,domain,uav,1,1,1,0.5,0.5,0.5
+LLM · gemma4-31b,llm,domain,vpn,0,0,1,0.0,0.0,0.0
+LLM · gemma4-31b,llm,data_form,flow,8,1,20,0.8888888888888888,0.2857142857142857,0.4324324324324324
+LLM · gemma4-31b,llm,data_form,host_system_call,1,0,0,1.0,1.0,1.0
+LLM · gemma4-31b,llm,data_form,log,0,0,1,0.0,0.0,0.0
+LLM · gemma4-31b,llm,data_form,mixed,4,2,26,0.6666666666666666,0.1333333333333333,0.2222222222222222
+LLM · gemma4-31b,llm,data_form,network_traffic,0,5,1,0.0,0.0,0.0
+LLM · gemma4-31b,llm,data_form,packet,0,1,24,0.0,0.0,0.0
+LLM · gemma4-31b,llm,data_form,tabular_features,3,1,4,0.75,0.4285714285714285,0.5454545454545454
+LLM · gemma4-31b,llm,data_form,telemetry,1,0,2,1.0,0.3333333333333333,0.5
+LLM · gemma4-31b,llm,data_form,unknown,1,15,4,0.0625,0.2,0.0952380952380952
+LLM · gemma4-31b,llm,data_form,wireless,0,0,1,0.0,0.0,0.0
+LLM · gemma4-31b,llm,capture_environment,hybrid,1,3,6,0.25,0.1428571428571428,0.1818181818181818
+LLM · gemma4-31b,llm,capture_environment,real_world,4,4,36,0.5,0.1,0.1666666666666666
+LLM · gemma4-31b,llm,capture_environment,synthetic_lab,14,5,39,0.7368421052631579,0.2641509433962264,0.3888888888888889
+LLM · gemma4-31b,llm,capture_environment,unknown,0,12,1,0.0,0.0,0.0
+LLM · gemma4-31b,llm,labeling,labeled,35,0,57,1.0,0.3804347826086957,0.5511811023622047
+LLM · gemma4-31b,llm,labeling,unknown,0,8,2,0.0,0.0,0.0
+LLM · gemma4-31b,llm,labeling,unlabeled,0,0,7,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,artifact_type,dataset,42,0,59,1.0,0.4158415841584158,0.5874125874125874
+LLM · qwen3-8-27b,llm,domain,cloud,0,0,1,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,domain,electrical_smartgrid,0,0,3,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,domain,general_network,26,0,25,1.0,0.5098039215686274,0.6753246753246753
+LLM · qwen3-8-27b,llm,domain,host_endpoint,1,0,4,1.0,0.2,0.3333333333333333
+LLM · qwen3-8-27b,llm,domain,iot_iiot,14,1,22,0.9333333333333332,0.3888888888888889,0.5490196078431373
+LLM · qwen3-8-27b,llm,domain,mobile_android,0,0,2,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,domain,uav,1,1,1,0.5,0.5,0.5
+LLM · qwen3-8-27b,llm,domain,vpn,0,0,1,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,data_form,flow,8,3,20,0.7272727272727273,0.2857142857142857,0.4102564102564102
+LLM · qwen3-8-27b,llm,data_form,host_system_call,1,0,0,1.0,1.0,1.0
+LLM · qwen3-8-27b,llm,data_form,log,0,0,1,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,data_form,mixed,3,3,27,0.5,0.1,0.1666666666666666
+LLM · qwen3-8-27b,llm,data_form,network_traffic,0,17,1,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,data_form,packet,1,1,23,0.5,0.0416666666666666,0.0769230769230769
+LLM · qwen3-8-27b,llm,data_form,tabular_features,3,3,4,0.5,0.4285714285714285,0.4615384615384615
+LLM · qwen3-8-27b,llm,data_form,telemetry,1,0,2,1.0,0.3333333333333333,0.5
+LLM · qwen3-8-27b,llm,data_form,unknown,0,0,5,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,data_form,wireless,0,0,1,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,capture_environment,hybrid,0,3,7,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,capture_environment,real_world,6,4,34,0.6,0.15,0.24
+LLM · qwen3-8-27b,llm,capture_environment,synthetic_lab,21,7,32,0.75,0.3962264150943396,0.5185185185185185
+LLM · qwen3-8-27b,llm,capture_environment,unknown,0,3,1,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,labeling,labeled,43,0,49,1.0,0.4673913043478261,0.6370370370370371
+LLM · qwen3-8-27b,llm,labeling,unknown,0,1,2,0.0,0.0,0.0
+LLM · qwen3-8-27b,llm,labeling,unlabeled,0,0,7,0.0,0.0,0.0
+Ensemble,ensemble,artifact_type,dataset,41,0,60,1.0,0.4059405940594059,0.5774647887323945
+Ensemble,ensemble,domain,cloud,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,domain,electrical_smartgrid,0,0,3,0.0,0.0,0.0
+Ensemble,ensemble,domain,general_network,25,0,26,1.0,0.4901960784313725,0.6578947368421052
+Ensemble,ensemble,domain,host_endpoint,1,0,4,1.0,0.2,0.3333333333333333
+Ensemble,ensemble,domain,iot_iiot,12,1,24,0.9230769230769232,0.3333333333333333,0.489795918367347
+Ensemble,ensemble,domain,mobile_android,0,0,2,0.0,0.0,0.0
+Ensemble,ensemble,domain,uav,1,1,1,0.5,0.5,0.5
+Ensemble,ensemble,domain,vpn,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,data_form,flow,8,1,20,0.8888888888888888,0.2857142857142857,0.4324324324324324
+Ensemble,ensemble,data_form,host_system_call,1,0,0,1.0,1.0,1.0
+Ensemble,ensemble,data_form,log,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,data_form,mixed,4,2,26,0.6666666666666666,0.1333333333333333,0.2222222222222222
+Ensemble,ensemble,data_form,network_traffic,0,4,1,0.0,0.0,0.0
+Ensemble,ensemble,data_form,packet,0,1,24,0.0,0.0,0.0
+Ensemble,ensemble,data_form,tabular_features,3,1,4,0.75,0.4285714285714285,0.5454545454545454
+Ensemble,ensemble,data_form,telemetry,1,0,2,1.0,0.3333333333333333,0.5
+Ensemble,ensemble,data_form,unknown,1,16,4,0.0588235294117647,0.2,0.0909090909090909
+Ensemble,ensemble,data_form,wireless,0,0,1,0.0,0.0,0.0
+Ensemble,ensemble,capture_environment,hybrid,1,3,6,0.25,0.1428571428571428,0.1818181818181818
+Ensemble,ensemble,capture_environment,real_world,4,4,36,0.5,0.1,0.1666666666666666
+Ensemble,ensemble,capture_environment,synthetic_lab,14,5,39,0.7368421052631579,0.2641509433962264,0.3888888888888889
+Ensemble,ensemble,capture_environment,unknown,0,12,1,0.0,0.0,0.0
+Ensemble,ensemble,labeling,labeled,35,0,57,1.0,0.3804347826086957,0.5511811023622047
+Ensemble,ensemble,labeling,unknown,0,8,2,0.0,0.0,0.0
+Ensemble,ensemble,labeling,unlabeled,0,0,7,0.0,0.0,0.0

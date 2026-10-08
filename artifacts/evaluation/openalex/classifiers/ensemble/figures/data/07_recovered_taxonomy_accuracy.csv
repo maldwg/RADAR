@@ -1,0 +1,6 @@
+field,supported,comparisons,exact_matches,value,percentage,expected_positive_entities,recovered,missed,recovery_rate,inventory_comparisons,population
+artifact_type,True,30,28,0.9333333333333333,93.33333333333333,101,30,71,0.297029702970297,101,recovered_reference_positives
+domain,True,30,27,0.9,90.0,101,30,71,0.297029702970297,101,recovered_reference_positives
+data_form,True,30,14,0.4666666666666667,46.666666666666664,101,30,71,0.297029702970297,101,recovered_reference_positives
+capture_environment,True,30,16,0.5333333333333333,53.333333333333336,101,30,71,0.297029702970297,101,recovered_reference_positives
+labeling,True,30,29,0.9666666666666667,96.66666666666667,101,30,71,0.297029702970297,101,recovered_reference_positives

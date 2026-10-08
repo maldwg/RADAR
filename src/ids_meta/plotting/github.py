@@ -5,11 +5,12 @@ import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+from matplotlib.colors import to_rgb
 from matplotlib.patches import FancyBboxPatch, Patch, Rectangle
+import numpy as np
 import pandas as pd
 
-from ids_meta.plotting.common import COLORS, add_heading, configure_style, count_legend, count_plot, evidence_escalation_plot, explode_values, load_frame, metadata_caption, save_figure, score_decision_plot, stamp, write_index, write_table
+from ids_meta.plotting.common import COLORS, add_heading, configure_style, count_legend, count_plot, evidence_escalation_plot, explode_values, load_frame, metadata_caption, save_figure, score_decision_plot, stamp, subcaption, write_index, write_table
 from ids_meta.common.logging import logger
 from ids_meta.github.schema import DEFAULT_SYSTEM_TYPE_PROFILE
 
@@ -170,7 +171,7 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
         ax.text(legend_x + .45, role_y, full, fontsize=6.7, color="#59636F", va="center")
     ax.scatter([5.0], [legend_y + .8], s=14, marker="o", facecolor="#2F6F9F", edgecolor="#2F6F9F", linewidth=.7, zorder=3); ax.text(5.45, legend_y + .8, "canonical", fontsize=6.7, color="#59636F", va="center")
     ax.scatter([23.0], [legend_y + .8], s=14, marker="o", facecolor="white", edgecolor="#9AA5AE", linewidth=.7, zorder=3); ax.text(23.45, legend_y + .8, "related variant", fontsize=6.7, color="#59636F", va="center")
-    ax.text(1.2, total_units - .65, metadata_caption(frame, "bars use log scaling; popularity is descriptive only"), fontsize=6.5, color="#6F7782", va="center")
+    subcaption(ax, 1.2, total_units - .65, metadata_caption(frame, "bars use log scaling; popularity is descriptive only"), fontsize=6.5, color="#6F7782", va="center")
     return save_figure(fig, out_dir, "00_repository_overview", formats, dpi)
 
 
@@ -223,85 +224,126 @@ def _primary_system_type_series(frame: pd.DataFrame) -> pd.Series:
 
 
 def _system_type_colors(values: list[str]) -> dict[str, str]:
-    """Assign stable colors to the IDS types present in a figure."""
-    ordered = list(dict.fromkeys(values))
-    return {value: FAMILY_COLORS[index % len(FAMILY_COLORS)] for index, value in enumerate(ordered)}
+    """Keep taxonomy hues stable even when models report different type subsets."""
+    colors = {
+        "AV": "#A53C52", "NIDS": "#247AAF", "NSM": "#447777", "SM": "#6B6075",
+        "NIPS": "#AA6425", "HIDS": "#318A61", "HIPS": "#9E573E", "WIDS": "#95539E",
+        "WIPS": "#67752B", "DBIDS": "#4189A0", "DBIPS": "#7C7424", "APIDS": "#C64975",
+        "PIDS": "#BC8730", "ProvIDS": "#7143A0", "XDR": "#5568B3", "IDS": "#2C576E",
+        "IPS": "#C34B36", "unknown": "#6F7782",
+    }
+    return {value: colors.get(value, "#43505C") for value in values}
 
 
-def _repository_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Plot repository creation time on x, GitHub stars on y, and IDS type as color."""
+def _repository_density_data(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Count each canonical operational repository once, keeping missing years visible."""
     canonical = frame[_operational_mask(frame)].copy()
-    canonical["primary_system_type"] = _primary_system_type_series(canonical)
-    canonical["stars_numeric"] = pd.to_numeric(canonical.get("stars", 0), errors="coerce").fillna(0).clip(lower=0)
-
+    codes = {code.casefold(): code for code in DEFAULT_SYSTEM_TYPE_PROFILE["types"]}
+    canonical["primary_system_type"] = _primary_system_type_series(canonical).map(
+        lambda value: codes.get(str(value).strip().casefold(), str(value).strip())
+        if str(value).strip().casefold() != "unknown" else "unknown"
+    )
     created_raw = canonical.get("created_at", pd.Series("", index=canonical.index)).fillna("")
-    canonical["timeline_date"] = pd.to_datetime(created_raw, errors="coerce", utc=True)
-    canonical["timeline_date_source"] = "created_at"
-    missing_created = canonical["timeline_date"].isna()
-    pushed_raw = canonical.get("pushed_at", pd.Series("", index=canonical.index)).fillna("")
-    canonical.loc[missing_created, "timeline_date"] = pd.to_datetime(pushed_raw[missing_created], errors="coerce", utc=True)
-    canonical.loc[missing_created, "timeline_date_source"] = "pushed_at_fallback"
-    canonical = canonical.dropna(subset=["timeline_date"]).sort_values(["timeline_date", "stars_numeric", "full_name"], kind="stable")
-
+    dates = pd.to_datetime(created_raw, errors="coerce", utc=True)
+    canonical["creation_year"] = dates.dt.year.map(lambda year: str(int(year)) if pd.notna(year) else "Unknown")
+    canonical["date_status"] = dates.map(lambda date: "created_at" if pd.notna(date) else "missing_created_at")
     columns = [
         "github_repo_id", "project_id", "full_name", "primary_system_type", "system_types", "role",
-        "timeline_date", "timeline_date_source", "stars_numeric", "repository_relationship", "html_url",
+        "created_at", "creation_year", "date_status", "stars", "repository_relationship", "html_url",
     ]
     for column in columns:
         if column not in canonical:
             canonical[column] = ""
-    timeline_table = canonical[columns].rename(columns={"stars_numeric": "stars"})
-    write_table(timeline_table, out_dir / "data", "01_repository_timeline")
+    records = canonical[columns].sort_values(["primary_system_type", "creation_year", "full_name"], kind="stable")
+    if records.empty:
+        return records, pd.DataFrame(columns=["primary_system_type", "creation_year", "count"])
+    years = sorted({int(year) for year in records["creation_year"] if year != "Unknown"})
+    year_order = [str(year) for year in range(years[0], years[-1] + 1)] if years else []
+    if "Unknown" in set(records["creation_year"]):
+        year_order.append("Unknown")
+    present = set(records["primary_system_type"])
+    type_order = [code for code in DEFAULT_SYSTEM_TYPE_PROFILE["types"] if code in present]
+    type_order += sorted(present - set(type_order) - {"unknown"})
+    if "unknown" in present:
+        type_order.append("unknown")
+    grid = pd.MultiIndex.from_product([type_order, year_order], names=["primary_system_type", "creation_year"])
+    counts = records.groupby(["primary_system_type", "creation_year"], sort=False).size()
+    table = counts.reindex(grid, fill_value=0).rename("count").reset_index()
+    return records, table
 
-    fig, ax = plt.subplots(figsize=(15.5, 7.4))
-    add_heading(
-        fig,
-        "IDS repository timeline",
-        metadata_caption(canonical, "canonical operational systems; x = repository creation date; y = GitHub stars; color = primary IDS type"),
-        top=.84,
-    )
-    fig.subplots_adjust(left=.09, right=.84, bottom=.22)
-    if canonical.empty:
+
+def _density_color(count: int, hue: object) -> tuple[float, float, float]:
+    """Use one monotonic log-compressed count calibration across types and models."""
+    if count == 0:
+        return (.965, .975, .980)
+    strength = math.log1p(count) / (math.log1p(count) + 2.0)
+    return tuple(1.0 - strength * (1.0 - channel) for channel in to_rgb(hue))
+
+
+def _repository_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+    """Replace overlapping repository labels with a type-by-creation-year density heatmap."""
+    records, table = _repository_density_data(frame)
+    write_table(table, out_dir / "data", "01_repository_timeline")
+    write_table(records, out_dir / "data", "01_repository_timeline_records")
+    matrix = table.pivot(index="primary_system_type", columns="creation_year", values="count") if not table.empty else pd.DataFrame()
+    if not matrix.empty:
+        matrix = matrix.reindex(index=table["primary_system_type"].drop_duplicates(),
+                                columns=table["creation_year"].drop_duplicates())
+    height = max(4.2, .40 * len(matrix) + 2.2)
+    fig, ax = plt.subplots(figsize=(10.0, height))
+    fig.subplots_adjust(left=.16, right=.88, bottom=1.15 / height, top=1.0 - .9 / height)
+    fig.suptitle("IDS systems by type and creation year", x=.5, y=1.0 - .10 / height,
+                 ha="center", va="top", fontsize=15, fontweight="bold")
+    subcaption(fig, .16, 1.0 - .45 / height,
+             f"{len(records):,} canonical operational systems · darker cells = more systems · blank cells = 0",
+             ha="left", va="top", fontsize=10, color="#5F6C76")
+    if matrix.empty:
         ax.axis("off")
-        ax.text(.5, .5, "No dated canonical repositories", transform=ax.transAxes, ha="center", va="center")
+        ax.text(.5, .5, "No canonical operational systems", transform=ax.transAxes, ha="center", va="center")
         return save_figure(fig, out_dir, "01_repository_timeline", formats, dpi)
 
-    type_values = canonical["primary_system_type"].astype(str).tolist()
-    colors = _system_type_colors(type_values)
-    for system_type, group in canonical.groupby("primary_system_type", sort=False):
-        ax.scatter(
-            group["timeline_date"], group["stars_numeric"], s=58,
-            color=colors[str(system_type)], edgecolor="white", linewidth=.9,
-            label=_display_system_type(system_type), zorder=3,
-        )
+    colors = _system_type_colors(list(matrix.index))
+    pixels = np.array([
+        [_density_color(int(count), colors[str(system_type)]) for count in matrix.loc[system_type]]
+        for system_type in matrix.index
+    ])
+    ax.imshow(pixels, aspect="auto", interpolation="nearest")
+    ax.set_xticks(range(len(matrix.columns)), matrix.columns, fontsize=11)
+    ax.set_yticks(range(len(matrix.index)), [_display_system_type(value) for value in matrix.index], fontsize=11)
+    ax.set_xlabel("Repository creation year", fontsize=12, labelpad=12)
+    ax.set_ylabel("Primary IDS type", fontsize=12, labelpad=12)
+    ax.tick_params(length=0, pad=8)
+    ax.grid(False)
+    ax.set_xticks(np.arange(-.5, len(matrix.columns), 1), minor=True)
+    ax.set_yticks(np.arange(-.5, len(matrix.index), 1), minor=True)
+    ax.grid(which="minor", color="white", linewidth=2)
+    ax.tick_params(which="minor", length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    totals = matrix.sum(axis=1)
+    for row_index, system_type in enumerate(matrix.index):
+        ax.text(1.025, row_index, str(int(totals.loc[system_type])),
+                transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=11, fontweight="bold")
+        for column_index, count in enumerate(matrix.loc[system_type]):
+            if int(count) == 0:
+                continue
+            red, green, blue = pixels[row_index, column_index]
+            luminance = .2126 * red + .7152 * green + .0722 * blue
+            ax.text(column_index, row_index, str(int(count)), ha="center", va="center",
+                    fontsize=11, fontweight="bold", color="white" if luminance < .48 else "#243746")
+    ax.text(1.025, 1.02, "Total", transform=ax.transAxes, ha="left", fontsize=10, color="#5F6C76")
+    for label, system_type in zip(ax.get_yticklabels(), matrix.index):
+        label.set_color(colors[str(system_type)])
 
-    # Repository names are mandatory. Place them underneath each point; duplicate dates/stars
-    # get deterministic horizontal offsets without moving the actual data point.
-    canonical["_duplicate_index"] = canonical.groupby(["timeline_date", "stars_numeric"], sort=False).cumcount()
-    canonical["_duplicate_size"] = canonical.groupby(["timeline_date", "stars_numeric"], sort=False)["github_repo_id"].transform("size")
-    for _, row in canonical.iterrows():
-        duplicate_index = int(row["_duplicate_index"])
-        duplicate_size = int(row["_duplicate_size"])
-        dx = (duplicate_index - (duplicate_size - 1) / 2.0) * 32
-        ax.annotate(
-            _short(row.get("full_name", ""), 32),
-            (row["timeline_date"], row["stars_numeric"]),
-            xytext=(dx, -12), textcoords="offset points",
-            ha="center", va="top", fontsize=6.6, color="#43505C",
-            arrowprops={"arrowstyle": "-", "color": "#C7D0D6", "lw": .5} if abs(dx) > 1 else None,
-            annotation_clip=False,
-        )
-
-    ax.set_xlabel("Repository creation date")
-    ax.set_ylabel("GitHub stars")
-    ax.set_ylim(bottom=min(-1, -float(canonical["stars_numeric"].max()) * .03))
-    locator = mdates.AutoDateLocator(minticks=6, maxticks=12)
-    ax.xaxis.set_major_locator(locator)
-    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
-    ax.grid(axis="x", alpha=.35)
-    ax.grid(axis="y", alpha=.25)
-    handles = [Patch(facecolor=colors[value], label=_display_system_type(value)) for value in dict.fromkeys(type_values)]
-    ax.legend(handles=handles, title="IDS type", loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=8)
+    reference_counts = [0, 1, 5, 10, 25, 50, 100, 250]
+    peak = int(matrix.to_numpy().max())
+    if peak > reference_counts[-1]:
+        reference_counts.append(peak)
+    handles = [Patch(facecolor=_density_color(count, "#243746"), edgecolor="#D8DEE6", label=str(count))
+               for count in reference_counts]
+    fig.legend(handles=handles, title="Systems per cell (same intensity scale across types and models)",
+               loc="lower center", bbox_to_anchor=(.51, .01), ncol=len(handles),
+               frameon=False, fontsize=9, title_fontsize=10, handlelength=1.6, columnspacing=1.1)
     return save_figure(fig, out_dir, "01_repository_timeline", formats, dpi)
 
 
@@ -761,7 +803,7 @@ def build(
 ) -> list[Path]:
     """Generate the GitHub IDS catalogue plot and audit-table bundle."""
     LOG.info("building GitHub plots input=%s output=%s", input_path, out_dir)
-    configure_style()
+    configure_style(config)
     frame = load_frame(
         input_path,
         (
@@ -805,7 +847,7 @@ def build(
         stale.unlink()
     outputs += _overview_matrix(frame, out_dir, formats, dpi)
 
-    # 01 — creation timeline with stars and IDS-type colors.
+    # 01 — aggregated type-by-creation-year density heatmap.
     outputs += _repository_timeline(frame, out_dir, formats, dpi)
 
     # 02 — role x IDS-type overview matrix.
@@ -855,7 +897,7 @@ def build(
 
     outputs.append(write_index(out_dir, input_path, frame, outputs, [
         "00_repository_overview keeps the existing detailed repository feature matrix and exports every accepted row.",
-        "01_repository_timeline reports operational systems (native detectors, classifier engines, and detection frameworks) using repository creation time on x, GitHub stars on y, and primary IDS type as color; every repository is named below its point.",
+        "01_repository_timeline is a density heatmap of canonical operational systems (native detectors, classifier engines, and detection frameworks): creation year on x, primary IDS type on y, stable type hues, and darker cells for higher counts. Each repository contributes once. Exact counts are printed, blank cells mean zero, and missing creation dates appear in an Unknown column. A fixed log-compressed intensity calibration is shared across types and models. Repository names, stars, URLs, and bin membership remain in data/01_repository_timeline_records.csv; stars are descriptive metadata rather than a heatmap axis.",
         "02_role_type_matrix reports every accepted role and crosses native detectors, classifier engines, frameworks, platforms, traffic analyzers, antivirus/file scanners, research projects, demos, content, and tooling with security system types such as AV/NSM/SM/NIDS/HIDS/PIDS. Antivirus/file scanners are reported separately from operational IDS systems.",
         "03_repository_relationships retains the existing repository-relationship count view.",
         "04_detection_method_type_matrix covers operational systems only and crosses detection methods with IDS types; both dimensions may be multi-label.",

@@ -1,0 +1,26 @@
+left_model,right_model,shared_sources,exact_agreement
+Keyword,Keyword,1000,1.0
+Keyword,NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,1000,0.429
+Keyword,LLM · gemma4-31b,1000,0.529
+Keyword,LLM · qwen3-8-27b,1000,0.26
+Keyword,Ensemble,1000,0.544
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,Keyword,1000,0.429
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,1000,1.0
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,LLM · gemma4-31b,1000,0.346
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,LLM · qwen3-8-27b,1000,0.538
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,Ensemble,1000,0.361
+LLM · gemma4-31b,Keyword,1000,0.529
+LLM · gemma4-31b,NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,1000,0.346
+LLM · gemma4-31b,LLM · gemma4-31b,1000,1.0
+LLM · gemma4-31b,LLM · qwen3-8-27b,1000,0.407
+LLM · gemma4-31b,Ensemble,1000,0.962
+LLM · qwen3-8-27b,Keyword,1000,0.26
+LLM · qwen3-8-27b,NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,1000,0.538
+LLM · qwen3-8-27b,LLM · gemma4-31b,1000,0.407
+LLM · qwen3-8-27b,LLM · qwen3-8-27b,1000,1.0
+LLM · qwen3-8-27b,Ensemble,1000,0.425
+Ensemble,Keyword,1000,0.544
+Ensemble,NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,1000,0.361
+Ensemble,LLM · gemma4-31b,1000,0.962
+Ensemble,LLM · qwen3-8-27b,1000,0.425
+Ensemble,Ensemble,1000,1.0

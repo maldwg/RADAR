@@ -12,7 +12,7 @@ from matplotlib.ticker import MaxNLocator
 import pandas as pd
 
 from ids_meta.common.logging import logger
-from ids_meta.plotting.common import add_heading, configure_style, count_plot, evidence_escalation_plot, load_frame, metadata_caption, save_figure, score_decision_plot, write_index, write_table
+from ids_meta.plotting.common import add_heading, configure_style, count_plot, evidence_escalation_plot, load_frame, metadata_caption, save_figure, score_decision_plot, subcaption, write_index, write_table
 
 LOG = logger("plotting.openalex")
 
@@ -28,6 +28,13 @@ TYPE_MARKERS = {
     "generator_framework": "s",
     "dataset_and_generator": "D",
     "unknown": "X",
+}
+
+TYPE_LINESTYLES = {
+    "dataset": "solid",
+    "generator_framework": "dashed",
+    "dataset_and_generator": "dotted",
+    "unknown": "dashdot",
 }
 
 DOMAIN_COLORS = {
@@ -163,6 +170,39 @@ def spread_label_coordinates(values: list[float], lower: float, upper: float, mi
     return result
 
 
+def spread_label_boxes(
+    values: list[float], heights: list[float], lower: float, upper: float, gap: float,
+) -> list[float]:
+    """Pack measured callouts in citation order without overlapping or shrinking text."""
+    if len(values) != len(heights):
+        raise ValueError("every label must have a measured height")
+    if not values:
+        return []
+    if sum(heights) + gap * (len(values) - 1) > upper - lower + 1e-9:
+        raise ValueError("label boxes need more vertical space")
+    order = sorted(range(len(values)), key=lambda index: (values[index], index))
+    offsets = [0.0]
+    for previous, index in zip(order, order[1:]):
+        offsets.append(offsets[-1] + (heights[previous] + heights[index]) / 2 + gap)
+    # Isotonic least-squares placement shares displacement around crowded points,
+    # rather than pushing every later label upward into long leader-line fans.
+    blocks: list[tuple[float, int]] = []
+    for index, offset in zip(order, offsets):
+        blocks.append((values[index] - offset, 1))
+        while len(blocks) > 1 and blocks[-2][0] / blocks[-2][1] > blocks[-1][0] / blocks[-1][1]:
+            right_sum, right_count = blocks.pop()
+            left_sum, left_count = blocks.pop()
+            blocks.append((left_sum + right_sum, left_count + right_count))
+    minimum = lower + heights[order[0]] / 2
+    maximum = upper - heights[order[-1]] / 2 - offsets[-1]
+    fitted = [min(maximum, max(minimum, total / size)) for total, size in blocks for _ in range(size)]
+    placed = [value + offset for value, offset in zip(fitted, offsets)]
+    result = [0.0] * len(values)
+    for index, center in zip(order, placed):
+        result[index] = center
+    return result
+
+
 def clean_bundle(out_dir: Path, formats: list[str]) -> None:
     """Remove stale OpenAlex figures and aggregate tables before replacement."""
     for extension in formats:
@@ -193,119 +233,182 @@ def prepare_frame(frame: pd.DataFrame) -> pd.DataFrame:
     return view
 
 
+def timeline_citation_coordinate(value: object) -> float:
+    """Use actual counts through 250, then 2.5% of linear upper-tail spacing."""
+    count = max(0.0, float(value))
+    return count if count <= 250 else 250 + .025 * (count - 250)
+
+
 def publication_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
-    """Plot publication year against zero-safe log citations using domain color and resource-type shape."""
+    """Place styled labels on a linear citation axis with a compressed upper tail."""
     dated = frame.dropna(subset=["publication_year_numeric"]).copy()
+    # Stacks grow upward: ascending counts put the most-cited resource on top.
     dated = dated.sort_values(["publication_year_numeric", "citations", "resource_name", "openalex_id"], kind="stable")
     dated["publication_year"] = dated["publication_year_numeric"].astype(int)
     dated["same_year_index"] = dated.groupby("publication_year", sort=False).cumcount()
     dated["same_year_count"] = dated.groupby("publication_year", sort=False)["openalex_id"].transform("size")
-    dated["timeline_x_offset"] = dated.apply(
-        lambda row: 0.0 if int(row["same_year_count"]) <= 1 else -.31 + .62 * int(row["same_year_index"]) / (int(row["same_year_count"]) - 1),
-        axis=1,
-    )
-    dated["timeline_x"] = dated["publication_year"] + dated["timeline_x_offset"]
-    dated["citation_coordinate"] = dated["citations"].map(log_count_coordinate)
-
+    dated["citation_coordinate"] = dated["citations"].map(timeline_citation_coordinate)
+    dated["timeline_x"] = dated["publication_year"].astype(float)
+    dated["timeline_x_offset"] = 0.0
+    dated["label_x"] = dated["timeline_x"]
+    dated["label_x_offset"] = 0.0
+    dated["label_side"] = "above"
+    dated["label_alignment"] = "center"
+    dated["layout_y_unit"] = "citations through 250; 250 + 0.025 * (citations - 250) above 250"
+    dated["citation_anchor_x"] = dated["timeline_x"] + .48
+    dated["label_citation_offset"] = 0.0
+    dated["label_adjusted_for_overlap"] = False
+    dated["line_style"] = dated["artifact_type"].map(TYPE_LINESTYLES).fillna(TYPE_LINESTYLES["unknown"])
+    for column in ("label_coordinate", "label_lower_coordinate", "label_upper_coordinate",
+                   "label_left_coordinate", "label_right_coordinate", "panel_number",
+                   "panel_start_year", "panel_end_year"):
+        dated[column] = 0.0
+    width, footer, header = 36.0, 1.90, .90
+    fig = plt.figure(figsize=(width, 10.0))
+    ax = fig.add_axes([.050, footer / 10, .925, (10 - footer - header) / 10])
+    first_year = int(dated["publication_year"].min()) if not dated.empty else 0
+    last_year = int(dated["publication_year"].max()) if not dated.empty else 0
+    ax.set_xlim(first_year - .65, last_year + .65)
+    ax.set_ylim(0, 1)
+    annotations = {}
+    for index, row in dated.iterrows():
+        color = DOMAIN_COLORS.get(str(row["domain"]), DOMAIN_COLORS["unknown"])
+        annotations[index] = ax.text(
+            row["label_x"], .5, str(row["resource_name"]), ha="center", va="center",
+            fontsize=10, color="#243746", linespacing=1.15, zorder=3,
+            bbox={"boxstyle": "round,pad=.24", "facecolor": "white", "edgecolor": color,
+                  "linewidth": 1.15, "linestyle": row["line_style"]})
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    # A label is narrower than one year interval, so neighboring year stacks
+    # cannot collide. Measure padding and wrapped text rather than guessing.
+    year_width = ax.bbox.width / (last_year - first_year + 1.30)
+    label_width = min(1.50 * fig.dpi, year_width * .87)
+    box_heights = {}
+    box_widths = {}
+    for index, annotation in annotations.items():
+        wrap_width = 24
+        while True:
+            annotation.set_text(textwrap.fill(str(dated.loc[index, "resource_name"]), width=wrap_width))
+            annotation.update_bbox_position_size(renderer)
+            box = annotation.get_bbox_patch().get_window_extent(renderer)
+            if box.width <= label_width or wrap_width == 1:
+                break
+            wrap_width -= 1
+        box_heights[index] = box.height / fig.dpi
+        box_widths[index] = box.width / year_width
+    gap, baseline_gap = .08, .22
+    stacks = dated.groupby("publication_year", sort=False).groups
+    stack_heights = [baseline_gap + sum(box_heights[index] for index in indices) + gap * (len(indices) - 1)
+                     for indices in stacks.values()]
+    # More physical space makes the populated 0–250 citation band useful
+    # for wrapped names while retaining a wide landscape canvas.
+    plot_height = max(12.0, max(stack_heights, default=0) + .60)
     maximum_citations = float(dated["citations"].max()) if not dated.empty else 0.0
-    maximum_coordinate = log_count_coordinate(maximum_citations)
-    label_lower, label_upper = -.02, max(.45, maximum_coordinate + .48)
-    maximum_same_year = int(dated["same_year_count"].max()) if not dated.empty else 1
-    height = max(8.0, min(54.0, 7.0 + .42 * maximum_same_year + .012 * len(dated)))
-    label_gap = (label_upper - label_lower) * .24 / max(4.0, height * .72)
-    dated["label_x_offset"] = dated["same_year_index"].map(lambda value: .075 if int(value) % 2 == 0 else -.075)
-    dated["label_x"] = dated["timeline_x"] + dated["label_x_offset"]
-    dated["label_target_coordinate"] = dated.apply(
-        lambda row: row["citation_coordinate"] + (1.35 * label_gap if int(row["same_year_index"]) % 2 == 0 else -1.35 * label_gap),
-        axis=1,
-    )
-    dated["label_coordinate"] = 0.0
-    for _year, indices in dated.groupby("publication_year", sort=False).groups.items():
-        targets = [float(value) for value in dated.loc[indices, "label_target_coordinate"]]
-        dated.loc[indices, "label_coordinate"] = spread_label_coordinates(targets, label_lower, label_upper, label_gap)
-
+    citation_upper = max(1.0, timeline_citation_coordinate(maximum_citations) * 1.08)
+    citation_lower = -.03 * citation_upper
+    height = plot_height + footer + header
+    fig.set_size_inches(width, height)
+    ax.set_position([.050, footer / height, .925, plot_height / height])
+    ax.set_ylim(citation_lower, citation_upper)
+    fig.suptitle("IDS dataset and generator publication timeline", x=.5, y=1 - .14 / height,
+                 ha="center", va="top", fontsize=15, fontweight="bold")
+    subcaption(fig, .035, 1 - .50 / height,
+               f"{len(dated):,} resources · linear citations through 250 · labels spaced to avoid overlap · color: domain · line style: resource type",
+               fontsize=10, color="#5F6C76", ha="left", va="top")
+    if dated.empty:
+        ax.axis("off")
+        ax.text(.5, .5, "No dated canonical artifacts in the current catalogue", transform=ax.transAxes,
+                ha="center", va="center")
+    else:
+        dated["panel_number"] = 1
+        dated["panel_start_year"] = first_year
+        dated["panel_end_year"] = last_year
+        # Pack measured boxes around their true citation coordinates, keeping
+        # order and moving labels only when their boxes would collide. Short
+        # styled leader lines end at exact citation ticks beside each column.
+        fig.canvas.draw()
+        pixels_per_coordinate = ax.bbox.height / (citation_upper - citation_lower)
+        for year, indices in stacks.items():
+            coordinates = [float(dated.loc[index, "citation_coordinate"]) for index in indices]
+            centers = spread_label_boxes(
+                coordinates, [box_heights[index] * fig.dpi / pixels_per_coordinate for index in indices],
+                0.0, citation_upper, gap * fig.dpi / pixels_per_coordinate)
+            for index, center in zip(indices, centers):
+                annotations[index].set_position((float(year), center))
+                dated.loc[index, "label_coordinate"] = center
+                actual = float(dated.loc[index, "citation_coordinate"])
+                dated.loc[index, "label_citation_offset"] = center - actual
+                dated.loc[index, "label_adjusted_for_overlap"] = abs(center - actual) > 1e-9
+                color = DOMAIN_COLORS.get(str(dated.loc[index, "domain"]), DOMAIN_COLORS["unknown"])
+                style = dated.loc[index, "line_style"]
+                anchor_x = float(dated.loc[index, "citation_anchor_x"])
+                edge_x = float(year) + box_widths[index] / 2
+                ax.plot([edge_x, anchor_x], [center, actual], color=color,
+                        linestyle=style, linewidth=.9, alpha=.8, zorder=2)
+                ax.plot([anchor_x - .025, anchor_x + .025], [actual, actual],
+                        color=color, linestyle=style, linewidth=1.3, zorder=2)
+        ax.set_xticks(range(first_year, last_year + 1))
+        ax.set_xlabel("Publication year", fontsize=12, labelpad=12)
+        tick_counts = [value for value in (0, 50, 100, 150, 200, 250, 1_000, 2_000, 3_000, 4_000, 5_000,
+                                           10_000, 25_000, 50_000, 100_000)
+                       if value <= maximum_citations]
+        if maximum_citations > 0 and (timeline_citation_coordinate(maximum_citations) - timeline_citation_coordinate(tick_counts[-1])) > .12 * citation_upper:
+            tick_counts.append(int(maximum_citations))
+        ax.set_yticks([timeline_citation_coordinate(value) for value in tick_counts], [f"{value:,}" for value in tick_counts])
+        ax.set_ylabel("Citations (linear to 250; uniformly compressed above)", fontsize=12, labelpad=12)
+        if maximum_citations > 250:
+            knee = timeline_citation_coordinate(250)
+            ax.axhline(knee, color="#82909C", linewidth=.8, linestyle="--", alpha=.6, zorder=1)
+            # Scale information must stay visible even with subcaptions disabled.
+            ax.annotate("Uniform scale compression above 250", (.012, knee), xycoords=("axes fraction", "data"),
+                        xytext=(0, 6), textcoords="offset points", fontsize=9,
+                        color="#5F6C76", ha="left", va="bottom")
+        ax.tick_params(axis="x", labelsize=10, length=6, width=1, color="#66727C")
+        ax.tick_params(axis="y", labelsize=10)
+        ax.grid(axis="y", linewidth=.5, alpha=.20)
+        for side in ("right", "top"):
+            ax.spines[side].set_visible(False)
+        ax.spines["left"].set_color("#66727C")
+        ax.spines["bottom"].set_color("#66727C")
+        ax.spines["bottom"].set_linewidth(1.2)
+    domain_handles = [Patch(facecolor=color, label=domain_label(name))
+                      for name, color in DOMAIN_COLORS.items() if name in set(dated["domain"])]
+    type_handles = [Line2D([0], [0], color="#435563", linestyle=style, linewidth=1.5,
+                          label=artifact_label(name)) for name, style in TYPE_LINESTYLES.items()
+                    if name in set(dated["artifact_type"])]
+    if domain_handles:
+        fig.legend(handles=domain_handles, title="Dataset domain (color)", loc="upper left",
+                   bbox_to_anchor=(.035, 1.22 / height), ncol=5, frameon=False, fontsize=10, title_fontsize=10)
+    if type_handles:
+        fig.legend(handles=type_handles, title="Dataset / generator (line style)", loc="upper left",
+                   bbox_to_anchor=(.035, .56 / height), ncol=4, frameon=False, fontsize=10,
+                   title_fontsize=10, handlelength=3)
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    for index, annotation in annotations.items():
+        box = annotation.get_bbox_patch().get_window_extent(renderer)
+        left, bottom = ax.transData.inverted().transform((box.x0, box.y0))
+        right, top = ax.transData.inverted().transform((box.x1, box.y1))
+        dated.loc[index, ["label_left_coordinate", "label_right_coordinate",
+                          "label_lower_coordinate", "label_upper_coordinate"]] = [left, right, bottom, top]
     columns = [
         "resource_name", "artifact_display_name", "artifact_name", "publication_year", "publication_date",
         "citations", "citation_as_of", "artifact_type", "domain", "data_form", "capture_environment", "labeling", "paper_role",
         "catalogue_tier", "provenance", "discovery_relations", "prefilter_score", "title", "doi", "openalex_id",
-        "same_year_index", "same_year_count", "timeline_x_offset", "timeline_x", "citation_coordinate",
-        "label_x_offset", "label_x", "label_coordinate",
+        "same_year_index", "same_year_count", "citation_coordinate", "timeline_x_offset", "timeline_x",
+        "label_side", "label_alignment", "label_x_offset", "label_x", "label_coordinate", "layout_y_unit", "line_style",
+        "citation_anchor_x", "label_citation_offset", "label_adjusted_for_overlap",
+        "panel_number", "panel_start_year", "panel_end_year", "label_lower_coordinate", "label_upper_coordinate",
+        "label_left_coordinate", "label_right_coordinate",
     ]
     for column in columns:
         if column not in dated:
             dated[column] = ""
-    # Row-level audit table: exactly the resources shown on the timeline and their metadata.
     write_table(dated[columns], out_dir / "data", "00_publication_timeline")
-
-    # Give each calendar year substantially more horizontal room.  The timeline
-    # remains proportional in time (missing years still occupy their real gap),
-    # but long resource names no longer have to compete for the same few inches.
-    if dated.empty:
-        year_span = 1
-    else:
-        year_span = int(dated["publication_year"].max()) - int(dated["publication_year"].min()) + 1
-    figure_width = max(15.2, min(54.0, 1.35 * year_span + .012 * len(dated)))
-    fig, ax = plt.subplots(figsize=(figure_width, height))
-    caption = metadata_caption(
-        frame,
-        "x = publication year; y = citations with zero-safe logarithmic spacing; color = dataset domain; shape = dataset/generator characteristic",
-    )
-    add_heading(fig, "IDS dataset and generator publication timeline", caption, top=.86)
-    fig.subplots_adjust(left=.07, right=.84, bottom=.12)
-
-    if dated.empty:
-        ax.axis("off")
-        ax.text(.5, .5, "No dated canonical artifacts in the current catalogue", transform=ax.transAxes, ha="center", va="center")
+    with plt.rc_context({"savefig.bbox": None}):
         return save_figure(fig, out_dir, "00_publication_timeline", formats, dpi)
 
-    minimum_year = int(dated["publication_year"].min())
-    maximum_year = int(dated["publication_year"].max())
-    for (domain, artifact_type), group in dated.groupby(["domain", "artifact_type"], sort=False):
-        ax.scatter(
-            group["timeline_x"], group["citation_coordinate"], s=76,
-            color=DOMAIN_COLORS.get(str(domain), DOMAIN_COLORS["unknown"]),
-            marker=TYPE_MARKERS.get(str(artifact_type), TYPE_MARKERS["unknown"]),
-            edgecolor="white", linewidth=1.0, zorder=4,
-        )
-
-    # Every name is placed in a collision-spread callout and connected back to its
-    # marker. This remains unambiguous when many resources share a year or citation count.
-    for _, row in dated.iterrows():
-        color = DOMAIN_COLORS.get(str(row["domain"]), DOMAIN_COLORS["unknown"])
-        ax.annotate(
-            textwrap.fill(str(row["resource_name"]), width=22),
-            (row["timeline_x"], row["citation_coordinate"]),
-            xytext=(row["label_x"], row["label_coordinate"]), textcoords="data",
-            ha="center", va="center", fontsize=6.6, color="#43505C", linespacing=.95,
-            bbox={"boxstyle": "round,pad=.13", "facecolor": "white", "edgecolor": color, "linewidth": .55, "alpha": .94},
-            arrowprops={"arrowstyle": "-", "color": color, "linewidth": .65, "alpha": .8, "shrinkA": 2, "shrinkB": 4},
-            annotation_clip=False, zorder=3,
-        )
-
-    ax.set_xlim(minimum_year - .85, maximum_year + .85)
-    ax.set_ylim(label_lower - .08, label_upper + .08)
-    ax.set_xlabel("Publication year")
-    ax.set_ylabel("Citations (log-scaled)")
-    set_count_log_ticks(ax, maximum_citations, axis="y")
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=14))
-    ax.grid(axis="both", linewidth=.6, alpha=.35)
-    for spine in ("right", "top"):
-        ax.spines[spine].set_visible(False)
-
-    domain_handles = [
-        Patch(facecolor=color, label=domain_label(name))
-        for name, color in DOMAIN_COLORS.items()
-        if name in set(dated["domain"])
-    ]
-    type_handles = [
-        Line2D([0], [0], marker=marker, linestyle="", markerfacecolor="#66727C", markeredgecolor="white", markersize=8, label=artifact_label(name))
-        for name, marker in TYPE_MARKERS.items()
-        if name in set(dated["artifact_type"])
-    ]
-    domain_legend = ax.legend(handles=domain_handles, title="Dataset domain (color)", loc="upper left", bbox_to_anchor=(1.005, 1), frameon=False, fontsize=8)
-    ax.add_artist(domain_legend)
-    ax.legend(handles=type_handles, title="Dataset / generator (shape)", loc="upper left", bbox_to_anchor=(1.005, .60), frameon=False, fontsize=8)
-    return save_figure(fig, out_dir, "00_publication_timeline", formats, dpi)
 
 def citation_landscape(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
     """Rank canonical resources by citations using a zero-safe axis with count-labelled ticks."""
@@ -672,7 +775,7 @@ def cumulative_publications(frame: pd.DataFrame, out_dir: Path, formats: list[st
         total = cumulative.sum(axis=1)
         ax.step(years, total, where="post", color="#26333D", linewidth=1.5, label="All resources")
         ax.scatter(years, total, color="#26333D", s=13, zorder=4)
-        ax.set_title(legend_title, loc="left", fontsize=11, fontweight="bold")
+        ax.set_title(legend_title, loc="center", fontsize=11, fontweight="bold")
         ax.set_ylabel("Cumulative canonical resources")
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         ax.legend(title=legend_title, loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=8)
@@ -979,7 +1082,7 @@ def build(
 ) -> list[Path]:
     """Generate the OpenAlex timeline, citation, provenance, and relationship bundle."""
     LOG.info("building OpenAlex plots core_input=%s adjacent_input=%s output=%s", main_path, adjacent_path or "none", out_dir)
-    configure_style()
+    configure_style(config)
     required = ("openalex_id", "artifact_id", "publication_family_id", "paper_relationship", "artifact_type", "publication_year", "domain", "data_form", "capture_environment", "labeling")
     main = load_frame(main_path, required)
     main["catalogue_tier"] = "core"
@@ -1013,7 +1116,7 @@ def build(
         surveys = load_frame(survey_sources_path, ("openalex_id", "title", "cited_by_count", "discovery_relations"))
         outputs += survey_source_landscape(surveys, out_dir, formats, dpi)
     outputs.append(write_index(out_dir, main_path, frame, outputs, [
-        "The publication timeline uses domain colors and dataset/generator marker shapes. Citation counts use zero-safe log10(count + 1) spacing with actual-count tick labels; small horizontal offsets separate resources from the same year and are exported in the companion CSV.",
+        "The publication timeline uses a continuous horizontal year axis on a 36-inch-wide landscape canvas and a linear citation axis from zero through 250. Above 250, equal citation differences use 2.5% of the lower range’s vertical spacing (40-fold compression), so the upper range remains uniformly linear rather than logarithmic. The mapping is continuous at 250, the change is marked, and tick labels show actual citation counts. Resource labels form year columns in citation order, with the most-cited at the top; there are no scatter dots. Measured label boxes are placed as close to their true citation heights as possible and shifted locally when necessary to avoid overlaps. Short styled leaders end at exact citation-height ticks beside each year column. Domain colors identify application areas; solid borders/lines indicate datasets, dashed generators, dotted combined releases, and dash-dot unknown types. The companion CSV records true citation coordinates, displayed label coordinates, displacement flags/offsets, line styles, and measured box boundaries. SVG and PDF preserve the full wide landscape canvas.",
         "03_cumulative_growth_by_type_and_domain uses cumulative stacked bands for resource type and security domain; at every year the full stacked height and dark outline equal the number of canonical resources published up to that year.",
         "Citation counts are descriptive and never affect retrieval, inclusion, or canonical-base selection.",
         "Discovery provenance shows direct and survey-snowball paths plus the exact number of distinct citing surveys; source contribution is summarized for those two catalogue-producing routes only.",

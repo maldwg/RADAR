@@ -1,3 +1,6 @@
 classifier,classifier_method,metric,classifier_id,value,rated_entities,confidence_level,ci_low,ci_high,tp,fp,tn,fn,rating_profile
-LLM · gemma4-31b,llm,false_positive_rate,gemma4:31b,0.0,120,0.95,6.938893903907228e-18,0.07555760416399626,0,0,47,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-LLM · qwen3-8-27b,llm,false_positive_rate,qwen3.8:27b,0.0,120,0.95,6.938893903907228e-18,0.07555760416399626,0,0,47,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Keyword,keyword,false_positive_rate,keyword-score,0.0,120,0.95,0.0,0.07410012966611745,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,false_positive_rate,MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,0.0,120,0.95,0.0,0.07410012966611745,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · gemma4-31b,llm,false_positive_rate,gemma4:31b,0.0,120,0.95,0.0,0.07410012966611745,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+LLM · qwen3-8-27b,llm,false_positive_rate,qwen3.8:27b,0.0,120,0.95,0.0,0.07410012966611745,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
+Ensemble,ensemble,false_positive_rate,ensemble,0.0,120,0.95,0.0,0.07410012966611745,0,0,48,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -54,13 +55,22 @@ class FunnelTests(unittest.TestCase):
             root = Path(directory)
             outputs = build(self._settings(root, ["svg", "pdf"]), "github")
             table = pd.read_csv(root / "plots/github/pipeline_funnel/data/00_pipeline_funnel.csv")
+            context = pd.read_csv(root / "plots/github/pipeline_funnel/data/discovery_context.csv")
         self.assertTrue(any(path.name == "00_pipeline_funnel.svg" for path in outputs))
         self.assertTrue(any(path.name == "00_pipeline_funnel.pdf" for path in outputs))
-        self.assertEqual(list(table["count"]), [2000, 10])
-        self.assertEqual(set(table["basis"]), {"configured_capacity"})
+        self.assertEqual(int(table.iloc[0]["count"]), 2000)
+        self.assertEqual(int(table.iloc[1]["count"]), 10)
+        self.assertTrue(table.iloc[2:]["count"].isna().all())
+        self.assertEqual(list(table["stage_label"]), [
+            "Crawler capacity",
+            "Candidate selection", "Enrichment / prefilter", "Classification", "Inclusion", "Export",
+        ])
+        self.assertEqual(int(context.set_index("context_key").loc["initial_results", "count"]), 2000)
+        self.assertEqual(set(table["basis"]), {"configured_capacity", "not_observed"})
+        self.assertTrue(table.iloc[1:]["removed_from_previous"].isna().all())
 
-    def test_observed_funnel_tracks_deduplication_filtering_and_classifier_losses(self) -> None:
-        """Build exact observed stages and transition losses from cache and CSV artifacts."""
+    def test_observed_funnel_aligns_main_stages_and_preserves_discovery_context(self) -> None:
+        """Keep deduplication outside common candidate-to-export loss accounting."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             settings = self._settings(root)
@@ -97,16 +107,109 @@ class FunnelTests(unittest.TestCase):
             outputs = build(settings, "github")
             table_path = root / "plots/github/pipeline_funnel/data/01_pipeline_funnel_model-a.csv"
             table = pd.read_csv(table_path)
+            context = pd.read_csv(root / "plots/github/pipeline_funnel/data/discovery_context.csv")
+            svg = (root / "plots/github/pipeline_funnel/01_pipeline_funnel_model-a.svg").read_text()
+            # An old export is unavailable for this run, not an observed zero.
+            os.utime(catalogue, (1, 1))
+            build(settings, "github")
+            stale = pd.read_csv(table_path).set_index("stage_key")
 
         self.assertTrue(any(path.name == "01_pipeline_funnel_model-a.svg" for path in outputs))
         by_stage = table.set_index("stage_key")
-        self.assertEqual(int(by_stage.loc["initial_results", "count"]), 3)
-        self.assertEqual(int(by_stage.loc["deduplicated", "count"]), 2)
-        self.assertEqual(int(by_stage.loc["prefilter_eligible", "count"]), 1)
+        self.assertEqual(list(table["stage_label"]), [
+            "Crawler hits (overlap)",
+            "Candidate selection", "Enrichment / prefilter", "Classification", "Inclusion", "Export",
+        ])
+        self.assertEqual(list(table["count"]), [3, 2, 1, 1, 1, 1])
+        self.assertTrue(pd.isna(by_stage.loc["candidate_selection", "removed_from_previous"]))
+        self.assertTrue(pd.isna(by_stage.loc["candidate_selection", "removed_percent_of_previous"]))
+        self.assertEqual(int(by_stage.loc["enrichment_prefilter", "count"]), 1)
         self.assertEqual(int(by_stage.loc["included", "count"]), 1)
-        self.assertEqual(int(by_stage.loc["deduplicated", "removed_from_previous"]), 1)
-        self.assertEqual(by_stage.loc["prefilter_eligible", "removed_label"], "Rejected by deterministic prefilter")
+        self.assertEqual(int(by_stage.loc["enrichment_prefilter", "removed_from_previous"]), 1)
+        self.assertEqual(by_stage.loc["enrichment_prefilter", "removed_label"], "Rejected by deterministic prefilter")
+        discovery = context.set_index("context_key")
+        self.assertEqual(int(discovery.loc["initial_results", "count"]), 3)
+        self.assertEqual(int(discovery.loc["deduplicated", "count"]), 2)
+        self.assertEqual(int(discovery.loc["duplicate_matches", "count"]), 1)
+        self.assertEqual(int(discovery.loc["evidence_cached", "count"]), 2)
+        self.assertIn("Crawler hits (overlap)", svg)
+        self.assertNotIn("Discovery inputs", svg)
+        self.assertNotIn("Unique search matches", svg)
+        self.assertNotIn("Deduplication", svg)
+        self.assertNotIn("<!-- GitHub pipeline funnel — model-a -->", svg)
         self.assertEqual(set(table["basis"]), {"observed"})
+        self.assertTrue(pd.isna(stale.loc["final_catalogue", "count"]))
+        self.assertTrue(pd.isna(stale.loc["final_catalogue", "removed_from_previous"]))
+        self.assertEqual(stale.loc["final_catalogue", "basis"], "not_observed")
+
+    def test_openalex_discovery_hits_are_independent_of_candidate_and_classification_limits(self) -> None:
+        """Keep overlapping discovery hits distinct from retained and classified papers."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = self._settings(root)
+            settings.section("openalex")["classification_limit"] = 1
+            timestamp = "2026-01-01T00:00:00+00:00"
+            with PipelineCache(root / "raw/openalex.sqlite3") as cache:
+                cache.put_record("openalex.collection", "latest", {
+                    "work_ids": ["paper-1", "paper-2"],
+                    "survey_ids": ["paper-2", "survey-1", "survey-2"],
+                    "selected_at": timestamp, "collection_limit": 2,
+                    "snowball_reached_depth": 1,
+                }, timestamp)
+                for query, shard, count in [
+                    ("direct", "direct_cursor", 100),
+                    ("survey", "survey_cursor", 50),
+                    ("snowball_depth:1", "backward_references", 25),
+                    ("unrelated old query", "direct_cursor", 999),
+                    ("snowball_depth:2", "backward_references", 999),
+                ]:
+                    cache.put_coverage("openalex", query, shard, "bounded", count, {}, timestamp)
+            candidates = root / "interim/openalex/paper_candidates.csv"
+            atomic_write_csv(candidates, [
+                {"openalex_id": "paper-1", "prefilter_band": "candidate"},
+                {"openalex_id": "paper-2", "prefilter_band": "borderline"},
+            ], ["openalex_id", "prefilter_band"])
+            atomic_write_csv(root / "interim/openalex/models/model-a/classifications.csv", [
+                {"openalex_id": "paper-1", "decision": "accept", "classifier_id": "model-a"},
+            ], ["openalex_id", "decision", "classifier_id"])
+            atomic_write_csv(root / "processed/openalex/models/model-a/base_papers.csv", [
+                {"openalex_id": "paper-1"},
+            ], ["openalex_id"])
+
+            build(settings, "openalex")
+            table = pd.read_csv(root / "plots/openalex/pipeline_funnel/data/01_pipeline_funnel_model-a.csv")
+            readme = (root / "plots/openalex/pipeline_funnel/README.md").read_text(encoding="utf-8")
+            context = pd.read_csv(root / "plots/openalex/pipeline_funnel/data/discovery_context.csv")
+            svg = (root / "plots/openalex/pipeline_funnel/01_pipeline_funnel_model-a.svg").read_text()
+
+        by_stage = table.set_index("stage_key")
+        self.assertEqual(list(table["stage_label"]), [
+            "Crawler hits (overlap)",
+            "Candidate selection", "Enrichment / prefilter", "Classification", "Inclusion", "Export",
+        ])
+        self.assertEqual(list(table["count"]), [175, 2, 2, 1, 1, 1])
+        self.assertTrue(pd.isna(by_stage.loc["candidate_selection", "removed_from_previous"]))
+        self.assertTrue(pd.isna(by_stage.loc["candidate_selection", "removed_percent_of_previous"]))
+        self.assertEqual(int(by_stage.loc["candidate_selection", "count"]), 2)
+        self.assertEqual(int(by_stage.loc["enrichment_prefilter", "count"]), 2)
+        self.assertEqual(int(by_stage.loc["classified", "count"]), 1)
+        self.assertEqual(int(by_stage.loc["classified", "removed_from_previous"]), 1)
+        discovery = context.set_index("context_key")
+        self.assertEqual(int(discovery.loc["initial_results", "count"]), 175)
+        self.assertTrue(discovery.loc["initial_results", "visible_in_figure"])
+        self.assertIn("Crawler hits (overlap)", svg)
+        self.assertIn("175", svg)
+        self.assertEqual(int(discovery.loc["unique_retained_with_surveys", "count"]), 4)
+        self.assertEqual(int(discovery.loc["auxiliary_only_surveys", "count"]), 2)
+        self.assertEqual(int(discovery.loc["survey_sources", "count"]), 3)
+        self.assertTrue(pd.isna(discovery.loc["unique_discovery_pool", "count"]))
+        self.assertEqual(discovery.loc["unique_discovery_pool", "basis"], "not_recorded")
+        self.assertNotIn("Auxiliary-only surveys", svg)
+        self.assertNotIn("Not recorded", svg)
+        self.assertNotIn("Discovery inputs", svg)
+        self.assertNotIn("Retention + deduplication", svg)
+        self.assertNotIn("removed_percent_of_previous", context.columns)
+        self.assertIn("Active collection limit recorded by the snapshot: `2`", readme)
 
 
 if __name__ == "__main__":

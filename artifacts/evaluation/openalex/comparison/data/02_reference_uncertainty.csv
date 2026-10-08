@@ -1,0 +1,6 @@
+classifier,rated_entities,attempted,accept,exclude,uncertain,error,unavailable,not_attempted,value
+Keyword,105,33,2,6,25,0,0,72,0.7575757575757576
+NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,105,33,8,11,14,0,0,72,0.42424242424242425
+LLM · gemma4-31b,105,46,32,7,7,0,0,59,0.15217391304347827
+LLM · qwen3-8-27b,105,46,32,11,3,0,0,59,0.06521739130434782
+Ensemble,105,46,30,7,9,0,0,59,0.1956521739130435

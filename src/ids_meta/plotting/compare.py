@@ -2,17 +2,90 @@ from __future__ import annotations
 
 import json
 import math
+import textwrap
 from pathlib import Path
 from statistics import NormalDist
 
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
-from ids_meta.plotting.common import COLORS, configure_style, load_frame, metadata_caption, save_figure, stamp, taxonomy_field_label, taxonomy_value_label, write_table
+from ids_meta.plotting.common import COLORS, configure_style, load_frame, metadata_caption, percentage_bars, save_figure, stamp, subcaption, taxonomy_field_label, taxonomy_overview_label, taxonomy_value_label, write_table
 from ids_meta.common.logging import logger
+from ids_meta.plotting.recovery import recovered_taxonomy_table
+from ids_meta.plotting.uncertainty import reference_uncertainty
 
 LOG = logger("plotting.compare")
+
+
+def _decision_distribution(
+    source: str, combined: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int,
+) -> list[Path]:
+    """Show horizontal disposition shares on a common source-union denominator."""
+    dispositions = {
+        "accept": "Accept", "accept_adjacent": "Accept", "exclude": "Exclude",
+        "uncertain": "Uncertain", "error": "Error", "": "Missing",
+    }
+    colors = {
+        "Accept": "#286f9b", "Exclude": "#afbac4", "Uncertain": "#dc9a42",
+        "Error": "#C94F4F", "Missing": "#e3e8ec", "Other outcomes": "#7A5FA8",
+    }
+    normalized = combined.apply(lambda column: column.str.strip().str.casefold())
+    grouped = normalized.apply(lambda column: column.map(dispositions).fillna("Other outcomes"))
+    names = list(combined.columns)
+    total = len(combined)
+    present = set(grouped.stack())
+    categories = [category for category in colors if category in present]
+    rows = [
+        {
+            "model": model, "disposition": category,
+            "count": int(grouped[model].eq(category).sum()), "total_sources": total,
+            "share_percent": 100 * grouped[model].eq(category).sum() / total,
+        }
+        for model in names for category in categories
+    ]
+    write_table(
+        pd.DataFrame(rows, columns=["model", "disposition", "count", "total_sources", "share_percent"]),
+        out_dir / "data", "01_model_decision_shares",
+    )
+    fig, ax = plt.subplots(figsize=(12, max(4.2, .85 * len(names) + 1.8)))
+    fig.subplots_adjust(left=.26, right=.97, bottom=.26, top=.88)
+    if not total:
+        ax.axis("off")
+        ax.text(.5, .5, "No classification results", transform=ax.transAxes, ha="center", va="center")
+    else:
+        table = pd.DataFrame(rows).set_index(["model", "disposition"])
+        left = [0.0] * len(names)
+        for category in categories:
+            values = [float(table.loc[(name, category), "share_percent"]) for name in names]
+            ax.barh(range(len(names)), values, left=left, color=colors[category], height=.60, label=category)
+            for index, (name, width) in enumerate(zip(names, values)):
+                if width >= 6:
+                    count = int(table.loc[(name, category), "count"])
+                    ax.text(
+                        left[index] + width / 2, index, f"{count:,}", ha="center", va="center",
+                        fontsize=13, fontweight="bold",
+                        color="white" if category in {"Accept", "Error", "Other outcomes"} else "#24323d",
+                    )
+                left[index] += width
+        ax.set_yticks(range(len(names)), labels=[_display_label(name, 46) for name in names])
+        ax.invert_yaxis()
+        ax.set_xlim(0, 100)
+        ax.set_xticks(range(0, 101, 20))
+        unit = "papers" if source == "openalex" else "repositories"
+        ax.set_xlabel(f"Share of {total:,} {unit} (%) · numbers inside bars are record counts")
+        ax.spines["left"].set_visible(False)
+        ax.tick_params(axis="y", length=0)
+        ax.grid(False)
+        ax.legend(
+            loc="upper left", bbox_to_anchor=(0, -.18), ncol=min(3, len(categories)),
+            frameon=False, fontsize=10,
+        )
+    ax.set_title(f"{_source_name(source)} decisions by model", loc="center", fontweight="bold", pad=16)
+    accepted = "accept + accept_adjacent" if source == "openalex" else "accept"
+    stamp(fig, f"Accept={accepted}; Exclude=exclude; common source union; distributions describe decisions, not correctness. Exact counts, including small segments, are in CSV.")
+    return save_figure(fig, out_dir, "01_model_decision_counts", formats, dpi)
 
 
 def _source_name(source: str) -> str:
@@ -23,14 +96,14 @@ def _source_name(source: str) -> str:
 def build(source: str, input_path: Path, out_dir: Path, config: dict[str, object]) -> list[Path]:
     """Build plots comparing prefilter scores with subsequent LLM decisions."""
     LOG.info("building %s classifier comparison input=%s output=%s", source, input_path, out_dir)
-    configure_style()
+    configure_style(config)
     frame = load_frame(input_path, ("prefilter_band", "prefilter_score", "decision"))
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
     dpi = int(config.get("dpi", 160))
     matrix = pd.crosstab(frame["prefilter_band"], frame["decision"])
     write_table(matrix.reset_index(), out_dir / "data", "01_prefilter_decisions")
     fig, ax = plt.subplots(); matrix.plot(kind="bar", stacked=True, ax=ax)
-    ax.set_title(f"{_source_name(source)} prefilter bands and LLM decisions", loc="left", fontweight="bold")
+    ax.set_title(f"{_source_name(source)} prefilter bands and LLM decisions", loc="center", fontweight="bold")
     ax.set_ylabel("Classified candidates"); ax.legend(title="LLM decision", fontsize=8)
     stamp(fig, metadata_caption(frame, "universe: records evaluated by the LLM"))
     outputs = save_figure(fig, out_dir, "01_prefilter_decisions", formats, dpi)
@@ -42,7 +115,7 @@ def build(source: str, input_path: Path, out_dir: Path, config: dict[str, object
     labels = [name for name, _group in scores.groupby("decision")]
     if groups:
         ax.boxplot(groups, tick_labels=labels, showfliers=False)
-    ax.set_title(f"{_source_name(source)} prefilter scores by LLM decision", loc="left", fontweight="bold"); ax.set_ylabel("Prefilter score")
+    ax.set_title(f"{_source_name(source)} prefilter scores by LLM decision", loc="center", fontweight="bold"); ax.set_ylabel("Prefilter score")
     stamp(fig, metadata_caption(frame, "prefilter scores select candidates; they are not final labels"))
     outputs += save_figure(fig, out_dir, "02_score_summary", formats, dpi)
     LOG.info("classifier comparison complete source=%s files=%d", source, len(outputs))
@@ -55,7 +128,7 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
         raise ValueError("model comparison requires at least two classification inputs")
     if source not in {"github", "openalex"}:
         raise ValueError(f"unsupported comparison source: {source}")
-    configure_style()
+    configure_style(config)
     identity = "github_repo_id" if source == "github" else "openalex_id"
     label_column = "full_name" if source == "github" else "title"
     decisions: list[pd.Series] = []
@@ -78,19 +151,7 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
     long_counts = long_counts[long_counts["decision"] != ""]
     count_table = long_counts.groupby(["model", "decision"]).size().reset_index(name="count")
     write_table(count_table, out_dir / "data", "01_model_decision_counts")
-    pivot = count_table.pivot(index="model", columns="decision", values="count").fillna(0)
-    fig, ax = plt.subplots()
-    if pivot.empty:
-        ax.axis("off")
-    else:
-        pivot.plot(kind="bar", ax=ax)
-        ax.set_ylabel("Classified sources")
-        ax.set_xlabel("")
-        ax.tick_params(axis="x", rotation=25)
-        ax.legend(title="Decision", fontsize=8)
-    ax.set_title(f"{_source_name(source)} decisions by model", loc="left", fontweight="bold")
-    stamp(fig, f"models={len(names)}; union of sources={len(combined)}")
-    outputs += save_figure(fig, out_dir, "01_model_decision_counts", formats, dpi)
+    outputs += _decision_distribution(source, combined, out_dir, formats, dpi)
 
     agreement = pd.DataFrame(index=names, columns=names, dtype=float)
     agreement_rows: list[dict[str, object]] = []
@@ -111,7 +172,7 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
             text_value = "n/a" if pd.isna(value) else f"{value:.0%}"
             ax.text(column_index, row_index, text_value, ha="center", va="center", color="white" if not pd.isna(value) and value > .65 else "black")
     fig.colorbar(image, ax=ax, label="Exact agreement")
-    ax.set_title(f"{_source_name(source)} pairwise classification agreement", loc="left", fontweight="bold")
+    ax.set_title(f"{_source_name(source)} pairwise classification agreement", loc="center", fontweight="bold")
     stamp(fig, "agreement uses only sources classified by both outputs; overlap counts are in the companion CSV")
     outputs += save_figure(fig, out_dir, "02_pairwise_agreement", formats, dpi)
 
@@ -135,7 +196,7 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
         ordered = patterns.iloc[::-1]
         ax.barh(ordered["classification_pattern"], ordered["count"], color="#C94F4F")
         ax.set_xlabel("Sources")
-    ax.set_title(f"{_source_name(source)} cross-model disagreement patterns", loc="left", fontweight="bold")
+    ax.set_title(f"{_source_name(source)} cross-model disagreement patterns", loc="center", fontweight="bold")
     stamp(fig, f"disagreements={len(disagreement)} of {len(combined)} sources; top {top_n} patterns shown")
     outputs += save_figure(fig, out_dir, "03_disagreement_patterns", formats, dpi)
     LOG.info("model comparison complete source=%s models=%d disagreements=%d files=%d", source, len(names), len(disagreement), len(outputs))
@@ -232,7 +293,176 @@ def _fallback_interval(metrics: dict[str, object], stem: str, value: float | Non
 
 def _display_label(label: str, maximum: int = 34) -> str:
     """Keep long model identifiers readable on an axis while retaining them in CSV data."""
+    if label.casefold().startswith("nli") and "deberta" in label.casefold():
+        return "NLI · deberta-v3"
     return label if len(label) <= maximum else label[: maximum - 1] + "…"
+
+
+def _reference_recovery_overview(
+    source: str, loaded: dict[str, dict[str, object]], out_dir: Path,
+    formats: list[str], dpi: int,
+) -> list[Path]:
+    """Summarize operational recall over expected positive reference entities."""
+    rows: list[dict[str, object]] = []
+    for label, metrics in loaded.items():
+        operational = metrics.get("operational", {})
+        if not isinstance(operational, dict):
+            operational = {}
+        recovered = int(operational.get("tp", 0))
+        missed = int(operational.get("fn", 0))
+        expected = recovered + missed
+        confidence = float(metrics.get("confidence_level", .95))
+        interval = _wilson(recovered, expected, confidence)
+        method = str(metrics.get("classifier_method", "")) or (
+            "ensemble" if label.casefold() == "ensemble" else "llm"
+        )
+        rows.append({
+            "classifier": label, "classifier_method": method,
+            "recovered": recovered, "missed": missed, "expected_positive_entities": expected,
+            "rated_entities": metrics.get("rated_entities", 0),
+            "value": recovered / expected if expected else None,
+            "percentage": 100 * recovered / expected if expected else None,
+            "confidence_level": confidence,
+            "ci_low": interval[0] if interval else None, "ci_high": interval[1] if interval else None,
+            "rating_profile": metrics.get("ratings_path", ""),
+        })
+    table = pd.DataFrame(rows)
+    write_table(table, out_dir / "data", "01_reference_recovery")
+    artifact_units = all(metrics.get("evaluation_unit") == "artifact" for metrics in loaded.values())
+    unit = "datasets" if source == "openalex" and artifact_units else "papers" if source == "openalex" else "repositories"
+    denominators = sorted(set(table["expected_positive_entities"]))
+    denominator = (
+        f"{denominators[0]:,} expected positive reference {unit}"
+        if len(denominators) == 1 else "Expected positive reference count varies by classifier; see CSV"
+    )
+    fig = percentage_bars(
+        [_display_label(str(label), 42) for label in table["classifier"]], table["value"].tolist(),
+        title=f"{_source_name(source)} reference recovery by classifier",
+        xlabel=f"Known reference {unit} recovered (%)",
+        caption=f"{denominator}. Missing, uncertain and excluded positives count as misses. N/A means no expected positives. Confidence intervals are in the CSV and detailed detection-rate plot.",
+        colors=[_method_color(str(method)) for method in table["classifier_method"]],
+    )
+    return save_figure(fig, out_dir, "01_reference_recovery", formats, dpi)
+
+
+def _reference_uncertainty_overview(
+    source: str, evaluation_inputs: dict[str, Path], out_dir: Path, formats: list[str], dpi: int,
+) -> list[Path]:
+    """Compare uncertainty on attempted reference classifications, preserving N/A."""
+    rows = []
+    for label, directory in evaluation_inputs.items():
+        counts = reference_uncertainty(directory)
+        if counts is not None:
+            rows.append({"classifier": label, **counts})
+    if not rows:
+        return []
+    frame = pd.DataFrame(rows)
+    write_table(frame, out_dir / "data", "02_reference_uncertainty")
+    fig = percentage_bars(
+        [f"{_display_label(row['classifier'])} ({row['uncertain']:,}/{row['attempted']:,} attempts)" for row in rows],
+        frame["value"].tolist(),
+        title=f"{_source_name(source)} classifier uncertainty on reference items",
+        xlabel="Uncertain decisions among attempted reference classifications (%)",
+        caption="All rated reference items; missing retrieval/classification is excluded. Errors stay in the attempted denominator but do not count as uncertain. OpenAlex uses a classified cited paper when no artifact match exists. N/A=no attempts.",
+        colors=[COLORS[2]] * len(rows),
+    )
+    return save_figure(fig, out_dir, "02_reference_uncertainty", formats, dpi)
+
+
+def _taxonomy_comparison_overview(
+    source: str, field_table: pd.DataFrame, labels: list[str], out_dir: Path,
+    formats: list[str], dpi: int, *, recovered_only: bool = False,
+) -> list[Path]:
+    """Compare all approaches in compact field groups on one percentage axis."""
+    fields = list(dict.fromkeys(field_table["field"]))
+    table = field_table.set_index(["field", "classifier"]).reindex(
+        pd.MultiIndex.from_product([fields, labels], names=["field", "classifier"]),
+    ).reset_index()
+    for column in ("comparisons", "exact_matches"):
+        table[column] = pd.to_numeric(table[column], errors="coerce")
+    estimable = table["supported"].astype(str).str.casefold().eq("true") & table["comparisons"].gt(0)
+    table["value"] = (table["exact_matches"] / table["comparisons"].where(estimable)).where(estimable)
+    table["percentage"] = table["value"] * 100
+    table["estimable"] = estimable
+    stem = "05_recovered_taxonomy_comparison" if recovered_only else "04_taxonomy_comparison"
+    write_table(table, out_dir / "data", stem)
+
+    base_colors = {"keyword": "#b6a064", "nli": "#559373", "llm": "#286f9b", "ensemble": "#8171a4"}
+    extra_colors = iter(["#3b8c8c", "#C94F4F", "#B85C9E", "#8C6D31", "#D9902F", "#6C7A89"])
+    colors: dict[str, object] = {}
+    for index, label in enumerate(labels):
+        method_rows = table.loc[table["classifier"].eq(label), "classifier_method"].dropna()
+        method = str(method_rows.iloc[0]) if not method_rows.empty else ""
+        color = base_colors.get(method)
+        if color is None or color in colors.values():
+            color = next(extra_colors, None)
+        if color is None:
+            color = plt.get_cmap("tab20")(index % 20)
+        colors[label] = color
+
+    fig, ax = plt.subplots(figsize=(12.5, max(6.0, .75 * len(fields) + 1.8)))
+    fig.subplots_adjust(left=.25, right=.97, top=.86, bottom=.23)
+    group_height = .76
+    step = group_height / len(labels)
+    bar_height = step * .83
+    lookup = table.set_index(["field", "classifier"])
+    for field_index, field in enumerate(fields):
+        if field_index % 2 == 0:
+            ax.axhspan(field_index - .47, field_index + .47, color="#f3f6f8", zorder=0)
+        for model_index, label in enumerate(labels):
+            y = field_index + (model_index - (len(labels) - 1) / 2) * step
+            value = lookup.loc[(field, label), "percentage"]
+            count = lookup.loc[(field, label), "comparisons"]
+            count_label = f" (n={int(count):,})" if recovered_only and pd.notna(count) else ""
+            if pd.isna(value):
+                ax.text(1.2, y, "N/A" + count_label, va="center", fontsize=7.5, color="#5f6c76")
+                continue
+            ax.barh(y, value, height=bar_height, color=colors[label], zorder=3)
+            if value == 0:
+                ax.plot(0, y, marker="|", color=colors[label], markersize=6, markeredgewidth=2, clip_on=False, zorder=4)
+            inside = value >= (80 if recovered_only else 93)
+            ax.text(
+                value - 1.2 if inside else value + 1.2, y, f"{value:.1f}%" + count_label,
+                ha="right" if inside else "left", va="center", fontsize=7.5,
+                color="white" if inside else "#24323d", zorder=4,
+            )
+    field_labels = []
+    for field in fields:
+        counts = sorted(set(int(value) for value in table.loc[table["field"].eq(field) & estimable, "comparisons"]))
+        denominator = f"n={counts[0]:,}" if len(counts) == 1 else "n varies" if counts else "N/A"
+        field_labels.append(textwrap.fill(taxonomy_overview_label(field), 27) + ("" if recovered_only else f"\n({denominator})"))
+    ax.set_yticks(range(len(fields)), labels=field_labels)
+    ax.set_ylim(len(fields) - .5, -.55)
+    ax.set_xlim(0, 100)
+    ax.set_xticks([0, 25, 50, 75, 100])
+    ax.set_xlabel("Correct labels among recovered reference items (%)" if recovered_only else "Correct labels across the reference inventory (%)")
+    ax.spines["left"].set_visible(False)
+    ax.tick_params(axis="y", length=0)
+    ax.grid(False)
+    ax.grid(axis="x", alpha=.16)
+    title = "taxonomy accuracy among recovered items" if recovered_only else "taxonomy accuracy by approach"
+    ax.set_title(f"{_source_name(source)} {title}", loc="center", fontweight="bold", pad=18)
+    legend_labels = {}
+    for label in labels:
+        display = _display_label(label, 38)
+        if recovered_only:
+            rows = table.loc[table["classifier"].eq(label)]
+            recovered = rows["recovered"].dropna()
+            expected = rows["expected_positive_entities"].dropna()
+            display += f"\n{int(recovered.iloc[0]):,}/{int(expected.iloc[0]):,} recovered" if not recovered.empty and not expected.empty else "\naudit unavailable"
+        legend_labels[label] = display
+    fig.legend(
+        handles=[Patch(facecolor=colors[label], label=legend_labels[label]) for label in labels],
+        loc="lower center", bbox_to_anchor=(.59, .085), ncol=min(5, len(labels)),
+        frameon=False, fontsize=8.5,
+    )
+    caption = (
+        "Bars follow legend order. Only accepted reference positives are evaluated; n=field-rated recovered items.\nMissing field predictions are incorrect; multi-label fields require an exact set match. N/A=unsupported or no recovered comparisons."
+        if recovered_only else
+        "Bars follow legend order within each field. n=rated field comparisons; unresolved results remain in the denominator.\nMulti-label fields require an exact set match; N/A=unsupported or no comparisons. Exact counts are in the companion CSV."
+    )
+    subcaption(fig, .25, .018, caption, fontsize=7.5, color="#5f6c76")
+    return save_figure(fig, out_dir, stem, formats, dpi)
 
 
 def build_classifiers(
@@ -242,7 +472,7 @@ def build_classifiers(
     """Compare keyword, NLI, LLM, and ensemble outputs on shared metric axes."""
     if len(evaluation_inputs) < 2:
         raise ValueError("classifier comparison requires at least two evaluated outputs")
-    configure_style()
+    configure_style(config)
     loaded: dict[str, dict[str, object]] = {}
     rating_paths: set[str] = set()
     evaluation_units: set[str] = set()
@@ -314,7 +544,7 @@ def build_classifiers(
     fig.colorbar(image, ax=ax, label="Observed rate (0–1)")
     ax.set_title(
         f"{_source_name(source)} — All headline metrics by classification approach",
-        loc="left", fontweight="bold",
+        loc="center", fontweight="bold",
     )
     stamp(
         fig,
@@ -323,6 +553,10 @@ def build_classifiers(
     )
     fig.subplots_adjust(bottom=.25, left=.30)
     outputs += save_figure(fig, out_dir, "00_metric_overview", formats, dpi)
+    outputs += _reference_recovery_overview(source, loaded, out_dir, formats, dpi)
+    outputs += _reference_uncertainty_overview(
+        source, {label: evaluation_inputs[label] for label in loaded}, out_dir, formats, dpi,
+    )
     for number, (stem, title, section, key) in enumerate(METRIC_SPECS, 1):
         rows: list[dict[str, object]] = []
         for label, metrics in loaded.items():
@@ -361,7 +595,7 @@ def build_classifiers(
                 .5, .5, "Not estimable from this rating profile",
                 transform=ax.transAxes, ha="center", va="center", fontsize=13,
             )
-            ax.set_title(f"{_source_name(source)} — {title} by classification approach", loc="left", fontweight="bold")
+            ax.set_title(f"{_source_name(source)} — {title} by classification approach", loc="center", fontweight="bold")
             stamp(fig, "the positive-only reference set contains no negative examples for this metric")
             outputs += save_figure(fig, metrics_dir, f"{number:02d}_{stem}", formats, dpi)
             continue
@@ -401,7 +635,7 @@ def build_classifiers(
                 loc="upper right", frameon=True, fontsize=8,
             )
             interval_caption = f"; capped vertical line={interval_label}"
-        ax.set_title(f"{_source_name(source)} — {title} by classification approach", loc="left", fontweight="bold")
+        ax.set_title(f"{_source_name(source)} — {title} by classification approach", loc="center", fontweight="bold")
         stamp(
             fig,
             f"n={visible['rated_entities'].iloc[0]}; bar height=observed metric"
@@ -432,6 +666,22 @@ def build_classifiers(
             })
     field_table = pd.DataFrame(field_rows)
     if not field_table.empty:
+        outputs += _taxonomy_comparison_overview(source, field_table, labels, taxonomy_dir, formats, dpi)
+        recovered_tables = []
+        for label, metrics in loaded.items():
+            recovered_table = recovered_taxonomy_table(evaluation_inputs[label])
+            if recovered_table is None or recovered_table.empty:
+                continue
+            recovered_table["classifier"] = label
+            recovered_table["classifier_method"] = str(metrics.get("classifier_method", "")) or (
+                "ensemble" if label.casefold() == "ensemble" else "llm"
+            )
+            recovered_tables.append(recovered_table)
+        if recovered_tables:
+            outputs += _taxonomy_comparison_overview(
+                source, pd.concat(recovered_tables, ignore_index=True), labels, taxonomy_dir,
+                formats, dpi, recovered_only=True,
+            )
         for number, value_column, title in (
             (1, "exact_accuracy", "Exact accuracy by taxonomy field"),
             (2, "macro_f1", "Macro-F1 by taxonomy field"),
@@ -453,7 +703,7 @@ def build_classifiers(
             ax.set_xlabel("")
             ax.set_ylabel("")
             fig.colorbar(image, ax=ax, label=title)
-            ax.set_title(f"{_source_name(source)} — {title}", loc="left", fontweight="bold")
+            ax.set_title(f"{_source_name(source)} — {title}", loc="center", fontweight="bold")
             stamp(fig, "color encodes the metric; grey=unsupported or not estimable; exact values are in the companion CSV")
             fig.subplots_adjust(bottom=.30)
             outputs += save_figure(
@@ -506,7 +756,7 @@ def build_classifiers(
         fig.colorbar(image, ax=ax, label="One-vs-rest category F1")
         ax.set_title(
             f"{_source_name(source)} — F1 for every rated taxonomy category",
-            loc="left", fontweight="bold",
+            loc="center", fontweight="bold",
         )
         stamp(fig, "one-vs-rest F1; grey=not represented or unsupported; exact TP/FP/FN values are in the companion CSV")
         fig.subplots_adjust(bottom=.18, left=.28)
@@ -527,10 +777,37 @@ def build_classifiers(
         "Open `00_metric_overview.svg`. Rows are metrics and columns are classifiers. "
         "The color is the raw rate, so use the arrow on each row to see whether higher "
         "or lower is preferable. Grey N/A cells mean the benchmark cannot estimate that metric.\n\n"
+        "Open `01_reference_recovery.svg` for a horizontal overview of recovered positive "
+        "reference entities by classifier, with percentage labels. Exact recovered/missed "
+        "counts, denominators and confidence intervals are in `data/01_reference_recovery.csv`. "
+        "The sibling classifier `figures/06_taxonomy_accuracy.svg` charts show exact field "
+        "accuracy as horizontal percentage bars.\n\n"
+        "Open `02_reference_uncertainty.svg` for uncertain decisions divided by attempted "
+        "classifications of rated reference items. Each bar shows its uncertain/attempted "
+        "counts; retrieval gaps and unclassified references are excluded. Errors remain in "
+        "the denominator and are reported separately in `data/02_reference_uncertainty.csv`. "
+        "OpenAlex uses a classified cited paper if no artifact match exists. Each reference "
+        "entity contributes once, and N/A means no attempts. This is distinct from the legacy "
+        "abstention metric.\n\n"
         "## Drill-down directories\n\n"
         "- `metrics/`: one enlarged operational-metric comparison per figure.\n"
-        "- `taxonomy/`: field and individual-category comparisons.\n"
+        "- `taxonomy/`: field and individual-category comparisons. "
+        "Start with `04_taxonomy_comparison.svg` for compact grouped horizontal bars "
+        "comparing every approach within each field. Colours identify individual classifiers; "
+        "percentages and rated denominators are printed, with exact values in its companion CSV.\n"
+        "  `05_recovered_taxonomy_comparison.svg` compares field accuracy only among each "
+        "approach's recovered reference positives. Bar annotations show field-rated sample counts; "
+        "the legend shows recovered/expected totals. Negative controls and missed references "
+        "are excluded, while missing field predictions are incorrect. Multi-label fields require "
+        "an exact set match. N/A means unsupported fields, no recovered comparisons, or a missing "
+        "entity audit. Different approaches can recover different subsets, so read with recovery. "
+        "The per-classifier equivalent is `figures/07_recovered_taxonomy_accuracy.svg`.\n"
         "- `agreement/`: where classifiers make the same decision; agreement is not correctness.\n"
+        "  `01_model_decision_counts` uses horizontal stacked shares of the full source union, "
+        "with record counts inside sufficiently wide segments. Accept combines accept and "
+        "accept_adjacent; Exclude means exclude. Errors and missing results stay visible. "
+        "Exact decisions remain in `data/01_model_decision_counts.csv`; grouped counts and "
+        "percentage denominators are in `data/01_model_decision_shares.csv`.\n"
         "- `data/00_metric_overview.csv`: exact values behind the overview.\n\n"
         "Matching SVG and PDF files are the same figure in screen and publication formats.\n\n"
         "Single-classifier operational/strict/selective views, confusion matrices, and coverage "

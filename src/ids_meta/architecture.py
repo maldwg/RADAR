@@ -14,6 +14,7 @@ from matplotlib.patches import (
     Arc, Circle, FancyArrowPatch, FancyBboxPatch, PathPatch, Polygon, Rectangle,
 )
 from matplotlib.path import Path as MplPath
+from matplotlib.text import Text
 
 
 INK = "#24323A"
@@ -29,6 +30,46 @@ WHITE = "#FFFFFF"
 EVALUATION_EDGE = "#65547E"
 CATALOGUE_EDGE = "#345F74"
 BRAND_ASSET_DIR = Path(__file__).resolve().parents[2] / "assets" / "architecture"
+
+
+def _card_label(
+    ax: Axes, bounds: tuple[float, float, float, float], label: str, *,
+    fontsize: float, color: str = INK, fontweight: str = "bold",
+) -> Text:
+    """Wrap a card label to its padded text area using rendered font widths."""
+    x, y, width, height = bounds
+    artist = ax.text(
+        x + width / 2, y + height / 2, label, ha="center", va="center",
+        fontsize=fontsize, color=color, fontweight=fontweight,
+        linespacing=1.12, zorder=5,
+    )
+    artist.set_gid("architecture-card-label:" + ":".join(str(value) for value in bounds))
+    renderer = ax.figure.canvas.get_renderer()
+    lower = ax.transData.transform((x, y))
+    upper = ax.transData.transform((x + width, y + height))
+    available_width, available_height = upper - lower
+    while True:
+        lines = []
+        for paragraph in label.split("\n"):
+            line = ""
+            for word in paragraph.split():
+                candidate = f"{line} {word}".strip()
+                measured_width = renderer.get_text_width_height_descent(
+                    candidate, artist.get_fontproperties(), False,
+                )[0]
+                if line and measured_width > available_width:
+                    lines.append(line)
+                    line = word
+                else:
+                    line = candidate
+            lines.append(line)
+        artist.set_text("\n".join(lines))
+        extent = artist.get_window_extent(renderer)
+        if extent.width <= available_width and extent.height <= available_height:
+            return artist
+        if artist.get_fontsize() <= 5.5:
+            raise ValueError(f"architecture label does not fit its padded card area: {label!r}")
+        artist.set_fontsize(max(5.5, artist.get_fontsize() - .25))
 
 
 def _line(area: DrawingArea, points: list[tuple[float, float]], color: str, linewidth: float = 1.15) -> None:
@@ -351,10 +392,9 @@ def _brand_box(
         filename, target_width=target_width,
     )
     if label:
-        ax.text(
-            x + width / 2, y + height * 0.18, label,
-            ha="center", va="center", color=MUTED,
-            fontsize=6.6, fontweight="bold", zorder=5,
+        _card_label(
+            ax, (x + width * .08, y + height * .08, width * .84, height * .32),
+            label, color=MUTED, fontsize=6.6,
         )
 
 
@@ -370,13 +410,12 @@ def _logo_box(
         linewidth=0.9, edgecolor=edgecolor, facecolor=facecolor, zorder=3,
     ))
     _add_brand(
-        ax, x + width / 2, y + height * (0.68 if title else 0.50), filename,
+        ax, x + width / 2, y + height * (0.74 if title else 0.50), filename,
         target_width=target_width,
     )
-    ax.text(
-        x + width / 2, y + height * 0.22, title,
-        ha="center", va="center", color=INK, fontsize=title_size,
-        fontweight="bold", linespacing=1.08, zorder=5,
+    _card_label(
+        ax, (x + width * .08, y + height * .08, width * .84, height * .43),
+        title, fontsize=title_size,
     )
 
 
@@ -394,10 +433,9 @@ def _model_badge(
         ax, x + width / 2, y + height * 0.67, filename,
         target_width=target_width,
     )
-    ax.text(
-        x + width / 2, y + height * 0.18, label,
-        ha="center", va="center", color=INK, fontsize=5.5,
-        fontweight="bold", zorder=5,
+    _card_label(
+        ax, (x + width * .10, y + height * .08, width * .80, height * .28),
+        label, fontsize=5.5,
     )
 
 
@@ -428,8 +466,7 @@ def _box(
         linestyle=linestyle,
         zorder=3,
     ))
-    icon_y = y + height * 0.69
-    title_y = y + height * 0.27
+    icon_y = y + height * 0.76
     icon_x = x + width * (0.40 if secondary_logo else 0.50)
     _add_icon(
         ax, icon_x, icon_y, icon,
@@ -440,17 +477,9 @@ def _box(
             ax, x + width * 0.62, icon_y, secondary_logo,
             target_width=secondary_logo_width,
         )
-    ax.text(
-        x + width / 2,
-        title_y,
-        title,
-        ha="center",
-        va="center",
-        color=INK,
-        fontsize=title_size,
-        fontweight="bold",
-        linespacing=1.12,
-        zorder=5,
+    _card_label(
+        ax, (x + width * .08, y + height * .08, width * .84, height * .43),
+        title, fontsize=title_size,
     )
 
 
@@ -548,9 +577,9 @@ def _classifier_box(ax: Axes) -> dict[str, float]:
             facecolor=WHITE, edgecolor="#C9C1B2", linewidth=0.65, zorder=4,
         ))
         _add_icon(ax, x + 0.035, center_y, icon, size=14)
-        ax.text(
-            x + 0.092, center_y, label,
-            ha="center", va="center", color=INK, fontsize=6.4, zorder=5,
+        _card_label(
+            ax, (x + .059, center_y - .039, width - .080, .078),
+            label, fontsize=6.4, fontweight="normal",
         )
     return {
         "left": x, "right": x + width, "keyword": centers[0],
@@ -599,6 +628,7 @@ def _color_legend(
 def _draw_pipeline_figure() -> Figure:
     """Create the detailed five-stage pipeline and evaluation architecture."""
     figure, ax = plt.subplots(figsize=(14.6, 5.8))
+    figure.subplots_adjust(left=0.008, right=0.992, bottom=0.020, top=0.992)
     figure.patch.set_facecolor(WHITE)
     ax.set_xlim(0, 14.0)
     ax.set_ylim(0, 6.5)
@@ -723,9 +753,8 @@ def _draw_pipeline_figure() -> Figure:
             facecolor=WHITE, edgecolor=edge, linewidth=0.75, zorder=4,
         ))
         _add_icon(ax, 8.56, center_y, icon, color=edge, size=13)
-        ax.text(
-            9.19, center_y, label, ha="center", va="center",
-            color=INK, fontsize=6.4, fontweight="bold", zorder=5,
+        _card_label(
+            ax, (8.80, center_y - .22, .80, .44), label, fontsize=6.4,
         )
     _arrow(ax, (7.93, direct_y), (8.12, direct_y), linewidth=1.50)
 
@@ -780,9 +809,8 @@ def _draw_pipeline_figure() -> Figure:
                 facecolor=fill, edgecolor=CATALOGUE_EDGE, linewidth=0.70, zorder=4,
             ))
             _add_icon(ax, x + 0.27, center_y, icon, color=CATALOGUE_EDGE, size=13)
-            ax.text(
-                x + 0.82, center_y, label, ha="center", va="center",
-                color=INK, fontsize=5.5, fontweight="bold", zorder=5,
+            _card_label(
+                ax, (x + .47, center_y - .20, .83, .40), label, fontsize=5.5,
             )
 
     ax.text(
@@ -811,13 +839,13 @@ def _draw_pipeline_figure() -> Figure:
         x=0.35, y=0.20, item_width=2.65,
     )
 
-    figure.subplots_adjust(left=0.008, right=0.992, bottom=0.020, top=0.992)
     return figure
 
 
 def _draw_system_figure() -> Figure:
     """Create the high-level, grid-aligned pipeline architecture."""
     figure, ax = plt.subplots(figsize=(11.2, 4.8))
+    figure.subplots_adjust(left=0.008, right=0.992, bottom=0.025, top=0.990)
     figure.patch.set_facecolor(WHITE)
     ax.set_xlim(0, 13.8)
     ax.set_ylim(-0.40, 5.25)
@@ -825,7 +853,7 @@ def _draw_system_figure() -> Figure:
     headings = (
         (2.72, "Source adapters", GITHUB, 2.04, 3.40),
         (4.90, "Evidence store", REPORT, 4.22, 5.58),
-        (6.92, "Preiltering", CLASSIFY, 6.24, 7.60),
+        (6.92, "Prefilter", CLASSIFY, 6.24, 7.60),
         (8.92, "Inference", CLASSIFY, 8.24, 9.60),
         (11.90, "Outputs", REPORT, 10.27, 13.60),
     )
@@ -983,7 +1011,6 @@ def _draw_system_figure() -> Figure:
         x=1.10, y=-0.19, item_width=3.05,
     )
 
-    figure.subplots_adjust(left=0.008, right=0.992, bottom=0.025, top=0.990)
     return figure
 
 

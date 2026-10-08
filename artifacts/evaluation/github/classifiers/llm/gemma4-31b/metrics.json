@@ -3,8 +3,8 @@
   "actual_entities": 2000,
   "benchmark_scope": "screening_decisions",
   "classification_coverage": 0.0,
-  "classification_field_accuracy": 0.06549707602339182,
-  "classification_field_comparisons": 855,
+  "classification_field_accuracy": 0.06658878504672897,
+  "classification_field_comparisons": 856,
   "classification_field_macro_f1": 0.0,
   "classifications_path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/data/interim/github/models/gemma4-31b/classifications.csv",
   "classifier_evidence_source_counts": {
@@ -12,7 +12,7 @@
   },
   "classifier_id": "gemma4:31b",
   "classifier_method": "llm",
-  "classifier_profile_hash": "13ff51dfe7a98b01b914",
+  "classifier_profile_hash": "2e0ffc64840fc757b0a1",
   "classifier_supported_fields": "*",
   "confidence_intervals": {
     "abstention_rate": [
@@ -20,8 +20,8 @@
       1.0
     ],
     "accuracy": [
-      0.314526855599215,
-      0.4884958574223093
+      0.31957898698671233,
+      0.4931878083541667
     ],
     "definitive_coverage": [
       0.0,
@@ -33,8 +33,8 @@
     ],
     "false_discovery_rate": null,
     "false_positive_rate": [
-      6.938893903907228e-18,
-      0.07555760416399626
+      0.0,
+      0.07410012966611745
     ],
     "precision": null
   },
@@ -44,13 +44,13 @@
   "evaluation_unit": "source_record",
   "not_estimable_metrics": [],
   "operational": {
-    "ACC": 0.3983050847457627,
+    "ACC": 0.40336134453781514,
     "DR": 0.0,
     "FDR": 0.0,
     "FNR": 1.0,
     "FPR": 0.0,
     "PREC": 0.0,
-    "accuracy": 0.3983050847457627,
+    "accuracy": 0.40336134453781514,
     "balanced_accuracy": 0.5,
     "detection_rate": 0.0,
     "f1": 0.0,
@@ -59,20 +59,20 @@
     "false_positive_rate": 0.0,
     "fn": 71,
     "fp": 0,
-    "negative_predictive_value": 0.3983050847457627,
+    "negative_predictive_value": 0.40336134453781514,
     "precision": 0.0,
     "recall": 0.0,
     "sensitivity": 0.0,
     "specificity": 1.0,
-    "tn": 47,
+    "tn": 48,
     "tp": 0
   },
   "rated_entities": 120,
   "ratings_path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml",
   "reference_disposition_counts": {
-    "exclude": 47,
+    "exclude": 48,
     "include": 71,
-    "uncertain": 2
+    "uncertain": 1
   },
   "reference_set": {
     "benchmark_name": "GHML23 repository reference set with IDS-Meta taxonomy crosswalk",
@@ -132,7 +132,7 @@
     "false_negative_rate": 1.0,
     "false_positive_rate": 1.0,
     "fn": 71,
-    "fp": 47,
+    "fp": 48,
     "negative_predictive_value": 0.0,
     "precision": 0.0,
     "recall": 0.0,
@@ -144,8 +144,8 @@
   "taxonomy_field_metrics": {
     "capabilities": {
       "comparisons": 120,
-      "exact_accuracy": 0.4666666666666667,
-      "exact_matches": 56,
+      "exact_accuracy": 0.475,
+      "exact_matches": 57,
       "label_f1": 0.0,
       "macro_f1": 0.0,
       "per_label": {
@@ -159,7 +159,7 @@
         },
         "monitoring": {
           "f1": 0.0,
-          "fn": 60,
+          "fn": 59,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -167,7 +167,7 @@
         },
         "prevention": {
           "f1": 0.0,
-          "fn": 13,
+          "fn": 14,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -177,7 +177,7 @@
       "supported": true
     },
     "centralization": {
-      "comparisons": 15,
+      "comparisons": 16,
       "exact_accuracy": 0.0,
       "exact_matches": 0,
       "label_f1": null,
@@ -185,7 +185,7 @@
       "per_label": {
         "centralized": {
           "f1": 0.0,
-          "fn": 12,
+          "fn": 13,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -269,7 +269,7 @@
       "per_label": {
         "file_analysis": {
           "f1": 0.0,
-          "fn": 5,
+          "fn": 7,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -277,7 +277,7 @@
         },
         "flow_analysis": {
           "f1": 0.0,
-          "fn": 8,
+          "fn": 9,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -343,7 +343,7 @@
         },
         "multi_scope": {
           "f1": 0.0,
-          "fn": 12,
+          "fn": 13,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -359,7 +359,7 @@
         },
         "unknown": {
           "f1": 0.0,
-          "fn": 56,
+          "fn": 55,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -401,7 +401,7 @@
         },
         "hids": {
           "f1": 0.0,
-          "fn": 12,
+          "fn": 11,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -409,7 +409,7 @@
         },
         "hips": {
           "f1": 0.0,
-          "fn": 3,
+          "fn": 4,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -597,7 +597,7 @@
       "per_label": {
         "apids": {
           "f1": 0.0,
-          "fn": 3,
+          "fn": 2,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -613,7 +613,7 @@
         },
         "hids": {
           "f1": 0.0,
-          "fn": 16,
+          "fn": 15,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,
@@ -621,7 +621,7 @@
         },
         "hips": {
           "f1": 0.0,
-          "fn": 6,
+          "fn": 7,
           "fp": 0,
           "precision": 0.0,
           "recall": 0.0,

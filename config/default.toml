@@ -27,7 +27,9 @@ openalex_keyword = "config/baselines/openalex_keyword.toml"
 url = "http://10.20.31.1:11434"
 model = "qwen3.6:27b"
 # Optional multi-model mode. An empty array keeps the scalar model behavior and legacy paths.
-models = ["gemma4:31b","qwen3.8:27b","devstral-2:123b", "glm-4.7-flash:bf16"]
+#models_soon = ["gemma4:31b","qwen3.8:27b", "devstral-small-2:24b", "glm-4.7-flash:bf16"]
+models = ["gemma4:31b","qwen3.8:27b"]
+
 timeout_seconds = 300
 retries = 3
 temperature = 0.0
@@ -43,7 +45,9 @@ require_verified_quote = true
 [ensemble]
 # When enabled, models may be an empty array (all ollama.models) or a selected subset.
 enabled = true
-models = ["gemma4:31b","qwen3.8:27b","devstral-2:123b", "glm-4.7-flash:bf16"]
+#models_soon = ["gemma4:31b","qwen3.8:27b","devstral-small-2:24b", "glm-4.7-flash:bf16"]
+models = ["gemma4:31b","qwen3.8:27b"]
+
 # Agreement is divided by all selected members; ties and values below this threshold are uncertain.
 # With two configured models, require both to support the same disposition.
 threshold = 1.0
@@ -151,6 +155,8 @@ canonical_ambiguity_margin = 2.0
 
 [openalex]
 # Score the broad retrieval pool, then adjudicate only its strongest candidates.
+# Discovery sampling below precedes these limits; hits can overlap across queries.
+# collection_limit caps retained candidates; classification_limit caps model inputs.
 # Use classification_limit = "all" to classify every candidate/borderline row.
 collection_limit = 20000
 classification_limit = "all"
@@ -209,6 +215,8 @@ consecutive_runs = 5
 consensus_threshold = 0.8
 
 [plots]
+# Hide explanatory subtitles and footnotes; titles, legends and data labels remain.
+show_subcaptions = false
 # Every plot and funnel is emitted in screen-friendly SVG and publication-ready PDF.
 formats = ["svg", "pdf"]
 dpi = 300

@@ -22,3 +22,4 @@ artifacts/runs/
 !artifacts/evaluation/**/*.csv
 !artifacts/evaluation/**/*.svg
 !artifacts/evaluation/**/*.pdf
+artifacts/presentation/**/*
