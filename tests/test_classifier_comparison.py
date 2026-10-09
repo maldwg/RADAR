@@ -75,6 +75,7 @@ class ClassifierComparisonTests(unittest.TestCase):
             evaluations = {}
             approaches = (
                 ("Keyword", "keyword", .50), ("NLI · fixture", "nli", .65),
+                ("NLI - Qwen", "llm_nli", .70),
                 ("LLM · fixture", "llm", .75), ("Ensemble", "ensemble", .80),
             )
             for index, (label, method, value) in enumerate(approaches):
@@ -136,7 +137,7 @@ class ClassifierComparisonTests(unittest.TestCase):
             )
             self.assertTrue(outputs)
             overview = root / "plots/data/00_metric_overview.csv"
-            self.assertEqual(len(overview.read_text(encoding="utf-8").splitlines()), 45)
+            self.assertEqual(len(overview.read_text(encoding="utf-8").splitlines()), 1 + 11 * len(approaches))
             self.assertTrue((root / "plots/00_metric_overview.svg").is_file())
             self.assertTrue((root / "plots/01_reference_recovery.svg").is_file())
             self.assertTrue((root / "plots/02_reference_uncertainty.svg").is_file())
@@ -153,7 +154,7 @@ class ClassifierComparisonTests(unittest.TestCase):
                 "false_discovery_rate",
             ), 1):
                 table = root / "plots/metrics/data" / f"{number:02d}_{metric}.csv"
-                self.assertEqual(len(table.read_text(encoding="utf-8").splitlines()), 5)
+                self.assertEqual(len(table.read_text(encoding="utf-8").splitlines()), 1 + len(approaches))
                 self.assertTrue((root / "plots/metrics" / f"{number:02d}_{metric}.svg").is_file())
             fdr_rows = read_csv(root / "plots/metrics/data/10_false_discovery_rate.csv")
             self.assertEqual(fdr_rows[0]["value"], "")
@@ -165,7 +166,7 @@ class ClassifierComparisonTests(unittest.TestCase):
             self.assertTrue((root / "plots/taxonomy/04_taxonomy_comparison.svg").is_file())
             self.assertTrue((root / "plots/taxonomy/05_recovered_taxonomy_comparison.svg").is_file())
             conditional_rows = read_csv(root / "plots/taxonomy/data/05_recovered_taxonomy_comparison.csv")
-            self.assertEqual(len(conditional_rows), 16)
+            self.assertEqual(len(conditional_rows), 4 * len(approaches))
             for row in conditional_rows:
                 self.assertEqual(int(row["comparisons"]), 8)
                 self.assertEqual(int(row["exact_matches"]), 6)
@@ -175,7 +176,7 @@ class ClassifierComparisonTests(unittest.TestCase):
             for text in ["75.0% (n=8)", "8/10 recovered", "Correct labels among recovered reference items (%)"]:
                 self.assertIn(text, conditional_svg)
             taxonomy_comparison = read_csv(root / "plots/taxonomy/data/04_taxonomy_comparison.csv")
-            self.assertEqual(len(taxonomy_comparison), 16)
+            self.assertEqual(len(taxonomy_comparison), 4 * len(approaches))
             self.assertEqual({row["classifier"] for row in taxonomy_comparison}, set(classifications))
             exact_rows = read_csv(root / "plots/taxonomy/data/01_exact_accuracy_by_field.csv")
             self.assertEqual(

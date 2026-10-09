@@ -259,6 +259,48 @@ The `[evaluation].reference_sets` array in `config/default.toml` selects `config
 
 `ids_meta.common.regression.evaluate_regression(source, expected, rated_entities, classification_fields)` remains available for small plain-dictionary unit fixtures without persisted run artifacts.
 
+### Ollama NLI baseline
+
+The optional `llm_nli` baseline asks an Ollama model one premise/hypothesis pair
+at a time and obtains entailment, neutral and contradiction scores from output
+token log probabilities. It uses the same hypotheses, tokenizer-based evidence
+chunking, chunk selection and aggregation as DeBERTa NLI. Configure models in
+`[baselines.llm_nli]`; the default is `qwen3.8:27b`. Install the `nli` optional
+dependencies for the shared tokenizer. This baseline loads no DeBERTa classifier.
+
+Check server capabilities, then run a small pilot:
+
+```bash
+ids-meta github baseline --methods llm_nli --check-only
+ids-meta github baseline --methods llm_nli --fields role --limit 5
+ids-meta openalex baseline --methods llm_nli --fields paper_role --limit 5
+```
+
+The check requires all three class-token alternatives at the same output
+position. Missing log probabilities cause an explicit error. Ollama provides
+output-token log probabilities rather than full vocabulary logits; see its
+[chat API](https://docs.ollama.com/api/chat). Scores are normalized over the three
+class codes and are not calibrated probabilities of correctness.
+
+After inspecting pilot scores and runtime, run the complete taxonomy:
+
+```bash
+ids-meta github baseline --methods llm_nli
+ids-meta openalex baseline --methods llm_nli
+```
+
+This can require hundreds of Ollama requests per entity. Pair caching makes
+interrupted runs resumable. Full results live under
+`data/interim/<source>/baselines/llm_nli/<model-slug>/`; evaluations and comparison
+plots identify them separately from structured LLM classification. Limited or
+field-restricted pilots use a nested `pilots/` directory and stay out of full
+comparison plots. The method is disabled in automatic runs by default.
+
+Use `ids-meta <source> baseline --methods llm_nli --evaluate-only` to regenerate
+evaluations and plots offline. Threshold-only changes rescore saved probabilities;
+changes to prompts, hypotheses or chunking require inference again. See
+[evaluation details](docs/evaluation.md#ollama-nli) for provenance and denominators.
+
 ## Data products
 
 GitHub repositories also receive a directly classified, single-label

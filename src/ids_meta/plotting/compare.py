@@ -235,7 +235,7 @@ OVERVIEW_SPECS = (
 def _method_color(method: str) -> str:
     """Return a stable color for a classifier family."""
     return {
-        "keyword": COLORS[2], "nli": COLORS[1], "llm": COLORS[0],
+        "keyword": COLORS[2], "nli": COLORS[1], "llm_nli": COLORS[5], "llm": COLORS[0],
         "ensemble": COLORS[3],
     }.get(method, COLORS[8])
 
@@ -387,7 +387,7 @@ def _taxonomy_comparison_overview(
     stem = "05_recovered_taxonomy_comparison" if recovered_only else "04_taxonomy_comparison"
     write_table(table, out_dir / "data", stem)
 
-    base_colors = {"keyword": "#b6a064", "nli": "#559373", "llm": "#286f9b", "ensemble": "#8171a4"}
+    base_colors = {"keyword": "#b6a064", "nli": "#559373", "llm_nli": "#3b8c8c", "llm": "#286f9b", "ensemble": "#8171a4"}
     extra_colors = iter(["#3b8c8c", "#C94F4F", "#B85C9E", "#8C6D31", "#D9902F", "#6C7A89"])
     colors: dict[str, object] = {}
     for index, label in enumerate(labels):

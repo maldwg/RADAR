@@ -20,6 +20,7 @@ openalex_prompts = "config/prompts/openalex.toml"
 github_system_types = "config/taxonomy/github_system_types.toml"
 github_nli = "config/baselines/github_nli.toml"
 openalex_nli = "config/baselines/openalex_nli.toml"
+llm_nli_prompt = "config/prompts/llm_nli.toml"
 github_keyword = "config/baselines/github_keyword.toml"
 openalex_keyword = "config/baselines/openalex_keyword.toml"
 
@@ -103,6 +104,21 @@ label_margin = 0.10
 enabled = true
 entailment_thresholds = [0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65]
 label_margins = [0.00, 0.05, 0.10, 0.15, 0.20]
+
+[baselines.llm_nli]
+# Opt-in: enabling adds this method to automatic baseline runs. Explicit
+# --methods llm_nli works even when disabled. Pilot before full taxonomy runs.
+enabled = true
+models = ["qwen3.8:27b"]
+top_logprobs = 20
+context_length = 4096
+seed = 42
+timeout_seconds = 300
+retries = 2
+entailment_threshold = 0.50
+label_margin = 0.10
+# Record class probability mass; do not tune rejection on the reference set.
+minimum_label_mass = 0.0
 
 [baselines.keyword.github]
 # These decision thresholds are independent of the recall-oriented discovery bands below.

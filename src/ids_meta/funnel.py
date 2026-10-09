@@ -104,6 +104,9 @@ def _variant_label(relative: Path, rows: list[dict[str, str]]) -> tuple[str, str
     if parts[:2] == ("baselines", "nli"):
         identifier = "/".join(parts[2:]) or "zero-shot NLI"
         return f"Zero-shot NLI — {identifier}", "nli-" + slug(identifier)
+    if parts[:2] == ("baselines", "llm_nli"):
+        identifier = "/".join(parts[2:])
+        return f"LLM NLI — {identifier}", "llm-nli-" + slug(identifier)
     classifier = ""
     if rows:
         classifier = rows[0].get("classifier_id", "") or rows[0].get("llm_model", "")
@@ -119,6 +122,8 @@ def _classifier_variants(settings: Settings, source: str, paths: dict[str, Path]
     if not interim.is_dir():
         return variants
     for classifications in sorted(interim.rglob("classifications.csv")):
+        if "pilots" in classifications.relative_to(interim).parts:
+            continue
         relative = classifications.parent.relative_to(interim)
         rows = read_csv(classifications)
         label, identifier = _variant_label(relative, rows)

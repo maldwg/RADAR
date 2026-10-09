@@ -215,22 +215,7 @@ class TransformersNLIBackend:
         self, sections: Sequence[EvidenceSection], premise_tokens: int, overlap: int,
     ) -> list[EvidenceChunk]:
         """Split each evidence section by tokenizer IDs without crossing source boundaries."""
-        chunks: list[EvidenceChunk] = []
-        step = premise_tokens - overlap
-        for section in sections:
-            token_ids = self.tokenizer.encode(
-                str(section.text), add_special_tokens=False, verbose=False,
-            )
-            for start in range(0, len(token_ids), step):
-                selected = token_ids[start : start + premise_tokens]
-                if not selected:
-                    continue
-                text = self.tokenizer.decode(selected, skip_special_tokens=True).strip()
-                if text:
-                    chunks.append(EvidenceChunk(len(chunks), section.source, text))
-                if start + premise_tokens >= len(token_ids):
-                    break
-        return chunks or [EvidenceChunk(0, "Evidence", "No substantive evidence was available.")]
+        return chunk_nli_sections(self.tokenizer, sections, premise_tokens, overlap)
 
     def score(self, pairs: Sequence[tuple[str, str]], batch_size: int) -> list[NLIScore]:
         """Return normalized three-way probabilities for batched premise/hypothesis pairs."""
@@ -253,6 +238,26 @@ class TransformersNLIBackend:
                     contradiction=float(values[self.contradiction_id]),
                 ))
         return results
+
+
+def chunk_nli_sections(
+    tokenizer: Any, sections: Sequence[EvidenceSection], premise_tokens: int, overlap: int,
+) -> list[EvidenceChunk]:
+    """Share identical reference-tokenizer chunk texts across NLI backends."""
+    chunks: list[EvidenceChunk] = []
+    step = premise_tokens - overlap
+    for section in sections:
+        token_ids = tokenizer.encode(str(section.text), add_special_tokens=False, verbose=False)
+        for start in range(0, len(token_ids), step):
+            selected = token_ids[start:start + premise_tokens]
+            if not selected:
+                continue
+            text = tokenizer.decode(selected, skip_special_tokens=True).strip()
+            if text:
+                chunks.append(EvidenceChunk(len(chunks), section.source, text))
+            if start + premise_tokens >= len(token_ids):
+                break
+    return chunks or [EvidenceChunk(0, "Evidence", "No substantive evidence was available.")]
 
 
 def _aggregate(values: list[tuple[EvidenceChunk, NLIScore]], top_k: int) -> dict[str, Any]:
@@ -417,6 +422,8 @@ def rescore_nli_rows(
                 raw_audit, profile, entailment_threshold, label_margin,
             )
             updated.update(normalizer(predictions, row, adapter_config or {}))
+            if row.get("classifier_method") == "llm_nli":
+                updated["classifier_supported_fields"] = row["classifier_supported_fields"]
             updated["nli_entailment_threshold"] = f"{entailment_threshold:g}"
             updated["nli_label_margin"] = f"{label_margin:g}"
             updated["error"] = ""
@@ -460,18 +467,31 @@ def classify_nli_baseline(
     profile: NLIProfile, config: NLIRuntimeConfig, *, resume: bool = True,
     progress_every: int = 25, backend: NLIBackend | None = None,
     adapter_config: dict[str, Any] | None = None,
+    method: str = "nli", limit: int | None = None,
 ) -> list[dict[str, str]]:
     """Run a resumable zero-shot NLI classification over the complete candidate audit."""
     identity, record_namespace, columns, evidence_builder, normalizer = _source_contract(source)
     rows = read_csv(candidates_path)
     require_columns(rows, (identity, "evidence_hash"), candidates_path)
+    if method not in {"nli", "llm_nli"}:
+        raise ValueError(f"unsupported NLI method: {method}")
+    if limit is not None:
+        if limit < 1:
+            raise ValueError("NLI limit must be positive")
+        rows = rows[:limit]
+    if method == "llm_nli":
+        if backend is None:
+            raise ValueError("llm_nli requires an explicit scoring backend")
+        from ids_meta.common.llm_nli import LLM_NLI_AUDIT_COLUMNS
+
+        columns = [*columns, *LLM_NLI_AUDIT_COLUMNS]
     active_backend = backend
     if active_backend is not None and (
         active_backend.model_id != config.model or active_backend.revision != config.revision
     ):
         raise ValueError("NLI backend identity does not match the configured model and revision")
     profile_hash = nli_profile_hash(profile, config)
-    namespace = f"{source}.baseline.nli.{slug(config.model)}"
+    namespace = f"{source}.baseline.{method}.{slug(config.model)}"
     results: list[dict[str, str]] = []
     prior_rows = read_csv(output) if resume and output.is_file() else []
     prior_by_id = {
@@ -498,7 +518,10 @@ def classify_nli_baseline(
             if fallback_count == 1:
                 LOG.warning("raw evidence missing; using candidate audit for NLI source=%s first_id=%s", source, key)
         sections = evidence_builder(payload)
-        evidence_hash = stable_hash(format_evidence(sections, 30000))
+        evidence_hash = (
+            stable_hash(json.dumps([(section.source, section.text) for section in sections], ensure_ascii=False))
+            if method == "llm_nli" else stable_hash(format_evidence(sections, 30000))
+        )
         cached = cache.get_decision(namespace, key, profile_hash, evidence_hash) if resume else None
         if cached is None:
             prior = prior_by_id.get(key)
@@ -512,7 +535,7 @@ def classify_nli_baseline(
         result.update({
             "evidence_hash": evidence_hash, "pipeline_version": NLI_BASELINE_VERSION,
             "profile_hash": profile_hash, "llm_model": "",
-            "classifier_method": "nli", "classifier_id": config.model,
+            "classifier_method": method, "classifier_id": config.model,
             "classifier_profile_hash": profile_hash,
             "classifier_evidence_source": evidence_source,
             "nli_model": config.model, "nli_model_revision": config.revision,
@@ -524,6 +547,8 @@ def classify_nli_baseline(
         try:
             if active_backend is None:
                 active_backend = TransformersNLIBackend(config)
+            if method == "llm_nli":
+                active_backend.start_record()
             predictions, scores, support = infer_nli_fields(sections, profile, active_backend, config)
             normalized = normalizer(predictions, candidate, adapter_config or {})
             result.update(normalized)
@@ -537,6 +562,11 @@ def classify_nli_baseline(
                 "nli_supporting_chunks_json": "{}",
             })
         result["nli_inference_seconds"] = f"{time.monotonic() - started:.6f}"
+        if method == "llm_nli":
+            result["classifier_supported_fields"] = ";".join(["decision", *[field.name for field in profile.fields]])
+            result["nli_entailment_threshold"] = repr(config.entailment_threshold)
+            result["nli_label_margin"] = repr(config.label_margin)
+            result.update(active_backend.record_audit())
         serialized = {str(name): str(value) for name, value in result.items()}
         if serialized.get("decision") != "error":
             cache.put_decision(namespace, key, profile_hash, evidence_hash, serialized, serialized["classified_at"])

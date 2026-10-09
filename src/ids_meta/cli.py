@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 
 from ids_meta.common.baselines import (
@@ -51,6 +53,8 @@ def _evaluation_variant(settings: Settings, source: str, variant: Path) -> Path:
         return root / "keyword" / Path(*parts[2:])
     if parts[:2] == ("baselines", "nli"):
         return root / "nli" / Path(*parts[2:])
+    if parts[:2] == ("baselines", "llm_nli"):
+        return root / "llm_nli" / Path(*parts[2:])
     return root / Path(*parts)
 
 
@@ -382,6 +386,9 @@ def _classifier_entries(settings: Settings, source: str) -> dict[str, tuple[Path
     for path in sorted(nli_root.glob("*/classifications.csv")):
         name = path.parent.name
         entries[f"NLI · {name}"] = (path, evaluation / "nli" / name)
+    for path in sorted((interim / "baselines/llm_nli").glob("*/classifications.csv")):
+        name = path.parent.name
+        entries[f"NLI - {name}"] = (path, evaluation / "llm_nli" / name)
     order = {"Keyword": 0, "NLI": 1, "LLM": 2, "Ensemble": 3}
     return dict(sorted(entries.items(), key=lambda item: (
         next((rank for prefix, rank in order.items() if item[0].startswith(prefix)), 9), item[0],
@@ -464,11 +471,95 @@ def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]
     return outputs
 
 
+def _execute_llm_nli_variants(args: argparse.Namespace, settings: Settings, source: str, cache: PipelineCache | None, manifest: RunManifest) -> None:
+    """Run or re-evaluate each independently cached Ollama NLI model."""
+    from ids_meta.common.llm_nli import OllamaNLIBackend, augmented_profile, load_llm_nli_config
+    from ids_meta.common.nli import nli_profile_hash, rescore_nli_rows
+    from ids_meta.common.csvio import atomic_write_csv
+    from ids_meta.common.nli_diagnostics import build_nli_threshold_diagnostics, load_nli_threshold_grid
+
+    config = load_llm_nli_config(settings)
+    reference = load_nli_runtime_config(settings)
+    base_profile = load_nli_profile(settings, source)
+    fields = tuple(value.strip() for value in (getattr(args, "fields", None) or "").split(",") if value.strip())
+    limit = getattr(args, "limit", None)
+    adapter = {"system_type_profile": load_system_type_profile(settings, "github")} if source == "github" else {}
+    if getattr(args, "output", None) and len(config.models) != 1:
+        raise ConfigError("LLM NLI --output requires exactly one configured model")
+    for model in config.models:
+        label = "llm_nli_" + slug(model)
+        variant = Path("baselines/llm_nli") / slug(model)
+        if fields or limit is not None:
+            # Partial runs must not replace the full result or enter comparisons.
+            variant /= Path("pilots") / f"{slug('-'.join(fields) or 'all')}-{limit or 'all'}"
+        paths = _variant_paths(settings, source, variant)
+        output = Path(args.output) if args.output else paths["classifications"]
+        candidates = Path(args.input) if args.input else _default_paths(settings, source)["candidates"]
+        if getattr(args, "evaluate_only", False):
+            if not output.is_file():
+                raise ConfigError(f"--evaluate-only requires saved LLM NLI classifications: {output}")
+            rows = read_csv(output)
+            metadata_values = {row.get("llm_nli_metadata_json", "") for row in rows}
+            if len(metadata_values) != 1 or not rows:
+                raise ConfigError("Saved LLM NLI rows require one consistent model/scoring provenance")
+            metadata = json.loads(next(iter(metadata_values)))
+            if metadata.get("model") != model:
+                raise ConfigError("Saved LLM NLI model does not match the configured model")
+            runtime = replace(reference, model=model, revision=metadata["model_digest"], entailment_threshold=config.entailment_threshold, label_margin=config.label_margin)
+            profile = augmented_profile(base_profile, config, reference, metadata, fields)
+            for row in rows:
+                stored = replace(runtime, entailment_threshold=float(row["nli_entailment_threshold"]), label_margin=float(row["nli_label_margin"]))
+                if row.get("classifier_profile_hash") != nli_profile_hash(profile, stored):
+                    raise ConfigError("Saved LLM NLI scores do not match the active hypotheses/chunking configuration")
+            if any(float(row["nli_entailment_threshold"]) != runtime.entailment_threshold or float(row["nli_label_margin"]) != runtime.label_margin for row in rows):
+                rows = rescore_nli_rows(source, rows, profile, runtime.entailment_threshold, runtime.label_margin, adapter)
+                for row in rows:
+                    row["classifier_profile_hash"] = row["profile_hash"] = nli_profile_hash(profile, runtime)
+                    row["nli_entailment_threshold"] = str(runtime.entailment_threshold)
+                    row["nli_label_margin"] = str(runtime.label_margin)
+                atomic_write_csv(output, rows, list(rows[0]))
+        else:
+            backend = OllamaNLIBackend(model, config, reference, settings.section("ollama"), cache if args.resume else None)
+            profile = augmented_profile(base_profile, config, reference, backend.metadata, fields)
+            preflight = backend.preflight()
+            LOG.info("LLM NLI capability check passed source=%s model=%s digest=%s", source, model, backend.revision)
+            manifest.parameters[label] = backend.metadata
+            if getattr(args, "check_only", False):
+                manifest.parameters[label + "_preflight"] = preflight
+                continue
+            assert cache is not None
+            runtime = backend.runtime_config()
+            rows = classify_nli_baseline(
+                source, candidates, output, cache, profile, runtime,
+                method="llm_nli", limit=limit, backend=backend, resume=args.resume,
+                progress_every=int(settings.section("logging").get("progress_every", 25)),
+                adapter_config=adapter,
+            )
+        manifest.counts[label + "_rows"] = len(rows)
+        for ratings_path, evaluation_dir, profile_label in _evaluation_jobs(settings, source, args, paths["evaluation"]):
+            result = _evaluate(settings, source, output, candidates, evaluation_dir, ratings_path)
+            _record_evaluation(manifest, result, "_".join(filter(None, (label, profile_label))))
+            if any(row.get("nli_scores_json") not in {None, "", "{}"} for row in rows):
+                diagnostic_outputs = build_nli_threshold_diagnostics(
+                    source, output, candidates, load_rating_profile(ratings_path, source),
+                    profile, runtime, load_nli_threshold_grid(settings), evaluation_dir / "sensitivity",
+                    settings.section("plots"), confidence_level=_evaluation_confidence_level(settings), adapter_config=adapter,
+                )
+                manifest.counts[label + "_sensitivity_files"] = len(diagnostic_outputs)
+
+
 def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str) -> dict[str, int]:
-    """Run configured source baselines and their rated evaluations without invoking LLMs."""
+    """Run configured source baselines and their rated evaluations."""
     paths = _default_paths(settings, source)
     methods = configured_baseline_methods(settings, getattr(args, "methods", None))
     evaluate_only = bool(getattr(args, "evaluate_only", False))
+    check_only = bool(getattr(args, "check_only", False))
+    if (check_only or getattr(args, "fields", None) or getattr(args, "limit", None) is not None) and methods != ["llm_nli"]:
+        raise ConfigError("--check-only, --fields and baseline --limit require --methods llm_nli")
+    if getattr(args, "limit", None) is not None and args.limit < 1:
+        raise ConfigError("Baseline --limit must be positive")
+    if check_only and evaluate_only:
+        raise ConfigError("--check-only and --evaluate-only cannot be combined")
     if getattr(args, "output", None) and len(methods) != 1:
         raise ConfigError("--output requires exactly one selected baseline method")
     candidates_path = Path(args.input) if args.input else paths["candidates"]
@@ -481,9 +572,12 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
         "starting baseline command source=%s methods=%s evaluate_only=%s run_id=%s",
         source, ",".join(methods), evaluate_only, manifest.run_id,
     )
-    cache_context = nullcontext(None) if evaluate_only else PipelineCache(paths["cache"])
+    cache_context = nullcontext(None) if evaluate_only or check_only else PipelineCache(paths["cache"])
     with cache_context as cache:
         for method in methods:
+            if method == "llm_nli":
+                _execute_llm_nli_variants(args, settings, source, cache, manifest)
+                continue
             nli_config = load_nli_runtime_config(settings) if method == "nli" else None
             nli_profile = load_nli_profile(settings, source) if method == "nli" else None
             adapter_config = (
@@ -574,7 +668,7 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
                     )
         if cache is not None:
             manifest.coverage = cache.coverage_rows(source)
-    comparison_outputs = _build_classifier_comparisons(settings, source)
+    comparison_outputs = [] if check_only else _build_classifier_comparisons(settings, source)
     manifest.counts["baseline_comparison_files"] = len(comparison_outputs)
     manifest.status = "complete"
     manifest.write()
@@ -953,8 +1047,11 @@ def build_parser() -> argparse.ArgumentParser:
             action_parser.add_argument("--input", type=Path)
             action_parser.add_argument("--output", type=Path)
             if action == "baseline":
+                action_parser.add_argument("--limit", type=int, help="LLM NLI pilot: first N candidates, isolated from full results")
+                action_parser.add_argument("--fields", help="LLM NLI pilot: comma-separated fields including role/paper_role")
+                action_parser.add_argument("--check-only", action="store_true", help="LLM NLI: test Ollama class-token scoring on synthetic pairs only")
                 action_parser.add_argument(
-                    "--methods", help="comma-separated baseline methods; defaults to baselines.methods",
+                    "--methods", help="comma-separated methods: keyword,nli,llm_nli; defaults to configured enabled baselines",
                 )
                 action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")
                 action_parser.add_argument(
@@ -1034,6 +1131,9 @@ def main(argv: list[str] | None = None) -> int:
             args.command in {"github", "openalex"}
             and args.action in {"classify", "baseline", "run"}
             and not getattr(args, "dry_run", False)
+            and not getattr(args, "check_only", False)
+            and not getattr(args, "fields", None)
+            and not (args.action == "baseline" and getattr(args, "limit", None) is not None)
             and not getattr(args, "input", None)
             and not getattr(args, "output", None)
         ):

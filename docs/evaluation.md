@@ -99,7 +99,7 @@ ids-meta github evaluate
 ids-meta openalex evaluate
 ```
 
-The baseline command creates keyword and/or local zero-shot NLI classification files and immediately evaluates them against the same profiles without calling an LLM:
+The default baseline command creates keyword and/or local zero-shot DeBERTa NLI classification files and immediately evaluates them against the same profiles without calling an LLM. The optional `llm_nli` method described below calls Ollama:
 
 ```bash
 ids-meta github baseline
@@ -137,6 +137,66 @@ The descriptive `agreement/01_model_decision_counts` chart uses horizontal stack
 NLI evaluation also writes `classifiers/nli/<model-slug>/sensitivity/`. This is not a second NLI result. It replays the aggregate probabilities already stored in `nli_scores_json` over the finite grid configured in `[baselines.nli.sensitivity]`, so it performs no inference and needs no network access. An entailment score says how strongly the text supports a label hypothesis; it is not a probability that the final answer is correct. The six-panel heatmap has minimum label evidence on its columns and the required lead over the runner-up label on its rows. Moving right or upward demands stronger, less ambiguous evidence and usually increases abstention. The black outline marks the cutoffs actually used for the reported NLI result. Blue panels prefer darker cells; red error-rate panels prefer lighter cells. The sweep describes robustness and trade-offs; it must not silently tune the operating point on the same fixture used for final reporting.
 
 Use `ids-meta <source> baseline --evaluate-only` to rebuild baseline evaluations, NLI sensitivity analysis, and cross-approach plots from existing baseline classification CSVs. This mode does not open the source cache or initialize the keyword or NLI classifier.
+
+### Ollama NLI
+
+`ids-meta <source> baseline --methods llm_nli` runs each model configured in
+`[baselines.llm_nli].models` as a separate generative NLI baseline. A versioned
+prompt in `config/prompts/llm_nli.toml` asks for A (entailment), B (neutral), or C
+(contradiction) for one hypothesis and one source-labelled evidence chunk. The
+model sees the three possible outcomes in that prompt; taxonomy hypotheses are
+evaluated independently. Thinking is disabled, generation is deterministic, and
+no JSON grammar restricts the answer probabilities.
+
+The backend uses Ollama's native `/api/chat` `logprobs` and `top_logprobs` fields.
+It requires all three class alternatives at the same generated-token position,
+normalizes their probability mass into an `NLIScore`, and records the original
+mass. Missing alternatives, invalid output and unavailable scoring support are
+errors, never neutral scores or silently imputed zeroes. `--check-only` checks
+server version, installed model digest and three synthetic pairs without reading
+the corpus or loading a tokenizer. Passing it establishes score availability,
+not classifier quality or calibration. Check completeness and label bias again
+on development examples before scaling.
+
+DeBERTa NLI and Ollama NLI share the tokenizer/chunk policy configured in
+`[baselines.nli]`, the source hypothesis profiles, representative chunk selection,
+strongest-chunk aggregation and source normalization rules. Ollama NLI has its
+own decision threshold and margin in `[baselines.llm_nli]`. It does not retrieve
+extra evidence or use structured-LLM quote gates or repeated-run consensus.
+The existing structured LLM pipeline can use more evidence and adaptive
+enrichment: the all-approach plots compare operational methods, and do not by
+themselves establish a controlled, equal-evidence experiment.
+
+For development pilots use `--fields role --limit 5` (GitHub) or
+`--fields paper_role --limit 5` (OpenAlex). Any selected field list must include
+the source's role field. `--limit` selects the first N rows of the candidate
+audit. Pilots have isolated paths and never enter automatic full comparisons or
+funnels. Pilot evaluations still use the configured reference denominator;
+their recovery rate is not a full-corpus performance estimate. Unselected
+taxonomy fields are marked unsupported/N/A.
+
+Full classifications are stored in
+`data/interim/<source>/baselines/llm_nli/<model-slug>/classifications.csv`, and
+evaluation files in `artifacts/evaluation/<source>/classifiers/llm_nli/<model-slug>/`.
+Pilots add `pilots/<fields>-<limit>/` below those paths. Full comparisons display
+`NLI - <model-slug>` alongside DeBERTa NLI and the structured model. Both methods
+receive the usual recovery, taxonomy, decisions, coverage, unresolved-rate and
+offline threshold-sensitivity figures.
+
+`llm_nli_metadata_json` records model digest, server version, class codes, prompt
+fingerprint and tokenizer identity. `llm_nli_pair_scores_json` records each
+scored hypothesis, premise hash, raw token alternatives, three normalized scores,
+original class mass, token counts and inference timing. `nli_evidence_chunks_json`
+preserves the chunk texts; the existing supporting-chunk and aggregate-score
+columns identify how they affected decisions. Pair cache fingerprints include
+the model/server/scoring provenance. Errors are retried on resume, while valid
+prefix scores can be reused.
+
+`--methods llm_nli --evaluate-only` initializes no Ollama backend and requires no
+network access. If only decision thresholds changed it replays the stored
+aggregate scores and updates decisions before evaluation. It refuses mismatched
+models, prompt settings, hypotheses or chunking. To replot a pilot, repeat its
+`--fields` and `--limit` options with `--evaluate-only`.
 
 The presentation-style overviews are also generated by normal evaluation plotting for both sources:
 
