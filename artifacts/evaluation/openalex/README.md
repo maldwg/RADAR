@@ -3,7 +3,7 @@
 ## Start here
 
 - `shield`: open `comparison/00_metric_overview.svg` 
-  (5 classifiers; exact values in `comparison/data/00_metric_overview.csv`).
+  (6 classifiers; exact values in `comparison/data/00_metric_overview.csv`).
   Horizontal recovery overview: `comparison/01_reference_recovery.svg`.
   Compact taxonomy comparison: `comparison/taxonomy/04_taxonomy_comparison.svg`.
   Taxonomy accuracy among recovered items: `comparison/taxonomy/05_recovered_taxonomy_comparison.svg`.
@@ -20,6 +20,7 @@
 ## Available classifier details
 
 - `Keyword` → `classifiers/keyword/` (reference sets: shield)
+- `NLI - qwen3-8-27b` → `classifiers/llm_nli/qwen3-8-27b/` (reference sets: shield)
 - `NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli` → `classifiers/nli/moritzlaurer-deberta-v3-base-mnli-fever-anli/` (reference sets: shield)
 - `LLM · gemma4-31b` → `classifiers/llm/gemma4-31b/` (reference sets: shield)
 - `LLM · qwen3-8-27b` → `classifiers/llm/qwen3-8-27b/` (reference sets: shield)

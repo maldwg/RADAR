@@ -2,6 +2,9 @@ model,disposition,count,total_sources,share_percent
 Keyword,Accept,46,1000,4.6
 Keyword,Exclude,232,1000,23.2
 Keyword,Uncertain,722,1000,72.2
+NLI - qwen3-8-27b,Accept,16,1000,1.6
+NLI - qwen3-8-27b,Exclude,168,1000,16.8
+NLI - qwen3-8-27b,Uncertain,816,1000,81.6
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,Accept,23,1000,2.3
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,Exclude,604,1000,60.4
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,Uncertain,373,1000,37.3

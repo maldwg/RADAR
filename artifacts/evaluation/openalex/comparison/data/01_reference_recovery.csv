@@ -1,5 +1,6 @@
 classifier,classifier_method,recovered,missed,expected_positive_entities,rated_entities,value,percentage,confidence_level,ci_low,ci_high,rating_profile
 Keyword,keyword,2,99,101,105,0.019801980198019802,1.9801980198019802,0.95,0.0054473224611470555,0.06934616962584343,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
+NLI - qwen3-8-27b,llm_nli,4,97,101,105,0.039603960396039604,3.9603960396039604,0.95,0.015507146202925828,0.09743919157119907,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,8,93,101,105,0.07920792079207921,7.920792079207921,0.95,0.04068097332073048,0.14857105582766325,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 LLM · gemma4-31b,llm,32,69,101,105,0.31683168316831684,31.683168316831683,0.95,0.2342352631167658,0.41285091427724097,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 LLM · qwen3-8-27b,llm,32,69,101,105,0.31683168316831684,31.683168316831683,0.95,0.2342352631167658,0.41285091427724097,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml

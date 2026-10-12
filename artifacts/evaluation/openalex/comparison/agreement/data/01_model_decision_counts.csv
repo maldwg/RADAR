@@ -14,6 +14,9 @@ LLM · qwen3-8-27b,accept,128
 LLM · qwen3-8-27b,accept_adjacent,1
 LLM · qwen3-8-27b,exclude,820
 LLM · qwen3-8-27b,uncertain,51
+NLI - qwen3-8-27b,accept,16
+NLI - qwen3-8-27b,exclude,168
+NLI - qwen3-8-27b,uncertain,816
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,accept,23
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,exclude,604
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,uncertain,373

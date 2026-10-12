@@ -1,5 +1,6 @@
 classifier,classifier_method,metric,classifier_id,value,rated_entities,confidence_level,ci_low,ci_high,tp,fp,tn,fn,rating_profile
 Keyword,keyword,abstention_rate,keyword-score,0.23809523809523808,105,0.95,0.16679080647224592,0.32788704334776403,2,0,4,99,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
+NLI - qwen3-8-27b,llm_nli,abstention_rate,qwen3.8:27b,0.2571428571428571,105,0.95,0.18315909307507205,0.34826945857620983,4,0,4,97,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,abstention_rate,MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,0.13333333333333333,105,0.95,0.08111392144662206,0.21143506830139186,8,0,4,93,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 LLM · gemma4-31b,llm,abstention_rate,gemma4:31b,0.06666666666666667,105,0.95,0.03266588465602072,0.1312556486825412,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 LLM · qwen3-8-27b,llm,abstention_rate,qwen3.8:27b,0.02857142857142857,105,0.95,0.009763839038702336,0.08065629063731555,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml

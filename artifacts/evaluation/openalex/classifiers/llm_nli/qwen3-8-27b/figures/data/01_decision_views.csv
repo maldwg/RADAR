@@ -1,0 +1,22 @@
+view,metric,metric_key,value
+Operational,Detection rate,DR,0.039603960396039604
+Operational,Precision,PREC,1.0
+Operational,Accuracy,ACC,0.0761904761904762
+Operational,F1,f1,0.07619047619047618
+Operational,False-positive rate,FPR,0.0
+Operational,False-discovery rate,FDR,0.0
+Operational,False-negative rate,FNR,0.9603960396039604
+Strict,Detection rate,DR,0.039603960396039604
+Strict,Precision,PREC,0.5
+Strict,Accuracy,ACC,0.0380952380952381
+Strict,F1,f1,0.07339449541284403
+Strict,False-positive rate,FPR,1.0
+Strict,False-discovery rate,FDR,0.5
+Strict,False-negative rate,FNR,0.9603960396039604
+Selective,Detection rate,DR,1.0
+Selective,Precision,PREC,1.0
+Selective,Accuracy,ACC,1.0
+Selective,F1,f1,1.0
+Selective,False-positive rate,FPR,0.0
+Selective,False-discovery rate,FDR,0.0
+Selective,False-negative rate,FNR,0.0

@@ -1,5 +1,6 @@
 classifier,classifier_method,metric,classifier_id,value,rated_entities,confidence_level,ci_low,ci_high,tp,fp,tn,fn,rating_profile
 Keyword,keyword,false_discovery_rate,keyword-score,0.0,105,0.95,0.0,0.6576197724933468,2,0,4,99,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
+NLI - qwen3-8-27b,llm_nli,false_discovery_rate,qwen3.8:27b,0.0,105,0.95,0.0,0.4898908364545972,4,0,4,97,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,false_discovery_rate,MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,0.0,105,0.95,0.0,0.3244075648838801,8,0,4,93,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 LLM · gemma4-31b,llm,false_discovery_rate,gemma4:31b,0.0,105,0.95,0.0,0.10717919825507058,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
 LLM · qwen3-8-27b,llm,false_discovery_rate,qwen3.8:27b,0.0,105,0.95,0.0,0.10717919825507058,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
