@@ -56,21 +56,32 @@ def _json_payload(value: Any, context: str) -> str:
 
 
 class PipelineCache:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, read_only: bool = False):
         """Open or create the SQLite cache using Python or the SQLite CLI fallback."""
-        path.parent.mkdir(parents=True, exist_ok=True)
+        if not read_only:
+            path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
-        self.connection = sqlite3.connect(path) if sqlite3 is not None else None
+        self.read_only = read_only
+        self.connection = None
+        if sqlite3 is not None:
+            self.connection = (
+                sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)
+                if read_only else sqlite3.connect(path)
+            )
         if self.connection is not None:
             self.connection.row_factory = sqlite3.Row
-            self.connection.executescript(SCHEMA)
+            if not read_only:
+                self.connection.executescript(SCHEMA)
         else:
             LOG.info("Python sqlite extension unavailable; using sqlite3 executable for %s", path)
-            self._cli(SCHEMA)
+            if not read_only:
+                self._cli(SCHEMA)
 
     def _cli(self, sql: str, *, json_output: bool = False) -> list[dict[str, Any]]:
         """Execute SQL through the SQLite command-line fallback."""
         command = ["sqlite3"]
+        if self.read_only:
+            command.append('-readonly')
         if json_output:
             command.append("-json")
         command.append(str(self.path))

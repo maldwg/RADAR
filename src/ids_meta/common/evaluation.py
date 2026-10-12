@@ -14,21 +14,10 @@ from typing import Any
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.ensemble import decision_disposition
 from ids_meta.common.text import normalize_text, split_values
+from ids_meta.common.sources import SourceContract, source_contract, content_hash
+from ids_meta.common.provenance import file_hash
 
 
-MULTI_FIELDS = {
-    "github": {"observation_scopes", "observation_objects", "capabilities", "detection_methods", "system_types"},
-    "openalex": {"artifact_aliases"},
-}
-DEFAULT_FIELDS = {
-    "github": ["role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types", "centralization"],
-    "openalex": ["paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"],
-}
-IDENTITY_FIELDS = {"github": "github_repo_id", "openalex": "openalex_id"}
-SELECTOR_FIELDS = {
-    "github": {"repository": "full_name", "id": "github_repo_id"},
-    "openalex": {"openalex_url": "openalex_id", "title": "title", "id": "openalex_id", "artifact": "artifact_name"},
-}
 EVALUATION_UNITS = {"source_record", "artifact"}
 
 
@@ -42,6 +31,8 @@ class RatingProfile:
     entities: dict[str, dict[str, Any]]
     path: Path
     metadata: dict[str, Any]
+    contract: SourceContract | None = None
+    input_fingerprints: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -137,12 +128,12 @@ def _external_entities(raw: dict[str, Any], profile_path: Path) -> list[dict[str
     return entities
 
 
-def load_rating_profile(path: Path, source: str) -> RatingProfile:
+def load_rating_profile(path: Path, source: str, *, contract: SourceContract | None = None) -> RatingProfile:
     """Load and validate one source-specific central rating profile."""
-    if source not in IDENTITY_FIELDS:
-        raise ValueError(f"unsupported evaluation source: {source}")
+    contract = source_contract(source, contract)
     if not path.is_file():
         raise ValueError(f"evaluation rating profile does not exist: {path}")
+    input_fingerprints = {str(path.resolve()): file_hash(path)}
     with path.open("rb") as handle:
         raw = tomllib.load(handle)
     if str(raw.get("schema_version", "")) != "1.0":
@@ -152,9 +143,9 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
     evaluation_unit = str(raw.get("evaluation_unit", "source_record")).strip()
     if evaluation_unit not in EVALUATION_UNITS:
         raise ValueError(f"unsupported evaluation_unit {evaluation_unit!r}: {path}")
-    if evaluation_unit == "artifact" and source != "openalex":
-        raise ValueError("artifact evaluation is supported only for OpenAlex profiles")
-    fields = raw.get("classification_fields", DEFAULT_FIELDS[source])
+    if evaluation_unit == "artifact" and "artifact_reference" not in contract.capabilities:
+        raise ValueError("artifact evaluation requires the artifact_reference capability")
+    fields = raw.get("classification_fields", list(contract.fields))
     if not isinstance(fields, list) or any(not isinstance(field, str) or not field.strip() for field in fields):
         raise ValueError("classification_fields must be an array of non-empty strings")
     fields = list(dict.fromkeys(field.strip() for field in fields))
@@ -168,15 +159,22 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
     inline_rows = raw.get("entities", [])
     if not isinstance(inline_rows, list) or any(not isinstance(row, dict) for row in inline_rows):
         raise ValueError("evaluation entities must be an array of tables")
+    if isinstance(raw.get('entity_source'), dict) and isinstance(raw['entity_source'].get('path'), str) and raw['entity_source']['path']:
+        reference_path = Path(raw['entity_source']['path'])
+        if not reference_path.is_absolute():
+            reference_path = path.parent / reference_path
+        if reference_path.is_file():
+            input_fingerprints[str(reference_path.resolve())] = file_hash(reference_path)
     external_rows = _external_entities(raw, path)
     if inline_rows and external_rows:
         raise ValueError("evaluation profile must use either inline entities or entity_source, not both")
     rows = external_rows or inline_rows
     entities: dict[str, dict[str, Any]] = {}
-    selectors = dict(SELECTOR_FIELDS[source])
+    selectors = dict(contract.selectors)
     if evaluation_unit != "artifact":
         selectors.pop("artifact", None)
     for index, row in enumerate(rows, 1):
+        row = {**row, 'decision': contract.decisions.get(str(row.get('decision', '')).strip().casefold(), row.get('decision'))}
         configured = [
             (selector, str(row.get(selector, "")).strip())
             for selector in selectors if str(row.get(selector, "")).strip()
@@ -203,7 +201,9 @@ def load_rating_profile(path: Path, source: str) -> RatingProfile:
             "unscored_field_values", "centralization_annotation_policy",
         ) if key in raw
     }
-    return RatingProfile(source, evaluation_unit, fields, entities, path, metadata)
+    if any(file_hash(Path(name)) != digest for name, digest in input_fingerprints.items()):
+        raise ValueError('reference inputs changed while loading the rating profile')
+    return RatingProfile(source, evaluation_unit, fields, entities, path, metadata, contract, input_fingerprints)
 
 
 def _ratio(numerator: int | float, denominator: int | float) -> float:
@@ -279,6 +279,7 @@ def _classifier_contract(rows: dict[str, dict[str, str]]) -> tuple[dict[str, str
 def _matching_row(
     rows: dict[str, dict[str, str]], source: str, selector: str, value: str, path: Path,
     aliases: object = None,
+    contract: SourceContract | None = None,
 ) -> tuple[str | None, dict[str, str] | None]:
     """Resolve one configured selector to at most one result row."""
     if source == "openalex" and selector == "artifact":
@@ -309,7 +310,7 @@ def _matching_row(
             str(item[0]),
         ))
         return matches[0][0], matches[0][1]
-    result_field = SELECTOR_FIELDS[source][selector]
+    result_field = source_contract(source, contract).selectors[selector]
     target = _normalize_match_value(selector, value)
     matches = [
         (identity, row) for identity, row in rows.items()
@@ -367,11 +368,16 @@ def _binary_metrics(tp: int, fp: int, tn: int, fn: int, total: int) -> dict[str,
 def evaluate_results(
     profile: RatingProfile, classifications_path: Path, output_dir: Path,
     candidates_path: Path | None = None, *, confidence_level: float = .95,
+    reporting_database: Path | None = None,
 ) -> EvaluationResult:
     """Compare actual classifications with central ratings and write evaluation artifacts."""
     if not 0 < confidence_level < 1:
         raise ValueError("confidence_level must be greater than zero and smaller than one")
-    identity = IDENTITY_FIELDS[profile.source]
+    contract = source_contract(profile.source, profile.contract)
+    identity = contract.identity
+    fingerprints = {"classifications": file_hash(classifications_path)}
+    if candidates_path and candidates_path.is_file():
+        fingerprints["candidates"] = file_hash(candidates_path)
     actual = _index_rows(classifications_path, identity)
     classifier_metadata, supported_fields = _classifier_contract(actual)
     candidate_rows = _index_rows(candidates_path, identity) if candidates_path and candidates_path.is_file() else {}
@@ -391,7 +397,7 @@ def evaluate_results(
             "supported": supported_fields is None or field.casefold() in supported_fields,
             "comparisons": 0, "exact": 0, "tp": 0, "fp": 0, "fn": 0,
             "expected_labels": set(), "label_counts": Counter(),
-            "multilabel": field in MULTI_FIELDS[profile.source],
+            "multilabel": field in contract.multilabel,
         }
         for field in profile.classification_fields
     }
@@ -400,7 +406,7 @@ def evaluate_results(
         selector = str(expected["_evaluation_selector"])
         match_value = str(expected["_evaluation_match_value"])
         aliases = expected.get("aliases", [])
-        actual_key, row = _matching_row(actual, profile.source, selector, match_value, classifications_path, aliases)
+        actual_key, row = _matching_row(actual, profile.source, selector, match_value, classifications_path, aliases, contract)
         match_method = (
             "artifact_name_or_alias" if row is not None else ""
         ) if profile.evaluation_unit == "artifact" else selector
@@ -412,12 +418,13 @@ def evaluate_results(
             candidate_key, candidate_row = None, None
             if reference_url:
                 reference_actual_key, reference_row = _matching_row(
-                    actual, profile.source, "openalex_url", reference_url, classifications_path,
+                    actual, profile.source, "openalex_url", reference_url, classifications_path, contract=contract,
                 )
                 if candidates_supplied:
                     _reference_candidate_key, reference_candidate_row = _matching_row(
                         candidate_rows, profile.source, "openalex_url", reference_url,
                         candidates_path or classifications_path,
+                        contract=contract,
                     )
             if (
                 row is None and decision_disposition(expected.get("decision")) == "include"
@@ -427,7 +434,7 @@ def evaluate_results(
                 match_method = "accepted_survey_reference"
         else:
             candidate_key, candidate_row = _matching_row(
-                candidate_rows, profile.source, selector, match_value, candidates_path or classifications_path, aliases,
+                candidate_rows, profile.source, selector, match_value, candidates_path or classifications_path, aliases, contract,
             )
         candidate_present = candidate_row is not None
         if actual_key:
@@ -504,7 +511,7 @@ def evaluate_results(
                     "fp" if label in actual_values else "fn"
                 )
                 state["label_counts"][(label, outcome)] += 1
-            if field in MULTI_FIELDS[profile.source] or isinstance(expected[field], list):
+            if field in contract.multilabel or isinstance(expected[field], list):
                 state["multilabel"] = True
                 state["tp"] += len(expected_values & actual_values)
                 state["fp"] += len(actual_values - expected_values)
@@ -590,6 +597,13 @@ def evaluate_results(
     }
     metrics: dict[str, Any] = {
         "source": profile.source, "evaluation_unit": profile.evaluation_unit,
+        "entity_kind": contract.entity_kind, "source_display_name": contract.display_name or contract.name,
+        "source_contract": contract.__dict__, "contract_fingerprint": contract.fingerprint,
+        "reference_fingerprint": content_hash([profile.evaluation_unit, profile.entities, profile.classification_fields, profile.metadata]),
+        "taxonomy_fingerprint": content_hash([contract.entity_kind, profile.classification_fields, contract.multilabel, contract.taxonomy_version, contract.field_labels]),
+        "cohort_fingerprint": content_hash([contract.name, contract.entity_kind, identity, sorted(candidate_rows)]) if candidates_supplied else None,
+        "input_fingerprints": fingerprints, "candidates_path": str(candidates_path) if candidates_supplied else None,
+        "reference_input_fingerprints": profile.input_fingerprints or {},
         "reference_set": profile.metadata,
         "benchmark_scope": (
             "positive_reference_set" if positive_only else
@@ -757,4 +771,8 @@ def evaluate_results(
     outputs = [
         metrics_path, instances_path, confusion_path, fields_path, field_labels_path, readme_path,
     ]
+    from ids_meta.common.reporting import ReportingDatabase
+
+    with ReportingDatabase(reporting_database or output_dir / "reporting.sqlite3") as database:
+        database.ingest_evaluation(output_dir, contract)
     return EvaluationResult(metrics, instances, field_metrics, confusion, outputs)

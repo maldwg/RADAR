@@ -10,6 +10,10 @@ artifacts/runs/
 **/*.log
 **/*.csv
 !config/evaluation/*.csv
+!examples/reporting/*.csv
+**/.provenance/
+**/reporting.sqlite3
+data/reporting/
 **/*.svg
 !assets/architecture/*.svg
 **/*.pdf

@@ -270,11 +270,11 @@ class GitHubPipelineTests(unittest.TestCase):
             self.assertEqual(client.search_queries, ["first stars:>=100", "second stars:>=100"])
             self.assertEqual(
                 active["search_strategy"],
-                f"github_native_best_match_v4_stars_100_cap_100_queries_{stable_hash('first', 'second')}",
+                f"github_native_best_match_v5_stars_100_cap_6_queries_{stable_hash('first', 'second')}",
             )
 
-    def test_collection_caps_each_query_at_one_hundred_results(self) -> None:
-        """Verify default discovery enforces both the star qualifier and per-query cap."""
+    def test_collection_caps_each_query_proportionally(self) -> None:
+        """Verify query discovery oversamples the final collection by a configured factor."""
         class Client:
             authenticated = True
 
@@ -309,12 +309,15 @@ class GitHubPipelineTests(unittest.TestCase):
             client = Client()
             with PipelineCache(Path(directory) / "cache.sqlite3") as cache:
                 counts = collect(
-                    {"per_page": 100, "progress_every": 100, "search_scan_multiplier": 3},
-                    {"search_queries": ["intrusion detection"]}, cache, limit=1000, client=client, resume=False,
+                    {"per_page": 100, "progress_every": 100, "query_limit_factor": 2},
+                    {"search_queries": ["intrusion detection"]}, cache, limit=50, client=client, resume=False,
                 )
                 active = cache.get_record("github.collection", "latest")
-            self.assertEqual(counts["discovered"], 100)
-            self.assertEqual(len(active["repository_ids"]), 100)
+                search_count = sum(1 for _ in cache.records("github.search_candidate"))
+            self.assertEqual(search_count, 100)
+            self.assertEqual(active["sample_size_per_query"], 100)
+            self.assertEqual(counts["discovered"], 50)
+            self.assertEqual(len(active["repository_ids"]), 50)
             self.assertEqual(client.search_queries, ["intrusion detection stars:>=100"])
 
     def test_resumed_collection_never_exceeds_repository_limit(self) -> None:
@@ -338,9 +341,13 @@ class GitHubPipelineTests(unittest.TestCase):
                     item = {"id": int(repo_id), "full_name": f"example/repo-{repo_id}"}
                     cache.put_record("github.search_candidate", repo_id, {
                         "item": item, "matched_queries": ["query"],
-                        "search_strategy": f"github_native_best_match_v4_stars_100_cap_100_queries_{stable_hash('query')}",
+                        "search_strategy": f"github_native_best_match_v5_stars_100_cap_6_queries_{stable_hash('query')}",
                     }, "now")
                     cache.put_record("github.repository", repo_id, {"repository": item, "matched_queries": ["query"]}, "now")
+                cache.put_record("github.collection", "latest", {
+                    "search_strategy": f"github_native_best_match_v5_stars_100_cap_6_queries_{stable_hash('query')}",
+                    "search_complete": True, "query_results_scanned": {"query": 2},
+                }, "now")
                 counts = collect(
                     {"created_from": "2020-01-01", "per_page": 100, "progress_every": 10},
                     {"search_queries": ["query"]}, cache, limit=2, client=fake, resume=True,  # type: ignore[arg-type]

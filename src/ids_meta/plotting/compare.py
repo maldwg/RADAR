@@ -12,6 +12,8 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from ids_meta.plotting.common import COLORS, configure_style, load_frame, metadata_caption, percentage_bars, save_figure, stamp, subcaption, taxonomy_field_label, taxonomy_overview_label, taxonomy_value_label, write_table
+from ids_meta.common.provenance import audited_bundle, file_hash
+from ids_meta.common.sources import SourceContract, source_contract
 from ids_meta.common.logging import logger
 from ids_meta.plotting.recovery import recovered_taxonomy_table
 from ids_meta.plotting.uncertainty import reference_uncertainty
@@ -21,6 +23,7 @@ LOG = logger("plotting.compare")
 
 def _decision_distribution(
     source: str, combined: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int,
+    unit: str | None = None,
 ) -> list[Path]:
     """Show horizontal disposition shares on a common source-union denominator."""
     dispositions = {
@@ -73,7 +76,7 @@ def _decision_distribution(
         ax.invert_yaxis()
         ax.set_xlim(0, 100)
         ax.set_xticks(range(0, 101, 20))
-        unit = "papers" if source == "openalex" else "repositories"
+        unit = unit or ("papers" if source == "openalex" else "repositories")
         ax.set_xlabel(f"Share of {total:,} {unit} (%) · numbers inside bars are record counts")
         ax.spines["left"].set_visible(False)
         ax.tick_params(axis="y", length=0)
@@ -93,6 +96,7 @@ def _source_name(source: str) -> str:
     return "OpenAlex" if source == "openalex" else "GitHub" if source == "github" else source.title()
 
 
+@audited_bundle
 def build(source: str, input_path: Path, out_dir: Path, config: dict[str, object]) -> list[Path]:
     """Build plots comparing prefilter scores with subsequent LLM decisions."""
     LOG.info("building %s classifier comparison input=%s output=%s", source, input_path, out_dir)
@@ -122,19 +126,21 @@ def build(source: str, input_path: Path, out_dir: Path, config: dict[str, object
     return outputs
 
 
-def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, config: dict[str, object]) -> list[Path]:
+@audited_bundle
+def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, config: dict[str, object], contract: SourceContract | None = None) -> list[Path]:
     """Build cross-model decision, agreement, and disagreement comparison plots."""
     if len(model_inputs) < 2:
         raise ValueError("model comparison requires at least two classification inputs")
-    if source not in {"github", "openalex"}:
-        raise ValueError(f"unsupported comparison source: {source}")
+    contract = source_contract(source, contract)
     configure_style(config)
-    identity = "github_repo_id" if source == "github" else "openalex_id"
-    label_column = "full_name" if source == "github" else "title"
+    identity = contract.identity
+    label_column = contract.label
     decisions: list[pd.Series] = []
     labels: dict[str, str] = {}
     for model, path in model_inputs.items():
         frame = load_frame(path, (identity, "decision"))
+        if frame[identity].eq('').any() or frame[identity].duplicated().any():
+            raise ValueError(f'missing or duplicate identity in model comparison: {path}')
         if label_column not in frame:
             frame[label_column] = frame[identity]
         view = frame.drop_duplicates(identity, keep="last").set_index(identity)
@@ -151,7 +157,7 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
     long_counts = long_counts[long_counts["decision"] != ""]
     count_table = long_counts.groupby(["model", "decision"]).size().reset_index(name="count")
     write_table(count_table, out_dir / "data", "01_model_decision_counts")
-    outputs += _decision_distribution(source, combined, out_dir, formats, dpi)
+    outputs += _decision_distribution(source, combined, out_dir, formats, dpi, {"repository": "repositories", "paper": "papers", "artifact": "artifacts"}[contract.entity_kind])
 
     agreement = pd.DataFrame(index=names, columns=names, dtype=float)
     agreement_rows: list[dict[str, object]] = []
@@ -329,7 +335,8 @@ def _reference_recovery_overview(
     table = pd.DataFrame(rows)
     write_table(table, out_dir / "data", "01_reference_recovery")
     artifact_units = all(metrics.get("evaluation_unit") == "artifact" for metrics in loaded.values())
-    unit = "datasets" if source == "openalex" and artifact_units else "papers" if source == "openalex" else "repositories"
+    kind = next(iter(loaded.values())).get("entity_kind")
+    unit = "datasets" if source == "openalex" and artifact_units else ({"repository": "repositories", "paper": "papers", "artifact": "artifacts"}.get(kind) or ("papers" if source == "openalex" else "repositories"))
     denominators = sorted(set(table["expected_positive_entities"]))
     denominator = (
         f"{denominators[0]:,} expected positive reference {unit}"
@@ -465,6 +472,7 @@ def _taxonomy_comparison_overview(
     return save_figure(fig, out_dir, stem, formats, dpi)
 
 
+@audited_bundle
 def build_classifiers(
     source: str, classification_inputs: dict[str, Path], evaluation_inputs: dict[str, Path],
     out_dir: Path, config: dict[str, object],
@@ -488,7 +496,19 @@ def build_classifiers(
     if len(loaded) < 2:
         raise ValueError("classifier comparison requires at least two readable metrics.json files")
     if len(rating_paths) != 1 or len(evaluation_units) != 1:
-        raise ValueError("classifier metrics must use the same rating profile and evaluation unit")
+        # Content identity allows copies of the same reference profile.
+        if len({m.get("reference_fingerprint") for m in loaded.values()}) != 1 or not all(m.get("reference_fingerprint") for m in loaded.values()) or len(evaluation_units) != 1:
+            raise ValueError("classifier metrics must use the same rating profile and evaluation unit")
+    for key in ("reference_fingerprint", "taxonomy_fingerprint", "cohort_fingerprint"):
+        values = {m.get(key) for m in loaded.values()}
+        if len(values) > 1:
+            raise ValueError(f"classifier comparison mixes incompatible {key}")
+    for label, metrics in loaded.items():
+        path = classification_inputs.get(label)
+        expected = metrics.get('input_fingerprints', {}).get('classifications')
+        if expected and path and (not path.is_file() or file_hash(path) != expected):
+            raise ValueError(f'classifier results changed since evaluation: {label}')
+    configure_style({**config, 'field_labels': next(iter(loaded.values())).get('source_contract', {}).get('field_labels', config.get('field_labels', {}))})
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
     dpi = int(config.get("dpi", 160))
     outputs: list[Path] = []
@@ -765,9 +785,11 @@ def build_classifiers(
         label: path for label, path in classification_inputs.items()
         if label in loaded and path.is_file()
     }
-    if len(available_classifications) >= 2:
+    if len(available_classifications) >= 2 and len({m.get("source") for m in loaded.values()}) == 1:
+        metadata = next(iter(loaded.values())).get("source_contract")
         outputs += build_models(
             source, available_classifications, out_dir / "agreement", config,
+            SourceContract(**metadata) if metadata else None,
         )
     readme = out_dir / "README.md"
     readme.parent.mkdir(parents=True, exist_ok=True)

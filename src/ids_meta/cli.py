@@ -15,6 +15,7 @@ from ids_meta.common.ensemble import ensemble_classifications
 from ids_meta.common.evaluation import EvaluationResult, evaluate_results, load_rating_profile
 from ids_meta.common.config import ConfigError, Settings, load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from ids_meta.common.csvio import read_csv
+from ids_meta.common.limits import optional_limit, limit_label
 from ids_meta.common.run import RunManifest
 from ids_meta.common.text import slug
 from ids_meta.common.logging import configure_logging, logger
@@ -188,34 +189,20 @@ def _manifest(settings: Settings, source: str, stage: str) -> RunManifest:
     return RunManifest(settings.root, settings.path("runs_dir"), source, stage, settings.values)
 
 
-def _pipeline_limits(args: argparse.Namespace, config: dict[str, object]) -> tuple[int, int | None]:
-    """Resolve the finite collection cap and optional all-eligible classification cap."""
+def _pipeline_limits(args: argparse.Namespace, config: dict[str, object]) -> tuple[int | None, int | None]:
+    """Resolve independent optional collection and classification limits."""
     legacy = getattr(args, "limit", None)
     collection = getattr(args, "collect_limit", None)
     classification = getattr(args, "classify_limit", None)
-    if collection is None:
-        collection = legacy if legacy is not None and args.action in {"collect", "run"} else config.get("collection_limit", 1000)
-    classify_all = bool(getattr(args, "classify_all", False))
-    if classify_all:
+    if getattr(args, "collect_all", False):
+        collection = None
+    elif collection is None:
+        collection = legacy if legacy is not None and args.action in {"collect", "run"} else config.get("collection_limit")
+    if getattr(args, "classify_all", False):
         classification = None
     elif classification is None:
-        classification = legacy if legacy is not None and args.action in {"classify", "run"} else config.get("classification_limit", 100)
-    try:
-        collection_limit = int(collection)
-    except (TypeError, ValueError) as exc:
-        raise ConfigError("collection_limit must be an integer") from exc
-    if collection_limit < 1:
-        raise ConfigError("collection_limit must be at least 1")
-    if isinstance(classification, str) and classification.strip().casefold() in {"all", "all_eligible", "unlimited"}:
-        classification_limit = None
-    else:
-        try:
-            classification_limit = int(classification) if classification is not None else None
-        except (TypeError, ValueError) as exc:
-            raise ConfigError("classification_limit must be an integer or 'all'") from exc
-        if classification_limit is not None and classification_limit < 1:
-            raise ConfigError("classification_limit must be at least 1 or 'all'")
-    return collection_limit, classification_limit
+        classification = legacy if legacy is not None and args.action in {"classify", "run"} else config.get("classification_limit")
+    return optional_limit(collection, "collection_limit"), optional_limit(classification, "classification_limit")
 
 
 def _limit_label(limit: int | None) -> str:
@@ -342,6 +329,10 @@ def _evaluate(
     from ids_meta.plotting.evaluation import build as build_evaluation_plots
 
     plot_outputs = build_evaluation_plots(output_dir, settings.section("plots"))
+    from ids_meta.common.reporting import ReportingDatabase
+
+    with ReportingDatabase(output_dir / 'reporting.sqlite3') as database:
+        database.add_figures(output_dir / 'figures')
     plot_tables = sorted((output_dir / "figures" / "data").glob("*.csv"))
     return EvaluationResult(
         result.metrics, result.instances, result.field_metrics, result.confusion,
@@ -702,7 +693,7 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
     LOG.info("starting multi-model command source=github stage=%s run_id=%s models=%s ensemble=%s", args.action, manifest.run_id, ",".join(models), ensemble_enabled)
     with PipelineCache(base_paths["cache"]) as cache:
         if args.action in {"collect", "run"}:
-            counts = {"cached": sum(1 for _ in cache.records("github.repository"))} if args.dry_run else collect_github(config, profile, cache, collect_limit, resume=args.resume)
+            counts = {"cached": sum(1 for _ in cache.records("github.repository"))} if args.dry_run else collect_github({**config, "classification_limit": classify_limit}, profile, cache, collect_limit, resume=args.resume)
             manifest.counts.update(counts)
         if args.action in {"prefilter", "run"}:
             output_path = Path(args.output) if args.output and args.action == "prefilter" else base_paths["candidates"]
@@ -797,10 +788,10 @@ def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, i
         "classification_eligible_bands": ["candidate", "borderline"],
         "classification_minimum_score": config.get("borderline_threshold"),
     })
-    LOG.info("starting command source=github stage=%s run_id=%s collection_limit=%d classification_limit=%s eligibility=candidate_or_borderline minimum_score=%s resume=%s dry_run=%s", args.action, manifest.run_id, collect_limit, classification_label, config.get("borderline_threshold", "unknown"), args.resume, args.dry_run)
+    LOG.info("starting command source=github stage=%s run_id=%s collection_limit=%s classification_limit=%s eligibility=candidate_or_borderline minimum_score=%s resume=%s dry_run=%s", args.action, manifest.run_id, limit_label(collect_limit), classification_label, config.get("borderline_threshold", "unknown"), args.resume, args.dry_run)
     with PipelineCache(paths["cache"]) as cache:
         if args.action in {"collect", "run"}:
-            counts = {"cached": sum(1 for _ in cache.records("github.repository"))} if args.dry_run else collect_github(config, profile, cache, collect_limit, resume=args.resume)
+            counts = {"cached": sum(1 for _ in cache.records("github.repository"))} if args.dry_run else collect_github({**config, "classification_limit": classify_limit}, profile, cache, collect_limit, resume=args.resume)
             manifest.counts.update(counts)
         if args.action in {"prefilter", "run"}:
             rows = prefilter_github(config, profile, cache, Path(args.output) if args.output and args.action == "prefilter" else paths["candidates"], manifest.run_id)
@@ -871,7 +862,7 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
     LOG.info("starting multi-model command source=openalex stage=%s run_id=%s models=%s ensemble=%s", args.action, manifest.run_id, ",".join(models), ensemble_enabled)
     with PipelineCache(base_paths["cache"]) as cache:
         if args.action in {"collect", "run"}:
-            counts = {"cached": sum(1 for _ in cache.records("openalex.work"))} if args.dry_run else collect_openalex(config, profile, cache, collect_limit)
+            counts = {"cached": sum(1 for _ in cache.records("openalex.work"))} if args.dry_run else collect_openalex({**config, "classification_limit": classify_limit}, profile, cache, collect_limit)
             manifest.counts.update(counts)
         if args.action in {"collect", "prefilter", "run"}:
             survey_rows = export_openalex_surveys(cache, base_paths["surveys"], manifest.run_id)
@@ -970,10 +961,10 @@ def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str,
         "classification_eligible_bands": ["candidate", "borderline"],
         "classification_minimum_score": config.get("borderline_threshold"),
     })
-    LOG.info("starting command source=openalex stage=%s run_id=%s collection_limit=%d classification_limit=%s eligibility=candidate_or_borderline minimum_score=%s resume=%s dry_run=%s", args.action, manifest.run_id, collect_limit, classification_label, config.get("borderline_threshold", "unknown"), args.resume, args.dry_run)
+    LOG.info("starting command source=openalex stage=%s run_id=%s collection_limit=%s classification_limit=%s eligibility=candidate_or_borderline minimum_score=%s resume=%s dry_run=%s", args.action, manifest.run_id, limit_label(collect_limit), classification_label, config.get("borderline_threshold", "unknown"), args.resume, args.dry_run)
     with PipelineCache(paths["cache"]) as cache:
         if args.action in {"collect", "run"}:
-            counts = {"cached": sum(1 for _ in cache.records("openalex.work"))} if args.dry_run else collect_openalex(config, profile, cache, collect_limit)
+            counts = {"cached": sum(1 for _ in cache.records("openalex.work"))} if args.dry_run else collect_openalex({**config, "classification_limit": classify_limit}, profile, cache, collect_limit)
             manifest.counts.update(counts)
         if args.action in {"collect", "prefilter", "run"}:
             survey_rows = export_openalex_surveys(cache, paths["surveys"], manifest.run_id)
@@ -1036,8 +1027,10 @@ def build_parser() -> argparse.ArgumentParser:
             if action != "baseline":
                 action_parser.add_argument("--limit", type=int, help="legacy stage limit; for run, applies to both collection and classification")
             if action in {"collect", "run"}:
-                action_parser.add_argument("--collect-limit", "--collection-limit", dest="collect_limit", type=int, help="maximum records collected from the source API")
-            if action in {"classify", "run"}:
+                collection_group = action_parser.add_mutually_exclusive_group()
+                collection_group.add_argument("--collect-limit", "--collection-limit", dest="collect_limit", type=int, help="maximum records collected from the source API")
+                collection_group.add_argument("--collect-all", action="store_true", help="collect without a record limit; query caps still reflect any numeric classification limit")
+            if action in {"collect", "classify", "run"}:
                 classification_group = action_parser.add_mutually_exclusive_group()
                 classification_group.add_argument("--classify-limit", "--classification-limit", dest="classify_limit", type=int, help="maximum top-ranked eligible candidates sent to the LLM")
                 classification_group.add_argument("--classify-all", action="store_true", help="classify every candidate and borderline row above the configured rejection threshold")
@@ -1071,6 +1064,25 @@ def build_parser() -> argparse.ArgumentParser:
     comparison.add_argument("source", choices=("github", "openalex"))
     comparison.add_argument("--input", type=Path)
     comparison.add_argument("--output", type=Path)
+    report = subparsers.add_parser("report", help="report on any CSV/JSON provider using a source profile")
+    report.add_argument("--profile", required=True, type=Path)
+    report.add_argument("--input", required=True, type=Path)
+    report.add_argument("--candidates", type=Path)
+    report.add_argument("--exports", type=Path)
+    report.add_argument("--ratings", type=Path)
+    report.add_argument("--output", required=True, type=Path)
+    report.add_argument("--database", type=Path)
+    verify = subparsers.add_parser("verify", help="independently check figure bundles or reporting databases")
+    target = verify.add_mutually_exclusive_group(required=True)
+    target.add_argument("--input", type=Path)
+    target.add_argument("--database", type=Path)
+    audit = subparsers.add_parser("audit-import", help="backfill existing evaluation audits without inference")
+    audit.add_argument("--input", type=Path, required=True)
+    audit.add_argument("--database", type=Path, required=True)
+    audit.add_argument("--profile", type=Path)
+    report_compare = subparsers.add_parser("report-compare", help="compare compatible saved evaluations from any provider")
+    report_compare.add_argument("--evaluation", action="append", required=True, help="LABEL=EVALUATION_DIRECTORY")
+    report_compare.add_argument("--output", required=True, type=Path)
     return parser
 
 
@@ -1084,12 +1096,56 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"--{name.replace('_', '-')} must be at least 1")
     try:
         configure_logging("INFO")
-        settings = load_settings(args.config)
+        settings = (
+            Settings(Path.cwd(), {"plots": {"formats": ["svg", "pdf"]}})
+            if args.command in {"report", "verify", "audit-import", "report-compare"} and args.config == Path("config/default.toml") and not args.config.is_file()
+            else load_settings(args.config)
+        )
         if args.subcaptions is not None:
             settings.values.setdefault("plots", {})["show_subcaptions"] = args.subcaptions
         configure_logging(args.log_level or str(settings.section("logging").get("level", "INFO")))
-        LOG.info("loaded configuration %s", Path(args.config).resolve())
-        if args.command == "github":
+        if args.command != 'verify':
+            LOG.info("loaded configuration %s", Path(args.config).resolve())
+        if args.command == "verify":
+            from ids_meta.common.verification import verify_directory, verify_database
+
+            result = verify_database(args.database) if args.database else verify_directory(args.input)
+            print(json.dumps(result, sort_keys=True, indent=2))
+            return 0 if result["ok"] else 2
+        elif args.command == "report":
+            from ids_meta.plotting.generic import build_report
+
+            files = build_report(args.profile, args.input, args.output, settings.section("plots"),
+                candidates_path=args.candidates, ratings_path=args.ratings, exports_path=args.exports, database_path=args.database)
+            counts = {"report_files": len(files)}
+        elif args.command == "audit-import":
+            from ids_meta.common.reporting import ReportingDatabase
+            from ids_meta.common.sources import SourceContract, load_source_contract
+
+            directories = sorted({p.parent for p in args.input.rglob("metrics.json")})
+            if not directories:
+                raise ValueError("no saved evaluations found to import")
+            with ReportingDatabase(args.database) as database:
+                for directory in directories:
+                    metrics = json.loads((directory / "metrics.json").read_text())
+                    contract = load_source_contract(args.profile) if args.profile else (SourceContract(**metrics["source_contract"]) if metrics.get("source_contract") else None)
+                    database.ingest_evaluation(directory, contract)
+                database.add_figures(args.input)
+            counts = {"imported_evaluations": len(directories)}
+        elif args.command == "report-compare":
+            from ids_meta.plotting.compare import build_classifiers
+
+            evaluations, classifications = {}, {}
+            for value in args.evaluation:
+                label, separator, directory = value.partition("=")
+                if not separator or not label or label in evaluations:
+                    raise ValueError("--evaluation requires distinct LABEL=DIRECTORY entries")
+                evaluations[label] = Path(directory)
+                metrics = json.loads((Path(directory) / "metrics.json").read_text())
+                classifications[label] = Path(metrics["classifications_path"])
+            files = build_classifiers(metrics["source"], classifications, evaluations, args.output, settings.section("plots"))
+            counts = {"comparison_files": len(files)}
+        elif args.command == "github":
             counts = _execute_github(args, settings)
         elif args.command == "openalex":
             counts = _execute_openalex(args, settings)

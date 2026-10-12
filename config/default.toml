@@ -130,15 +130,15 @@ accept_threshold = 7.0
 uncertain_threshold = 4.0
 
 [github]
-# Bound source discovery separately from the ranked LLM adjudication shortlist.
-# Use classification_limit = "all" to classify every candidate/borderline row.
-collection_limit = 20000
+# Bound collection and classification separately; derive discovery caps below.
+# Set either limit to "all" (or omit it) for no limit at that stage.
+collection_limit = 100
 # Popularity is descriptive, never an eligibility criterion. This prevents systematic
 # exclusion of new, niche, archived, or research-only implementations.
 minimum_stars = 0
-# GitHub exposes at most 1,000 search results per query. Sample the full reachable
-# native result window before cross-query deduplication.
-query_sample_size = 5000
+# Each query scans up to this factor × the largest numeric collection/classification
+# limit. If neither limit is numeric, scan until exhausted using date sharding.
+query_limit_factor = 3.0
 # GitHub supports best_match (relevance; recommended), stars, forks,
 # help-wanted-issues, and updated. search_order is ignored for best_match.
 search_sort = "best_match"
@@ -171,28 +171,27 @@ canonical_ambiguity_margin = 2.0
 
 [openalex]
 # Score the broad retrieval pool, then adjudicate only its strongest candidates.
-# Discovery sampling below precedes these limits; hits can overlap across queries.
+# Discovery caps below derive from these limits; hits can overlap across queries.
 # collection_limit caps retained candidates; classification_limit caps model inputs.
-# Use classification_limit = "all" to classify every candidate/borderline row.
-collection_limit = 20000
+# Set either limit to "all" (or omit it) for no limit at that stage.
+collection_limit = 100
 classification_limit = "all"
 per_page = 100
-max_pages_per_query = 20
 # Auxiliary discovery sources; not counted toward collection_limit or classification_limit.
 max_surveys = 100
-max_reference_works_per_survey = 500
-max_survey_reference_candidates_total = 10000
 # Backward snowball from the selected surveys and this many strongest direct papers.
 # Traversal stops earlier at convergence and is protocol-capped at depth 10.
 snowball_start_papers = 50
 snowball_max_depth = 10
 # With --limit, reserve this fraction of candidate capacity for survey-reference snowballing.
 survey_reference_fraction = 0.5
-# x: sample independently per query; collection_limit above is y (best retained papers).
-query_sample_size = 5000
-survey_query_sample_size = 500
-# Survey references are a ranked source list rather than a text query.
-reference_sample_size = 5000
+# Query caps are proportional to the largest numeric collection/classification limit.
+# If neither is numeric, query pagination and reference retrieval run until exhausted.
+query_limit_factor = 3.0
+# Optional route factors; omit to inherit query_limit_factor. Reference cap is global
+# across snowball depths and also applies to each parent reference list.
+# survey_query_limit_factor = 3.0
+# reference_limit_factor = 3.0
 # References shared by this many selected surveys bypass the generic text-score floor.
 survey_consensus_threshold = 2
 # Generic evidence-quality floor; citations never contribute to retrieval ranking.

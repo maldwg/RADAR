@@ -1,0 +1,5 @@
+[
+  {"doi": "example:paper-1", "title": "Synthetic release", "decision": "accept", "error": false, "resource_type": "dataset", "topics": ["network", "host"], "year": 2024, "citations": 120},
+  {"doi": "example:paper-2", "title": "Synthetic application", "decision": "exclude", "resource_type": "application", "topics": ["network"], "year": 2025, "citations": 20},
+  {"doi": "example:paper-3", "title": "Synthetic unresolved paper", "decision": "uncertain", "resource_type": "unknown", "topics": [], "year": 2025, "citations": 0}
+]

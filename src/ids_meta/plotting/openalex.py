@@ -12,6 +12,7 @@ from matplotlib.ticker import MaxNLocator
 import pandas as pd
 
 from ids_meta.common.logging import logger
+from ids_meta.common.provenance import audited_bundle
 from ids_meta.plotting.common import add_heading, configure_style, count_plot, evidence_escalation_plot, load_frame, metadata_caption, save_figure, score_decision_plot, subcaption, write_index, write_table
 
 LOG = logger("plotting.openalex")
@@ -1076,6 +1077,7 @@ def survey_source_landscape(frame: pd.DataFrame, out_dir: Path, formats: list[st
     return save_figure(fig, out_dir, "08_survey_sources", formats, dpi)
 
 
+@audited_bundle
 def build(
     main_path: Path, adjacent_path: Path | None, out_dir: Path, config: dict[str, object],
     classifications_path: Path | None = None, survey_sources_path: Path | None = None,

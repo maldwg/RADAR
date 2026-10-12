@@ -1,0 +1,27 @@
+schema_version = "1.0"
+
+[provider]
+name = "local_library"
+display_name = "Local paper library"
+entity_kind = "paper"
+identity = "native_id"
+label = "title"
+capabilities = ["publication_dates", "citations"]
+
+[selectors]
+id = "native_id"
+title = "title"
+
+[mapping]
+native_id = "doi"
+publication_year = "year"
+cited_by_count = "citations"
+
+[taxonomy]
+version = "1.0"
+fields = ["resource_type", "topics"]
+multilabel = ["topics"]
+
+[taxonomy.labels]
+resource_type = "Resource type"
+topics = "Application areas"

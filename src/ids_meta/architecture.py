@@ -1,4 +1,5 @@
 from __future__ import annotations
+from ids_meta.common.provenance import audited_bundle
 
 import argparse
 from io import BytesIO
@@ -1014,6 +1015,7 @@ def _draw_system_figure() -> Figure:
     return figure
 
 
+@audited_bundle
 def build(
     root: Path, formats: list[str] | None = None, dpi: int = 160,
 ) -> list[Path]:

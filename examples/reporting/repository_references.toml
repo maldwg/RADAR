@@ -1,0 +1,28 @@
+schema_version = "1.0"
+source = "local_repositories"
+evaluation_unit = "source_record"
+classification_fields = ["role", "tags"]
+
+[[entities]]
+id = "r1"
+decision = "accept"
+role = "dataset"
+tags = ["network", "host"]
+
+[[entities]]
+id = "r2"
+decision = "accept"
+role = "dataset"
+tags = ["host"]
+
+[[entities]]
+id = "r3"
+decision = "exclude"
+role = "tool"
+tags = ["network"]
+
+[[entities]]
+id = "r4"
+decision = "exclude"
+role = "tool"
+tags = ["host"]

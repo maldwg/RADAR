@@ -12,6 +12,7 @@ import pandas as pd
 
 from ids_meta.plotting.common import COLORS, add_heading, configure_style, count_legend, count_plot, evidence_escalation_plot, explode_values, load_frame, metadata_caption, save_figure, score_decision_plot, stamp, subcaption, write_index, write_table
 from ids_meta.common.logging import logger
+from ids_meta.common.provenance import audited_bundle
 from ids_meta.github.schema import DEFAULT_SYSTEM_TYPE_PROFILE
 
 LOG = logger("plotting.github")
@@ -794,6 +795,7 @@ def _centralization_plots(frame: pd.DataFrame, out_dir: Path, formats: list[str]
     return outputs
 
 
+@audited_bundle
 def build(
     input_path: Path,
     out_dir: Path,

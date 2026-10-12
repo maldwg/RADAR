@@ -10,6 +10,7 @@ import pandas as pd
 
 from ids_meta.common.logging import logger
 from ids_meta.plotting.common import COLORS, add_heading, configure_style, percentage_bars, save_figure, stamp, taxonomy_field_label, taxonomy_overview_label, taxonomy_value_label, write_table
+from ids_meta.common.provenance import audited_bundle
 from ids_meta.plotting.recovery import recovered_taxonomy_table
 from ids_meta.plotting.uncertainty import reference_uncertainty
 
@@ -172,7 +173,7 @@ def _taxonomy_accuracy_overview(
     write_table(frame, out_dir / "data", "06_taxonomy_accuracy")
     labels = [taxonomy_overview_label(field) for field in frame["field"]]
     counts = sorted(set(int(value) for value in frame.loc[estimable, "comparisons"]))
-    source = "OpenAlex" if metrics.get("source") == "openalex" else "GitHub"
+    source = metrics.get("source_display_name") or str(metrics.get("source", "")).title()
     denominators = (
         f"{counts[0]:,} rated entities per field" if len(counts) == 1
         else "Rated denominator varies by field; see companion CSV"
@@ -196,7 +197,7 @@ def _recovered_taxonomy_accuracy(
     write_table(frame, out_dir / "data", "07_recovered_taxonomy_accuracy")
     recovered = int(frame.iloc[0]["recovered"])
     expected = int(frame.iloc[0]["expected_positive_entities"])
-    source = "OpenAlex" if metrics.get("source") == "openalex" else "GitHub"
+    source = metrics.get("source_display_name") or str(metrics.get("source", "")).title()
     labels = [
         f"{taxonomy_overview_label(row['field'])}\n(n={row['comparisons']:,})"
         for row in frame.to_dict("records")
@@ -218,7 +219,7 @@ def _reference_uncertainty(
     if counts is None:
         return []
     write_table(pd.DataFrame([counts]), out_dir / "data", "08_reference_uncertainty")
-    source = "OpenAlex" if metrics.get("source") == "openalex" else "GitHub"
+    source = metrics.get("source_display_name") or str(metrics.get("source", "")).title()
     fig = percentage_bars(
         [f"Uncertain ({counts['uncertain']:,}/{counts['attempted']:,} attempts)"], [counts["value"]],
         title=f"{source} classifier uncertainty on reference items",
@@ -292,12 +293,12 @@ def _coverage(metrics: dict[str, Any], out_dir: Path, formats: list[str], dpi: i
     ]
     statuses = metrics.get("status_counts", {})
     status_rows = [
-        {"status": STATUS_LABELS.get(str(key), str(key).replace("_", " ").title()), "count": int(value)}
+        {"status": STATUS_LABELS.get(str(key), str(key).replace("_", " ").title()), "status_key": str(key), "count": int(value)}
         for key, value in statuses.items()
     ]
     table = pd.DataFrame(coverage_rows)
     write_table(table, out_dir / "data", "05_coverage_rates")
-    write_table(pd.DataFrame(status_rows, columns=["status", "count"]), out_dir / "data", "05_status_counts")
+    write_table(pd.DataFrame(status_rows, columns=["status", "status_key", "count"]), out_dir / "data", "05_status_counts")
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.8), gridspec_kw={"width_ratios": [1.25, 1]})
     add_heading(
@@ -356,12 +357,14 @@ def _append_readme(input_dir: Path, outputs: list[Path]) -> None:
     path.write_text(current.rstrip() + "\n" + "\n".join(lines), encoding="utf-8")
 
 
+@audited_bundle
 def build(input_dir: Path, config: dict[str, object]) -> list[Path]:
     """Build the complete evaluation visualization bundle from persisted audit artifacts."""
     metrics_path = input_dir / "metrics.json"
     if not metrics_path.is_file():
         raise ValueError(f"evaluation metrics do not exist: {metrics_path}")
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    config = {**config, "field_labels": metrics.get("source_contract", {}).get("field_labels", config.get("field_labels", {}))}
     configure_style(config)
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
     dpi = int(config.get("dpi", 160))

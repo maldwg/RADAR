@@ -64,6 +64,7 @@ class EvaluationTests(unittest.TestCase):
                 configure_style()
 
     def test_reference_uncertainty_shows_no_attempts_as_unavailable_not_zero(self) -> None:
+        """Keep missing classification attempts distinct from zero observed uncertainty."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             inputs = {}
@@ -384,6 +385,7 @@ class EvaluationTests(unittest.TestCase):
                 {
                     "metrics.json", "instances.csv", "decision_confusion.csv",
                     "field_metrics.csv", "field_label_metrics.csv", "README.md",
+                    "reporting.sqlite3",
                 },
             )
             self.assertNotIn("mean_jaccard", result.field_metrics[0])

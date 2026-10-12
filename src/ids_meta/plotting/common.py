@@ -16,11 +16,13 @@ from matplotlib.patches import Patch
 import pandas as pd
 
 from ids_meta.common.logging import logger
+from ids_meta.common.provenance import capture_figure, register_input, register_table
 
 LOG = logger("plotting")
 
 COLORS = ["#2F6B9A", "#4E9A62", "#D9902F", "#7A5FA8", "#C94F4F", "#3B8C8C", "#B85C9E", "#8C6D31", "#6C7A89"]
 _SHOW_SUBCAPTIONS: ContextVar[bool] = ContextVar("show_subcaptions", default=True)
+_FIELD_LABELS: ContextVar[dict[str, str]] = ContextVar("plot_field_labels", default={})
 
 TAXONOMY_FIELD_LABELS = {
     "centralization": "IDS centralization",
@@ -44,7 +46,7 @@ TAXONOMY_FIELD_LABELS = {
 def taxonomy_field_label(field: object) -> str:
     """Return an explicit reader-facing label for a taxonomy field."""
     value = str(field)
-    return TAXONOMY_FIELD_LABELS.get(value, value.replace("_", " ").title())
+    return _FIELD_LABELS.get().get(value, TAXONOMY_FIELD_LABELS.get(value, value.replace("_", " ").title()))
 
 
 def taxonomy_overview_label(field: object) -> str:
@@ -74,6 +76,7 @@ def configure_style(config: dict[str, object] | None = None) -> None:
     if not isinstance(show_subcaptions, bool):
         raise ValueError("plots.show_subcaptions must be true or false")
     _SHOW_SUBCAPTIONS.set(show_subcaptions)
+    _FIELD_LABELS.set(dict((config or {}).get("field_labels", {})))
     plt.rcParams.update({
         "figure.figsize": (9, 5.4), "figure.dpi": 120, "savefig.bbox": "tight",
         "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
@@ -84,7 +87,9 @@ def configure_style(config: dict[str, object] | None = None) -> None:
 
 def load_frame(path: Path, required: Iterable[str]) -> pd.DataFrame:
     """Load a CSV as strings and validate its required plotting columns."""
+    register_input(path)
     frame = pd.read_csv(path, dtype=str, keep_default_na=False)
+    frame.attrs["source_path"] = str(path.resolve())
     missing = set(required) - set(frame.columns)
     if missing:
         raise ValueError(f"{path} is missing columns: {', '.join(sorted(missing))}")
@@ -190,6 +195,7 @@ def save_figure(fig: plt.Figure, out_dir: Path, stem: str, formats: list[str], d
         paths.append(path)
         LOG.info("wrote figure %s", path)
     plt.close(fig)
+    capture_figure(paths, out_dir, stem)
     return paths
 
 
@@ -198,6 +204,7 @@ def write_table(frame: pd.DataFrame, out_dir: Path, stem: str) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{stem}.csv"
     frame.to_csv(path, index=False)
+    register_table(path, frame.attrs.get("verification_recipe"))
     LOG.debug("wrote plot data %s rows=%d", path, len(frame))
     return path
 

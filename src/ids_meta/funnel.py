@@ -16,6 +16,8 @@ from ids_meta.common.config import Settings, load_settings, load_term_profile
 from ids_meta.common.csvio import read_csv
 from ids_meta.common.logging import configure_logging, logger
 from ids_meta.common.text import slug
+from ids_meta.common.limits import optional_limit, query_result_limit, limit_label, capacity_min
+from ids_meta.common.provenance import audited_bundle, register_input, freeze_database
 from ids_meta.plotting.common import configure_style, save_figure, write_table
 
 
@@ -145,9 +147,9 @@ def _github_shared_stages(
     """Derive GitHub discovery and prefilter counts from the active cache snapshot."""
     config = settings.section("github")
     queries = [str(value).strip() for value in profile.get("search_queries", []) if str(value).strip()]
-    sample_size = _int(config.get("query_sample_size"), 100)
-    configured_capacity = len(queries) * sample_size
-    collection_limit = _int(config.get("collection_limit"), configured_capacity)
+    collection_limit = optional_limit(config.get("collection_limit"), "collection_limit")
+    sample_size = query_result_limit(config, collection_limit)
+    configured_capacity = None if sample_size is None else len(queries) * sample_size
     stages: list[FunnelStage] = []
     metadata: dict[str, object] = {
         "source": "github", "query_count": len(queries), "query_sample_size": sample_size,
@@ -157,15 +159,19 @@ def _github_shared_stages(
     if not paths["cache"].is_file():
         stages.extend([
             FunnelStage("initial_results", "Discovery capacity", configured_capacity, CONFIGURED,
-                        f"{len(queries)} queries × {sample_size:,} configured results/query"),
-            FunnelStage("active_collection", "Collection capacity", min(configured_capacity, collection_limit), CONFIGURED,
-                        f"github.collection_limit={collection_limit:,}", "Outside configured collection ceiling"),
+                        f"{len(queries)} queries × {limit_label(sample_size)} configured results/query"),
+            FunnelStage("active_collection", "Collection capacity", capacity_min(configured_capacity, collection_limit), CONFIGURED,
+                        f"github.collection_limit={limit_label(collection_limit)}", "Outside configured collection ceiling"),
         ])
         return stages, metadata
 
     active_ids: list[str] = []
-    with PipelineCache(paths["cache"]) as cache:
+    with PipelineCache(paths["cache"], read_only=True) as cache:
         collection = cache.get_record("github.collection", "latest") or {}
+        if "sample_size_per_query" in collection:
+            sample_size = collection["sample_size_per_query"]
+            configured_capacity = None if sample_size is None else len(queries) * sample_size
+            metadata["query_sample_size"] = sample_size
         strategy = str(collection.get("search_strategy", ""))
         search_records = [
             (key, payload) for key, payload, _fetched_at in cache.records("github.search_candidate")
@@ -175,9 +181,8 @@ def _github_shared_stages(
         unique_results = len(search_records)
         active_ids = [str(value) for value in collection.get("repository_ids", []) if value]
         selected_at = str(collection.get("selected_at", ""))
-        stored_limit = collection.get("collection_limit")
-        if stored_limit not in (None, ""):
-            collection_limit = _int(stored_limit, collection_limit)
+        if "collection_limit" in collection:
+            collection_limit = optional_limit(collection["collection_limit"], "collection_limit")
         metadata.update({
             "collection_limit": collection_limit, "snapshot_at": selected_at or "database snapshot",
             "search_strategy": strategy, "complete_through": "collection",
@@ -187,10 +192,10 @@ def _github_shared_stages(
                 "initial_results", "Discovery: query matches", raw_matches, OBSERVED,
                 "Overlapping matches are counted once per query",
             ))
-        elif configured_capacity:
+        else:
             stages.append(FunnelStage(
                 "initial_results", "Discovery capacity", configured_capacity, CONFIGURED,
-                f"{len(queries)} queries × {sample_size:,} configured results/query",
+                f"{len(queries)} queries × {limit_label(sample_size)} configured results/query",
             ))
         if unique_results:
             stages.append(FunnelStage(
@@ -200,7 +205,7 @@ def _github_shared_stages(
         if active_ids:
             stages.append(FunnelStage(
                 "active_collection", "Collection", len(active_ids), OBSERVED,
-                f"Observed selection; configured/run limit={collection_limit:,}", "Outside the active collection",
+                f"Observed selection; configured/run limit={limit_label(collection_limit)}", "Outside the active collection",
             ))
             active = set(active_ids)
             enriched = sum(cache.get_record("github.repository", key) is not None for key in active)
@@ -248,13 +253,13 @@ def _openalex_shared_stages(
     """Derive OpenAlex discovery and prefilter counts from its active cache snapshot."""
     config = settings.section("openalex")
     direct_queries, survey_queries = _openalex_search_queries(profile)
-    direct_sample = _int(config.get("query_sample_size"), 100)
-    survey_sample = _int(config.get("survey_query_sample_size"), direct_sample)
-    reference_sample = _int(config.get("reference_sample_size"), 0)
-    configured_capacity = (
+    collection_limit = optional_limit(config.get("collection_limit"), "collection_limit")
+    direct_sample = query_result_limit(config, collection_limit)
+    survey_sample = query_result_limit(config, collection_limit, "survey_query_limit_factor")
+    reference_sample = query_result_limit(config, collection_limit, "reference_limit_factor")
+    configured_capacity = None if direct_sample is None else (
         len(direct_queries) * direct_sample + len(survey_queries) * survey_sample + reference_sample
     )
-    collection_limit = _int(config.get("collection_limit"), configured_capacity)
     metadata: dict[str, object] = {
         "source": "openalex", "query_count": len(direct_queries) + len(survey_queries),
         "direct_query_count": len(direct_queries), "survey_query_count": len(survey_queries),
@@ -266,18 +271,26 @@ def _openalex_shared_stages(
         return [
             FunnelStage("initial_results", "Discovery capacity", configured_capacity, CONFIGURED,
                         "Direct + survey-query samples + backward-reference budget"),
-            FunnelStage("active_collection", "Collection capacity", min(configured_capacity, collection_limit), CONFIGURED,
-                        f"openalex.collection_limit={collection_limit:,}", "Outside configured collection ceiling"),
+            FunnelStage("active_collection", "Collection capacity", capacity_min(configured_capacity, collection_limit), CONFIGURED,
+                        f"openalex.collection_limit={limit_label(collection_limit)}", "Outside configured collection ceiling"),
         ], metadata
 
-    with PipelineCache(paths["cache"]) as cache:
+    with PipelineCache(paths["cache"], read_only=True) as cache:
         collection = cache.get_record("openalex.collection", "latest") or {}
         active_ids = [str(value) for value in collection.get("work_ids", []) if value]
         survey_ids = [str(value) for value in collection.get("survey_ids", []) if value]
         selected_at = str(collection.get("selected_at", ""))
-        stored_limit = collection.get("collection_limit")
-        if stored_limit not in (None, ""):
-            collection_limit = _int(stored_limit, collection_limit)
+        if "collection_limit" in collection:
+            collection_limit = optional_limit(collection["collection_limit"], "collection_limit")
+        if "sample_size_per_query" in collection:
+            direct_sample = collection["sample_size_per_query"]
+            survey_sample = collection.get("survey_sample_size_per_query", direct_sample)
+            reference_sample = collection.get("reference_sample_size", direct_sample)
+            configured_capacity = None if any(value is None for value in (direct_sample, survey_sample, reference_sample)) else (
+                len(direct_queries) * direct_sample + len(survey_queries) * survey_sample + reference_sample
+            )
+            metadata.update({"query_sample_size": direct_sample, "survey_query_sample_size": survey_sample,
+                             "reference_sample_size": reference_sample})
         coverage = cache.coverage_rows("openalex")
         direct_set, survey_set = set(direct_queries), set(survey_queries)
         reached_depth = _int(collection.get("snowball_reached_depth"), 0)
@@ -306,7 +319,7 @@ def _openalex_shared_stages(
                 "initial_results", "Discovery: sampled hits", scanned, OBSERVED,
                 f"direct={direct_scanned:,}; survey={survey_scanned:,}; backward references={references_scanned:,}",
             ))
-        elif configured_capacity:
+        else:
             stages.append(FunnelStage(
                 "initial_results", "Discovery capacity", configured_capacity, CONFIGURED,
                 "Direct + survey-query samples + backward-reference budget",
@@ -320,7 +333,7 @@ def _openalex_shared_stages(
         if active_ids:
             stages.append(FunnelStage(
                 "active_collection", "Collection: candidate papers", len(active_ids), OBSERVED,
-                f"Auxiliary surveys excluded; configured/run limit={collection_limit:,}", "Auxiliary traversal sources",
+                f"Auxiliary surveys excluded; configured/run limit={limit_label(collection_limit)}", "Auxiliary traversal sources",
             ))
 
     candidates = paths["candidates"]
@@ -418,6 +431,7 @@ def _discovery_context(
     rows: list[dict[str, object]] = []
 
     def append(key: str, label: str, count: object, basis: str, detail: str, *, visible: bool = False) -> None:
+        """Append one discovery count with its observation basis and display setting."""
         rows.append({
             "source": source, "context_key": key, "context_label": label, "count": count,
             "basis": basis, "basis_detail": detail, "visible_in_figure": visible,
@@ -577,7 +591,7 @@ def _write_readme(
             f"- Survey-search hits: `{metadata.get('survey_results_scanned', 'not observed')}`",
             f"- Backward-reference hits: `{metadata.get('reference_results_scanned', 'not observed')}`",
             f"- Active collection limit recorded by the snapshot: `{metadata.get('collection_limit', 0)}`", "",
-            "Discovery is controlled by `[openalex]` settings in the selected TOML: `query_sample_size`, `survey_query_sample_size`, `reference_sample_size`, `per_page`, and `max_pages_per_query`, plus the query plan in the term profile. Search sampling is additionally bounded by the page cap. These retrieval budgets are independent of `collection_limit` / `--collect-limit` (retained candidates) and `classification_limit` / `--classify-limit` (eligible records sent to classification). Auxiliary surveys are traversal sources and do not consume either candidate limit.", "",
+            "Discovery caps derive from the largest numeric `collection_limit` or `classification_limit`, multiplied by `query_limit_factor` (default 3). OpenAlex survey queries and reference traversal can override this using `survey_query_limit_factor` and `reference_limit_factor`. Without either numeric limit, query retrieval has no application cap. Pagination does not impose a separate absolute cap. Auxiliary surveys are traversal sources and do not consume either candidate limit.", "",
             "Auxiliary-only surveys support reference discovery and are not counted as papers removed from classification. Their counts and the old combined retained-candidates-and-surveys count remain in `data/discovery_context.csv` for auditing. The full unique discovery pool was not recorded in this snapshot, so no deduplication loss is inferred from crawler hits.", "",
             "Observed figures use stored cache coverage and compatible CSVs. Changing today's configuration or classification limit does not retroactively change the recorded discovery counts.", "",
         ])
@@ -599,13 +613,21 @@ def _clear_previous_bundle(out_dir: Path) -> None:
                 path.unlink()
 
 
+@audited_bundle
 def build(settings: Settings, source: str, output: Path | None = None) -> list[Path]:
     """Build database-aware funnel figures for one discovery source without network access."""
     if source not in {"github", "openalex"}:
         raise ValueError(f"unsupported funnel source: {source}")
     configure_style(settings.section("plots"))
     paths = _source_paths(settings, source)
-    out_dir = output or paths["output"]
+    out_dir = output or paths['output']
+    if paths['cache'].is_file():
+        paths['cache'] = freeze_database(paths['cache'], out_dir)
+    for path in paths["interim"].rglob("*.csv"):
+        if 'pilots' not in path.parts:
+            register_input(path)
+    for path in paths["processed"].rglob("*.csv"):
+        register_input(path)
     profile = load_term_profile(settings, source)
     if source == "github":
         shared, metadata = _github_shared_stages(settings, profile, paths)
@@ -615,7 +637,7 @@ def build(settings: Settings, source: str, output: Path | None = None) -> list[P
         raise ValueError(f"no configured or persisted {source} funnel stages are available")
     if not any(stage.key == "active_collection" for stage in shared):
         initial = next((stage for stage in shared if stage.key == "initial_results"), None)
-        capacity = min(initial.count if initial else 0, _int(metadata.get("collection_limit")))
+        capacity = capacity_min(initial.count if initial else None, optional_limit(metadata.get("collection_limit"), "collection_limit"))
         shared.append(FunnelStage(
             "active_collection", "Collection capacity", capacity, CONFIGURED,
             "No selected-candidate count recorded; configured capacity only",

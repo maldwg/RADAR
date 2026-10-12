@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import time
 from typing import Any, Iterator
@@ -9,6 +10,7 @@ import requests
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.evidence import snowball_depth
 from ids_meta.common.run import utc_now
+from ids_meta.common.limits import query_result_limit, limit_label, warn_legacy_query_limits
 from ids_meta.common.scoring import ScoreResult, score_evidence
 from ids_meta.common.text import contains_concept, normalize_text
 from ids_meta.common.logging import logger
@@ -97,15 +99,15 @@ def metadata_quality(work: dict[str, Any]) -> int:
 
 
 def sample_query_results(
-    client: "OpenAlexClient", queries: list[str], sample_size: int, per_page: int, max_pages: int,
+    client: "OpenAlexClient", queries: list[str], sample_size: int | None, per_page: int, max_pages: int | None,
 ) -> tuple[list[tuple[str, dict[str, Any]]], dict[str, int], set[str]]:
-    """Sample at most x native-ranked results independently from every query."""
+    """Scan each query up to its optional result cap, or until exhausted."""
     scanned = {query: 0 for query in queries}
     exhausted: set[str] = set()
     results: list[tuple[str, dict[str, Any]]] = []
     for query in queries:
-        iterator = iter(client.search(query, min(per_page, sample_size), max_pages))
-        for _index in range(sample_size):
+        iterator = iter(client.search(query, per_page if sample_size is None else min(per_page, sample_size), max_pages))
+        while sample_size is None or scanned[query] < sample_size:
             try:
                 item = next(iterator)
             except StopIteration:
@@ -138,7 +140,7 @@ def balanced_search(
     return results, scanned, exhausted
 
 def survey_query_candidates(
-    client: "OpenAlexClient", queries: list[str], sample_size: int, per_page: int, pages: int,
+    client: "OpenAlexClient", queries: list[str], sample_size: int | None, per_page: int, pages: int | None,
     survey_terms: list[str], release_terms: list[str],
 ) -> tuple[dict[str, dict[str, Any]], dict[str, set[str]], dict[str, int], set[str]]:
     """Sample survey queries and return only configured survey matches."""
@@ -155,7 +157,7 @@ def survey_query_candidates(
 
 
 def direct_query_candidates(
-    client: "OpenAlexClient", queries: list[str], sample_size: int, per_page: int, pages: int,
+    client: "OpenAlexClient", queries: list[str], sample_size: int | None, per_page: int, pages: int | None,
     minimum_citations: int,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, set[str]], dict[str, int], set[str]]:
     """Sample direct queries and deduplicate eligible papers across them."""
@@ -172,7 +174,7 @@ def direct_query_candidates(
 
 
 def survey_reference_candidates(
-    client: "OpenAlexClient", reference_sources: dict[str, set[str]], sample_size: int,
+    client: "OpenAlexClient", reference_sources: dict[str, set[str]], sample_size: int | None,
     works: dict[str, dict[str, Any]], cache: PipelineCache,
 ) -> tuple[dict[str, dict[str, Any]], list[str]]:
     """Resolve at most x survey references, preferring multi-survey consensus."""
@@ -302,16 +304,22 @@ class OpenAlexClient:
                     time.sleep(2**attempt)
         raise RuntimeError(f"OpenAlex request failed for {path}: {last}") from last
 
-    def search(self, query: str, per_page: int, max_pages: int) -> Iterator[dict[str, Any]]:
+    def search(self, query: str, per_page: int, max_pages: int | None) -> Iterator[dict[str, Any]]:
         """Yield works from a cursor-paginated OpenAlex full-text search."""
         cursor = "*"
-        for page in range(1, max_pages + 1):
+        page = 0
+        seen_cursors: set[str] = set()
+        while max_pages is None or page < max_pages:
+            if cursor in seen_cursors:
+                raise RuntimeError(f"OpenAlex repeated search cursor for {query!r}")
+            seen_cursors.add(cursor)
+            page += 1
             payload = self.get("/works", {"search": query, "per-page": per_page, "cursor": cursor, "select": self.select})
             LOG.debug("OpenAlex query=%r page=%d results=%d", query, page, len(payload.get("results", [])))
             for item in payload.get("results", []):
                 yield item
             cursor = str((payload.get("meta") or {}).get("next_cursor") or "")
-            if not cursor:
+            if not cursor or not payload.get("results"):
                 break
 
     def work(self, openalex_id: str) -> dict[str, Any]:
@@ -336,14 +344,16 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         os.getenv("OPENALEX_API_KEY"), os.getenv("OPENALEX_MAILTO"),
         request_pause_seconds=float(settings.get("request_pause_seconds", 0.5)),
     )
-    per_page, pages = int(settings.get("per_page", 100)), int(settings.get("max_pages_per_query", 10))
+    warn_legacy_query_limits(settings, LOG)
+    per_page = int(settings.get("per_page", 100))
     max_surveys = max(0, int(settings.get("max_surveys", 25)))
-    reference_limit = max(0, int(settings.get("max_reference_works_per_survey", 300)))
-    reference_total_limit = max(0, int(settings.get("max_survey_reference_candidates_total", 1000)))
     reference_fraction = max(0.0, min(0.9, float(settings.get("survey_reference_fraction", .35))))
-    query_sample_size = max(1, int(settings.get("query_sample_size", 100)))
-    survey_query_sample_size = max(1, int(settings.get("survey_query_sample_size", query_sample_size)))
-    reference_sample_size = max(0, int(settings.get("reference_sample_size", reference_total_limit)))
+    query_sample_size = query_result_limit(settings, limit)
+    survey_query_sample_size = query_result_limit(settings, limit, "survey_query_limit_factor")
+    reference_sample_size = query_result_limit(settings, limit, "reference_limit_factor")
+    reference_limit = reference_sample_size
+    pages = None if query_sample_size is None else math.ceil(query_sample_size / per_page)
+    survey_pages = None if survey_query_sample_size is None else math.ceil(survey_query_sample_size / per_page)
     survey_consensus_threshold = max(2, int(settings.get("survey_consensus_threshold", 2)))
     max_depth = snowball_depth(settings)
     start_papers = max(1, int(settings.get("snowball_start_papers", 20)))
@@ -351,7 +361,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     minimum_citations = max(0, int(settings.get("minimum_citations", 0)))
     minimum_title_tokens = max(1, int(settings.get("retrieval_minimum_title_tokens", 3)))
     title_weight = max(0.0, float(settings.get("retrieval_title_weight", 0.5)))
-    reference_budget = reference_total_limit if limit is None else min(reference_total_limit, int(limit * reference_fraction))
+    reference_budget = None if limit is None else int(limit * reference_fraction)
     # Surveys are auxiliary traversal sources and do not consume the final candidate limit.
     survey_cap = max_surveys
     works: dict[str, dict[str, Any]] = {}
@@ -383,9 +393,10 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         return key
 
     LOG.info(
-        "starting OpenAlex collection direct_queries=%d survey_queries=%d sample_per_query=%d select_best=%s survey_cap=%d reference_budget=%d",
-        len(profile.get("direct_queries", [])), len(profile.get("survey_queries", [])), query_sample_size,
-        limit or "all", survey_cap, reference_budget,
+        "starting OpenAlex collection direct_queries=%d survey_queries=%d query_cap=%s survey_query_cap=%s reference_scan_cap=%s select_best=%s survey_cap=%d reference_budget=%s",
+        len(profile.get("direct_queries", [])), len(profile.get("survey_queries", [])), limit_label(query_sample_size),
+        limit_label(survey_query_sample_size), limit_label(reference_sample_size),
+        limit_label(limit), survey_cap, limit_label(reference_budget),
     )
 
     # Sample x results per survey query, then select the best configured survey sources.
@@ -405,7 +416,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     survey_terms = [str(value) for value in identification.get("survey_terms", DEFAULT_SURVEY_TERMS)]
     release_terms = [str(value) for value in identification.get("release_terms", DEFAULT_RELEASE_TERMS)]
     survey_pool, survey_matches, survey_scanned, survey_exhausted = survey_query_candidates(
-        client, survey_search_queries, survey_query_sample_size, per_page, pages, survey_terms, release_terms,
+        client, survey_search_queries, survey_query_sample_size, per_page, survey_pages, survey_terms, release_terms,
     ) if survey_cap else ({}, {}, {}, set())
     positive_profile = {"positive": profile.get("positive", {})}
     ranked_surveys, survey_scores = rank_work_pool(survey_pool, positive_profile, float("-inf"), minimum_title_tokens, title_weight)
@@ -428,7 +439,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         selected_count = sum(query in survey_matches.get(key, set()) and key in selected_survey_ids for key in survey_pool)
         status = "complete" if query in survey_exhausted else "bounded"
         cache.put_coverage("openalex", query, "survey_cursor", status, survey_scanned.get(query, 0), {
-            "configured_page_cap": pages, "survey_pool_matches": sum(query in values for values in survey_matches.values()),
+            "configured_page_cap": survey_pages, "survey_pool_matches": sum(query in values for values in survey_matches.values()),
             "surveys_selected": selected_count, "survey_cap": survey_cap, "sample_size_per_query": survey_query_sample_size,
         }, utc_now())
         LOG.info("finished survey query=%r scanned=%d selected=%d coverage=%s", query, survey_scanned.get(query, 0), selected_count, status)
@@ -447,7 +458,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         for reference_id in (works.get(survey_id, {}).get("referenced_works") or [])[:reference_limit]:
             if reference_id:
                 reference_sources.setdefault(str(reference_id), set()).add(survey_id)
-    LOG.info("survey discovery complete surveys=%d distinct_reference_candidates=%d reserved_reference_budget=%d", len(survey_ids), len(reference_sources), reference_budget)
+    LOG.info("survey discovery complete surveys=%d distinct_reference_candidates=%d reserved_reference_budget=%s", len(survey_ids), len(reference_sources), limit_label(reference_budget))
 
     # Sample x per direct query, then select the best y from the deduplicated pool.
     direct_budget = None if limit is None else max(0, limit - reference_budget)
@@ -511,8 +522,8 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
                     depth_sources.setdefault(child_id, set()).add(parent_id)
                     reference_sources.setdefault(child_id, set()).add(parent_id)
                     reference_edges += 1
-        remaining_scan_budget = max(0, min(reference_sample_size, reference_total_limit) - len(reference_ids))
-        if not depth_sources or remaining_scan_budget <= 0:
+        remaining_scan_budget = None if reference_sample_size is None else max(0, reference_sample_size - len(reference_ids))
+        if not depth_sources or remaining_scan_budget == 0:
             break
         try:
             depth_pool, sampled_ids = survey_reference_candidates(
@@ -563,7 +574,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
                 next_frontier.append(key)
                 continue
             next_frontier.append(key)
-            if key not in selected_direct_ids and len(new_reference_ids) < reference_budget:
+            if key not in selected_direct_ids and (reference_budget is None or len(new_reference_ids) < reference_budget):
                 new_reference_ids.add(key)
             LOG.info(
                 "examined relevant snowball paper depth=%d score=%.1f citations=%d parents=%d candidate=%s title=%s",
@@ -621,6 +632,12 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     )
     cache.put_record("openalex.collection", "latest", {
         "work_ids": sorted(candidate_ids), "selected_at": fetched_at, "collection_limit": limit,
+        "classification_limit": settings.get("classification_limit"),
+        "sample_size_per_query": query_sample_size, "survey_sample_size_per_query": survey_query_sample_size,
+        "reference_sample_size": reference_sample_size,
+        "query_limit_factor": settings.get("query_limit_factor", 3.0),
+        "survey_query_limit_factor": settings.get("survey_query_limit_factor", settings.get("query_limit_factor", 3.0)),
+        "reference_limit_factor": settings.get("reference_limit_factor", settings.get("query_limit_factor", 3.0)),
         "survey_ids": sorted(survey_ids), "direct_ids": sorted(selected_direct_ids),
         "survey_reference_ids": sorted(new_reference_ids),
         "snowball_seed_paper_ids": direct_seed_ids, "snowball_max_depth": max_depth,
