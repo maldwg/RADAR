@@ -1,0 +1,7 @@
+schema_version = "1.0"
+
+[plots]
+show_subcaptions = false
+formats = ["svg", "pdf"]
+dpi = 300
+top_n = 15

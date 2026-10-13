@@ -618,6 +618,7 @@ def _clear_previous_bundle(out_dir: Path) -> None:
 @audited_bundle
 def build(settings: Settings, source: str, output: Path | None = None) -> list[Path]:
     """Build database-aware funnel figures for one discovery source without network access."""
+    settings.require_source(source)
     if source not in {"github", "openalex"}:
         raise ValueError(f"unsupported funnel source: {source}")
     configure_style(settings.section("plots"))
@@ -693,7 +694,7 @@ def main(argv: list[str] | None = None) -> int:
     """Generate source funnel figures independently from collection and classification."""
     parser = argparse.ArgumentParser(description="Build database-aware IDS meta-study pipeline funnels")
     parser.add_argument("source", choices=("github", "openalex"))
-    parser.add_argument("--config", type=Path, default=Path("config/default.toml"))
+    parser.add_argument("--config", type=Path, default=Path("config/studies/ids_repositories/study.toml"))
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     settings = load_settings(args.config)

@@ -1,6 +1,0 @@
-classifier,classifier_method,recovered,missed,expected_positive_entities,rated_entities,value,percentage,confidence_level,ci_low,ci_high,rating_profile
-Keyword,keyword,0,71,71,120,0.0,0.0,0.95,3.469446951953614e-18,0.05132795219689032,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,0,71,71,120,0.0,0.0,0.95,3.469446951953614e-18,0.05132795219689032,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-LLM · gemma4-31b,llm,0,71,71,120,0.0,0.0,0.95,3.469446951953614e-18,0.05132795219689032,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-LLM · qwen3-8-27b,llm,0,71,71,120,0.0,0.0,0.95,3.469446951953614e-18,0.05132795219689032,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml
-Ensemble,ensemble,0,71,71,120,0.0,0.0,0.95,3.469446951953614e-18,0.05132795219689032,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/github_ghml23.toml

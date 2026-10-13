@@ -1,6 +1,0 @@
-classifier,rated_entities,attempted,accept,exclude,uncertain,error,unavailable,not_attempted,value
-Keyword,120,0,0,0,0,0,0,120,
-NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,120,0,0,0,0,0,0,120,
-LLM · gemma4-31b,120,0,0,0,0,0,0,120,
-LLM · qwen3-8-27b,120,0,0,0,0,0,0,120,
-Ensemble,120,0,0,0,0,0,0,120,

@@ -1,7 +1,0 @@
-classifier,classifier_method,metric,classifier_id,value,rated_entities,confidence_level,ci_low,ci_high,tp,fp,tn,fn,rating_profile
-Keyword,keyword,field_macro_f1,keyword-score,0.009653782744092324,105,0.95,,,2,0,4,99,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-NLI - qwen3-8-27b,llm_nli,field_macro_f1,qwen3.8:27b,0.029427853393370635,105,0.95,,,4,0,4,97,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,field_macro_f1,MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,0.03138888888888889,105,0.95,,,8,0,4,93,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-LLM · gemma4-31b,llm,field_macro_f1,gemma4:31b,0.2945395970598283,105,0.95,,,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-LLM · qwen3-8-27b,llm,field_macro_f1,qwen3.8:27b,0.3016272119311335,105,0.95,,,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-Ensemble,ensemble,field_macro_f1,ensemble,0.2944530169732482,105,0.95,,,30,0,4,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml

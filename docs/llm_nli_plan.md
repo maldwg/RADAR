@@ -62,8 +62,8 @@ another serving backend rather than an unsupported Ollama implementation.
 
 ## 2. Define the NLI task and score
 
-Reuse the hypotheses in `config/baselines/github_nli.toml` and
-`config/baselines/openalex_nli.toml`. A separate versioned prompt should state:
+Reuse the hypotheses in `config/studies/ids_repositories/baselines/nli.toml` and
+`config/studies/ids_datasets/baselines/nli.toml`. A separate versioned prompt should state:
 
 > Given only the premise, decide whether the hypothesis is entailed,
 > contradicted, or neither established nor contradicted. Missing information is
@@ -133,7 +133,7 @@ comparison, and keep missing-reference coverage distinct from uncertainty.
   threshold settings. Requests currently execute sequentially (concurrency one).
   Keep the existing `nli` configuration and
   cached outputs compatible.
-- Support proposed commands such as `ids-meta github baseline --methods llm_nli`
+- Support proposed commands such as `ids-meta --study ids_repositories baseline --methods llm_nli`
   and the OpenAlex equivalent, plus offline `--evaluate-only` reuse.
 - Write classifications under
   `data/interim/<source>/baselines/llm_nli/<model-slug>/` and evaluations under

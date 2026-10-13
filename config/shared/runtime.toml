@@ -1,0 +1,8 @@
+schema_version = "1.0"
+
+[logging]
+level = "INFO"
+progress_every = 25
+
+[ollama]
+url = "http://10.20.31.1:11434"

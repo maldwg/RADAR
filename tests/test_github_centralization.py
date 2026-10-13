@@ -37,7 +37,7 @@ class GitHubCentralizationTests(unittest.TestCase):
 
     def test_schema_prompt_and_normalizers(self) -> None:
         """Require a direct model field and keep it separate from inclusion and OpenAlex."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         self.assertEqual(RESPONSE_SCHEMA["properties"]["centralization"]["enum"], list(CENTRALIZATION))
         self.assertIn("centralization", RESPONSE_SCHEMA["required"])
         self.assertIn("centralization", CLASSIFICATION_COLUMNS)
@@ -65,7 +65,7 @@ class GitHubCentralizationTests(unittest.TestCase):
 
     def test_architecture_keywords_and_abstention(self) -> None:
         """Honor central/CIDS/DIDS vocabulary without matching DDoS or choosing tied classes."""
-        profile = load_keyword_taxonomy_profile(load_settings(ROOT / "config/default.toml"), "github")
+        profile = load_keyword_taxonomy_profile(load_settings(ROOT / "config/studies/ids_repositories/study.toml"), "github")
         examples = {
             "central analysis engine": "centralized",
             "single-node detector": "centralized",
@@ -116,7 +116,7 @@ class GitHubCentralizationTests(unittest.TestCase):
 
     def test_reference_scoring_and_svg_pdf_plots(self) -> None:
         """Score supported topology only and render it in evaluation and general figures."""
-        profile = load_rating_profile(ROOT / "config/evaluation/github_ghml23.toml", "github")
+        profile = load_rating_profile(ROOT / "config/studies/ids_repositories/evaluation/references.toml", "github")
         counts = Counter(entity["centralization"] for entity in profile.entities.values())
         self.assertEqual(sum(counts.values()), 120)
         self.assertGreater(counts["centralized"], 0)

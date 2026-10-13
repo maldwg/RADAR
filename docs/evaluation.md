@@ -4,7 +4,7 @@ The evaluation stage compares saved pipeline classifications with versioned exte
 
 ## Configured reference sets
 
-`config/default.toml` declares reference sets as an array of tables:
+`config/studies/ids_repositories/study.toml` declares reference sets as an array of tables:
 
 ```toml
 [evaluation]
@@ -14,26 +14,22 @@ confidence_level = 0.95
 [[evaluation.reference_sets]]
 name = "ghml23"
 source = "github"
-profile = "config/evaluation/github_ghml23.toml"
+profile = "evaluation/references.toml"
 
-[[evaluation.reference_sets]]
-name = "shield"
-source = "openalex"
-profile = "config/evaluation/openalex_ashraf_2026.toml"
 ```
 
-A custom configuration can replace or add entries without changing Python. A single configured set retains the normal classifier evaluation directory. If several sets target one source, each result is isolated below a reference-set-named subdirectory.
+The dataset study declares its own `shield` reference in its manifest. Paths resolve relative to the declaring study manifest. A custom study can replace or add entries without changing Python. A single configured set retains the normal classifier evaluation directory. If several sets target one source, each result is isolated below a reference-set-named subdirectory.
 
 The checked-in inputs are:
 
-- `config/evaluation/github_ghml23.toml` and its verbatim `github_ghml23.csv` snapshot.
-- `config/evaluation/openalex_ashraf_2026.toml`, the survey-derived SHIELD artifact profile.
+- `config/studies/ids_repositories/evaluation/references.toml` and its verbatim `github_ghml23.csv` snapshot.
+- `config/studies/ids_datasets/evaluation/references.toml`, the survey-derived SHIELD artifact profile.
 
 Source-record profiles use exactly one matching selector per `[[entities]]` table:
 
 - GitHub: `repository = "owner/name"`. Matching uses the `full_name` saved in classifications and candidates.
 - OpenAlex: `openalex_url = "https://openalex.org/W..."` is recommended. `title = "Exact paper title"` is also supported when no OpenAlex link is available.
-- Legacy `id` selectors remain supported for existing custom profiles, but the default profiles no longer use them.
+- Explicit native `id` selectors can be used when the reference supplies a stable provider ID.
 
 The checked-in OpenAlex profile instead uses `evaluation_unit = "artifact"`: every entity names a dataset with `artifact`, optional `aliases`, and survey-reference provenance. Evaluation searches the saved OpenAlex results for an accepted release representing that dataset.
 
@@ -95,23 +91,23 @@ Regression tests lock the exact GHML23 row/category/decision counts and represen
 Evaluate existing default classification files:
 
 ```bash
-ids-meta github evaluate
-ids-meta openalex evaluate
+ids-meta --study ids_repositories evaluate
+ids-meta --study ids_datasets evaluate
 ```
 
 The default baseline command creates keyword and/or local zero-shot DeBERTa NLI classification files and immediately evaluates them against the same profiles without calling an LLM. The optional `llm_nli` method described below calls Ollama:
 
 ```bash
-ids-meta github baseline
-ids-meta openalex baseline
-ids-meta github baseline --methods nli
-ids-meta openalex baseline --methods keyword,nli
+ids-meta --study ids_repositories baseline
+ids-meta --study ids_datasets baseline
+ids-meta --study ids_repositories baseline --methods nli
+ids-meta --study ids_datasets baseline --methods keyword,nli
 ```
 
 Use other classification and candidate files or another artifact directory:
 
 ```bash
-ids-meta github evaluate \
+ids-meta --study ids_repositories evaluate \
   --input path/to/classifications.csv \
   --candidates path/to/candidates.csv \
   --output artifacts/evaluation/experiment-a
@@ -128,7 +124,7 @@ enabled = true
 
 Automatic LLM evaluation runs immediately after classification and consensus, before reconciliation. When `[baselines].enabled = true`, a complete run subsequently executes the configured baseline methods, evaluates them, and rebuilds the all-classifier plots. Explicit `evaluate` and `baseline` commands run regardless of their automatic-stage switches.
 
-Every rated result lives under `artifacts/evaluation/<source>/`. The source-level README is the directory index. Classifier details use `classifiers/keyword/`, `classifiers/nli/<model-slug>/`, `classifiers/llm/<model-slug>/`, and `classifiers/ensemble/`. Ratings and candidates are shared, which makes comparisons use the same reference set.
+Every rated result lives under `artifacts/studies/<study>/evaluation/<source>/`. The source-level README is the directory index. Classifier details use `classifiers/keyword/`, `classifiers/nli/<model-slug>/`, `classifiers/llm/<model-slug>/`, and `classifiers/ensemble/`. Ratings and candidates are shared, which makes comparisons use the same reference set.
 
 Cross-approach plots are in the sibling `comparison/` directory. `00_metric_overview` is the single starting matrix: its rows contain DR, FNR, FPR, FDR, precision, accuracy, decision-F1, coverage, abstention, and aggregate taxonomy scores; its columns contain every available Keyword, NLI, LLM, and Ensemble result. Arrows state whether higher or lower is preferable, grey cells mean N/A, and exact values are in `data/00_metric_overview.csv`. Enlarged operational-metric plots are grouped under `metrics/`, field/category comparisons under `taxonomy/`, and decision agreement under `agreement/`. Agreement is descriptive and must not be read as correctness. Single-classifier operational/strict/selective views and audit diagnostics remain under that classifier's `figures/` directory rather than being mixed with the comparison figures. The OpenAlex comparison uses the 105-row artifact benchmark, including selected negative controls. Performance figures use color and axes for values; companion CSVs retain exact values, per-label TP/FP/FN, classifier IDs, rating paths, and Wilson intervals. Metrics that a custom positive-only artifact fixture cannot estimate are shown as N/A, not as zero.
 
@@ -142,7 +138,7 @@ Use `ids-meta <source> baseline --evaluate-only` to rebuild baseline evaluations
 
 `ids-meta <source> baseline --methods llm_nli` runs each model configured in
 `[baselines.llm_nli].models` as a separate generative NLI baseline. A versioned
-prompt in `config/prompts/llm_nli.toml` asks for A (entailment), B (neutral), or C
+prompt in `config/studies/ids_repositories/baselines/llm_nli.toml` asks for A (entailment), B (neutral), or C
 (contradiction) for one hypothesis and one source-labelled evidence chunk. The
 model sees the three possible outcomes in that prompt; taxonomy hypotheses are
 evaluated independently. Thinking is disabled, generation is deterministic, and
@@ -176,8 +172,8 @@ their recovery rate is not a full-corpus performance estimate. Unselected
 taxonomy fields are marked unsupported/N/A.
 
 Full classifications are stored in
-`data/interim/<source>/baselines/llm_nli/<model-slug>/classifications.csv`, and
-evaluation files in `artifacts/evaluation/<source>/classifiers/llm_nli/<model-slug>/`.
+`artifacts/studies/<study>/interim/<source>/baselines/llm_nli/<model-slug>/classifications.csv`, and
+evaluation files in `artifacts/studies/<study>/evaluation/<source>/classifiers/llm_nli/<model-slug>/`.
 Pilots add `pilots/<fields>-<limit>/` below those paths. Full comparisons display
 `NLI - <model-slug>` alongside DeBERTa NLI and the structured model. Both methods
 receive the usual recovery, taxonomy, decisions, coverage, unresolved-rate and

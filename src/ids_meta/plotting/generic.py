@@ -45,6 +45,7 @@ def build_report(
     profile_path: Path, input_path: Path, out_dir: Path, config: dict[str, object], *,
     candidates_path: Path | None = None, ratings_path: Path | None = None,
     exports_path: Path | None = None, database_path: Path | None = None,
+    confidence_level: float = 0.95,
 ) -> list[Path]:
     """Import a provider contract and reuse evaluation, databases and generic figures."""
     contract = load_source_contract(profile_path)
@@ -138,7 +139,8 @@ def build_report(
 
         rating = load_rating_profile(ratings_path, contract.name, contract=contract)
         evaluation = out_dir / 'evaluation'
-        result = evaluate_results(rating, classifications, evaluation, candidate_csv, reporting_database=store)
+        result = evaluate_results(rating, classifications, evaluation, candidate_csv,
+            reporting_database=store, confidence_level=confidence_level)
         outputs.extend(result.outputs)
         outputs.extend(plot_evaluation(evaluation, {**config, 'field_labels': contract.field_labels}))
         with ReportingDatabase(store) as database:

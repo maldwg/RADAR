@@ -1,0 +1,28 @@
+schema_version = "2.0"
+id = "conformal_treatment_effects"
+workflow = "systematic_review"
+project_root = "../../.."
+runtime = "../../shared/runtime.toml"
+models = "../../shared/models.toml"
+reporting = "reporting.toml"
+output_root = "../../../artifacts/studies/conformal_treatment_effects"
+protocol = "screening.toml"
+taxonomy = "taxonomy.toml"
+
+[[sources]]
+name = "openalex"
+profile = "../../shared/sources/openalex.toml"
+search = "search/openalex.toml"
+prompts = "prompts/classification.toml"
+
+[collection]
+limit = 200
+
+[assessment]
+fetch_full_text = true
+max_full_text_chars = 120000
+
+[evaluation]
+enabled = true
+confidence_level = 0.95
+references = "evaluation/references.toml"

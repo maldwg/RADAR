@@ -18,14 +18,14 @@ from ids_meta.common.verification import verify_database, verify_directory
 from ids_meta.plotting.generic import build_report
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE = ROOT / "config/verification/memmesheimer"
+PROFILE = ROOT / "config/studies/conformal_treatment_effects"
 EXAMPLE = ROOT / "examples/verification/memmesheimer/assessments.json"
 
 
 class StudyScreeningTests(unittest.TestCase):
     def setUp(self) -> None:
         """Load the study protocol and screening fixtures."""
-        self.protocol = load_study_protocol(PROFILE / "protocol.toml")
+        self.protocol = load_study_protocol(PROFILE / "screening.toml")
         self.adapter = StudyScreeningAdapter(self.protocol)
         self.example = json.loads(EXAMPLE.read_text())
 
@@ -93,7 +93,7 @@ class StudyScreeningTests(unittest.TestCase):
             out = root / "out.csv"
             out.write_text("existing output")
             with self.assertRaises(ValueError):
-                screen_study(PROFILE / "protocol.toml", bad, out)
+                screen_study(PROFILE / "screening.toml", bad, out)
             self.assertEqual(out.read_text(), "existing output")
 
     def test_cli_export_keeps_provenance_and_assessments(self) -> None:
@@ -101,7 +101,7 @@ class StudyScreeningTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "classification.csv"
             with redirect_stdout(io.StringIO()):
-                status = main(["study-screen", "--protocol", str(PROFILE / "protocol.toml"),
+                status = main(["study-screen", "--protocol", str(PROFILE / "screening.toml"),
                     "--input", str(EXAMPLE), "--output", str(output)])
             self.assertEqual(status, 0)
             rows = read_csv(output)
@@ -113,7 +113,7 @@ class StudyScreeningTests(unittest.TestCase):
     def test_reference_crosswalk_and_offline_verification(self) -> None:
         """Verify reference crosswalk and offline verification."""
         contract = self.protocol.contract
-        reference = load_rating_profile(PROFILE / "references.toml", contract.name, contract=contract)
+        reference = load_rating_profile(PROFILE / "evaluation/references.toml", contract.name, contract=contract)
         entities = list(reference.entities.values())
         self.assertEqual(len(entities), 11)
         self.assertEqual([r["survey_row"] for r in entities], list(range(1, 12)))
@@ -130,9 +130,9 @@ class StudyScreeningTests(unittest.TestCase):
             atomic_write_csv(classifications, rows, columns)
             atomic_write_csv(candidate_csv, candidates, columns)
             output = root / "report"
-            build_report(PROFILE / "source.toml", classifications, output,
+            build_report(PROFILE / "taxonomy.toml", classifications, output,
                 {"formats": ["svg"], "dpi": 72, "show_subcaptions": False},
-                candidates_path=candidate_csv, ratings_path=PROFILE / "references.toml")
+                candidates_path=candidate_csv, ratings_path=PROFILE / "evaluation/references.toml")
             metrics = json.loads((output / "evaluation/metrics.json").read_text())
             self.assertEqual(metrics["operational"]["tp"], 2)
             self.assertEqual(metrics["operational"]["fn"], 9)

@@ -60,6 +60,7 @@ class RunManifest:
             "finished_at": utc_now() if self.status != "running" else "",
             "git_revision": git_revision(self.root),
             "config_hash": stable_hash(json.dumps(self.config, sort_keys=True)),
+            "study": self.config.get("study", {}),
             "parameters": self.parameters,
             "counts": self.counts,
             "coverage": self.coverage,

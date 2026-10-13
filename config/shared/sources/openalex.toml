@@ -1,0 +1,7 @@
+schema_version = "1.0"
+name = "openalex"
+entity_kind = "paper"
+
+[settings]
+per_page = 100
+request_pause_seconds = 1

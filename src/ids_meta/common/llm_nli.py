@@ -62,9 +62,7 @@ def load_llm_nli_config(settings: Settings) -> LLMNLIConfig:
     models = list(dict.fromkeys(m.strip() for m in models))
     if len({slug(model) for model in models}) != len(models):
         raise ConfigError("LLM NLI models must have distinct output directory slugs")
-    path = settings.section("paths").get("llm_nli_prompt", "config/prompts/llm_nli.toml")
-    path = Path(path)
-    path = path if path.is_absolute() else settings.root / path
+    path = settings.path("llm_nli_prompt")
     with path.open("rb") as handle:
         prompt = tomllib.load(handle)
     template = prompt.get("template", "")

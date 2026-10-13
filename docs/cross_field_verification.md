@@ -28,13 +28,28 @@ used by `ids-meta report`.
 
 | File | Purpose |
 | --- | --- |
-| `config/verification/memmesheimer/source.toml` | Paper identity, title selector, and assumption taxonomy |
-| `config/verification/memmesheimer/protocol.toml` | Five eligibility rules, nine quality rules, and threshold |
-| `config/verification/memmesheimer/search.toml` | OpenAlex query adaptations, dates, and query caps |
-| `config/verification/memmesheimer/references.toml` | Eleven positive papers and three rated assumption fields |
+| `config/studies/conformal_treatment_effects/taxonomy.toml` | Paper identity, title selector, and assumption taxonomy |
+| `config/studies/conformal_treatment_effects/study.toml` | Study entry point, models, discovery source and isolated outputs |
+| `config/studies/conformal_treatment_effects/prompts/classification.toml` | Blind assessment prompt with explicit scientific inputs |
+| `config/studies/conformal_treatment_effects/screening.toml` | Five eligibility rules, nine quality rules, and threshold |
+| `config/studies/conformal_treatment_effects/search/openalex.toml` | OpenAlex query adaptations, dates, and query caps |
+| `config/studies/conformal_treatment_effects/evaluation/references.toml` | Eleven positive papers and three rated assumption fields |
 | `src/ids_meta/common/study_screening.py` | Evidence validation, rule replay, and CSV export |
 | `src/ids_meta/common/study_pipeline.py` | Independent discovery, PDF extraction, and blind model assessments |
 | `examples/verification/memmesheimer/assessments.json` | Synthetic input illustrating accept, exclude, and uncertain |
+
+The configured workflow can be selected directly:
+
+```bash
+ids-meta --study conformal_treatment_effects validate
+ids-meta --study conformal_treatment_effects collect --collect-limit 200
+ids-meta --study conformal_treatment_effects classify --classify-limit 5
+ids-meta --study conformal_treatment_effects evaluate
+```
+
+These commands use study-local queries, criteria, extraction definitions and
+prompts. The standalone commands below remain useful for explicit input/output
+files and supplied assessment replay.
 
 The reference crosswalk converts Table 3 checkmarks to `required` and crosses
 to `not_required` for SUTVA, strong ignorability, and overlap. A cross does not
@@ -88,12 +103,12 @@ Try the synthetic demonstration:
 
 ```bash
 ids-meta study-screen \
-  --protocol config/verification/memmesheimer/protocol.toml \
+  --protocol config/studies/conformal_treatment_effects/screening.toml \
   --input examples/verification/memmesheimer/assessments.json \
   --output /tmp/memmesheimer-demo/classifications.csv
 
 ids-meta report \
-  --profile config/verification/memmesheimer/source.toml \
+  --profile config/studies/conformal_treatment_effects/taxonomy.toml \
   --input /tmp/memmesheimer-demo/classifications.csv \
   --output /tmp/memmesheimer-demo/report
 
@@ -113,12 +128,12 @@ Author names and references can still occur within the paper text itself.
 
 ```bash
 ids-meta study-collect \
-  --search-profile config/verification/memmesheimer/search.toml \
+  --search-profile config/studies/conformal_treatment_effects/search/openalex.toml \
   --limit 200 --per-query-limit 200 \
   --output data/verification/memmesheimer/candidates.json
 
 ids-meta study-classify \
-  --protocol config/verification/memmesheimer/protocol.toml \
+  --protocol config/studies/conformal_treatment_effects/screening.toml \
   --input data/verification/memmesheimer/candidates.json \
   --output data/verification/memmesheimer/classifications.csv \
   --fetch-full-text --resume
@@ -150,10 +165,10 @@ retrieved papers that were not classified:
 
 ```bash
 ids-meta report \
-  --profile config/verification/memmesheimer/source.toml \
+  --profile config/studies/conformal_treatment_effects/taxonomy.toml \
   --input data/verification/memmesheimer/classifications.csv \
   --candidates data/verification/memmesheimer/candidates.json \
-  --ratings config/verification/memmesheimer/references.toml \
+  --ratings config/studies/conformal_treatment_effects/evaluation/references.toml \
   --output artifacts/verification/memmesheimer
 
 ids-meta verify --input artifacts/verification/memmesheimer

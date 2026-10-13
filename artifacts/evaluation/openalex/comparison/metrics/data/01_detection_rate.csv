@@ -1,7 +1,0 @@
-classifier,classifier_method,metric,classifier_id,value,rated_entities,confidence_level,ci_low,ci_high,tp,fp,tn,fn,rating_profile
-Keyword,keyword,detection_rate,keyword-score,0.019801980198019802,105,0.95,0.0054473224611470555,0.06934616962584343,2,0,4,99,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-NLI - qwen3-8-27b,llm_nli,detection_rate,qwen3.8:27b,0.039603960396039604,105,0.95,0.015507146202925828,0.09743919157119907,4,0,4,97,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,detection_rate,MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,0.07920792079207921,105,0.95,0.04068097332073048,0.14857105582766325,8,0,4,93,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-LLM · gemma4-31b,llm,detection_rate,gemma4:31b,0.31683168316831684,105,0.95,0.2342352631167658,0.41285091427724097,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-LLM · qwen3-8-27b,llm,detection_rate,qwen3.8:27b,0.31683168316831684,105,0.95,0.2342352631167658,0.41285091427724097,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-Ensemble,ensemble,detection_rate,ensemble,0.297029702970297,105,0.95,0.21668291193792183,0.39225041976895053,30,0,4,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml

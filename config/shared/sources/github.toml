@@ -1,0 +1,11 @@
+schema_version = "1.0"
+name = "github"
+entity_kind = "repository"
+
+[settings]
+per_page = 100
+search_pause_seconds = 3
+request_pause_seconds = 2.0
+rate_limit_max_wait_seconds = 3700
+rate_limit_fallback_wait_seconds = 60
+adaptive_rate_limit_pacing = true

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tomllib
 from contextlib import nullcontext
 from dataclasses import replace
 from pathlib import Path
@@ -13,7 +14,7 @@ from ids_meta.common.baselines import (
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.ensemble import ensemble_classifications
 from ids_meta.common.evaluation import EvaluationResult, evaluate_results, load_rating_profile
-from ids_meta.common.config import ConfigError, Settings, load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
+from ids_meta.common.config import DEFAULT_STUDY, ConfigError, Settings, load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from ids_meta.common.csvio import read_csv
 from ids_meta.common.limits import optional_limit, limit_label
 from ids_meta.common.run import RunManifest
@@ -35,6 +36,7 @@ from ids_meta.openalex.reconcile import reconcile as reconcile_openalex
 from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS as OPENALEX_CLASSIFICATION_COLUMNS
 
 LOG = logger("cli")
+STUDY_STAGES = ("collect", "prefilter", "classify", "baseline", "evaluate", "reconcile", "export", "plot", "run", "screen")
 
 
 def _evaluation_root(settings: Settings, source: str) -> Path:
@@ -748,6 +750,7 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
 
 def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
     """Execute the source using the configured model list."""
+    settings.require_source("github")
     if args.action == "baseline":
         return _execute_baselines(args, settings, "github")
     return _execute_github_models(args, settings, _configured_models(settings))
@@ -868,51 +871,150 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
 
 def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
     """Execute the source using the configured model list."""
+    settings.require_source("openalex")
     if args.action == "baseline":
         return _execute_baselines(args, settings, "openalex")
     return _execute_openalex_models(args, settings, _configured_models(settings))
 
 
+def _configured_review_protocol(settings: Settings):
+    """Validate that review execution and reporting select the same profiles."""
+    from ids_meta.common.study_screening import load_study_protocol
+    from ids_meta.common.study_pipeline import load_assessment_template, load_assessment_fields
+
+    protocol = load_study_protocol(settings.path("protocol"))
+    load_assessment_fields(protocol)
+    _, prompt_path, _ = load_assessment_template(protocol)
+    with protocol.path.open("rb") as handle:
+        protocol_config = tomllib.load(handle)
+    if (protocol.path.parent / protocol_config["source_profile"]).resolve() != settings.path("taxonomy"):
+        raise ConfigError("review protocol must reference the study taxonomy")
+    source = settings.section("study")["sources"][0]
+    if prompt_path != settings.path(f"{source}_prompts"):
+        raise ConfigError("review protocol must reference the configured classification prompt")
+    ratings = settings.section("evaluation").get("references")
+    if ratings:
+        load_rating_profile(Path(ratings), protocol.contract.name, contract=protocol.contract)
+    return protocol
+
+
+def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
+    """Run a configured evidence-backed review without named-study branches."""
+    from ids_meta.common.study_pipeline import collect_study, classify_study
+    from ids_meta.common.study_screening import screen_study
+    from ids_meta.plotting.generic import build_report
+
+    action = args.action
+    if action not in {"collect", "classify", "screen", "plot", "evaluate", "run"}:
+        raise ConfigError(f"systematic_review does not support stage {action!r}")
+    if getattr(args, "collect_all", False):
+        raise ConfigError("systematic_review requires an explicit bounded collection limit")
+    models = _configured_models(settings)
+    if args.output and action in {"classify", "plot", "evaluate", "run"} and len(models) > 1:
+        raise ConfigError("a single custom output cannot represent multiple review models")
+    source = settings.section("study")["sources"][0]
+    candidates = settings.path("interim_dir") / source / "candidates.json"
+    protocol = _configured_review_protocol(settings).path
+    paths = _execution_paths(settings, source, models)
+    manifest = _manifest(settings, source, action)
+    manifest.write()
+    counts: dict[str, int] = {}
+    try:
+        if action in {"collect", "run"} and not (action == "run" and args.input):
+            if args.dry_run:
+                raise ConfigError("review collection needs network access; use classify --dry-run --input for an offline preview")
+            target = args.output if action == "collect" and args.output else candidates
+            limit = args.collect_limit or settings.section("collection").get("limit", 200)
+            rows = collect_study(settings.path(f"{source}_terms"), target, limit=limit,
+                source_config=settings.section(source))
+            counts["candidate_papers"] = len(rows)
+        if action == "screen":
+            if not args.input:
+                raise ConfigError("screen requires --input containing criterion assessments")
+            rows = screen_study(protocol, args.input, args.output or settings.path("interim_dir") / "screened.csv")
+            counts["screened_records"] = len(rows)
+        for model in models:
+            classification = args.output if action == "classify" and args.output else paths[model]["classifications"]
+            if action in {"classify", "run"}:
+                assessment = settings.section("assessment")
+                limit = None if args.classify_all else args.classify_limit or assessment.get("limit")
+                rows = classify_study(protocol, args.input or candidates, classification,
+                    _model_ollama_config(settings, model), limit=limit, resume=args.resume, dry_run=args.dry_run,
+                    fetch_full_text=bool(assessment.get("fetch_full_text", False)),
+                    max_chars=assessment.get("max_full_text_chars", 120000))
+                counts[f"classified_{slug(model)}"] = len(rows)
+                counts[f"errors_{slug(model)}"] = sum(r["decision"] == "error" for r in rows)
+            if action in {"plot", "evaluate", "run"}:
+                ratings = getattr(args, "ratings", None) or settings.section("evaluation").get("references")
+                enabled = settings.section("evaluation").get("enabled", False)
+                files = build_report(settings.path("taxonomy"),
+                    args.input if action in {"plot", "evaluate"} and args.input else classification,
+                    args.output if action in {"plot", "evaluate"} and args.output else paths[model]["plots"],
+                    settings.section("plots"),
+                    candidates_path=(getattr(args, "candidates", None) or
+                        (args.input if action == "run" and args.input else candidates if candidates.is_file() else None)),
+                    ratings_path=Path(ratings) if ratings and (enabled or action == "evaluate") else None,
+                    confidence_level=_evaluation_confidence_level(settings))
+                counts[f"report_files_{slug(model)}"] = len(files)
+    except Exception:
+        manifest.status = "failed"
+        manifest.write()
+        raise
+    manifest.counts = counts
+    manifest.status = "completed"
+    manifest.write()
+    return counts
+
+
+def _add_stage_arguments(parser: argparse.ArgumentParser, action: str) -> None:
+    """Declare stage options once for study and explicit-source commands."""
+    parser.set_defaults(action=action)
+    parser.add_argument("--input", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--resume", action=argparse.BooleanOptionalAction, default=False,
+        help="explicitly reuse compatible current-format stage results")
+    if action != "baseline":
+        parser.add_argument("--dry-run", action="store_true")
+    if action in {"collect", "run"}:
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument("--collect-limit", type=int, help="maximum records retained from discovery")
+        group.add_argument("--collect-all", action="store_true")
+    if action in {"collect", "classify", "run"}:
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument("--classify-limit", type=int, help="maximum candidates classified per model")
+        group.add_argument("--classify-all", action="store_true")
+    if action in {"baseline", "evaluate"}:
+        parser.add_argument("--ratings", type=Path, help="explicit reference profile for evaluation")
+    if action == "evaluate":
+        parser.add_argument("--candidates", type=Path)
+    if action == "baseline":
+        parser.add_argument("--methods", help="comma-separated keyword,nli,llm_nli methods")
+        parser.add_argument("--evaluate-only", action="store_true", help="rescore saved outputs without inference")
+        parser.add_argument("--check-only", action="store_true", help="check LLM NLI class-token scoring")
+        parser.add_argument("--fields", help="comma-separated LLM NLI pilot fields")
+        parser.add_argument("--limit", type=int, help="maximum candidates for an isolated LLM NLI pilot")
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct the command-line parser and all source-stage subcommands."""
     parser = argparse.ArgumentParser(prog="ids-meta", description="IDS meta-study discovery, classification, export, and plotting")
-    parser.add_argument("--config", type=Path, default=Path("config/default.toml"))
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--config", type=Path, help="study.toml manifest; references resolve relative to that file")
+    selection.add_argument("--study", help="study directory name under config/studies")
     parser.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), help="stdout logging verbosity; defaults to config logging.level")
     parser.add_argument("--subcaptions", action=argparse.BooleanOptionalAction, default=None, help="show or hide explanatory plot subcaptions; overrides plots.show_subcaptions")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("validate", help="validate the selected study configuration without API or model calls")
+    for action in STUDY_STAGES:
+        stage = subparsers.add_parser(action, help=f"{action} the selected study")
+        stage.add_argument("--source", help="select a configured source branch")
+        _add_stage_arguments(stage, action)
     for source in ("github", "openalex"):
         source_parser = subparsers.add_parser(source)
         actions = source_parser.add_subparsers(dest="action", required=True)
-        for action in ("collect", "prefilter", "classify", "baseline", "evaluate", "reconcile", "export", "plot", "run"):
-            action_parser = actions.add_parser(action)
-            if action in {"collect", "run"}:
-                collection_group = action_parser.add_mutually_exclusive_group()
-                collection_group.add_argument("--collect-limit", dest="collect_limit", type=int, help="maximum records collected from the source API")
-                collection_group.add_argument("--collect-all", action="store_true", help="collect without a record limit; query caps still reflect any numeric classification limit")
-            if action in {"collect", "classify", "run"}:
-                classification_group = action_parser.add_mutually_exclusive_group()
-                classification_group.add_argument("--classify-limit", dest="classify_limit", type=int, help="maximum top-ranked eligible candidates sent to the LLM")
-                classification_group.add_argument("--classify-all", action="store_true", help="classify every candidate and borderline row above the configured rejection threshold")
-            action_parser.add_argument("--resume", action=argparse.BooleanOptionalAction, default=True)
-            if action != "baseline":
-                action_parser.add_argument("--dry-run", action="store_true")
-            action_parser.add_argument("--input", type=Path)
-            action_parser.add_argument("--output", type=Path)
-            if action == "baseline":
-                action_parser.add_argument("--limit", type=int, help="LLM NLI pilot: first N candidates, isolated from full results")
-                action_parser.add_argument("--fields", help="LLM NLI pilot: comma-separated fields including role/paper_role")
-                action_parser.add_argument("--check-only", action="store_true", help="LLM NLI: test Ollama class-token scoring on synthetic pairs only")
-                action_parser.add_argument(
-                    "--methods", help="comma-separated methods: keyword,nli,llm_nli; defaults to configured enabled baselines",
-                )
-                action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")
-                action_parser.add_argument(
-                    "--evaluate-only", action="store_true",
-                    help="reuse existing baseline classification CSVs; never initialize a classifier or model",
-                )
-            if action == "evaluate":
-                action_parser.add_argument("--candidates", type=Path, help="candidate CSV used to distinguish not retrieved from not classified")
-                action_parser.add_argument("--ratings", type=Path, help="rating profile; overrides the source default for this evaluation")
+        for action in STUDY_STAGES:
+            if action != "screen":
+                _add_stage_arguments(actions.add_parser(action), action)
     architecture = subparsers.add_parser("architecture")
     architecture.add_argument("--output", type=Path, help="output directory; defaults to the repository root")
     architecture.add_argument("--formats", default="svg,pdf", help="comma-separated vector formats: svg,pdf")
@@ -944,7 +1046,7 @@ def build_parser() -> argparse.ArgumentParser:
     study_classify.add_argument("--protocol", required=True, type=Path)
     study_classify.add_argument("--input", required=True, type=Path, help="candidate JSON, optionally containing full text")
     study_classify.add_argument("--output", required=True, type=Path, help="classification CSV and assessment checkpoint")
-    study_classify.add_argument("--model", help="override the scalar configured Ollama model")
+    study_classify.add_argument("--model", help="select one model for this explicit classification call")
     study_classify.add_argument("--limit", type=int)
     study_classify.add_argument("--resume", action="store_true")
     study_classify.add_argument("--dry-run", action="store_true", help="write uncertain previews without HTTP or model calls")
@@ -974,16 +1076,47 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"--{name.replace('_', '-')} must be at least 1")
     try:
         configure_logging("INFO")
-        settings = (
-            Settings(Path.cwd(), {"plots": {"formats": ["svg", "pdf"]}})
-            if args.command in {"report", "verify", "audit-import", "report-compare", "study-screen"} and args.config == Path("config/default.toml") and not args.config.is_file()
-            else load_settings(args.config)
-        )
+        if args.study and (Path(args.study).name != args.study or args.study in {".", ".."}):
+            raise ConfigError("--study must be a study directory name; use --config for an explicit path")
+        config_path = args.config or (Path("config/studies") / args.study / "study.toml" if args.study else DEFAULT_STUDY)
+        standalone = {"report", "verify", "audit-import", "report-compare", "study-screen"}
+        settings = (Settings(Path.cwd(), {"plots": {"formats": ["svg", "pdf"]}})
+            if args.command in standalone and not args.config and not args.study else load_settings(config_path))
         if args.subcaptions is not None:
             settings.values.setdefault("plots", {})["show_subcaptions"] = args.subcaptions
         configure_logging(args.log_level or str(settings.section("logging").get("level", "INFO")))
         if args.command != 'verify':
-            LOG.info("loaded configuration %s", Path(args.config).resolve())
+            LOG.info("loaded configuration %s", config_path.resolve() if settings.section("study") else "standalone reporting")
+        if args.command == "validate":
+            if settings.section("study")["workflow"] == "systematic_review":
+                _configured_review_protocol(settings)
+            else:
+                for source in settings.section("study")["sources"]:
+                    load_term_profile(settings, source)
+                    load_prompt_profile(settings, source)
+                    load_keyword_taxonomy_profile(settings, source)
+                    load_nli_profile(settings, source)
+                    for _, profile_path in _configured_reference_sets(settings, source):
+                        load_rating_profile(profile_path, source)
+            _configured_models(settings)
+            print(json.dumps(settings.section("study"), indent=2))
+            return 0
+        if args.command in STUDY_STAGES:
+            args.action = args.command
+            sources = settings.section("study")["sources"]
+            source = args.source or (sources[0] if len(sources) == 1 else None)
+            if source is None:
+                raise ConfigError("this study has multiple source branches; select one with --source")
+            settings.require_source(source)
+            if settings.section("study")["workflow"] == "systematic_review":
+                counts = _execute_review(args, settings)
+                LOG.info("command summary %s", counts)
+                return 0
+            args.command = source
+        if args.command in {"github", "openalex", "funnel", "compare"}:
+            settings.require_source(args.command if args.command in {"github", "openalex"} else args.source)
+            if settings.section("study").get("workflow") == "systematic_review":
+                raise ConfigError("use study stage commands for systematic_review workflows")
         if args.command == "verify":
             from ids_meta.common.verification import verify_directory, verify_database
 

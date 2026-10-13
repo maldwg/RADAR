@@ -359,7 +359,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_system_types_are_selected_by_the_llm_not_derived(self) -> None:
         """Preserve model-selected IDS types even when another dimension differs."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         profile = load_system_type_profile(settings, "github")
         schema = response_schema(profile)
         self.assertEqual(schema["properties"]["system_types"]["items"]["enum"][-1], "unknown")
@@ -387,7 +387,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_configured_system_types_extend_the_llm_schema(self) -> None:
         """Add a configured LLM output type without changing Python enums."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         profile = load_system_type_profile(settings, "github")
         extended = {"types": {**profile["types"], "CLOUDIDS": {
             "name": "Cloud intrusion detection system", "description": "Fixture extension",
@@ -401,7 +401,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_general_ids_types_are_preserved_for_specific_observation_scopes(self) -> None:
         """Keep service-log and flow detectors general despite endpoint/network scopes."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         profile = load_system_type_profile(settings, "github")
         for scope, objects, capabilities, primary, types in (
             ("host_endpoint", ["log_analysis"], ["detection", "prevention"], "IPS", ["IPS", "IDS"]),
@@ -421,7 +421,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_security_monitoring_type_does_not_require_detection_or_alerting(self) -> None:
         """Preserve a monitoring-only SM annotation through the configured schema."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         profile = load_system_type_profile(settings, "github")
         for selected in (profile,):
             with self.subTest(configured=selected is not None):
@@ -509,7 +509,7 @@ class GitHubPipelineTests(unittest.TestCase):
                 }, "now")
                 decisions = classify(candidates, classified, cache, {"require_verified_quote": True},
                                      generator=model, enricher=Enricher(),
-                                     prompt_config=load_prompt_profile(load_settings(ROOT / "config/default.toml"), "github"),
+                                     prompt_config=load_prompt_profile(load_settings(ROOT / "config/studies/ids_repositories/study.toml"), "github"),
                                      consecutive_runs=5, consensus_threshold=.8, system_type_profile=SYSTEM_TYPE_PROFILE)
             self.assertEqual(model.calls, 10, decisions)
             self.assertEqual(decisions[0]["decision"], "accept")
@@ -521,7 +521,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_offline_pipeline_and_resume(self) -> None:
         """Verify the offline GitHub pipeline exports and resumes decisions."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         profile = load_term_profile(settings, "github")
         prompts = load_prompt_profile(settings, "github")
         system_types = load_system_type_profile(settings, "github")
@@ -592,7 +592,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_project_reconciliation_is_order_independent(self) -> None:
         """Verify canonical repository selection is independent of input order."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             def row(repo_id: str, name: str) -> dict[str, str]:
@@ -619,7 +619,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_verified_upstream_variant_joins_base_without_becoming_canonical(self) -> None:
         """Verify a cross-owner deployment variant resolves to its explicit upstream base."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source, output = root / "source.csv", root / "output.csv"
@@ -647,7 +647,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_canonical_selection_does_not_prefer_one_repository_role(self) -> None:
         """Let lineage evidence beat role labels when selecting a project family base."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source, output = root / "source.csv", root / "output.csv"
@@ -675,7 +675,7 @@ class GitHubPipelineTests(unittest.TestCase):
 
     def test_derivative_only_family_reports_missing_base(self) -> None:
         """Verify a lone packaging repository is not called canonical."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source, output = root / "source.csv", root / "output.csv"

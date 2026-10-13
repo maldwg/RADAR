@@ -55,9 +55,9 @@ class BaselineTests(unittest.TestCase):
                 "evaluation_dir": str(root / "evaluation"),
                 "github_cache": str(root / "github.sqlite3"),
                 "github_terms": str(terms),
-                "github_keyword": str(ROOT / "config/baselines/github_keyword.toml"),
-                "openalex_keyword": str(ROOT / "config/baselines/openalex_keyword.toml"),
-                "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
+                "github_keyword": str(ROOT / "config/studies/ids_repositories/baselines/keyword.toml"),
+                "openalex_keyword": str(ROOT / "config/studies/ids_datasets/baselines/keyword.toml"),
+                "github_system_types": str(ROOT / "config/studies/ids_repositories/taxonomy.toml"),
             },
             "logging": {"progress_every": 1},
             "evaluation": {

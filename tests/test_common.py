@@ -182,23 +182,24 @@ class CommonTests(unittest.TestCase):
 
     def test_profiles_contain_generic_query_types(self) -> None:
         """Verify both source profiles expose generic discovery queries."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
+        datasets = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         self.assertTrue(load_term_profile(settings, "github")["search_queries"])
-        self.assertTrue(load_term_profile(settings, "openalex")["direct_queries"])
+        self.assertTrue(load_term_profile(datasets, "openalex")["direct_queries"])
         self.assertTrue(load_prompt_profile(settings, "github")["template"])
-        self.assertTrue(load_prompt_profile(settings, "openalex")["template"])
+        self.assertTrue(load_prompt_profile(datasets, "openalex")["template"])
         self.assertIn("NIDS", load_system_type_profile(settings, "github")["types"])
         self.assertGreaterEqual(int(settings.section("github")["collection_limit"]), 1)
         self.assertEqual(settings.section("github")["classification_limit"], "all")
-        self.assertGreaterEqual(int(settings.section("openalex")["collection_limit"]), 1)
-        self.assertEqual(settings.section("openalex")["classification_limit"], "all")
+        self.assertGreaterEqual(int(datasets.section("openalex")["collection_limit"]), 1)
+        self.assertEqual(datasets.section("openalex")["classification_limit"], "all")
         self.assertEqual(settings.section("plots")["formats"], ["svg", "pdf"])
 
     def test_configured_prompts_describe_taxonomies_and_include_evidence(self) -> None:
         """Verify both source prompts render configurable taxonomy descriptions and supplied evidence."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         github_config = load_prompt_profile(settings, "github")
-        openalex_config = load_prompt_profile(settings, "openalex")
+        openalex_config = load_prompt_profile(load_settings(ROOT / "config/studies/ids_datasets/study.toml"), "openalex")
         github = github_prompt([EvidenceSection("README", "repository fixture evidence")], github_config, system_type_profile=SYSTEM_TYPE_PROFILE)
         openalex = openalex_prompt([EvidenceSection("Abstract", "paper fixture evidence")], openalex_config)
         self.assertIn("native_detector", github)
@@ -211,7 +212,7 @@ class CommonTests(unittest.TestCase):
         sections = [EvidenceSection("README", "fixture evidence")]
         with self.assertRaisesRegex(ValueError, "roles"):
             github_prompt(sections, None, system_type_profile=SYSTEM_TYPE_PROFILE)
-        incomplete = dict(load_prompt_profile(load_settings(ROOT / "config/default.toml"), "github"))
+        incomplete = dict(load_prompt_profile(load_settings(ROOT / "config/studies/ids_repositories/study.toml"), "github"))
         incomplete.pop("methods")
         with self.assertRaisesRegex(ValueError, "methods"):
             github_prompt(sections, incomplete, system_type_profile=SYSTEM_TYPE_PROFILE)

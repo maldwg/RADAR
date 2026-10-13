@@ -183,7 +183,7 @@ class EvaluationTests(unittest.TestCase):
 
     def test_ghml23_profile_preserves_upstream_ground_truth_and_crosswalk(self) -> None:
         """Keep the upstream snapshot and explicit project-taxonomy crosswalk auditable."""
-        path = ROOT / "config/evaluation/github_ghml23.toml"
+        path = ROOT / "config/studies/ids_repositories/evaluation/references.toml"
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
         profile = load_rating_profile(path, "github")
@@ -204,7 +204,7 @@ class EvaluationTests(unittest.TestCase):
             "role", "observation_scopes", "observation_objects", "capabilities", "detection_methods",
             "primary_system_type", "system_types", "centralization",
         ])
-        configured_types = set(system_type_codes(load_system_type_profile(load_settings(ROOT / "config/default.toml"), "github")))
+        configured_types = set(system_type_codes(load_system_type_profile(load_settings(ROOT / "config/studies/ids_repositories/study.toml"), "github")))
         for row in rows:
             self.assertIn(row["role"], AUDIT_ROLES)
             self.assertLessEqual(set(row["observation_scopes"]), set(SCOPES))
@@ -279,12 +279,13 @@ class EvaluationTests(unittest.TestCase):
 
     def test_ashraf_2026_profile_preserves_requested_table_2_dataset_types(self) -> None:
         """Keep the selected survey artifacts source-traceable and the taxonomy exact."""
-        path = ROOT / "config/evaluation/openalex_ashraf_2026.toml"
-        default_settings = load_settings(ROOT / "config/default.toml")
-        reference_sets = default_settings.section("evaluation")["reference_sets"]
+        path = ROOT / "config/studies/ids_datasets/evaluation/references.toml"
+        default_settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
+        dataset_settings = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
+        reference_sets = default_settings.section("evaluation")["reference_sets"] + dataset_settings.section("evaluation")["reference_sets"]
         configured = {item["name"]: item for item in reference_sets}
-        self.assertEqual(configured["ghml23"]["profile"], "config/evaluation/github_ghml23.toml")
-        self.assertEqual(configured["shield"]["profile"], "config/evaluation/openalex_ashraf_2026.toml")
+        self.assertEqual(configured["ghml23"]["profile"], str(ROOT / "config/studies/ids_repositories/evaluation/references.toml"))
+        self.assertEqual(configured["shield"]["profile"], str(path))
         self.assertEqual(default_settings.root / configured["shield"]["profile"], path)
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
@@ -728,9 +729,11 @@ class EvaluationTests(unittest.TestCase):
                 "plots_dir": str(root / "plots"), "runs_dir": str(root / "runs"),
                 "evaluation_dir": str(root / "evaluation"),
                 "github_cache": str(root / "github.sqlite3"), "openalex_cache": str(root / "openalex.sqlite3"),
-                "github_terms": str(ROOT / "config/terms/github.toml"), "openalex_terms": str(ROOT / "config/terms/openalex.toml"),
-                "github_prompts": str(ROOT / "config/prompts/github.toml"), "openalex_prompts": str(ROOT / "config/prompts/openalex.toml"),
-                "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
+                "github_terms": str(ROOT / "config/studies/ids_repositories/search/github.toml"), "openalex_terms": str(ROOT / "config/studies/ids_datasets/search/openalex.toml"),
+                "github_prompts": str(ROOT / "config/studies/ids_repositories/prompts/classification.toml"),
+                "github_taxonomy": str(ROOT / "config/studies/ids_repositories/taxonomy.toml"),
+                "openalex_taxonomy": str(ROOT / "config/studies/ids_datasets/taxonomy.toml"), "openalex_prompts": str(ROOT / "config/studies/ids_datasets/prompts/classification.toml"),
+                "github_system_types": str(ROOT / "config/studies/ids_repositories/taxonomy.toml"),
             },
             "logging": {"progress_every": 25},
             "ollama": {"models": ["fixture-model"], "temperature": 0.0, "seed": 42},

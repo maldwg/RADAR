@@ -321,7 +321,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     "abstract_source": "Publisher lookup",
                 }
 
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         profile = load_term_profile(settings, "openalex")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -396,7 +396,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
                 decisions = classify(
                     candidates, classified, cache, {"require_verified_quote": True},
                     generator=FakePaperModel(), enricher=Enricher(), openalex_config={"enrich_missing_abstracts": True},
-                    prompt_config=load_prompt_profile(load_settings(ROOT / "config/default.toml"), "openalex"),
+                    prompt_config=load_prompt_profile(load_settings(ROOT / "config/studies/ids_datasets/study.toml"), "openalex"),
                 )
                 cached_work = cache.get_record("openalex.work", "W-missing")["work"]
             with candidates.open(newline="", encoding="utf-8") as handle:
@@ -451,7 +451,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
                 decisions = classify(candidates, classified, cache, {"require_verified_quote": True},
                                      generator=model, enricher=Enricher(),
                                      openalex_config={"enrich_uncertain_with_full_text": True},
-                                     prompt_config=load_prompt_profile(load_settings(ROOT / "config/default.toml"), "openalex"),
+                                     prompt_config=load_prompt_profile(load_settings(ROOT / "config/studies/ids_datasets/study.toml"), "openalex"),
                                      consecutive_runs=5, consensus_threshold=.66)
             self.assertEqual(model.calls, 8, decisions)
             self.assertEqual(decisions[0]["decision"], "accept")
@@ -489,7 +489,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
             })
             atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
             model = RecoveringModel()
-            prompts = load_prompt_profile(load_settings(ROOT / "config/default.toml"), "openalex")
+            prompts = load_prompt_profile(load_settings(ROOT / "config/studies/ids_datasets/study.toml"), "openalex")
             with PipelineCache(root / "cache.sqlite3") as cache:
                 cache.put_record("openalex.work", "W-retry", {
                     "work": {
@@ -547,7 +547,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
 
     def test_work_level_classification_and_export(self) -> None:
         """Verify work-level adjudication excludes downstream applications."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         profile = load_term_profile(settings, "openalex")
         prompts = load_prompt_profile(settings, "openalex")
         with tempfile.TemporaryDirectory() as directory:
@@ -624,7 +624,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
 
     def test_paper_reconciliation_is_order_independent(self) -> None:
         """Verify base-paper selection is independent of input row order."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             def row(work_id: str, title: str, year: str, role: str) -> dict[str, str]:
@@ -671,7 +671,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     "reason": "The verified evidence identifies this work as the resource release.",
                 }
 
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             rows = []
@@ -703,7 +703,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
 
     def test_raw_citations_are_a_configurable_capped_canonical_signal(self) -> None:
         """Let citations resolve close candidates without age normalization or overriding release evidence."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             rows = []
@@ -731,7 +731,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
 
     def test_published_record_wins_over_duplicate_preprint_manifestation(self) -> None:
         """Verify a published record is canonical over its duplicate preprint."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             rows = []

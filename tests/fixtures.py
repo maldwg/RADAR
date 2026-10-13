@@ -6,7 +6,7 @@ from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.common.run import utc_now
 
 ROOT = Path(__file__).resolve().parents[1]
-with (ROOT / 'config/taxonomy/github_system_types.toml').open('rb') as handle:
+with (ROOT / 'config/studies/ids_repositories/taxonomy.toml').open('rb') as handle:
     SYSTEM_TYPE_PROFILE = tomllib.load(handle)
 
 

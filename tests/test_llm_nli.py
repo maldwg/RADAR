@@ -243,7 +243,7 @@ class LLMNLITests(unittest.TestCase):
             values = copy.deepcopy(load_settings().values)
             for key in ('interim_dir', 'processed_dir', 'plots_dir', 'runs_dir', 'evaluation_dir'):
                 values['paths'][key] = str(root / key)
-            values['paths']['llm_nli_prompt'] = str(ROOT / 'config/prompts/llm_nli.toml')
+            values['paths']['llm_nli_prompt'] = str(ROOT / 'config/studies/ids_repositories/baselines/llm_nli.toml')
             values['baselines']['llm_nli']['models'] = ['fixture:1']
             settings = Settings(ROOT, values)
             args = build_parser().parse_args(['github', 'baseline', '--methods', 'llm_nli', '--check-only'])
@@ -264,7 +264,8 @@ class LLMNLITests(unittest.TestCase):
             root = Path(directory)
             for source, identity, field in [('github', 'github_repo_id', 'role'), ('openalex', 'openalex_id', 'paper_role')]:
                 with self.subTest(source=source):
-                    values = copy.deepcopy(load_settings().values)
+                    study = 'ids_repositories' if source == 'github' else 'ids_datasets'
+                    values = copy.deepcopy(load_settings(ROOT / f'config/studies/{study}/study.toml').values)
                     for key in ('raw_dir', 'interim_dir', 'processed_dir', 'plots_dir', 'runs_dir', 'evaluation_dir'):
                         values['paths'][key] = str(root / source / key)
                     values['baselines']['llm_nli']['models'] = ['fixture:1']
@@ -318,7 +319,8 @@ class LLMNLITests(unittest.TestCase):
         for source, role in [('github', 'role'), ('openalex', 'paper_role')]:
             for options in [['--check-only'], ['--fields', role, '--limit', '1']]:
                 with self.subTest(source=source, options=options), patch('ids_meta.cli._execute_baselines', return_value={}), patch('ids_meta.funnel.build', side_effect=AssertionError('Full funnel accessed')):
-                    self.assertEqual(main([source, 'baseline', '--methods', 'llm_nli', *options]), 0)
+                    study = 'ids_repositories' if source == 'github' else 'ids_datasets'
+                    self.assertEqual(main(['--study', study, 'baseline', '--methods', 'llm_nli', *options]), 0)
 
 
 if __name__ == '__main__':
