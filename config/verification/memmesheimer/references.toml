@@ -1,0 +1,155 @@
+schema_version = "1.0"
+source = "memmesheimer_conformal_v1"
+evaluation_unit = "source_record"
+benchmark_name = "Memmesheimer et al. arXiv v1: eleven included papers"
+classification_fields = ["sutva", "strong_ignorability", "overlap"]
+source_title = "A Systematic Review of Conformal Inference Procedures for Treatment Effect Estimation: Methods and Challenges"
+source_doi = "10.48550/arXiv.2509.21660"
+source_url = "https://arxiv.org/html/2509.21660v1"
+source_table = "Table 2; Table 3; References"
+source_license = "CC BY-SA 4.0"
+source_authors = ["Pascal Memmesheimer", "Vincent Heuveline", "Jürgen Hesser"]
+source_license_url = "https://creativecommons.org/licenses/by-sa/4.0/"
+crosswalk_version = "memmesheimer-v1-table3-assumptions-v1"
+
+# Adapted from Tables 2 and 3 by this project: matching titles are normalized and
+# assumption symbols become explicit labels. This adapted reference profile is
+# distributed under CC BY-SA 4.0; source credit and license links appear above.
+# Positive-only recovery benchmark. No excluded candidate list was available.
+# Assumption checkmarks map to required; crosses map to not_required, not false.
+# survey_year preserves Table 2 and is not a bibliographic date correction.
+# Jonkers' match title follows the full reference title rather than Table 2's ITEs
+# abbreviation. Ambiguous title matches fail; review manifestations before import.
+
+[[entities]]
+title = "Conformal Inference of Counterfactuals and Individual Treatment Effects"
+name = "Lei and Candès (2021)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 1
+survey_year = 2021
+survey_reference_url = "https://arxiv.org/abs/2006.06138"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 1"
+
+[[entities]]
+title = "Sensitivity Analysis of Individual Treatment Effects: A Robust Conformal Inference Approach"
+name = "Jin et al. (2022)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "not_required"
+overlap = "required"
+survey_row = 2
+survey_year = 2023
+survey_reference_url = "https://arxiv.org/abs/2111.12161"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 2"
+
+[[entities]]
+title = "Conformal Off-Policy Prediction"
+name = "Zhang et al. (2023)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 3
+survey_year = 2023
+survey_reference_url = "https://proceedings.mlr.press/v206/zhang23c.html"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 3"
+
+[[entities]]
+title = "Conformal meta-learners for predictive inference of individual treatment effects"
+name = "Alaa et al. (2024)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 4
+survey_year = 2024
+survey_reference_url = "https://proceedings.neurips.cc/paper_files/paper/2023/hash/94ab02a30b0e4a692a42ccd0b4c55399-Abstract-Conference.html"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 4"
+
+[[entities]]
+title = "Conformal Diffusion Models for Individual Treatment Effect Estimation and Inference"
+name = "Cai et al. (2024)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 5
+survey_year = 2024
+survey_reference_url = "https://arxiv.org/abs/2408.01582"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 5"
+
+[[entities]]
+title = "Conformal Counterfactual Inference under Hidden Confounding"
+name = "Chen et al. (2024)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "not_required"
+overlap = "required"
+survey_row = 6
+survey_year = 2024
+survey_reference_url = "https://doi.org/10.1145/3637528.3671976"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 6"
+
+[[entities]]
+title = "Conformal Convolution and Monte Carlo Meta-learners for Predictive Inference of Individual Treatment Effects"
+name = "Jonkers et al. (2024)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 7
+survey_year = 2024
+survey_reference_url = "https://arxiv.org/abs/2402.04906"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 7"
+
+[[entities]]
+title = "Conformal Prediction for Causal Effects of Continuous Treatments"
+name = "Schröder et al. (2024)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 8
+survey_year = 2024
+survey_reference_url = "https://arxiv.org/abs/2407.03094"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 8"
+
+[[entities]]
+title = "Conformal Prediction for Dose-Response Models with Continuous Treatments"
+name = "Verhaeghe et al. (2024)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 9
+survey_year = 2024
+survey_reference_url = "https://arxiv.org/abs/2409.20412"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 9"
+
+[[entities]]
+title = "On the Role of Surrogates in Conformal Inference of Individual Causal Effects"
+name = "Gao et al. (2025)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 10
+survey_year = 2025
+survey_reference_url = "https://arxiv.org/abs/2412.12365"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 10"
+
+[[entities]]
+title = "Conformal Inference of Individual Treatment Effects Using Conditional Density Estimates"
+name = "Wang and Qiao (2025)"
+decision = "accept"
+sutva = "required"
+strong_ignorability = "required"
+overlap = "required"
+survey_row = 11
+survey_year = 2025
+survey_reference_url = "https://arxiv.org/abs/2501.14933"
+survey_evidence_locator = "arXiv v1, Tables 2 and 3, row 11"
+

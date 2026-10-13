@@ -195,7 +195,9 @@ class BaselineTests(unittest.TestCase):
             profile_path = Path(settings.section("evaluation")["reference_sets"][0]["profile"])
             profile = load_rating_profile(profile_path, "github")
             result = evaluate_results(profile, classifications, root / "evaluation")
-            self.assertEqual(result.metrics["operational"]["ACC"], 1.0)
+            self.assertEqual(result.metrics["decision_accuracy"], 1.0)
+            self.assertEqual(result.metrics["operational"]["DR"], 1.0)
+            self.assertIsNone(result.metrics["operational"]["ACC"])  # This fixture contains only positives.
             self.assertEqual(result.metrics["classification_field_accuracy"], 1.0)
             self.assertEqual(result.metrics["classification_field_comparisons"], 2)
             self.assertTrue(all(row["supported"] == "true" for row in result.field_metrics))

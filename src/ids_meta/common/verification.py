@@ -75,6 +75,14 @@ def check_evaluation(metrics: dict[str, Any], instances: list[dict[str, str]], f
     statuses = Counter(row['status'] for row in instances)
     total = len(instances)
     positive = [r for r in instances if r['expected_disposition'] == 'include']
+    unavailable = set()
+    if metrics.get('benchmark_scope') == 'positive_reference_set':
+        if not positive or any(r['expected_disposition'] == 'exclude' for r in instances):
+            errors.append('positive reference scope disagrees with the instance audit')
+        unavailable = {'false_positive_rate', 'false_discovery_rate', 'specificity', 'negative_predictive_value',
+            'balanced_accuracy', 'accuracy', 'precision', 'f1'}
+        if set(metrics.get('not_estimable_metrics', [])) != unavailable:
+            errors.append('positive reference set has incorrect non-estimable metric declarations')
     present = sum(r['classification_present'] == 'true' for r in instances)
     positive_present = sum(r['classification_present'] == 'true' for r in positive)
     artifact = metrics.get('evaluation_unit') == 'artifact'
@@ -131,6 +139,9 @@ def check_evaluation(metrics: dict[str, Any], instances: list[dict[str, str]], f
             errors.append('classification_field_macro_f1: incorrect field aggregation')
     for view, result in counts.items():
         saved = metrics.get(view, {})
+        for key in unavailable | ({'FPR', 'FDR', 'ACC', 'PREC'} if unavailable else set()):
+            if key not in saved or saved[key] is not None:
+                errors.append(f'{view}.{key}: positive-only reference metric must be N/A')
         for key, value in result.items():
             if saved.get(key) != value:
                 errors.append(f"{view}.{key}: stored={saved.get(key)}, recomputed={value}")
@@ -175,6 +186,8 @@ def check_evaluation(metrics: dict[str, Any], instances: list[dict[str, str]], f
         'definitive_coverage': (statuses['classified'], total), 'abstention_rate': (abstention, total)}
     for key, saved in metrics.get('confidence_intervals', {}).items():
         successes, size = intervals[key]
+        if key in unavailable and saved is not None:
+            errors.append(f'confidence_intervals.{key}: positive-only reference interval must be N/A')
         if saved is None:
             if size and key not in metrics.get('not_estimable_metrics', []):
                 errors.append(f'confidence_intervals.{key}: missing estimable interval')

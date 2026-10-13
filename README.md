@@ -4,6 +4,8 @@ This repository contains two reproducible research pipelines. GitHub discovery b
 
 Reporting also accepts other providers' CSV/JSON exports through versioned source profiles. Figures include frozen-input manifests, evaluations populate a separate reporting database, and `ids-meta verify` checks figure/data agreement. See [portable reporting and verification](docs/reporting.md) for examples, offline backfill and comparison commands.
 
+The [Memmesheimer cross-field verification adapter](docs/cross_field_verification.md) discovers papers with `ids-meta study-collect`, assesses full-text evidence with `ids-meta study-classify`, and replays supplied assessments with `ids-meta study-screen`. It provides an eleven-paper reference profile for conformal treatment-effect research. Its positive-only benchmark measures recovery and assumption extraction; it does not estimate false-positive performance.
+
 Both pipelines use the same stages:
 
 ```text

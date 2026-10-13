@@ -1,0 +1,23 @@
+schema_version = "1.0"
+
+[provider]
+name = "memmesheimer_conformal_v1"
+display_name = "Memmesheimer conformal-treatment review (arXiv v1)"
+entity_kind = "paper"
+identity = "paper_id"
+label = "title"
+capabilities = ["publication_dates", "evidence"]
+
+[selectors]
+id = "paper_id"
+title = "title"
+
+[taxonomy]
+version = "memmesheimer-v1-table3-assumptions-v1"
+fields = ["sutva", "strong_ignorability", "overlap"]
+multilabel = []
+
+[taxonomy.labels]
+sutva = "SUTVA assumption"
+strong_ignorability = "Strong ignorability assumption"
+overlap = "Overlap assumption"

@@ -1,0 +1,20 @@
+schema_version = "1.0"
+protocol_id = "memmesheimer-openalex-replication-v1"
+provider = "openalex"
+search_parameter = "search.title_and_abstract.exact"
+source_url = "https://arxiv.org/html/2509.21660v1#S3.SS1"
+from_publication_date = "2015-01-01"
+to_publication_date = "2025-09-25"
+window_basis = "Adapter choice: 2015 start and preprint submission cutoff; original exact search date is unavailable."
+named_entity_seeding = false
+per_query_limit = 200
+
+# PICOC-like reconstruction and a separately recorded recall-oriented search.
+# These are OpenAlex adaptations, not the authors' original database searches.
+[[queries]]
+name = "picoc"
+search = '(individual OR patient OR subject) AND (treatment OR ITE OR CATE OR counterfactual) AND conformal AND (learner OR "machine learning" OR model) AND (interval OR quantification OR validity OR robustness OR counterfactual OR outcome) AND (observation OR trial OR heterogeneous OR randomized OR empirical)'
+
+[[queries]]
+name = "core_concepts"
+search = 'conformal AND ("treatment effect" OR counterfactual OR "causal effect" OR "off-policy" OR "dose-response")'

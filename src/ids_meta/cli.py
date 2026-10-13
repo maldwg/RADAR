@@ -1072,6 +1072,25 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("--ratings", type=Path)
     report.add_argument("--output", required=True, type=Path)
     report.add_argument("--database", type=Path)
+    screening = subparsers.add_parser("study-screen", help="replay an external study's evidence-backed eligibility and quality rules")
+    screening.add_argument("--protocol", required=True, type=Path)
+    screening.add_argument("--input", required=True, type=Path, help="JSON records with criterion assessments and full text")
+    screening.add_argument("--output", required=True, type=Path, help="classification CSV for report/evaluation")
+    study_collect = subparsers.add_parser("study-collect", help="discover papers for an external review with OpenAlex")
+    study_collect.add_argument("--search-profile", required=True, type=Path)
+    study_collect.add_argument("--output", required=True, type=Path, help="candidate JSON and collection audit")
+    study_collect.add_argument("--limit", type=int, default=200)
+    study_collect.add_argument("--per-query-limit", type=int)
+    study_classify = subparsers.add_parser("study-classify", help="assess external-review candidates with Ollama")
+    study_classify.add_argument("--protocol", required=True, type=Path)
+    study_classify.add_argument("--input", required=True, type=Path, help="candidate JSON, optionally containing full text")
+    study_classify.add_argument("--output", required=True, type=Path, help="classification CSV and assessment checkpoint")
+    study_classify.add_argument("--model", help="override the scalar configured Ollama model")
+    study_classify.add_argument("--limit", type=int)
+    study_classify.add_argument("--resume", action="store_true")
+    study_classify.add_argument("--dry-run", action="store_true", help="write uncertain previews without HTTP or model calls")
+    study_classify.add_argument("--fetch-full-text", action="store_true", help="download open PDFs declared by candidate metadata")
+    study_classify.add_argument("--max-full-text-chars", type=int, default=120000)
     verify = subparsers.add_parser("verify", help="independently check figure bundles or reporting databases")
     target = verify.add_mutually_exclusive_group(required=True)
     target.add_argument("--input", type=Path)
@@ -1098,7 +1117,7 @@ def main(argv: list[str] | None = None) -> int:
         configure_logging("INFO")
         settings = (
             Settings(Path.cwd(), {"plots": {"formats": ["svg", "pdf"]}})
-            if args.command in {"report", "verify", "audit-import", "report-compare"} and args.config == Path("config/default.toml") and not args.config.is_file()
+            if args.command in {"report", "verify", "audit-import", "report-compare", "study-screen"} and args.config == Path("config/default.toml") and not args.config.is_file()
             else load_settings(args.config)
         )
         if args.subcaptions is not None:
@@ -1112,6 +1131,26 @@ def main(argv: list[str] | None = None) -> int:
             result = verify_database(args.database) if args.database else verify_directory(args.input)
             print(json.dumps(result, sort_keys=True, indent=2))
             return 0 if result["ok"] else 2
+        elif args.command == "study-screen":
+            from ids_meta.common.study_screening import screen_study
+
+            rows = screen_study(args.protocol, args.input, args.output)
+            counts = {"screened_records": len(rows)}
+        elif args.command == "study-collect":
+            from ids_meta.common.study_pipeline import collect_study
+
+            rows = collect_study(args.search_profile, args.output, limit=args.limit, per_query_limit=args.per_query_limit)
+            counts = {"candidate_papers": len(rows)}
+        elif args.command == "study-classify":
+            from ids_meta.common.study_pipeline import classify_study
+
+            config = dict(settings.section("ollama"))
+            if args.model:
+                config["model"] = args.model
+            rows = classify_study(args.protocol, args.input, args.output, config,
+                limit=args.limit, resume=args.resume, dry_run=args.dry_run,
+                fetch_full_text=args.fetch_full_text, max_chars=args.max_full_text_chars)
+            counts = {"classified_papers": len(rows), "assessment_errors": sum(r["decision"] == "error" for r in rows)}
         elif args.command == "report":
             from ids_meta.plotting.generic import build_report
 

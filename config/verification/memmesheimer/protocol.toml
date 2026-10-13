@@ -1,0 +1,47 @@
+schema_version = "1.0"
+protocol_id = "memmesheimer-arxiv-2509.21660v1-screening-v1"
+source_profile = "source.toml"
+source_title = "A Systematic Review of Conformal Inference Procedures for Treatment Effect Estimation: Methods and Challenges"
+source_url = "https://arxiv.org/html/2509.21660v1"
+source_version = "arXiv:2509.21660v1"
+source_locator = "Section 3.3"
+source_authors = ["Pascal Memmesheimer", "Vincent Heuveline", "Jürgen Hesser"]
+source_license = "CC BY-SA 4.0"
+source_license_url = "https://creativecommons.org/licenses/by-sa/4.0/"
+requested_published_doi = "10.1109/ACCESS.2026.3683260"
+quality_minimum = 5
+
+# yes means that the criterion is SATISFIED, including negatively phrased rules.
+# These descriptions paraphrase the review. The adapter only replays supplied
+# assessments; it does not collect papers or assess their content itself.
+# This adapted protocol profile is distributed under CC BY-SA 4.0.
+[filters]
+F1 = "The paper uses conformal inference."
+F2 = "The paper addresses treatment effect estimation."
+F3 = "The paper is an original study rather than a review."
+F4 = "The contribution goes beyond applying an existing method."
+F5 = "The method outputs prediction regions."
+
+[quality]
+Q1 = "The research purpose is clearly described."
+Q2 = "The research context is adequately described."
+Q3 = "Related work is reviewed."
+Q4 = "The conformal prediction method is described."
+Q5 = "Conclusions address the research purpose."
+Q6 = "The practical value is clearly described."
+Q7 = "The proposed method contains a novel contribution."
+Q8 = "Directions for subsequent research are provided."
+Q9 = "Limitations of the proposed method are described."
+
+# Labels describe requirements of the method, not truth in an experimental dataset.
+[assessment_fields.sutva]
+description = "Does the proposed method require the stable unit treatment value assumption (SUTVA), including consistency and no interference?"
+values = ["required", "not_required", "unknown"]
+
+[assessment_fields.strong_ignorability]
+description = "Does the proposed method require strong ignorability / no unmeasured confounding? A method allowing hidden confounding can explicitly not require it."
+values = ["required", "not_required", "unknown"]
+
+[assessment_fields.overlap]
+description = "Does the proposed method require overlap / positivity of treatment assignment?"
+values = ["required", "not_required", "unknown"]

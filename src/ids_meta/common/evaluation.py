@@ -582,7 +582,7 @@ def evaluate_results(
     reference_dispositions = Counter(
         decision_disposition(entity.get("decision")) for entity in profile.entities.values()
     )
-    positive_only = profile.evaluation_unit == "artifact" and not reference_dispositions["exclude"]
+    positive_only = bool(reference_dispositions["include"]) and not reference_dispositions["exclude"]
     taxonomy_field_metrics = {
         str(row["field"]): {
             "supported": str(row["supported"]).casefold() == "true",
@@ -612,7 +612,7 @@ def evaluate_results(
         ),
         "reference_disposition_counts": dict(sorted(reference_dispositions.items())),
         "not_estimable_metrics": [
-            "false_positive_rate", "false_discovery_rate", "specificity",
+            "false_positive_rate", "false_discovery_rate", "specificity", "negative_predictive_value",
             "balanced_accuracy", "accuracy", "precision", "f1",
         ]
         if positive_only else [],
@@ -684,7 +684,7 @@ def evaluate_results(
     }
     if positive_only:
         unavailable_keys = {
-            "false_positive_rate", "false_discovery_rate", "specificity",
+            "false_positive_rate", "false_discovery_rate", "specificity", "negative_predictive_value",
             "balanced_accuracy", "accuracy", "precision", "f1",
             "FPR", "FDR", "ACC", "PREC",
         }
@@ -753,14 +753,19 @@ def evaluate_results(
             "- **Selective:** only definitive artifact decisions; read with coverage and abstention.\n"
         )
     else:
+        def format_metric(key: str) -> str:
+            value = operational_metrics[key]
+            return "N/A" if value is None else f"{value:.4f}"
+
         body = (
             f"- Operational DR: {operational_metrics['detection_rate']:.4f}\n"
-            f"- Operational FPR: {operational_metrics['false_positive_rate']:.4f}\n"
-            f"- Operational FDR: {operational_metrics['false_discovery_rate']:.4f}\n"
-            f"- Operational accuracy: {operational_metrics['accuracy']:.4f}\n"
-            f"- Operational precision: {operational_metrics['precision']:.4f}\n"
+            f"- Operational FPR: {format_metric('false_positive_rate')}\n"
+            f"- Operational FDR: {format_metric('false_discovery_rate')}\n"
+            f"- Operational accuracy: {format_metric('accuracy')}\n"
+            f"- Operational precision: {format_metric('precision')}\n"
             + field_summary
             + f"- Abstention rate: {metrics['abstention_rate']:.4f}\n\n"
+            + ("This is a positive-only reference set; recovery is measurable, but FPR, FDR, specificity, accuracy, precision, decision-F1 and balanced accuracy are not estimable.\n\n" if positive_only else "")
             + "## Interpreting the three views\n\n"
             "- **Operational:** asks what the complete pipeline delivers. Every non-inclusion predicts negative.\n"
             "- **Strict:** asks how performance looks when every unresolved boundary result is wrong.\n"
