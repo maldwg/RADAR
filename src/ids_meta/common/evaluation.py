@@ -260,6 +260,8 @@ def _index_rows(path: Path, identity: str) -> dict[str, dict[str, str]]:
 def _classifier_contract(rows: dict[str, dict[str, str]]) -> tuple[dict[str, str], set[str] | None]:
     """Read one classifier identity and its declared output fields from a result file."""
     metadata: dict[str, str] = {}
+    if not rows:
+        return {key: "" for key in ("classifier_method", "classifier_id", "classifier_profile_hash")}, set()
     for column in ("classifier_method", "classifier_id", "classifier_profile_hash"):
         values = {str(row.get(column, "")).strip() for row in rows.values() if str(row.get(column, "")).strip()}
         if len(values) > 1:
@@ -271,7 +273,9 @@ def _classifier_contract(rows: dict[str, dict[str, str]]) -> tuple[dict[str, str
     }
     if len(declarations) > 1:
         raise ValueError("evaluation input mixes incompatible classifier_supported_fields declarations")
-    if not declarations or "*" in declarations:
+    if not declarations or any(not row.get("classifier_supported_fields", "").strip() for row in rows.values()):
+        raise ValueError("classifications require an explicit classifier_supported_fields declaration")
+    if "*" in declarations:
         return metadata, None
     return metadata, _values(next(iter(declarations)))
 
@@ -379,6 +383,9 @@ def evaluate_results(
     if candidates_path and candidates_path.is_file():
         fingerprints["candidates"] = file_hash(candidates_path)
     actual = _index_rows(classifications_path, identity)
+    with classifications_path.open(encoding="utf-8", newline="") as handle:
+        if "classifier_supported_fields" not in (csv.DictReader(handle).fieldnames or []):
+            raise ValueError("classifications require the current classifier_supported_fields column")
     classifier_metadata, supported_fields = _classifier_contract(actual)
     candidate_rows = _index_rows(candidates_path, identity) if candidates_path and candidates_path.is_file() else {}
     candidates_supplied = bool(candidates_path and candidates_path.is_file())
@@ -654,6 +661,7 @@ def evaluate_results(
         "status_counts": dict(sorted(status_counts.items())),
         "confidence_level": confidence_level,
         "confidence_intervals": {
+            "field_accuracy": _wilson_interval(total_field_exact, total_field_comparisons, confidence_level),
             "detection_rate": _wilson_interval(
                 operational["tp"], operational["tp"] + operational["fn"], confidence_level,
             ),
@@ -754,6 +762,7 @@ def evaluate_results(
         )
     else:
         def format_metric(key: str) -> str:
+            """Format an available score or its N/A marker."""
             value = operational_metrics[key]
             return "N/A" if value is None else f"{value:.4f}"
 

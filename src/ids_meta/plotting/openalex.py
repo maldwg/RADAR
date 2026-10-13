@@ -81,12 +81,14 @@ def discovery_provenance(value: object) -> str:
 
 
 def citing_survey_count(value: object) -> int:
-    """Count distinct surveys citing a work, with a one-source fallback for legacy provenance."""
+    """Count distinct surveys citing a work, from explicit survey identifiers."""
     relations = {item.strip() for item in str(value or "").split(";") if item.strip()}
     survey_ids = {item.split(":", 1)[1] for item in relations if item.startswith("survey_reference:") and item.split(":", 1)[1]}
     if survey_ids:
         return len(survey_ids)
-    return int("survey_reference" in relations)
+    if "survey_reference" in relations:
+        raise ValueError("survey discovery provenance requires explicit citing survey IDs")
+    return 0
 
 
 def concise_text(value: object, limit: int = 64) -> str:
@@ -96,24 +98,10 @@ def concise_text(value: object, limit: int = 64) -> str:
 
 
 def resource_display_name(row: pd.Series) -> str:
-    """Choose the LLM display name, a compact alias, or a conservative legacy fallback."""
-    display = " ".join(str(row.get("resource_name", "") or row.get("artifact_display_name", "") or "").split())
-    if display:
-        return concise_text(display, 54)
-    name = " ".join(str(row.get("artifact_name", "") or "").split())
-    aliases = [" ".join(value.split()) for value in str(row.get("artifact_aliases", "") or "").split(";") if value.strip()]
-    compact_names = [value for value in [name, *aliases] if value and len(value) <= 54]
-    if compact_names:
-        return min(compact_names, key=lambda value: (len(value), value.casefold()))
-    parenthetical = re.findall(r"\(([^()]{2,20})\)", name)
-    if parenthetical:
-        return parenthetical[-1]
-    if name and len(name) <= 54:
-        return name
-    artifact_type = artifact_label(row.get("artifact_type", "unknown"))
-    year = str(row.get("publication_year", "") or "unknown year")
-    work_id = str(row.get("openalex_id", "")).rsplit("/", 1)[-1]
-    return f"Unnamed {artifact_type} · {year} · {work_id}"
+    """Use the current exported resource name as the plot label."""
+    if "resource_name" not in row or not str(row["resource_name"]).strip():
+        raise ValueError("paper plotting requires an explicit resource_name")
+    return concise_text(row["resource_name"], 54)
 
 
 def add_unique_resource_names(frame: pd.DataFrame) -> pd.DataFrame:

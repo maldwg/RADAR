@@ -274,29 +274,6 @@ def _wilson(successes: int, total: int, confidence_level: float) -> list[float] 
     return [max(0.0, center - radius), min(1.0, center + radius)]
 
 
-def _fallback_interval(metrics: dict[str, object], stem: str, value: float | None) -> list[float] | None:
-    """Derive a binomial interval from counts when a report lacks the requested interval."""
-    confidence_level = float(metrics.get("confidence_level", .95))
-    operational = metrics.get("operational", {})
-    if isinstance(operational, dict):
-        tp, fp = int(operational.get("tp", 0)), int(operational.get("fp", 0))
-        tn, fn = int(operational.get("tn", 0)), int(operational.get("fn", 0))
-        pairs = {
-            "detection_rate": (tp, tp + fn), "false_positive_rate": (fp, fp + tn),
-            "false_discovery_rate": (fp, tp + fp),
-            "accuracy": (tp + tn, tp + fp + tn + fn), "precision": (tp, tp + fp),
-        }
-        if stem in pairs:
-            return _wilson(*pairs[stem], confidence_level)
-    denominator = (
-        int(metrics.get("classification_field_comparisons", 0))
-        if stem == "field_accuracy" else int(metrics.get("rated_entities", 0))
-    )
-    if stem in {"definitive_coverage", "abstention_rate", "field_accuracy"} and value is not None:
-        return _wilson(round(value * denominator), denominator, confidence_level)
-    return None
-
-
 def _display_label(label: str, maximum: int = 34) -> str:
     """Keep long model identifiers readable on an axis while retaining them in CSV data."""
     if label.casefold().startswith("nli") and "deberta" in label.casefold():
@@ -495,18 +472,21 @@ def build_classifiers(
         evaluation_units.add(str(metrics.get("evaluation_unit", "")))
     if len(loaded) < 2:
         raise ValueError("classifier comparison requires at least two readable metrics.json files")
-    if len(rating_paths) != 1 or len(evaluation_units) != 1:
-        # Content identity allows copies of the same reference profile.
-        if len({m.get("reference_fingerprint") for m in loaded.values()}) != 1 or not all(m.get("reference_fingerprint") for m in loaded.values()) or len(evaluation_units) != 1:
-            raise ValueError("classifier metrics must use the same rating profile and evaluation unit")
+    if len(evaluation_units) != 1:
+        raise ValueError("classifier metrics must use the same evaluation unit")
     for key in ("reference_fingerprint", "taxonomy_fingerprint", "cohort_fingerprint"):
-        values = {m.get(key) for m in loaded.values()}
-        if len(values) > 1:
+        if any(key not in metrics for metrics in loaded.values()):
+            raise ValueError(f"classifier comparison requires {key}")
+        if key != "cohort_fingerprint" and any(not metrics[key] for metrics in loaded.values()):
+            raise ValueError(f"classifier comparison requires {key}")
+        if len({metrics[key] for metrics in loaded.values()}) != 1:
             raise ValueError(f"classifier comparison mixes incompatible {key}")
     for label, metrics in loaded.items():
         path = classification_inputs.get(label)
         expected = metrics.get('input_fingerprints', {}).get('classifications')
-        if expected and path and (not path.is_file() or file_hash(path) != expected):
+        if not expected or path is None:
+            raise ValueError(f'classifier comparison requires pinned classifications: {label}')
+        if not path.is_file() or file_hash(path) != expected:
             raise ValueError(f'classifier results changed since evaluation: {label}')
     configure_style({**config, 'field_labels': next(iter(loaded.values())).get('source_contract', {}).get('field_labels', config.get('field_labels', {}))})
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
@@ -520,9 +500,7 @@ def build_classifiers(
         for label, metrics in loaded.items():
             not_estimable = set(metrics.get("not_estimable_metrics", []))
             value = None if stem in not_estimable else _metric_value(metrics, section, key)
-            method = str(metrics.get("classifier_method", "")) or (
-                "ensemble" if label.casefold() == "ensemble" else "llm"
-            )
+            method = str(metrics["classifier_method"])
             overview_rows.append({
                 "classifier": label,
                 "classifier_method": method,
@@ -582,16 +560,12 @@ def build_classifiers(
         for label, metrics in loaded.items():
             not_estimable = set(metrics.get("not_estimable_metrics", []))
             value = None if stem in not_estimable else _metric_value(metrics, section, key)
-            method = str(metrics.get("classifier_method", "")) or (
-                "ensemble" if label.casefold() == "ensemble" else "llm"
-            )
+            method = str(metrics["classifier_method"])
             operational = metrics.get("operational", {})
             intervals = metrics.get("confidence_intervals", {})
             interval = intervals.get(stem) if isinstance(intervals, dict) else None
             if value is None:
                 interval = None
-            elif not (isinstance(interval, list) and len(interval) == 2):
-                interval = _fallback_interval(metrics, stem, value)
             rows.append({
                 "classifier": label, "classifier_method": method, "metric": stem,
                 "classifier_id": metrics.get("classifier_id", ""),
@@ -693,9 +667,7 @@ def build_classifiers(
             if recovered_table is None or recovered_table.empty:
                 continue
             recovered_table["classifier"] = label
-            recovered_table["classifier_method"] = str(metrics.get("classifier_method", "")) or (
-                "ensemble" if label.casefold() == "ensemble" else "llm"
-            )
+            recovered_table["classifier_method"] = str(metrics["classifier_method"])
             recovered_tables.append(recovered_table)
         if recovered_tables:
             outputs += _taxonomy_comparison_overview(
@@ -809,7 +781,7 @@ def build_classifiers(
         "counts; retrieval gaps and unclassified references are excluded. Errors remain in "
         "the denominator and are reported separately in `data/02_reference_uncertainty.csv`. "
         "OpenAlex uses a classified cited paper if no artifact match exists. Each reference "
-        "entity contributes once, and N/A means no attempts. This is distinct from the legacy "
+        "entity contributes once, and N/A means no attempts. This is distinct from the "
         "abstention metric.\n\n"
         "## Drill-down directories\n\n"
         "- `metrics/`: one enlarged operational-metric comparison per figure.\n"

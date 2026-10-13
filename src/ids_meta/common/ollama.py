@@ -39,7 +39,7 @@ class OllamaClient:
         if self.context_length < 0:
             raise ValueError("ollama.context_length must be zero or a positive integer")
         if not self.model:
-            raise ValueError("OLLAMA_MODEL or ollama.model is required for classification")
+            raise ValueError("classification requires a selected model from ollama.models")
 
     def generate(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         """Request one schema-constrained JSON object with retry handling."""
@@ -90,23 +90,6 @@ class OllamaClient:
                     LOG.warning("Ollama request failed (%s); retrying", exc)
                     time.sleep(2**attempt)
         raise RuntimeError(f"Ollama request failed: {error}") from error
-
-
-def legacy_runtime_decision_profile(
-    model: str, prompt_version: str, config: dict[str, Any],
-    prompt_config: dict[str, Any] | None = None,
-) -> str:
-    """Reproduce the short-lived cache key that included runtime context capacity."""
-    relevant = {
-        "model": model,
-        "prompt_version": prompt_version,
-        "temperature": config.get("temperature"),
-        "seed": config.get("seed"),
-        "context_length": config.get("context_length"),
-        "require_verified_quote": config.get("require_verified_quote"),
-        "prompt_config": prompt_config or {},
-    }
-    return stable_hash(json.dumps(relevant, sort_keys=True))
 
 
 def format_evidence(sections: list[EvidenceSection], max_chars: int = 14000) -> str:

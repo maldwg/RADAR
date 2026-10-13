@@ -179,7 +179,7 @@ def check_evaluation(metrics: dict[str, Any], instances: list[dict[str, str]], f
         elif not math.isclose(float(row["exact_accuracy"]), value, abs_tol=1e-10):
             errors.append(f"field_metrics.{field}: incorrect exact accuracy")
     op = counts['operational']
-    intervals = {'detection_rate': (op['tp'], op['tp'] + op['fn']),
+    intervals = {'field_accuracy': (sum(matches.values()), sum(comparisons.values())), 'detection_rate': (op['tp'], op['tp'] + op['fn']),
         'false_positive_rate': (op['fp'], op['fp'] + op['tn']),
         'false_discovery_rate': (op['fp'], op['tp'] + op['fp']),
         'accuracy': (op['tp'] + op['tn'], sum(op.values())), 'precision': (op['tp'], op['tp'] + op['fp']),

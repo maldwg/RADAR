@@ -50,13 +50,3 @@ def capacity_min(first: int | None, second: int | None) -> int | None:
     """Return the smaller finite capacity, or unbounded when neither is finite."""
     limits = [value for value in (first, second) if value is not None]
     return min(limits) if limits else None
-
-
-def warn_legacy_query_limits(settings: dict[str, Any], log: Any) -> None:
-    """Explain that obsolete absolute discovery budgets no longer control collection."""
-    keys = sorted(set(settings) & {
-        "query_sample_size", "survey_query_sample_size", "reference_sample_size",
-        "max_pages_per_query", "max_reference_works_per_survey", "max_survey_reference_candidates_total",
-    })
-    if keys:
-        log.warning("Ignoring obsolete absolute query caps %s; use query_limit_factor (and optional survey_query_limit_factor/reference_limit_factor)", ", ".join(keys))

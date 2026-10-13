@@ -10,7 +10,8 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 from ids_meta.cli import main
-from ids_meta.common.csvio import atomic_write_csv, read_csv
+from ids_meta.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.common.evaluation import load_rating_profile
 from ids_meta.common.study_screening import StudyScreeningAdapter, load_study_protocol, screen_study
 from ids_meta.common.verification import verify_database, verify_directory
@@ -23,14 +24,17 @@ EXAMPLE = ROOT / "examples/verification/memmesheimer/assessments.json"
 
 class StudyScreeningTests(unittest.TestCase):
     def setUp(self) -> None:
+        """Load the study protocol and screening fixtures."""
         self.protocol = load_study_protocol(PROFILE / "protocol.toml")
         self.adapter = StudyScreeningAdapter(self.protocol)
         self.example = json.loads(EXAMPLE.read_text())
 
     def assessment(self, value: str) -> dict[str, str]:
+        """Construct a quoted fixture judgment."""
         return {"value": value, "quote": "synthetic fixture text", "source": "full_text"}
 
     def test_threshold_and_partial_information(self) -> None:
+        """Verify threshold and partial information."""
         row = copy.deepcopy(self.example[0])
         self.assertEqual(self.adapter.normalize([row])[0]["decision"], "accept")
         row["criteria"].pop("Q5")
@@ -45,6 +49,7 @@ class StudyScreeningTests(unittest.TestCase):
         self.assertEqual(self.adapter.normalize([row])[0]["decision"], "exclude")
 
     def test_eligibility_and_missing_evidence_are_distinct(self) -> None:
+        """Verify eligibility and missing evidence are distinct."""
         rows = self.adapter.normalize(self.example)
         self.assertEqual([r["decision"] for r in rows], ["accept", "exclude", "uncertain"])
         self.assertEqual(rows[1]["failed_filters"], "F3")
@@ -54,6 +59,7 @@ class StudyScreeningTests(unittest.TestCase):
         self.assertEqual(self.adapter.normalize([row])[0]["decision_basis"], "eligibility_incomplete")
 
     def test_pdf_ligatures_are_equivalent_but_reworded_quotes_are_rejected(self) -> None:
+        """Verify pdf ligatures are equivalent but reworded quotes are rejected."""
         row = copy.deepcopy(self.example[0])
         row['full_text'] += ' The treatment eﬀects are estimated.'
         row['criteria']['F1']['quote'] = 'The treatment effects are estimated.'
@@ -66,6 +72,7 @@ class StudyScreeningTests(unittest.TestCase):
             self.adapter.normalize([row])
 
     def test_invalid_evidence_ids_and_decisions_fail_before_export(self) -> None:
+        """Verify invalid evidence ids and decisions fail before export."""
         for change in (
             lambda r: r["criteria"]["F1"].update(quote="fabricated quotation"),
             lambda r: r["criteria"]["F1"].update(source="abstract"),
@@ -90,6 +97,7 @@ class StudyScreeningTests(unittest.TestCase):
             self.assertEqual(out.read_text(), "existing output")
 
     def test_cli_export_keeps_provenance_and_assessments(self) -> None:
+        """Verify cli export keeps provenance and assessments."""
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "classification.csv"
             with redirect_stdout(io.StringIO()):
@@ -103,6 +111,7 @@ class StudyScreeningTests(unittest.TestCase):
             self.assertEqual(rows[0]["protocol_sha256"], self.protocol.sha256)
 
     def test_reference_crosswalk_and_offline_verification(self) -> None:
+        """Verify reference crosswalk and offline verification."""
         contract = self.protocol.contract
         reference = load_rating_profile(PROFILE / "references.toml", contract.name, contract=contract)
         entities = list(reference.entities.values())
@@ -112,7 +121,7 @@ class StudyScreeningTests(unittest.TestCase):
         self.assertEqual([r["survey_row"] for r in entities if r["strong_ignorability"] == "not_required"], [2, 6])
         # Handwritten toy predictions test evaluation mechanics, not model performance.
         rows = [{"paper_id": f"test:{i}", "title": entities[i]["title"], "decision": "accept",
-            "sutva": "required", "overlap": "required", "strong_ignorability": "required"} for i in range(2)]
+            "sutva": "required", "overlap": "required", "strong_ignorability": "required", 'classifier_supported_fields': '*'} for i in range(2)]
         candidates = [*rows, {"paper_id": "test:2", "title": entities[2]["title"]}]
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

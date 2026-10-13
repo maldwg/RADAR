@@ -25,7 +25,7 @@ class RepositoryClient:
         self.items = [{"id": index, "full_name": f"fixture/repo-{index}"} for index in range(1, count + 1)]
         self.calls: list[tuple[str, int]] = []
 
-    def search(self, query, page, per_page):
+    def search(self, query, page, per_page, sort="best_match", order="desc"):
         """Return an actual page slice in native search order."""
         self.calls.append((query, page))
         return {"total_count": len(self.items), "items": self.items[(page - 1) * per_page:page * per_page]}
@@ -40,7 +40,7 @@ class PaperClient:
         self.references = references
         self.calls: list[tuple[str, int, int | None]] = []
 
-    def search(self, query, per_page, max_pages):
+    def search(self, query, per_page, max_pages, sort="best_match", order="desc"):
         """Honor the supplied page cap so hidden truncation is detectable."""
         self.calls.append((query, per_page, max_pages))
         if query == "survey":

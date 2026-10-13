@@ -39,7 +39,7 @@ LOG = logger("cli")
 
 def _evaluation_root(settings: Settings, source: str) -> Path:
     """Return the single source root containing every rated-evaluation artifact."""
-    return _path_with_default(settings, "evaluation_dir", "artifacts/evaluation") / source
+    return settings.path("evaluation_dir") / source
 
 
 def _evaluation_variant(settings: Settings, source: str, variant: Path) -> Path:
@@ -59,48 +59,30 @@ def _evaluation_variant(settings: Settings, source: str, variant: Path) -> Path:
     return root / Path(*parts)
 
 
-def _path_with_default(settings: Settings, key: str, default: str) -> Path:
-    """Resolve an optional configured path while preserving older custom configs."""
-    value = settings.section("paths").get(key, default)
-    if not isinstance(value, str) or not value:
-        raise ConfigError(f"paths.{key} must be a non-empty string")
-    path = Path(value)
-    return path if path.is_absolute() else settings.root / path
-
-
 def _default_paths(settings: Settings, source: str) -> dict[str, Path]:
     """Build the default cache, CSV, plot, and comparison paths for a source."""
     interim = settings.path("interim_dir") / source
-    processed = settings.path("processed_dir") / source
     plots = settings.path("plots_dir") / source
     evaluation_root = _evaluation_root(settings, source)
-    configured_model = str(settings.section("ollama").get("model", "model")).strip() or "model"
-    evaluation = evaluation_root / "classifiers" / "llm" / slug(configured_model)
     comparison = settings.path("plots_dir") / source / "comparison"
     if source == "github":
         return {
             "cache": settings.path("github_cache"), "candidates": interim / "candidates.csv",
-            "classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv",
-            "catalogue": processed / "repositories.csv",
-            "plots": plots, "evaluation": evaluation,
+            "plots": plots,
             "comparison": comparison, "evaluation_comparison": evaluation_root / "comparison",
         }
     return {
         "cache": settings.path("openalex_cache"), "candidates": interim / "paper_candidates.csv",
         "surveys": interim / "survey_sources.csv",
-        "classifications": interim / "classifications.csv", "reconciled": interim / "reconciled.csv",
-        "catalogue": processed / "base_papers.csv",
-        "adjacent": processed / "adjacent_base_papers.csv", "plots": plots, "evaluation": evaluation,
+        "plots": plots,
         "comparison": comparison, "evaluation_comparison": evaluation_root / "comparison",
     }
 
 
 def _configured_models(settings: Settings) -> list[str]:
-    """Return validated, de-duplicated model names from scalar or list configuration."""
+    """Return validated, de-duplicated names from the required model list."""
     config = settings.section("ollama")
     raw = config.get("models")
-    if raw in (None, []):
-        raw = [config.get("model", "")]
     if not isinstance(raw, list) or any(not isinstance(value, str) or not value.strip() for value in raw):
         raise ConfigError("ollama.models must be an array of non-empty strings")
     models = list(dict.fromkeys(value.strip() for value in raw))
@@ -169,9 +151,7 @@ def _variant_paths(settings: Settings, source: str, variant: Path) -> dict[str, 
 
 
 def _execution_paths(settings: Settings, source: str, models: list[str]) -> dict[str, dict[str, Path]]:
-    """Resolve backward-compatible single-model paths or isolated multi-model paths."""
-    if len(models) == 1:
-        return {models[0]: _default_paths(settings, source)}
+    """Use the same model-specific paths for every model count."""
     labels = _model_slugs(models)
     return {model: _variant_paths(settings, source, Path("models") / labels[model]) for model in models}
 
@@ -191,17 +171,16 @@ def _manifest(settings: Settings, source: str, stage: str) -> RunManifest:
 
 def _pipeline_limits(args: argparse.Namespace, config: dict[str, object]) -> tuple[int | None, int | None]:
     """Resolve independent optional collection and classification limits."""
-    legacy = getattr(args, "limit", None)
     collection = getattr(args, "collect_limit", None)
     classification = getattr(args, "classify_limit", None)
     if getattr(args, "collect_all", False):
         collection = None
     elif collection is None:
-        collection = legacy if legacy is not None and args.action in {"collect", "run"} else config.get("collection_limit")
+        collection = config.get("collection_limit")
     if getattr(args, "classify_all", False):
         classification = None
     elif classification is None:
-        classification = legacy if legacy is not None and args.action in {"classify", "run"} else config.get("classification_limit")
+        classification = config.get("classification_limit")
     return optional_limit(collection, "collection_limit"), optional_limit(classification, "classification_limit")
 
 
@@ -358,12 +337,6 @@ def _classifier_entries(settings: Settings, source: str) -> dict[str, tuple[Path
     for path in sorted((interim / "models").glob("*/classifications.csv")):
         name = path.parent.name
         entries[f"LLM · {name}"] = (path, evaluation / "llm" / name)
-    single = interim / "classifications.csv"
-    single_evaluation = evaluation / "llm" / slug(
-        str(settings.section("ollama").get("model", "model"))
-    )
-    if single.is_file():
-        entries["LLM"] = (single, single_evaluation)
     ensemble = interim / "ensemble" / "classifications.csv"
     if ensemble.is_file():
         entries["Ensemble"] = (ensemble, evaluation / "ensemble")
@@ -371,9 +344,6 @@ def _classifier_entries(settings: Settings, source: str) -> dict[str, tuple[Path
     if keyword.is_file():
         entries["Keyword"] = (keyword, evaluation / "keyword")
     nli_root = interim / "baselines" / "nli"
-    direct_nli = nli_root / "classifications.csv"
-    if direct_nli.is_file():
-        entries["NLI"] = (direct_nli, evaluation / "nli")
     for path in sorted(nli_root.glob("*/classifications.csv")):
         name = path.parent.name
         entries[f"NLI · {name}"] = (path, evaluation / "nli" / name)
@@ -573,7 +543,7 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
             nli_profile = load_nli_profile(settings, source) if method == "nli" else None
             adapter_config = (
                 {"system_type_profile": load_system_type_profile(settings, "github")}
-                if method == "nli" and source == "github" else {}
+                if source == "github" else {}
             )
             variant = Path("baselines") / method
             if nli_config is not None:
@@ -669,11 +639,20 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
 
 def _execute_github_models(args: argparse.Namespace, settings: Settings, models: list[str]) -> dict[str, int]:
     """Execute GitHub model variants plus an optional deterministic ensemble."""
-    _reject_ambiguous_custom_paths(args)
     base_paths = _default_paths(settings, "github")
     model_paths = _execution_paths(settings, "github", models)
     ensemble_enabled, ensemble_members, threshold = _ensemble_config(settings, models)
     ensemble_paths = _variant_paths(settings, "github", Path("ensemble"))
+    if len(models) > 1 or ensemble_enabled:
+        _reject_ambiguous_custom_paths(args)
+    else:
+        paths = model_paths[models[0]]
+        if args.input and args.action in {"evaluate", "reconcile", "export", "plot"}:
+            key = {"evaluate": "classifications", "reconcile": "classifications", "export": "reconciled", "plot": "catalogue"}[args.action]
+            paths[key] = Path(args.input)
+        if args.output and args.action in {"classify", "evaluate", "reconcile", "export", "plot"}:
+            key = {"classify": "classifications", "evaluate": "evaluation", "reconcile": "reconciled", "export": "catalogue", "plot": "plots"}[args.action]
+            paths[key] = Path(args.output)
     config, profile = dict(settings.section("github")), load_term_profile(settings, "github")
     prompt_config = load_prompt_profile(settings, "github")
     system_type_profile = load_system_type_profile(settings, "github")
@@ -757,7 +736,8 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
                 generated_count += len(build_github_plots(ensemble_paths["catalogue"], ensemble_paths["plots"], settings.section("plots"), system_type_profile, ensemble_paths["classifications"]))
                 comparison_inputs["ensemble"] = ensemble_paths["classifications"]
             comparison_dir = base_paths["comparison"] / "models"
-            generated_count += len(build_model_comparison("github", comparison_inputs, comparison_dir, settings.section("plots")))
+            if len(comparison_inputs) > 1:
+                generated_count += len(build_model_comparison("github", comparison_inputs, comparison_dir, settings.section("plots")))
             manifest.counts["plot_files"] = generated_count
         manifest.coverage = cache.coverage_rows("github")
     manifest.status = "complete"
@@ -767,83 +747,28 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
 
 
 def _execute_github(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
-    """Execute the requested GitHub pipeline stage or complete workflow."""
+    """Execute the source using the configured model list."""
     if args.action == "baseline":
         return _execute_baselines(args, settings, "github")
-    models = _configured_models(settings)
-    ensemble_enabled, _members, _threshold = _ensemble_config(settings, models)
-    if len(models) > 1 or ensemble_enabled:
-        return _execute_github_models(args, settings, models)
-    paths = _default_paths(settings, "github")
-    config, profile = dict(settings.section("github")), load_term_profile(settings, "github")
-    prompt_config = load_prompt_profile(settings, "github")
-    system_type_profile = load_system_type_profile(settings, "github")
-    config.setdefault("progress_every", settings.section("logging").get("progress_every", 25))
-    manifest = _manifest(settings, "github", args.action)
-    collect_limit, classify_limit = _pipeline_limits(args, config)
-    classification_label = _limit_label(classify_limit)
-    manifest.parameters.update({
-        "collection_limit": collect_limit, "classification_limit": classify_limit,
-        "classification_mode": "all_eligible" if classify_limit is None else "top_n",
-        "classification_eligible_bands": ["candidate", "borderline"],
-        "classification_minimum_score": config.get("borderline_threshold"),
-    })
-    LOG.info("starting command source=github stage=%s run_id=%s collection_limit=%s classification_limit=%s eligibility=candidate_or_borderline minimum_score=%s resume=%s dry_run=%s", args.action, manifest.run_id, limit_label(collect_limit), classification_label, config.get("borderline_threshold", "unknown"), args.resume, args.dry_run)
-    with PipelineCache(paths["cache"]) as cache:
-        if args.action in {"collect", "run"}:
-            counts = {"cached": sum(1 for _ in cache.records("github.repository"))} if args.dry_run else collect_github({**config, "classification_limit": classify_limit}, profile, cache, collect_limit, resume=args.resume)
-            manifest.counts.update(counts)
-        if args.action in {"prefilter", "run"}:
-            rows = prefilter_github(config, profile, cache, Path(args.output) if args.output and args.action == "prefilter" else paths["candidates"], manifest.run_id)
-            manifest.counts["candidates_all_bands"] = len(rows)
-            eligible = sum(str(row.get("prefilter_band", "")) in {"candidate", "borderline"} for row in rows)
-            manifest.counts.update({"classification_eligible": eligible, "classification_shortlist": _shortlist_count(eligible, classify_limit)})
-        if args.action in {"classify", "run"}:
-            input_path = Path(args.input) if args.input else paths["candidates"]
-            output_path = Path(args.output) if args.output and args.action == "classify" else paths["classifications"]
-            rows = classify_github(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, system_type_profile=system_type_profile, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)), github_config=config)
-            manifest.counts["classifications"] = len(rows)
-        if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
-            classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
-            candidates_path = _evaluation_candidates(args, paths["candidates"])
-            for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "github", args, paths["evaluation"]):
-                result = _evaluate(settings, "github", classifications_path, candidates_path, output_dir, ratings_path)
-                _record_evaluation(manifest, result, profile_label)
-            if not getattr(args, "output", None):
-                manifest.counts["evaluation_comparison_files"] = len(
-                    _build_classifier_comparisons(settings, "github")
-                )
-        if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
-            input_path = Path(args.input) if args.input else paths["classifications"]
-            output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]
-            rows = reconcile_github(input_path, output_path, cache, settings.section("ollama"), config, args.dry_run, prompt_config=prompt_config)
-            manifest.counts.update({"reconciled_rows": len(rows), "project_families": len({row.get("project_id") for row in rows if row.get("project_id")})})
-        if args.action in {"export", "run"} and not (args.action == "run" and args.dry_run):
-            input_path = Path(args.input) if args.input else paths["reconciled"]
-            output_path = Path(args.output) if args.output and args.action == "export" else paths["catalogue"]
-            rows = export_github(input_path, output_path, system_type_profile)
-            manifest.counts["accepted"] = len(rows)
-        if args.action in {"plot", "run"} and not (args.action == "run" and args.dry_run):
-            from ids_meta.plotting.github import build as build_github_plots
-
-            input_path = Path(args.input) if args.input else paths["catalogue"]
-            output_path = Path(args.output) if args.output else paths["plots"]
-            classifications_path = paths["classifications"] if paths["classifications"].is_file() else None
-            generated = build_github_plots(input_path, output_path, settings.section("plots"), system_type_profile, classifications_path)
-            manifest.counts["plot_files"] = len(generated)
-        manifest.coverage = cache.coverage_rows("github")
-    manifest.status = "complete"; manifest.write()
-    LOG.info("completed command source=github stage=%s counts=%s", args.action, manifest.counts)
-    return manifest.counts
+    return _execute_github_models(args, settings, _configured_models(settings))
 
 
 def _execute_openalex_models(args: argparse.Namespace, settings: Settings, models: list[str]) -> dict[str, int]:
     """Execute OpenAlex model variants plus an optional deterministic ensemble."""
-    _reject_ambiguous_custom_paths(args)
     base_paths = _default_paths(settings, "openalex")
     model_paths = _execution_paths(settings, "openalex", models)
     ensemble_enabled, ensemble_members, threshold = _ensemble_config(settings, models)
     ensemble_paths = _variant_paths(settings, "openalex", Path("ensemble"))
+    if len(models) > 1 or ensemble_enabled:
+        _reject_ambiguous_custom_paths(args)
+    else:
+        paths = model_paths[models[0]]
+        if args.input and args.action in {"evaluate", "reconcile", "export", "plot"}:
+            key = {"evaluate": "classifications", "reconcile": "classifications", "export": "reconciled", "plot": "catalogue"}[args.action]
+            paths[key] = Path(args.input)
+        if args.output and args.action in {"classify", "evaluate", "reconcile", "export", "plot"}:
+            key = {"classify": "classifications", "evaluate": "evaluation", "reconcile": "reconciled", "export": "catalogue", "plot": "plots"}[args.action]
+            paths[key] = Path(args.output)
     config, profile = dict(settings.section("openalex")), load_term_profile(settings, "openalex")
     prompt_config = load_prompt_profile(settings, "openalex")
     config.setdefault("progress_every", settings.section("logging").get("progress_every", 25))
@@ -931,7 +856,8 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
                 generated_count += len(build_openalex_plots(ensemble_paths["catalogue"], ensemble_paths["adjacent"], ensemble_paths["plots"], settings.section("plots"), ensemble_paths["classifications"], base_paths["surveys"]))
                 comparison_inputs["ensemble"] = ensemble_paths["classifications"]
             comparison_dir = base_paths["comparison"] / "models"
-            generated_count += len(build_model_comparison("openalex", comparison_inputs, comparison_dir, settings.section("plots")))
+            if len(comparison_inputs) > 1:
+                generated_count += len(build_model_comparison("openalex", comparison_inputs, comparison_dir, settings.section("plots")))
             manifest.counts["plot_files"] = generated_count
         manifest.coverage = cache.coverage_rows("openalex")
     manifest.status = "complete"
@@ -941,75 +867,10 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
 
 
 def _execute_openalex(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
-    """Execute the requested OpenAlex pipeline stage or complete workflow."""
+    """Execute the source using the configured model list."""
     if args.action == "baseline":
         return _execute_baselines(args, settings, "openalex")
-    models = _configured_models(settings)
-    ensemble_enabled, _members, _threshold = _ensemble_config(settings, models)
-    if len(models) > 1 or ensemble_enabled:
-        return _execute_openalex_models(args, settings, models)
-    paths = _default_paths(settings, "openalex")
-    config, profile = dict(settings.section("openalex")), load_term_profile(settings, "openalex")
-    prompt_config = load_prompt_profile(settings, "openalex")
-    config.setdefault("progress_every", settings.section("logging").get("progress_every", 25))
-    manifest = _manifest(settings, "openalex", args.action)
-    collect_limit, classify_limit = _pipeline_limits(args, config)
-    classification_label = _limit_label(classify_limit)
-    manifest.parameters.update({
-        "collection_limit": collect_limit, "classification_limit": classify_limit,
-        "classification_mode": "all_eligible" if classify_limit is None else "top_n",
-        "classification_eligible_bands": ["candidate", "borderline"],
-        "classification_minimum_score": config.get("borderline_threshold"),
-    })
-    LOG.info("starting command source=openalex stage=%s run_id=%s collection_limit=%s classification_limit=%s eligibility=candidate_or_borderline minimum_score=%s resume=%s dry_run=%s", args.action, manifest.run_id, limit_label(collect_limit), classification_label, config.get("borderline_threshold", "unknown"), args.resume, args.dry_run)
-    with PipelineCache(paths["cache"]) as cache:
-        if args.action in {"collect", "run"}:
-            counts = {"cached": sum(1 for _ in cache.records("openalex.work"))} if args.dry_run else collect_openalex({**config, "classification_limit": classify_limit}, profile, cache, collect_limit)
-            manifest.counts.update(counts)
-        if args.action in {"collect", "prefilter", "run"}:
-            survey_rows = export_openalex_surveys(cache, paths["surveys"], manifest.run_id)
-            manifest.counts["auxiliary_survey_sources"] = len(survey_rows)
-        if args.action in {"prefilter", "run"}:
-            rows = prefilter_openalex(config, profile, cache, Path(args.output) if args.output and args.action == "prefilter" else paths["candidates"], manifest.run_id)
-            manifest.counts["candidates_all_bands"] = len(rows)
-            eligible = sum(str(row.get("prefilter_band", "")) in {"candidate", "borderline"} for row in rows)
-            manifest.counts.update({"classification_eligible": eligible, "classification_shortlist": _shortlist_count(eligible, classify_limit)})
-        if args.action in {"classify", "run"}:
-            input_path = Path(args.input) if args.input else paths["candidates"]
-            output_path = Path(args.output) if args.output and args.action == "classify" else paths["classifications"]
-            rows = classify_openalex(input_path, output_path, cache, settings.section("ollama"), classify_limit, args.resume, args.dry_run, prompt_config=prompt_config, openalex_config=config, consecutive_runs=int(config.get("consecutive_runs", 1)), consensus_threshold=float(config.get("consensus_threshold", .5)))
-            manifest.counts["classifications"] = len(rows)
-        if args.action == "evaluate" or (args.action == "run" and _evaluation_enabled(settings) and not args.dry_run):
-            classifications_path = Path(args.input) if args.input and args.action == "evaluate" else paths["classifications"]
-            candidates_path = _evaluation_candidates(args, paths["candidates"])
-            for ratings_path, output_dir, profile_label in _evaluation_jobs(settings, "openalex", args, paths["evaluation"]):
-                result = _evaluate(settings, "openalex", classifications_path, candidates_path, output_dir, ratings_path)
-                _record_evaluation(manifest, result, profile_label)
-            if not getattr(args, "output", None):
-                manifest.counts["evaluation_comparison_files"] = len(
-                    _build_classifier_comparisons(settings, "openalex")
-                )
-        if args.action in {"reconcile", "run"} and not (args.action == "run" and args.dry_run):
-            input_path = Path(args.input) if args.input else paths["classifications"]
-            output_path = Path(args.output) if args.output and args.action == "reconcile" else paths["reconciled"]
-            rows = reconcile_openalex(input_path, output_path, cache, settings.section("ollama"), config, args.dry_run, prompt_config=prompt_config)
-            manifest.counts.update({"reconciled_rows": len(rows), "publication_families": len({row.get("publication_family_id") for row in rows if row.get("publication_family_id")})})
-        if args.action in {"export", "run"} and not (args.action == "run" and args.dry_run):
-            input_path = Path(args.input) if args.input else paths["reconciled"]
-            main_path = Path(args.output) if args.output and args.action == "export" else paths["catalogue"]
-            main, adjacent = export_openalex(input_path, main_path, paths["adjacent"])
-            manifest.counts.update({"accepted_core": len(main), "accepted_adjacent": len(adjacent)})
-        if args.action in {"plot", "run"} and not (args.action == "run" and args.dry_run):
-            from ids_meta.plotting.openalex import build as build_openalex_plots
-
-            input_path = Path(args.input) if args.input else paths["catalogue"]
-            output_path = Path(args.output) if args.output else paths["plots"]
-            generated = build_openalex_plots(input_path, paths["adjacent"], output_path, settings.section("plots"), paths["classifications"], paths["surveys"])
-            manifest.counts["plot_files"] = len(generated)
-        manifest.coverage = cache.coverage_rows("openalex")
-    manifest.status = "complete"; manifest.write()
-    LOG.info("completed command source=openalex stage=%s counts=%s", args.action, manifest.counts)
-    return manifest.counts
+    return _execute_openalex_models(args, settings, _configured_models(settings))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1024,15 +885,13 @@ def build_parser() -> argparse.ArgumentParser:
         actions = source_parser.add_subparsers(dest="action", required=True)
         for action in ("collect", "prefilter", "classify", "baseline", "evaluate", "reconcile", "export", "plot", "run"):
             action_parser = actions.add_parser(action)
-            if action != "baseline":
-                action_parser.add_argument("--limit", type=int, help="legacy stage limit; for run, applies to both collection and classification")
             if action in {"collect", "run"}:
                 collection_group = action_parser.add_mutually_exclusive_group()
-                collection_group.add_argument("--collect-limit", "--collection-limit", dest="collect_limit", type=int, help="maximum records collected from the source API")
+                collection_group.add_argument("--collect-limit", dest="collect_limit", type=int, help="maximum records collected from the source API")
                 collection_group.add_argument("--collect-all", action="store_true", help="collect without a record limit; query caps still reflect any numeric classification limit")
             if action in {"collect", "classify", "run"}:
                 classification_group = action_parser.add_mutually_exclusive_group()
-                classification_group.add_argument("--classify-limit", "--classification-limit", dest="classify_limit", type=int, help="maximum top-ranked eligible candidates sent to the LLM")
+                classification_group.add_argument("--classify-limit", dest="classify_limit", type=int, help="maximum top-ranked eligible candidates sent to the LLM")
                 classification_group.add_argument("--classify-all", action="store_true", help="classify every candidate and borderline row above the configured rejection threshold")
             action_parser.add_argument("--resume", action=argparse.BooleanOptionalAction, default=True)
             if action != "baseline":
@@ -1145,8 +1004,7 @@ def main(argv: list[str] | None = None) -> int:
             from ids_meta.common.study_pipeline import classify_study
 
             config = dict(settings.section("ollama"))
-            if args.model:
-                config["model"] = args.model
+            config["model"] = args.model or _configured_models(settings)[0]
             rows = classify_study(args.protocol, args.input, args.output, config,
                 limit=args.limit, resume=args.resume, dry_run=args.dry_run,
                 fetch_full_text=args.fetch_full_text, max_chars=args.max_full_text_chars)
@@ -1167,7 +1025,7 @@ def main(argv: list[str] | None = None) -> int:
             with ReportingDatabase(args.database) as database:
                 for directory in directories:
                     metrics = json.loads((directory / "metrics.json").read_text())
-                    contract = load_source_contract(args.profile) if args.profile else (SourceContract(**metrics["source_contract"]) if metrics.get("source_contract") else None)
+                    contract = load_source_contract(args.profile) if args.profile else SourceContract(**metrics["source_contract"])
                     database.ingest_evaluation(directory, contract)
                 database.add_figures(args.input)
             counts = {"imported_evaluations": len(directories)}
@@ -1203,7 +1061,7 @@ def main(argv: list[str] | None = None) -> int:
 
             paths = _default_paths(settings, args.source)
             if args.input:
-                input_path = args.input or paths["classifications"]
+                input_path = args.input
                 output_path = args.output or paths["comparison"]
                 files = build_comparison(args.source, input_path, output_path, settings.section("plots"))
             else:

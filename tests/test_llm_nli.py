@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 from unittest.mock import patch
 
 import requests
@@ -14,7 +15,8 @@ import requests
 from ids_meta.cli import _classifier_entries, _execute_baselines, build_parser, main
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import ConfigError, Settings, load_settings
-from ids_meta.common.csvio import atomic_write_csv, read_csv
+from ids_meta.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
 from ids_meta.common.llm_nli import LLMNLIConfig, NLIScoringError, OllamaNLIBackend, augmented_profile, load_llm_nli_config, parse_class_scores
 from ids_meta.common.nli import NLIField, NLIProfile, NLIRuntimeConfig, TransformersNLIBackend, classify_nli_baseline, rescore_nli_rows
@@ -197,13 +199,13 @@ class LLMNLITests(unittest.TestCase):
                     candidates = root / f'{source}-candidates.csv'
                     output = root / source / 'classifications.csv'
                     atomic_write_csv(candidates, [{identity: '1', 'evidence_hash': 'candidate', 'description': 'README evidence', 'title': 'paper'}], [identity, 'evidence_hash', 'description', 'title'])
-                    result = classify_nli_baseline(source, candidates, output, cache, profile, backend.runtime_config(), backend=backend, method='llm_nli', progress_every=1)
+                    result = classify_nli_baseline(source, candidates, output, cache, profile, backend.runtime_config(), backend=backend, method='llm_nli', progress_every=1, adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
                     self.assertEqual(result[0]['decision'], 'exclude')
                     self.assertEqual(result[0]['classifier_method'], 'llm_nli')
                     self.assertEqual(result[0]['classifier_supported_fields'], 'decision;' + field)
                     self.assertTrue(json.loads(read_csv(output)[0]['llm_nli_pair_scores_json']))
                     count = len(backend.session.calls)
-                    resumed = classify_nli_baseline(source, candidates, output, cache, profile, backend.runtime_config(), backend=backend, method='llm_nli')
+                    resumed = classify_nli_baseline(source, candidates, output, cache, profile, backend.runtime_config(), backend=backend, method='llm_nli', adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
                     self.assertEqual(len(backend.session.calls), count)
                     self.assertEqual(resumed[0]['classified_at'], result[0]['classified_at'])
                     rating = root / f'{source}-ratings.toml'
@@ -214,7 +216,7 @@ class LLMNLITests(unittest.TestCase):
                     self.assertEqual(evaluation.metrics['selective']['tn'], 1)
                     plot_evaluation(report, {'formats': ['svg'], 'dpi': 72})
                     self.assertTrue((report / 'figures/08_reference_uncertainty.svg').exists())
-                    replay = rescore_nli_rows(source, result, profile, .9, .1)
+                    replay = rescore_nli_rows(source, result, profile, .9, .1, adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
                     self.assertEqual(replay[0]['decision'], 'uncertain')
                     self.assertEqual(replay[0]['classifier_supported_fields'], 'decision;' + field)
 
@@ -228,7 +230,7 @@ class LLMNLITests(unittest.TestCase):
             profile = augmented_profile(profile, self.config, reference_config(), backend.metadata)
             candidates = root / 'candidates.csv'
             atomic_write_csv(candidates, [{'github_repo_id': '1', 'evidence_hash': 'x'}], ['github_repo_id', 'evidence_hash'])
-            result = classify_nli_baseline('github', candidates, root / 'output.csv', cache, profile, backend.runtime_config(), backend=backend, method='llm_nli')
+            result = classify_nli_baseline('github', candidates, root / 'output.csv', cache, profile, backend.runtime_config(), backend=backend, method='llm_nli', adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
             self.assertEqual(result[0]['decision'], 'error')
             self.assertEqual(result[0]['nli_scores_json'], '{}')
             self.assertIn('Incomplete', result[0]['error'])

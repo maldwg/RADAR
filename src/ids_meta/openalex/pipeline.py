@@ -8,7 +8,7 @@ from ids_meta.common.cache import PipelineCache
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.ensemble import consensus_classification
 from ids_meta.common.evidence import evidence_expansion_audit, merge_new_evidence, vote_round_needs_more_evidence
-from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, legacy_runtime_decision_profile, verify_evidence
+from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, verify_evidence
 from ids_meta.common.prompts import description_block, render_prompt
 from ids_meta.common.run import utc_now
 from ids_meta.common.scoring import score_evidence, shortlist_candidates
@@ -80,8 +80,10 @@ def prefilter(
     rows: list[dict[str, object]] = []
     counts = {"candidate": 0, "borderline": 0, "reject": 0}
     minimum_citations = max(0, int(config.get("minimum_citations", 0)))
-    latest_collection = cache.get_record("openalex.collection", "latest") or {}
-    active_ids = {str(value) for value in latest_collection.get("work_ids", []) if value}
+    latest_collection = cache.get_record("openalex.collection", "latest")
+    if latest_collection is None or "work_ids" not in latest_collection or not latest_collection.get("selected_at"):
+        raise ValueError("openalex prefilter requires a completed collection with selected IDs and a timestamp")
+    active_ids = {str(value) for value in latest_collection["work_ids"]}
     evidence_client = enricher
     if evidence_client is None and bool(config.get("enrich_missing_abstracts", False)):
         evidence_client = ScholarlyEvidenceClient(
@@ -91,10 +93,10 @@ def prefilter(
         )
     LOG.info(
         "starting OpenAlex paper prefilter active_collection=%s active_pool=%s",
-        latest_collection.get("selected_at", "legacy_cache_fallback"), len(active_ids) if active_ids else "all_cached_works",
+        latest_collection["selected_at"], len(active_ids),
     )
     for key, payload, fetched_at in cache.records("openalex.work"):
-        if active_ids and key not in active_ids:
+        if key not in active_ids:
             continue
         citations = int((payload.get("work") or {}).get("cited_by_count") or 0)
         if citations < minimum_citations:
@@ -203,9 +205,6 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         },
     }
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)
-    legacy_profile_hash = legacy_runtime_decision_profile(
-        model, PROMPT_VERSION, ollama_config, decision_config,
-    )
     results: list[dict[str, str]] = []
     new_decisions = 0
     LOG.info(
@@ -239,8 +238,8 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                 atomic_write_csv(candidates_path, rows, CANDIDATE_COLUMNS)
                 LOG.info("enriched missing paper evidence title=%s abstract=%s full_text=%s", row.get("title", key), bool(work.get("abstract")), bool(work.get("full_text")))
         evidence_hash = row["evidence_hash"]
-        cached = cache.get_compatible_decision(
-            "openalex.classification", key, profile_hash, evidence_hash, (legacy_profile_hash,),
+        cached = cache.get_decision(
+            "openalex.classification", key, profile_hash, evidence_hash,
         ) if resume else None
         if cached and cached.get("decision") != "error":
             results.append({str(k): str(v) for k, v in cached.items()})

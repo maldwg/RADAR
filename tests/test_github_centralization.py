@@ -4,12 +4,13 @@ import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 
 import pandas as pd
 
 from ids_meta.common.baselines import infer_keyword_fields, load_keyword_taxonomy_profile
 from ids_meta.common.config import load_prompt_profile, load_settings
-from ids_meta.common.csvio import atomic_write_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.common.ensemble import _github_field_consensus, ensemble_classifications
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
 from ids_meta.common.nli import NLIProfile, decide_nli_fields, load_nli_profile
@@ -21,6 +22,11 @@ from ids_meta.plotting.common import configure_style
 from ids_meta.plotting.compare import build_classifiers
 from ids_meta.plotting.evaluation import _field_accuracy
 from ids_meta.plotting.github import _centralization_plots
+
+from ids_meta.common.provenance import audited_bundle
+_field_accuracy = audited_bundle(_field_accuracy)
+_centralization_plots = audited_bundle(_centralization_plots)
+
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,7 +42,7 @@ class GitHubCentralizationTests(unittest.TestCase):
         self.assertIn("centralization", RESPONSE_SCHEMA["required"])
         self.assertIn("centralization", CLASSIFICATION_COLUMNS)
         self.assertNotIn("centralization", OPENALEX_SCHEMA["properties"])
-        rendered = prompt([], load_prompt_profile(settings, "github"))
+        rendered = prompt([], load_prompt_profile(settings, "github"), system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertIn("Collaborative IDS / CIDS", rendered)
         self.assertIn("distributed IDS / DIDS", rendered)
         self.assertNotIn("${centralization}", rendered)
@@ -50,9 +56,9 @@ class GitHubCentralizationTests(unittest.TestCase):
         for label in (*CENTRALIZATION, "invalid"):
             raw = {"role": "out_of_scope", "centralization": label}
             expected = label if label in CENTRALIZATION else "unknown"
-            self.assertEqual(normalize_response(raw, [], {"require_verified_quote": False}, False)["centralization"], expected)
+            self.assertEqual(normalize_response(raw, [], {"require_verified_quote": False}, False, system_type_profile=SYSTEM_TYPE_PROFILE)["centralization"], expected)
             for normalizer in (normalize_keyword_result, normalize_nli_result):
-                result = normalizer(raw, {}, {})
+                result = normalizer(raw, {}, {"system_type_profile": SYSTEM_TYPE_PROFILE})
                 self.assertEqual(result["centralization"], expected)
                 self.assertEqual(result["decision"], "exclude")
                 self.assertIn("centralization", result["classifier_supported_fields"].split(";"))
@@ -100,7 +106,7 @@ class GitHubCentralizationTests(unittest.TestCase):
             inputs = {}
             for model, vote in votes.items():
                 path = root / f"{model}.csv"
-                atomic_write_csv(path, [{"github_repo_id": "1", "decision": "uncertain", **vote}],
+                atomic_write_csv(path, [{"github_repo_id": "1", "decision": "uncertain", **vote, 'classifier_supported_fields': '*'}],
                                  ["github_repo_id", "decision", "role", "centralization"])
                 inputs[model] = path
             rows = ensemble_classifications("github", inputs, root / "ensemble.csv", .5, CLASSIFICATION_COLUMNS)

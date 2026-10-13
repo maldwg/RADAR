@@ -7,8 +7,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from ids_meta.common.csvio import atomic_write_csv, read_csv
+from ids_meta.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.plotting.compare import _reference_recovery_overview, _taxonomy_comparison_overview, build_classifiers
+from ids_meta.common.provenance import file_hash
+
+from ids_meta.common.provenance import audited_bundle
+_reference_recovery_overview = audited_bundle(_reference_recovery_overview)
+_taxonomy_comparison_overview = audited_bundle(_taxonomy_comparison_overview)
+
 
 
 class ClassifierComparisonTests(unittest.TestCase):
@@ -83,10 +90,16 @@ class ClassifierComparisonTests(unittest.TestCase):
                 atomic_write_csv(csv_path, [{
                     "github_repo_id": "g1", "full_name": "fixture/repo",
                     "decision": "accept" if index % 2 else "exclude",
-                }], ["github_repo_id", "full_name", "decision"])
+                 'classifier_supported_fields': '*'}], ["github_repo_id", "full_name", "decision"])
                 evaluation = root / f"evaluation-{index}"
                 evaluation.mkdir()
                 metrics = {
+                    "reference_fingerprint": "fixture-reference",
+                    "taxonomy_fingerprint": "fixture-taxonomy",
+                    "cohort_fingerprint": "fixture-cohort",
+                    "input_fingerprints": {"classifications": file_hash(csv_path)},
+                    "confidence_level": .95,
+                    "confidence_intervals": {"detection_rate": [.49, .94]},
                     "ratings_path": "/same/profile.toml", "evaluation_unit": "source_record",
                     "classifier_method": method, "rated_entities": 20,
                     "not_estimable_metrics": ["false_discovery_rate"] if index == 0 else [],

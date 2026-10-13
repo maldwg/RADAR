@@ -1,4 +1,4 @@
-repo_id,repository,decision,role,tags,prefilter_band
-r1,group/first,included,dataset,network;host,candidate
-r2,group/second,rejected,tool,network,candidate
-r3,group/third,undecided,,host,borderline
+repo_id,repository,decision,role,tags,prefilter_band,classifier_supported_fields
+r1,group/first,included,dataset,network;host,candidate,*
+r2,group/second,rejected,tool,network,candidate,*
+r3,group/third,undecided,,host,borderline,*

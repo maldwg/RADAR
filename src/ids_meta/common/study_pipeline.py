@@ -151,6 +151,7 @@ def download_study_text(url: str, max_chars: int) -> dict[str, Any]:
 
 
 def _assessment_spec(protocol: Any) -> dict[str, Any]:
+    """Load and validate the protocol taxonomy assessment fields."""
     with protocol.path.open("rb") as handle:
         raw = tomllib.load(handle)
     if file_hash(protocol.path) != protocol.sha256:
@@ -168,12 +169,14 @@ def _assessment_spec(protocol: Any) -> dict[str, Any]:
 
 
 def _judgment_schema(values: list[str]) -> dict[str, Any]:
+    """Build the structured schema for one evidence judgment."""
     return {"type": "object", "additionalProperties": False, "required": ["value", "quote", "source"],
         "properties": {"value": {"type": "string", "enum": values}, "quote": {"type": "string"},
             "source": {"type": "string", "enum": ["full_text", ""]}}}
 
 
 def _assessment_prompt(protocol: Any, fields: dict[str, Any], row: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Build a blind assessment prompt and its response schema."""
     criteria = {key: _judgment_schema(["yes", "no", "unknown"]) for key in [*protocol.filters, *protocol.quality]}
     taxonomy = {key: _judgment_schema(spec["values"]) for key, spec in fields.items()}
     schema = {"type": "object", "additionalProperties": False, "required": ["criteria", "fields"], "properties": {
@@ -326,6 +329,7 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
                     LOG.warning("study model assessment failed paper_id=%s (%s)", record[protocol.contract.identity], type(exc).__name__)
         normalized = adapter.normalize([record])[0]
         normalized.update(classifier_method="llm", classifier_id=f"study_llm:{model}", model=model,
+            classifier_supported_fields="*",
             classifier_profile_hash=fingerprint, candidate_input_sha256=input_digest)
         if record["assessment_status"] == "error":
             normalized.update(decision="error", error=record["assessment_error"])

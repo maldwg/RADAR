@@ -11,7 +11,7 @@ import requests
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.run import utc_now
-from ids_meta.common.limits import query_result_limit, limit_label, warn_legacy_query_limits
+from ids_meta.common.limits import query_result_limit, limit_label
 from ids_meta.common.logging import logger
 from ids_meta.common.text import stable_hash
 
@@ -214,15 +214,6 @@ def _split_range(start: date, end: date) -> tuple[tuple[date, date], tuple[date,
     return (start, middle), (middle + timedelta(days=1), end)
 
 
-def _search_page(
-    client: GitHubClient, query: str, page: int, per_page: int, sort: str, order: str,
-) -> dict[str, Any]:
-    """Search with an explicit ordering while retaining simple test/client compatibility."""
-    if sort == "best_match":
-        return client.search(query, page, per_page)
-    return client.search(query, page, per_page, sort, order)
-
-
 def search_shards(
     client: GitHubClient, base_query: str, start: date, end: date, per_page: int,
     sort: str = "best_match", order: str = "desc",
@@ -230,7 +221,7 @@ def search_shards(
     """Recursively shard and page a search below GitHub's 1,000-result cap."""
     shard = f"{start.isoformat()}..{end.isoformat()}"
     query = f"{base_query} created:{shard}"
-    first = _search_page(client, query, 1, per_page, sort, order)
+    first = client.search(query, 1, per_page, sort, order)
     total = int(first.get("total_count") or 0)
     LOG.debug("query=%r shard=%s total=%d", base_query, shard, total)
     if total > 1000 and start < end:
@@ -243,7 +234,7 @@ def search_shards(
     yield shard, first, incomplete
     pages = math.ceil(min(total, 1000) / per_page)
     for page in range(2, pages + 1):
-        yield shard, _search_page(client, query, page, per_page, sort, order), incomplete
+        yield shard, client.search(query, page, per_page, sort, order), incomplete
 
 
 def search_best_matches(
@@ -251,13 +242,13 @@ def search_best_matches(
     sort: str = "best_match", order: str = "desc",
 ) -> Iterator[tuple[str, dict[str, Any], bool]]:
     """Page GitHub's native result window using the configured API ordering."""
-    first = _search_page(client, query, 1, per_page, sort, order)
+    first = client.search(query, 1, per_page, sort, order)
     total = int(first.get("total_count") or 0)
     incomplete = bool(first.get("incomplete_results"))
     yield "all", first, incomplete
     pages = math.ceil(min(total, 1000) / per_page)
     for page in range(2, pages + 1):
-        yield "all", _search_page(client, query, page, per_page, sort, order), incomplete
+        yield "all", client.search(query, page, per_page, sort, order), incomplete
 
 
 def _enrich(client: GitHubClient, item: dict[str, Any], max_docs_files: int) -> dict[str, Any]:
@@ -304,10 +295,8 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     start = date.fromisoformat(str(settings.get("created_from", "2008-01-01")))
     end = datetime.now(timezone.utc).date()
     minimum_stars = max(0, int(settings.get("minimum_stars", 100)))
-    warn_legacy_query_limits(settings, LOG)
     query_sample_size = query_result_limit(settings, limit)
-    sort_aliases = {"best-match": "best_match", "relevance": "best_match", "help_wanted_issues": "help-wanted-issues"}
-    search_sort = sort_aliases.get(str(settings.get("search_sort", "best_match")).strip().casefold(), str(settings.get("search_sort", "best_match")).strip().casefold())
+    search_sort = str(settings.get("search_sort", "best_match")).strip().casefold()
     search_order = str(settings.get("search_order", "desc")).strip().casefold()
     allowed_sorts = {"best_match", "stars", "forks", "help-wanted-issues", "updated"}
     if search_sort not in allowed_sorts:

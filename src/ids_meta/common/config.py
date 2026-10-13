@@ -50,7 +50,8 @@ def load_settings(path: Path | str = Path("config/default.toml")) -> Settings:
     root = config_path.parent.parent if config_path.parent.name == "config" else Path.cwd().resolve()
     ollama = values.setdefault("ollama", {})
     ollama["url"] = os.getenv("OLLAMA_URL", str(ollama.get("url", "http://127.0.0.1:11434")))
-    ollama["model"] = os.getenv("OLLAMA_MODEL", str(ollama.get("model", "")))
+    if os.getenv("OLLAMA_MODEL"):
+        ollama["models"] = [os.environ["OLLAMA_MODEL"]]
     if os.getenv("OLLAMA_API_KEY"):
         ollama["api_key"] = os.environ["OLLAMA_API_KEY"]
     return Settings(root=root, values=values)

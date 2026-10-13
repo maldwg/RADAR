@@ -72,11 +72,11 @@ def _written_after_snapshot(path: Path, snapshot_at: str) -> bool:
     if not path.is_file():
         return False
     if not snapshot_at:
-        return True
+        raise ValueError("funnel requires a collection timestamp")
     try:
         timestamp = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00")).timestamp()
-    except ValueError:
-        return True
+    except ValueError as exc:
+        raise ValueError("funnel requires a valid collection timestamp") from exc
     return path.stat().st_mtime + 1 >= timestamp
 
 
@@ -109,11 +109,7 @@ def _variant_label(relative: Path, rows: list[dict[str, str]]) -> tuple[str, str
     if parts[:2] == ("baselines", "llm_nli"):
         identifier = "/".join(parts[2:])
         return f"LLM NLI — {identifier}", "llm-nli-" + slug(identifier)
-    classifier = ""
-    if rows:
-        classifier = rows[0].get("classifier_id", "") or rows[0].get("llm_model", "")
-    classifier = classifier.strip() or "Configured LLM"
-    return classifier, slug(classifier)
+    raise ValueError("funnel requires model, ensemble or named baseline directories")
 
 
 def _classifier_variants(settings: Settings, source: str, paths: dict[str, Path]) -> list[ClassifierVariant]:
@@ -127,6 +123,8 @@ def _classifier_variants(settings: Settings, source: str, paths: dict[str, Path]
         if "pilots" in classifications.relative_to(interim).parts:
             continue
         relative = classifications.parent.relative_to(interim)
+        if not relative.parts or relative.parts[0] not in {"models", "ensemble", "baselines"}:
+            continue
         rows = read_csv(classifications)
         label, identifier = _variant_label(relative, rows)
         output_root = processed / relative
@@ -167,7 +165,9 @@ def _github_shared_stages(
 
     active_ids: list[str] = []
     with PipelineCache(paths["cache"], read_only=True) as cache:
-        collection = cache.get_record("github.collection", "latest") or {}
+        collection = cache.get_record("github.collection", "latest")
+        if collection is None or not collection.get("selected_at"):
+            raise ValueError("github funnel requires current collection metadata")
         if "sample_size_per_query" in collection:
             sample_size = collection["sample_size_per_query"]
             configured_capacity = None if sample_size is None else len(queries) * sample_size
@@ -175,7 +175,7 @@ def _github_shared_stages(
         strategy = str(collection.get("search_strategy", ""))
         search_records = [
             (key, payload) for key, payload, _fetched_at in cache.records("github.search_candidate")
-            if not strategy or str(payload.get("search_strategy", "")) == strategy
+            if str(payload.get("search_strategy", "")) == strategy
         ]
         raw_matches = sum(len(set(payload.get("matched_queries", []))) for _key, payload in search_records)
         unique_results = len(search_records)
@@ -184,7 +184,7 @@ def _github_shared_stages(
         if "collection_limit" in collection:
             collection_limit = optional_limit(collection["collection_limit"], "collection_limit")
         metadata.update({
-            "collection_limit": collection_limit, "snapshot_at": selected_at or "database snapshot",
+            "collection_limit": collection_limit, "snapshot_at": selected_at,
             "search_strategy": strategy, "complete_through": "collection",
         })
         if raw_matches:
@@ -223,7 +223,7 @@ def _github_shared_stages(
     if collection_complete and _written_after_snapshot(candidates, str(metadata.get("snapshot_at", ""))):
         rows = read_csv(candidates)
         active = set(active_ids)
-        rows = [row for row in rows if not active or row.get("github_repo_id", "") in active]
+        rows = [row for row in rows if row.get("github_repo_id", "") in active]
         bands = [str(row.get("prefilter_band", "")).strip().casefold() for row in rows]
         eligible = sum(value in {"candidate", "borderline"} for value in bands)
         rejected = sum(value == "reject" for value in bands)
@@ -276,7 +276,9 @@ def _openalex_shared_stages(
         ], metadata
 
     with PipelineCache(paths["cache"], read_only=True) as cache:
-        collection = cache.get_record("openalex.collection", "latest") or {}
+        collection = cache.get_record("openalex.collection", "latest")
+        if collection is None or not collection.get("selected_at"):
+            raise ValueError("openalex funnel requires current collection metadata")
         active_ids = [str(value) for value in collection.get("work_ids", []) if value]
         survey_ids = [str(value) for value in collection.get("survey_ids", []) if value]
         selected_at = str(collection.get("selected_at", ""))
@@ -305,7 +307,7 @@ def _openalex_shared_stages(
         scanned = direct_scanned + survey_scanned + references_scanned
         unique_retained = len(set(active_ids) | set(survey_ids))
         metadata.update({
-            "collection_limit": collection_limit, "snapshot_at": selected_at or "database snapshot",
+            "collection_limit": collection_limit, "snapshot_at": selected_at,
             "direct_results_scanned": direct_scanned, "survey_results_scanned": survey_scanned,
             "reference_results_scanned": references_scanned, "snowball_reached_depth": reached_depth,
             "survey_sources": len(set(survey_ids)),
@@ -340,7 +342,7 @@ def _openalex_shared_stages(
     if bool(metadata.get("collection_complete")) and _written_after_snapshot(candidates, str(metadata.get("snapshot_at", ""))):
         rows = read_csv(candidates)
         active = set(active_ids)
-        rows = [row for row in rows if not active or row.get("openalex_id", "") in active]
+        rows = [row for row in rows if row.get("openalex_id", "") in active]
         bands = [str(row.get("prefilter_band", "")).strip().casefold() for row in rows]
         eligible = sum(value in {"candidate", "borderline"} for value in bands)
         rejected = sum(value == "reject" for value in bands)

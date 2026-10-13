@@ -4,6 +4,7 @@ import argparse
 import tempfile
 import unittest
 from pathlib import Path
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 
 from ids_meta.cli import _execute_github, build_parser
 from ids_meta.common.baselines import (
@@ -16,7 +17,8 @@ from ids_meta.common.baselines import (
 )
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import ConfigError, Settings
-from ids_meta.common.csvio import atomic_write_csv, read_csv
+from ids_meta.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.common.evaluation import evaluate_results, load_rating_profile
 from ids_meta.github.schema import CANDIDATE_COLUMNS
 from ids_meta.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
@@ -158,13 +160,13 @@ class BaselineTests(unittest.TestCase):
                 taxonomy = load_keyword_taxonomy_profile(self._settings(root), "github")
                 first = classify_keyword_baseline(
                     "github", candidates, output, cache, profile, KeywordBaselineConfig(7, 4), taxonomy,
-                )
+                 adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
                 resumed = classify_keyword_baseline(
                     "github", candidates, output, cache, profile, KeywordBaselineConfig(7, 4), taxonomy,
-                )
+                 adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
                 changed = classify_keyword_baseline(
                     "github", candidates, output, cache, profile, KeywordBaselineConfig(8, 4), taxonomy,
-                )
+                 adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
             self.assertEqual([row["decision"] for row in first], ["accept", "uncertain", "exclude"])
             self.assertEqual(first[0]["classified_at"], resumed[0]["classified_at"])
             self.assertNotEqual(first[0]["classifier_profile_hash"], changed[0]["classifier_profile_hash"])
@@ -231,7 +233,7 @@ class BaselineTests(unittest.TestCase):
                 results = classify_keyword_baseline(
                     "openalex", candidates, output, cache, profile, KeywordBaselineConfig(7, 4),
                     taxonomy,
-                )
+                 adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
             self.assertEqual(results[0]["decision"], "accept")
             self.assertEqual(results[0]["classifier_evidence_source"], "candidate_csv")
 

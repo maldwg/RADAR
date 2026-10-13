@@ -26,8 +26,7 @@ openalex_keyword = "config/baselines/openalex_keyword.toml"
 
 [ollama]
 url = "http://10.20.31.1:11434"
-model = "qwen3.6:27b"
-# Optional multi-model mode. An empty array keeps the scalar model behavior and legacy paths.
+# Required model list. One model uses the same model-specific layout as several.
 #models_soon = ["gemma4:31b","qwen3.8:27b", "devstral-small-2:24b", "glm-4.7-flash:bf16"]
 models = ["gemma4:31b","qwen3.8:27b"]
 
@@ -183,7 +182,7 @@ max_surveys = 100
 # Traversal stops earlier at convergence and is protocol-capped at depth 10.
 snowball_start_papers = 50
 snowball_max_depth = 10
-# With --limit, reserve this fraction of candidate capacity for survey-reference snowballing.
+# With a collection limit, reserve this fraction for survey-reference snowballing.
 survey_reference_fraction = 0.5
 # Query caps are proportional to the largest numeric collection/classification limit.
 # If neither is numeric, query pagination and reference retrieval run until exhausted.

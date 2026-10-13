@@ -7,13 +7,13 @@ from ids_meta.common.cache import PipelineCache
 from ids_meta.common.csvio import atomic_write_csv, read_csv, require_columns
 from ids_meta.common.ensemble import consensus_classification
 from ids_meta.common.evidence import evidence_expansion_audit, merge_new_evidence, vote_round_needs_more_evidence
-from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, legacy_runtime_decision_profile, verify_evidence
+from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, verify_evidence
 from ids_meta.common.prompts import description_block, render_prompt
 from ids_meta.common.run import utc_now
 from ids_meta.common.scoring import score_evidence, shortlist_candidates
 from ids_meta.common.text import split_values, stable_hash
 from ids_meta.common.logging import logger
-from ids_meta.github.schema import AUDIT_ROLES, DEFAULT_SYSTEM_TYPE_PROFILE, CAPABILITIES, CENTRALIZATION, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, OBSERVATION_OBJECTS, SCOPES, normalize_response, response_schema, system_type_names, validate_processed_row, validate_system_type_profile
+from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, CENTRALIZATION, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, METHODS, OBSERVATION_OBJECTS, SCOPES, normalize_response, response_schema, system_type_names, validate_processed_row, validate_system_type_profile
 from ids_meta.github.enrich import GitHubEvidenceClient
 
 PROMPT_VERSION = "github-15"
@@ -76,11 +76,13 @@ def prefilter(config: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     """Score every cached repository and export all prefilter bands."""
     rows: list[dict[str, object]] = []
     counts = {"candidate": 0, "borderline": 0, "reject": 0}
-    latest_collection = cache.get_record("github.collection", "latest") or {}
-    active_ids = {str(value) for value in latest_collection.get("repository_ids", []) if value}
-    LOG.info("starting GitHub keyword prefilter active_collection=%s active_pool=%s", latest_collection.get("selected_at", "legacy_cache_fallback"), len(active_ids) if active_ids else "all_cached_repositories")
+    latest_collection = cache.get_record("github.collection", "latest")
+    if latest_collection is None or "repository_ids" not in latest_collection or not latest_collection.get("selected_at"):
+        raise ValueError("github prefilter requires a completed collection with selected IDs and a timestamp")
+    active_ids = {str(value) for value in latest_collection["repository_ids"]}
+    LOG.info("starting GitHub keyword prefilter active_collection=%s active_pool=%s", latest_collection["selected_at"], len(active_ids))
     for key, payload, fetched_at in cache.records("github.repository"):
-        if active_ids and key not in active_ids:
+        if key not in active_ids:
             continue
         sections = evidence_sections(payload)
         result = score_evidence(
@@ -103,7 +105,9 @@ def prompt(
 ) -> str:
     """Construct the repository-classification prompt from untrusted evidence."""
     settings = prompt_config or {}
-    types = system_type_profile or DEFAULT_SYSTEM_TYPE_PROFILE
+    if system_type_profile is None:
+        raise ValueError("GitHub classification requires a configured system-type profile")
+    types = system_type_profile
     validate_system_type_profile(types)
     type_lines = [
         f"- {code} ({definition['name']}): {definition['description']}"
@@ -148,9 +152,6 @@ def classify(
                            "max_docs_files": int(enrichment_config.get("uncertain_max_docs_files", 10)),
                        }}
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)
-    legacy_profile_hash = legacy_runtime_decision_profile(
-        model, PROMPT_VERSION, ollama_config, decision_config,
-    )
     results: list[dict[str, str]] = []
     new_decisions = 0
     LOG.info(
@@ -159,8 +160,8 @@ def classify(
     )
     for rank, row in enumerate(selected, 1):
         key, evidence_hash = row["github_repo_id"], row["evidence_hash"]
-        cached = cache.get_compatible_decision(
-            "github.classification", key, profile_hash, evidence_hash, (legacy_profile_hash,),
+        cached = cache.get_decision(
+            "github.classification", key, profile_hash, evidence_hash,
         ) if resume else None
         if cached:
             results.append({str(k): str(v) for k, v in cached.items()})

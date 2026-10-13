@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
-import subprocess
+import sqlite3
 import tempfile
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -52,16 +52,9 @@ def freeze_database(path: Path, root: Path) -> Path:
     """Capture a consistent SQLite view, including WAL contents, through a read-only source."""
     with tempfile.TemporaryDirectory(prefix='ids-meta-snapshot-') as temporary:
         target = Path(temporary) / 'snapshot.sqlite3'
-        from ids_meta.common.cache import sqlite3
-
-        if sqlite3 is not None:
-            with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True) as source:
-                with sqlite3.connect(target) as destination:
-                    source.backup(destination)
-        else:
-            result = subprocess.run(['sqlite3', '-readonly', str(path), f'.backup {target}'], capture_output=True, text=True, check=False)
-            if result.returncode:
-                raise RuntimeError(f'could not freeze the discovery database: {result.stderr.strip()}')
+        with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True) as source:
+            with sqlite3.connect(target) as destination:
+                source.backup(destination)
         frozen = freeze_file(target, root)
     archive = Path(frozen['snapshot'])
     register_input(archive)
@@ -109,11 +102,7 @@ def capture_figure(paths: list[Path], out_dir: Path, stem: str) -> Path:
     """Link a figure's bytes to frozen numeric tables and explicit provenance limits."""
     context = _AUDIT.get()
     if context is None:
-        context = BundleAudit(out_dir, {"renderer": "legacy_direct_call", "verification": "limited"})
-        for path in sorted((out_dir / "data").glob(stem + "*.csv")):
-            context.tables[str(path.resolve())] = {**freeze_file(path, out_dir), "recipe": None}
-    # Exact-stem tables and their record-level companions are preferred. All inputs
-    # remain linked, even for legacy figures whose table stem is different.
+        raise ValueError("figure generation requires an audited rendering context")
     matched = [v for p, v in context.tables.items() if Path(p).stem == stem or Path(p).stem.startswith(stem + "_")]
     tables = matched or list(context.tables.values())
     manifest = {

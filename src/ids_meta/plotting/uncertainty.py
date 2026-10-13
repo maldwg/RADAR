@@ -16,12 +16,11 @@ def reference_uncertainty(input_dir: Path) -> dict[str, int | float | None] | No
     """
     path = input_dir / "instances.csv"
     if not path.is_file():
-        return None
+        raise ValueError("reference uncertainty requires instances.csv")
     audit = pd.read_csv(path, dtype=str, keep_default_na=False)
     required = {"classification_present", "actual_disposition", "status"}
     if not required <= set(audit.columns):
-        # Older audits may contain only taxonomy checks, without attempt metadata.
-        return None
+        raise ValueError("reference uncertainty requires current attempt metadata")
     counts: Counter[str] = Counter()
     for row in audit.to_dict("records"):
         status = row["status"].strip().casefold()

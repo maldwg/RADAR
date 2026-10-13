@@ -13,7 +13,7 @@ import pandas as pd
 from ids_meta.plotting.common import COLORS, add_heading, configure_style, count_legend, count_plot, evidence_escalation_plot, explode_values, load_frame, metadata_caption, save_figure, score_decision_plot, stamp, subcaption, write_index, write_table
 from ids_meta.common.logging import logger
 from ids_meta.common.provenance import audited_bundle
-from ids_meta.github.schema import DEFAULT_SYSTEM_TYPE_PROFILE
+from ids_meta.github.schema import validate_system_type_profile
 
 LOG = logger("plotting.github")
 
@@ -178,7 +178,10 @@ def _overview_matrix(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi
 
 def _system_type_definitions(profile: dict[str, object] | None) -> pd.DataFrame:
     """Flatten the configured LLM-facing system-type vocabulary for audit."""
-    types = (profile or DEFAULT_SYSTEM_TYPE_PROFILE).get("types", {})
+    if profile is None:
+        raise ValueError("GitHub plotting requires a configured system-type profile")
+    validate_system_type_profile(profile)
+    types = profile["types"]
     rows: list[dict[str, object]] = []
     if not isinstance(types, dict):
         return pd.DataFrame()
@@ -218,10 +221,9 @@ def _display_system_type(value: object) -> str:
 
 def _primary_system_type_series(frame: pd.DataFrame) -> pd.Series:
     """Return one primary IDS type per row with deterministic fallbacks."""
-    system_types = frame.get("system_types", pd.Series("unknown", index=frame.index)).fillna("").astype(str)
-    primary = frame.get("primary_system_type", pd.Series("", index=frame.index)).fillna("").astype(str)
-    fallback = system_types.map(lambda value: (_clean_values(value) or ["unknown"])[0])
-    return primary.where(primary.str.strip() != "", fallback).replace("", "unknown")
+    if "primary_system_type" not in frame:
+        raise ValueError("GitHub plotting requires primary_system_type")
+    return frame["primary_system_type"].fillna("unknown").astype(str).replace("", "unknown")
 
 
 def _system_type_colors(values: list[str]) -> dict[str, str]:
@@ -236,10 +238,10 @@ def _system_type_colors(values: list[str]) -> dict[str, str]:
     return {value: colors.get(value, "#43505C") for value in values}
 
 
-def _repository_density_data(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def _repository_density_data(frame: pd.DataFrame, profile: dict[str, object]) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Count each canonical operational repository once, keeping missing years visible."""
     canonical = frame[_operational_mask(frame)].copy()
-    codes = {code.casefold(): code for code in DEFAULT_SYSTEM_TYPE_PROFILE["types"]}
+    codes = {code.casefold(): code for code in profile["types"]}
     canonical["primary_system_type"] = _primary_system_type_series(canonical).map(
         lambda value: codes.get(str(value).strip().casefold(), str(value).strip())
         if str(value).strip().casefold() != "unknown" else "unknown"
@@ -263,7 +265,7 @@ def _repository_density_data(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.Data
     if "Unknown" in set(records["creation_year"]):
         year_order.append("Unknown")
     present = set(records["primary_system_type"])
-    type_order = [code for code in DEFAULT_SYSTEM_TYPE_PROFILE["types"] if code in present]
+    type_order = [code for code in profile["types"] if code in present]
     type_order += sorted(present - set(type_order) - {"unknown"})
     if "unknown" in present:
         type_order.append("unknown")
@@ -281,9 +283,9 @@ def _density_color(count: int, hue: object) -> tuple[float, float, float]:
     return tuple(1.0 - strength * (1.0 - channel) for channel in to_rgb(hue))
 
 
-def _repository_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int) -> list[Path]:
+def _repository_timeline(frame: pd.DataFrame, out_dir: Path, formats: list[str], dpi: int, system_type_profile: dict[str, object]) -> list[Path]:
     """Replace overlapping repository labels with a type-by-creation-year density heatmap."""
-    records, table = _repository_density_data(frame)
+    records, table = _repository_density_data(frame, system_type_profile)
     write_table(table, out_dir / "data", "01_repository_timeline")
     write_table(records, out_dir / "data", "01_repository_timeline_records")
     matrix = table.pivot(index="primary_system_type", columns="creation_year", values="count") if not table.empty else pd.DataFrame()
@@ -557,9 +559,8 @@ def _discovery_source_boxplot(frame: pd.DataFrame, out_dir: Path, formats: list[
     view = frame.copy()
     relations = view.get("discovery_relations", pd.Series("", index=view.index)).fillna("").astype(str)
     created = pd.to_datetime(view.get("created_at", pd.Series("", index=view.index)), errors="coerce", utc=True)
-    fallback = pd.to_datetime(view.get("pushed_at", pd.Series("", index=view.index)), errors="coerce", utc=True)
-    view["discovery_year"] = created.fillna(fallback).dt.year
-    view["discovery_year_source"] = created.notna().map({True: "created_at", False: "pushed_at_fallback"})
+    view["discovery_year"] = created.dt.year
+    view["discovery_year_source"] = created.notna().map({True: "created_at", False: "unavailable"})
 
     record_rows: list[dict[str, object]] = []
     for index, row in view.iterrows():
@@ -804,6 +805,9 @@ def build(
     classifications_path: Path | None = None,
 ) -> list[Path]:
     """Generate the GitHub IDS catalogue plot and audit-table bundle."""
+    if system_type_profile is None:
+        raise ValueError("GitHub plotting requires a configured system-type profile")
+    validate_system_type_profile(system_type_profile)
     LOG.info("building GitHub plots input=%s output=%s", input_path, out_dir)
     configure_style(config)
     frame = load_frame(
@@ -811,6 +815,7 @@ def build(
         (
             "github_repo_id", "project_id", "repository_relationship", "role", "observation_scopes", "observation_objects",
             "capabilities", "detection_methods", "centralization", "language", "stars", "forks", "pushed_at",
+            "primary_system_type", "system_types", "last_commit_at",
         ),
     )
     formats = [str(value) for value in config.get("formats", ["svg", "pdf"])]
@@ -837,8 +842,8 @@ def build(
         "reporting_segment": frame["role"].map(lambda role: "operational_system" if role in OPERATIONAL_ROLES else "other_relevant_type"),
         "stars": frame["stars"],
         "forks": frame["forks"],
-        "last_commit_at": exact_commit.where(exact_commit != "", frame["pushed_at"]),
-        "last_commit_time_source": exact_commit.map(lambda value: "commit_metadata" if value else "repository_pushed_at_fallback"),
+        "last_commit_at": exact_commit,
+        "last_commit_time_source": exact_commit.map(lambda value: "commit_metadata" if value else "unavailable"),
         "repository_url": frame.get("html_url", pd.Series("", index=frame.index)),
     })
     overview["_canonical"] = (~overview["relationship"].isin(CANONICAL_RELATIONSHIPS)).astype(int)
@@ -850,7 +855,7 @@ def build(
     outputs += _overview_matrix(frame, out_dir, formats, dpi)
 
     # 01 — aggregated type-by-creation-year density heatmap.
-    outputs += _repository_timeline(frame, out_dir, formats, dpi)
+    outputs += _repository_timeline(frame, out_dir, formats, dpi, system_type_profile)
 
     # 02 — role x IDS-type overview matrix.
     outputs += _role_type_matrix(frame, out_dir, formats, dpi)

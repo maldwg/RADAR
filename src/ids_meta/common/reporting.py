@@ -74,7 +74,7 @@ class ReportingDatabase:
             raise ValueError("reporting database must be separate from the retrieval/inference cache")
         if "schema_meta" in tables and list(self.db.execute("SELECT version FROM schema_meta")) != [(SCHEMA_VERSION,)]:
             self.db.close()
-            raise ValueError("unsupported reporting schema version; explicit migration required")
+            raise ValueError("unsupported reporting schema version")
         self.db.executescript(SCHEMA)
         self.db.execute("INSERT OR IGNORE INTO schema_meta VALUES (?)", (SCHEMA_VERSION,))
         self.db.commit()
@@ -140,19 +140,23 @@ class ReportingDatabase:
         return run_id
 
     def ingest_evaluation(self, directory: Path, contract: SourceContract | None = None) -> str:
-        """Backfill saved evaluations and inputs with explicit historical provenance limits."""
+        """Import a current-format evaluation with verified input fingerprints."""
         metrics = json.loads((directory / "metrics.json").read_text())
         contract = source_contract(metrics["source"], contract)
         instances = read_csv(directory / "instances.csv")
         classifications = Path(metrics["classifications_path"])
         candidates = Path(metrics.get("candidates_path") or "")
         fingerprints = metrics.get("input_fingerprints", {})
-        provenance = "frozen_inputs" if fingerprints else "legacy_import; historical inputs not verified"
+        if not fingerprints.get("classifications") or not metrics.get("reference_fingerprint") or not metrics.get("taxonomy_fingerprint"):
+            raise ValueError("evaluation import requires current reference, taxonomy and classification fingerprints")
+        if metrics.get("candidates_path") and (not fingerprints.get("candidates") or not metrics.get("cohort_fingerprint")):
+            raise ValueError("evaluation import requires candidate and cohort fingerprints")
+        provenance = "frozen_inputs"
         for role, path in (("classifications", classifications), ("candidates", candidates)):
             if fingerprints.get(role) and (not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != fingerprints[role]):
                 raise ValueError(f"cannot import {role}: input changed since evaluation")
-        run_id = content_hash([contract.fingerprint, fingerprints or metrics.get("classifications_path"), metrics.get("classifier_id"), instances])
-        reference_id = metrics.get("reference_fingerprint") or content_hash([r['expected_json'] for r in instances])
+        run_id = content_hash([contract.fingerprint, fingerprints, metrics.get("classifier_id"), instances])
+        reference_id = metrics["reference_fingerprint"]
         evaluation_id = content_hash([run_id, reference_id, metrics])
         with self.db:
             self.db.execute("INSERT OR IGNORE INTO runs VALUES (?,?,?)", (run_id, json.dumps(contract.__dict__, sort_keys=True), provenance))
@@ -185,7 +189,7 @@ class ReportingDatabase:
                     if role != "classifications":
                         continue
                     decision_id = content_hash([run_id, entity, row])
-                    self.db.execute("INSERT OR IGNORE INTO decisions VALUES (?,?,?,?,?,?,?)", (decision_id, run_id, entity, snapshot_id, row.get("decision", ""), row.get("classifier_id", row.get("llm_model", "")), json.dumps(row, sort_keys=True)))
+                    self.db.execute("INSERT OR IGNORE INTO decisions VALUES (?,?,?,?,?,?,?)", (decision_id, run_id, entity, snapshot_id, row.get("decision", ""), row.get("classifier_id", ""), json.dumps(row, sort_keys=True)))
                     records[external] = (entity, decision_id)
                     if row.get("decision") in {"accept", "accept_adjacent"} and not row.get('error'):
                         self.db.execute("INSERT OR IGNORE INTO stage_memberships VALUES (?,?,?,?)", (run_id, entity, "inclusion", row["decision"]))
@@ -208,8 +212,7 @@ class ReportingDatabase:
                 if decision:
                     saved = json.loads(self.db.execute("SELECT payload_json FROM decisions WHERE decision_id=?", (decision,)).fetchone()[0])
                     if actual != saved:
-                        # An old instance audit can outlive its live classification CSV.
-                        entity, decision = None, None
+                        raise ValueError("evaluation instance differs from its classification input")
                 self.db.execute("INSERT OR IGNORE INTO reference_matches VALUES (?,?,?,?,?,?,?)", (evaluation_id, reference_key, entity, decision, row["match_method"], row["status"], json.dumps(row, sort_keys=True)))
         self.add_figures(directory / "figures")
         return evaluation_id

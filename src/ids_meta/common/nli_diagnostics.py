@@ -14,6 +14,7 @@ from ids_meta.common.config import ConfigError, Settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.common.evaluation import RatingProfile, evaluate_results
 from ids_meta.common.logging import logger
+from ids_meta.common.provenance import audited_bundle
 from ids_meta.common.nli import (
     NLIProfile, NLIRuntimeConfig, nli_profile_hash, rescore_nli_rows,
 )
@@ -148,6 +149,7 @@ def plot_nli_threshold_sensitivity(
     return save_figure(fig, out_dir, "00_threshold_sensitivity", formats, dpi)
 
 
+@audited_bundle
 def build_nli_threshold_diagnostics(
     source: str, classifications_path: Path, candidates_path: Path,
     rating_profile: RatingProfile, nli_profile: NLIProfile,

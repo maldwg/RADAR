@@ -10,7 +10,7 @@ import pandas as pd
 from ids_meta.cli import build_parser
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import Settings
-from ids_meta.common.csvio import atomic_write_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.funnel import build
 
 
@@ -33,7 +33,7 @@ class FunnelTests(unittest.TestCase):
                 "interim_dir": "interim", "processed_dir": "processed", "plots_dir": "plots",
                 "github_cache": "raw/github.sqlite3", "openalex_cache": "raw/openalex.sqlite3",
                 "github_terms": "github_terms.toml", "openalex_terms": "openalex_terms.toml",
-            },
+             'evaluation_dir': str(root / 'evaluation')},
             "github": {"query_limit_factor": 3, "collection_limit": 10},
             "openalex": {
                 "query_limit_factor": 3, "collection_limit": 80,
@@ -90,6 +90,7 @@ class FunnelTests(unittest.TestCase):
                 with PipelineCache(settings.path(f"{source}_cache")) as cache:
                     cache.put_record(f"{source}.collection", "latest", {
                         ids_key: ["1"], "collection_limit": None, "sample_size_per_query": None,
+                        "selected_at": "2026-01-01T00:00:00+00:00",
                     }, "now")
                 build(settings, source)
                 table = pd.read_csv(root / f"plots/{source}/pipeline_funnel/data/00_pipeline_funnel.csv")
@@ -123,11 +124,11 @@ class FunnelTests(unittest.TestCase):
             ], ["github_repo_id", "prefilter_band"])
             classifications = root / "interim/github/models/model-a/classifications.csv"
             atomic_write_csv(classifications, [
-                {"github_repo_id": "1", "decision": "accept", "classifier_id": "model-a"},
+                {"github_repo_id": "1", "decision": "accept", "classifier_id": "model-a", 'classifier_supported_fields': '*'},
             ], ["github_repo_id", "decision", "classifier_id"])
             catalogue = root / "processed/github/models/model-a/repositories.csv"
             atomic_write_csv(catalogue, [
-                {"github_repo_id": "1", "decision": "accept"},
+                {"github_repo_id": "1", "decision": "accept", 'classifier_supported_fields': '*'},
             ], ["github_repo_id", "decision"])
 
             outputs = build(settings, "github")
@@ -196,7 +197,7 @@ class FunnelTests(unittest.TestCase):
                 {"openalex_id": "paper-2", "prefilter_band": "borderline"},
             ], ["openalex_id", "prefilter_band"])
             atomic_write_csv(root / "interim/openalex/models/model-a/classifications.csv", [
-                {"openalex_id": "paper-1", "decision": "accept", "classifier_id": "model-a"},
+                {"openalex_id": "paper-1", "decision": "accept", "classifier_id": "model-a", 'classifier_supported_fields': '*'},
             ], ["openalex_id", "decision", "classifier_id"])
             atomic_write_csv(root / "processed/openalex/models/model-a/base_papers.csv", [
                 {"openalex_id": "paper-1"},

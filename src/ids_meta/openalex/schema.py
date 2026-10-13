@@ -80,17 +80,12 @@ def enum_value(value: Any, allowed: tuple[str, ...], default: str) -> str:
 
 
 def ensure_resource_name(row: dict[str, str]) -> str:
-    """Populate an explicit concise resource name from LLM output or legacy name fields."""
-    display = str(row.get("artifact_display_name", "") or "").strip()
-    if not display:
-        aliases = [value.strip() for value in str(row.get("artifact_aliases", "") or "").split(";") if value.strip()]
-        compact = [value for value in aliases if len(value) <= 80]
-        if compact:
-            display = min(compact, key=lambda value: (len(value), value.casefold()))
-    if not display:
-        canonical = str(row.get("artifact_name", "") or "").strip()
-        display = canonical if len(canonical) <= 80 else canonical[:79].rstrip() + "…"
-    row["artifact_display_name"] = display
+    """Expose the current schema's explicit display name without reconstructing it."""
+    if "artifact_display_name" not in row:
+        raise ValueError("paper row requires artifact_display_name")
+    display = str(row["artifact_display_name"]).strip()
+    if row.get("decision") in {"accept", "accept_adjacent"} and not display:
+        raise ValueError("accepted paper requires an explicit artifact_display_name")
     row["resource_name"] = display
     return display
 

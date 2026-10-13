@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 
 from ids_meta.common.ensemble import consensus_classification
 from ids_meta.common.regression import evaluate_github_regression, evaluate_openalex_regression
@@ -30,21 +31,21 @@ class RegressionEvaluationTests(unittest.TestCase):
 
     def test_consecutive_vote_reduces_boundary_decisions(self) -> None:
         """Require threshold agreement and turn a tied boundary into uncertain."""
-        majority = consensus_classification("github", {"run-1": {"decision": "accept"}, "run-2": {"decision": "accept"}, "run-3": {"decision": "exclude"}}, .66)
-        tied = consensus_classification("openalex", {"run-1": {"decision": "accept"}, "run-2": {"decision": "exclude"}}, .5)
+        majority = consensus_classification("github", {"run-1": {"decision": "accept"}, "run-2": {"decision": "accept"}, "run-3": {"decision": "exclude"}}, .66, system_type_profile=SYSTEM_TYPE_PROFILE)
+        tied = consensus_classification("openalex", {"run-1": {"decision": "accept"}, "run-2": {"decision": "exclude"}}, .5, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(majority["decision"], "accept")
         self.assertEqual(tied["decision"], "uncertain")
         self.assertEqual(tied["ensemble_vote_status"], "tie")
 
     def test_openalex_field_consensus_falls_back_to_a_coherent_run(self) -> None:
         """Reject a synthetic role/type conflict and expose the audited fallback run."""
-        base = {"decision": "accept", "relevance_tier": "core", "direct_release_evidence": "true", "artifact_name": "Fixture", "evidence_quote_verified": "true", "domain": "iot_iiot", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled"}
+        base = {"decision": "accept", "relevance_tier": "core", "direct_release_evidence": "true", "artifact_name": "Fixture", "evidence_quote_verified": "true", "domain": "iot_iiot", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled", 'artifact_display_name': "Fixture", 'resource_name': "Fixture"}
         votes = {
             "run-1": {**base, "paper_role": "generator_release", "artifact_type": "generator_framework"},
             "run-2": {**base, "paper_role": "generator_release", "artifact_type": "dataset_and_generator"},
             "run-3": {**base, "paper_role": "original_release", "artifact_type": "dataset"},
         }
-        result = consensus_classification("openalex", votes, .66)
+        result = consensus_classification("openalex", votes, .66, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(result["decision"], "accept")
         self.assertEqual(result["paper_role"], "generator_release")
         self.assertEqual(result["artifact_type"], "generator_framework")
@@ -59,7 +60,7 @@ class RegressionEvaluationTests(unittest.TestCase):
             "run-2": {**base, "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS"},
             "run-3": {**base, "role": "support_tooling", "observation_scopes": "host_endpoint", "observation_objects": "log_analysis", "capabilities": "monitoring", "detection_methods": "rule_based", "primary_system_type": "HIDS", "system_types": "HIDS"},
         }
-        result = consensus_classification("github", votes, .66)
+        result = consensus_classification("github", votes, .66, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(result["role"], "native_detector")
         self.assertEqual(result["observation_scopes"], "network")
         self.assertEqual(result["observation_objects"], "packet_analysis")
@@ -80,7 +81,7 @@ class RegressionEvaluationTests(unittest.TestCase):
         for runnable, expected in (("true", "accept"), ("false", "uncertain")):
             with self.subTest(runnable=runnable):
                 row = {**base, "reproducible_execution": runnable}
-                result = consensus_classification("github", {"run-1": row, "run-2": row}, .66)
+                result = consensus_classification("github", {"run-1": row, "run-2": row}, .66, system_type_profile=SYSTEM_TYPE_PROFILE)
                 self.assertEqual(result["decision"], expected)
                 if runnable == "false":
                     self.assertIn("reproducible_execution_missing", result["consensus_validation_flags"])
@@ -104,7 +105,7 @@ class RegressionEvaluationTests(unittest.TestCase):
         ):
             with self.subTest(flag=flag):
                 row = {**base, **change}
-                result = consensus_classification("github", {"run-1": row, "run-2": row}, .66)
+                result = consensus_classification("github", {"run-1": row, "run-2": row}, .66, system_type_profile=SYSTEM_TYPE_PROFILE)
                 self.assertEqual(result["decision"], expected)
                 self.assertEqual(result["role"], "antivirus")
                 if flag:
@@ -113,7 +114,7 @@ class RegressionEvaluationTests(unittest.TestCase):
     def test_query_sampling_takes_x_from_each_query(self) -> None:
         """Sample exactly x native-ranked works per query without oversampling."""
         class Client:
-            def search(self, query: str, _per_page: int, _pages: int):
+            def search(self, query: str, _per_page: int, _pages: int, sort="best_match", order="desc"):
                 """Yield a deterministic five-result query fixture."""
                 yield from ({"id": f"{query}-{index}"} for index in range(5))
         rows, scanned, _exhausted = sample_query_results(Client(), ["a", "b"], 2, 100, 10)  # type: ignore[arg-type]

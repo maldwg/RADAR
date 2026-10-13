@@ -10,7 +10,7 @@ import requests
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.evidence import snowball_depth
 from ids_meta.common.run import utc_now
-from ids_meta.common.limits import query_result_limit, limit_label, warn_legacy_query_limits
+from ids_meta.common.limits import query_result_limit, limit_label
 from ids_meta.common.scoring import ScoreResult, score_evidence
 from ids_meta.common.text import contains_concept, normalize_text
 from ids_meta.common.logging import logger
@@ -344,7 +344,6 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         os.getenv("OPENALEX_API_KEY"), os.getenv("OPENALEX_MAILTO"),
         request_pause_seconds=float(settings.get("request_pause_seconds", 0.5)),
     )
-    warn_legacy_query_limits(settings, LOG)
     per_page = int(settings.get("per_page", 100))
     max_surveys = max(0, int(settings.get("max_surveys", 25)))
     reference_fraction = max(0.0, min(0.9, float(settings.get("survey_reference_fraction", .35))))

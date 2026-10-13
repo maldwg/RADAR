@@ -3,6 +3,8 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from tests.fixtures import fixture_collection
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -11,7 +13,7 @@ from ids_meta.common.config import load_prompt_profile, load_settings, load_syst
 from ids_meta.github.pipeline import classify, export, prefilter, prompt
 from ids_meta.github.reconcile import reconcile
 from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, normalize_response, response_schema, system_type_codes
-from ids_meta.common.csvio import atomic_write_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.common.text import stable_hash
 from ids_meta.github.collect import GitHubClient, _enrich, collect, search_shards
 
@@ -102,7 +104,7 @@ class GitHubPipelineTests(unittest.TestCase):
                     "independent_fork": False, "direct_self_description": True,
                     "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": role == "detection_framework", "research_basis": True, "upstream_full_name": "",
                     "primary_reason": "fixture",
-                }, [{"source": "README", "quote": "fixture"}], config, False)
+                }, [{"source": "README", "quote": "fixture"}], config, False, system_type_profile=SYSTEM_TYPE_PROFILE)
                 self.assertEqual(decision["decision"], "accept")
 
     def test_traffic_analyzer_accepts_offline_inspection_without_detection_engine(self) -> None:
@@ -116,11 +118,11 @@ class GitHubPipelineTests(unittest.TestCase):
             "implements_detection_engine": False,
         }
         evidence = [{"source": "README", "quote": "Inspect a saved packet capture with analyze -r trace.pcap."}]
-        accepted = normalize_response(raw, evidence, {}, False)
+        accepted = normalize_response(raw, evidence, {}, False, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(accepted["decision"], "accept")
         self.assertEqual(accepted["primary_system_type"], "NSM")
         self.assertEqual(accepted["classification_validation_flags"], "")
-        rejected = normalize_response({**raw, "reproducible_execution": False}, evidence, {}, False)
+        rejected = normalize_response({**raw, "reproducible_execution": False}, evidence, {}, False, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(rejected["decision"], "uncertain")
         self.assertEqual(rejected["classification_validation_flags"], "reproducible_execution_missing")
 
@@ -135,7 +137,7 @@ class GitHubPipelineTests(unittest.TestCase):
             "implements_detection_engine": False, "requires_external_detector": True,
         }
         evidence = [{"source": "README", "quote": "Run scan uploads/ to scan files with ClamAV."}]
-        accepted = normalize_response(raw, evidence, {}, False)
+        accepted = normalize_response(raw, evidence, {}, False, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(accepted["decision"], "accept")
         self.assertEqual(accepted["system_types"], "AV")
         self.assertEqual(accepted["observation_objects"], "file_analysis")
@@ -146,10 +148,10 @@ class GitHubPipelineTests(unittest.TestCase):
             ({"capabilities": ["monitoring"]}, "detection_capability_missing"),
         ):
             with self.subTest(flag=flag):
-                result = normalize_response({**raw, **change}, evidence, {}, False)
+                result = normalize_response({**raw, **change}, evidence, {}, False, system_type_profile=SYSTEM_TYPE_PROFILE)
                 self.assertEqual(result["decision"], "uncertain")
                 self.assertIn(flag, result["classification_validation_flags"])
-        unknown = normalize_response({**raw, "primary_system_type": "unknown", "system_types": ["unknown"]}, evidence, {}, False)
+        unknown = normalize_response({**raw, "primary_system_type": "unknown", "system_types": ["unknown"]}, evidence, {}, False, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(unknown["system_types"], "unknown")
 
     def test_native_detector_requires_independent_runtime_engine_evidence(self) -> None:
@@ -161,7 +163,7 @@ class GitHubPipelineTests(unittest.TestCase):
             "independent_fork": False, "direct_self_description": True,
             "runtime_observation": False, "reproducible_execution": False,
             "offline_dataset_only": True, "implements_detection_engine": False, "requires_external_detector": False, "integrates_multiple_detectors": False, "cohesive_framework_architecture": False, "research_basis": False, "upstream_full_name": "", "primary_reason": "fixture",
-        }, [{"source": "README", "quote": "evaluated on a static dataset"}], {}, False)
+        }, [{"source": "README", "quote": "evaluated on a static dataset"}], {}, False, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(decision["decision"], "uncertain")
         self.assertEqual(
             decision["classification_validation_flags"],
@@ -181,10 +183,10 @@ class GitHubPipelineTests(unittest.TestCase):
             "integrates_multiple_detectors": False, "cohesive_framework_architecture": True,
             "research_basis": False, "upstream_full_name": "", "primary_reason": "fixture",
         }
-        native = normalize_response(raw, evidence, {}, False)
+        native = normalize_response(raw, evidence, {}, False, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(native["decision"], "uncertain")
         self.assertIn("framework_architecture_conflict", native["classification_validation_flags"])
-        framework = normalize_response({**raw, "role": "detection_framework"}, evidence, {}, False)
+        framework = normalize_response({**raw, "role": "detection_framework"}, evidence, {}, False, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(framework["decision"], "accept")
         self.assertEqual(framework["classification_validation_flags"], "")
 
@@ -196,7 +198,7 @@ class GitHubPipelineTests(unittest.TestCase):
             "primary_system_type": "NIDS", "system_types": ["NIDS"],
             "independent_fork": False, "direct_self_description": True,
             "runtime_observation": True, "reproducible_execution": True, "offline_dataset_only": False, "implements_detection_engine": True, "requires_external_detector": False, "integrates_multiple_detectors": True, "cohesive_framework_architecture": False, "research_basis": True, "upstream_full_name": "", "primary_reason": "fixture",
-        }, [{"source": "README", "quote": "fixture"}], {}, True)
+        }, [{"source": "README", "quote": "fixture"}], {}, True, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(decision["decision"], "uncertain")
 
     def test_search_uses_native_best_match_without_sort_override(self) -> None:
@@ -220,7 +222,7 @@ class GitHubPipelineTests(unittest.TestCase):
     def test_search_is_sharded_below_github_cap(self) -> None:
         """Verify overflowing GitHub searches split into retrievable shards."""
         class SearchClient:
-            def search(self, query: str, page: int, per_page: int) -> dict[str, Any]:
+            def search(self, query: str, page: int, per_page: int, sort="best_match", order="desc") -> dict[str, Any]:
                 """Return an overflowing parent interval and bounded child intervals."""
                 # The full interval overflows; recursively split intervals fit.
                 total = 1500 if "2008-01-01..2008-01-04" in query else 1
@@ -238,7 +240,7 @@ class GitHubPipelineTests(unittest.TestCase):
             def __init__(self) -> None:
                 """Record the exact queries sent to GitHub search."""
                 self.search_queries: list[str] = []
-            def search(self, query: str, _page: int, _per_page: int) -> dict[str, Any]:
+            def search(self, query: str, _page: int, _per_page: int, sort="best_match", order="desc") -> dict[str, Any]:
                 """Return one native best-match result for each query."""
                 self.search_queries.append(query)
                 base = query.split(" stars:", 1)[0]
@@ -282,7 +284,7 @@ class GitHubPipelineTests(unittest.TestCase):
                 """Record search calls for the bounded query."""
                 self.search_queries: list[str] = []
 
-            def search(self, query: str, _page: int, _per_page: int) -> dict[str, Any]:
+            def search(self, query: str, _page: int, _per_page: int, sort="best_match", order="desc") -> dict[str, Any]:
                 """Return more repositories than one query may contribute."""
                 self.search_queries.append(query)
                 return {
@@ -329,7 +331,7 @@ class GitHubPipelineTests(unittest.TestCase):
                 """Initialize the unexpected-search counter."""
                 self.search_calls = 0
 
-            def search(self, _query: str, _page: int, _per_page: int) -> dict[str, Any]:
+            def search(self, _query: str, _page: int, _per_page: int, sort="best_match", order="desc") -> dict[str, Any]:
                 """Record an API search that should not occur in this fixture."""
                 self.search_calls += 1
                 return {"total_count": 0, "items": []}
@@ -418,10 +420,10 @@ class GitHubPipelineTests(unittest.TestCase):
                 self.assertEqual(normalized["system_types"], ";".join(types))
 
     def test_security_monitoring_type_does_not_require_detection_or_alerting(self) -> None:
-        """Preserve a monitoring-only SM annotation through configured and fallback schemas."""
+        """Preserve a monitoring-only SM annotation through the configured schema."""
         settings = load_settings(ROOT / "config/default.toml")
         profile = load_system_type_profile(settings, "github")
-        for selected in (profile, None):
+        for selected in (profile,):
             with self.subTest(configured=selected is not None):
                 self.assertIn("SM", response_schema(selected)["properties"]["primary_system_type"]["enum"])
                 normalized = normalize_response({
@@ -508,7 +510,7 @@ class GitHubPipelineTests(unittest.TestCase):
                 decisions = classify(candidates, classified, cache, {"require_verified_quote": True},
                                      generator=model, enricher=Enricher(),
                                      prompt_config=load_prompt_profile(load_settings(ROOT / "config/default.toml"), "github"),
-                                     consecutive_runs=5, consensus_threshold=.8)
+                                     consecutive_runs=5, consensus_threshold=.8, system_type_profile=SYSTEM_TYPE_PROFILE)
             self.assertEqual(model.calls, 10, decisions)
             self.assertEqual(decisions[0]["decision"], "accept")
             self.assertEqual(decisions[0]["ensemble_vote_status"], "threshold_met")
@@ -540,7 +542,7 @@ class GitHubPipelineTests(unittest.TestCase):
                     "readme_text": "This intruson detction system analyzes network traffic. Install and run the sensor.",
                     "docs_text": "", "last_commit_sha": "abc", "parent_full_name": "", "matched_queries": ["intrusion detection system"],
                 }, "2026-01-01T00:00:00+00:00")
-                rows = prefilter(settings.section("github"), profile, cache, candidates, "fixture-run")
+                rows = prefilter(settings.section("github"), profile, fixture_collection(cache, 'github'), candidates, "fixture-run")
                 self.assertEqual(rows[0]["prefilter_band"], "candidate")
                 model = FakeGitHubModel()
                 first = classify(candidates, classified, cache, settings.section("ollama"), generator=model, prompt_config=prompts, system_type_profile=system_types, consecutive_runs=3, consensus_threshold=.66)
@@ -583,8 +585,8 @@ class GitHubPipelineTests(unittest.TestCase):
                         "readme_text": "fixture evidence", "docs_text": "",
                     }, "2026-01-01T00:00:00+00:00")
                 atomic_write_csv(candidates, rows, CANDIDATE_COLUMNS)
-                first = classify(candidates, classified, cache, {}, limit=2, dry_run=True)
-                second = classify(candidates, classified, cache, {}, limit=1, dry_run=True)
+                first = classify(candidates, classified, cache, {}, limit=2, dry_run=True, system_type_profile=SYSTEM_TYPE_PROFILE)
+                second = classify(candidates, classified, cache, {}, limit=1, dry_run=True, system_type_profile=SYSTEM_TYPE_PROFILE)
             self.assertEqual([row["github_repo_id"] for row in first], ["2", "3"])
             self.assertEqual([row["github_repo_id"] for row in second], ["2"])
 
@@ -600,7 +602,7 @@ class GitHubPipelineTests(unittest.TestCase):
                     "github_repo_id": repo_id, "full_name": f"example/{name}", "owner": "example", "name": name,
                     "decision": "accept", "role": "native_detector", "fork": "false",
                     "direct_self_description": "true", "last_commit_sha": "sha", "stars": "0",
-                })
+                 'classifier_supported_fields': '*'})
                 return value
             source_rows = [row("102", "network-guard-docker"), row("101", "network-guard")]
             selections = []
@@ -626,13 +628,13 @@ class GitHubPipelineTests(unittest.TestCase):
                 "github_repo_id": "1", "full_name": "OISF/suricata", "owner": "OISF", "name": "suricata",
                 "decision": "accept", "role": "native_detector", "fork": "false",
                 "direct_self_description": "true", "last_commit_sha": "sha",
-            })
+             'classifier_supported_fields': '*'})
             variant = {column: "" for column in CLASSIFICATION_COLUMNS}
             variant.update({
                 "github_repo_id": "2", "full_name": "third/ansible-suricata", "owner": "third", "name": "ansible-suricata",
                 "decision": "accept", "role": "support_tooling", "fork": "false",
                 "direct_self_description": "true", "upstream_full_name": "OISF/suricata", "last_commit_sha": "sha",
-            })
+             'classifier_supported_fields': '*'})
             atomic_write_csv(source, [variant, base], CLASSIFICATION_COLUMNS)
             with PipelineCache(root / "cache.sqlite3") as cache:
                 result = reconcile(source, output, cache, settings.section("ollama"), settings.section("github"), dry_run=True)
@@ -654,13 +656,13 @@ class GitHubPipelineTests(unittest.TestCase):
                 "github_repo_id": "1", "full_name": "example/detector-core", "owner": "example", "name": "detector-core",
                 "decision": "accept", "role": "native_detector", "fork": "false",
                 "direct_self_description": "true", "last_commit_sha": "sha",
-            })
+             'classifier_supported_fields': '*'})
             framework = {column: "" for column in CLASSIFICATION_COLUMNS}
             framework.update({
                 "github_repo_id": "2", "full_name": "example/framework-suite", "owner": "example", "name": "framework-suite",
                 "decision": "accept", "role": "detection_framework", "fork": "false",
                 "direct_self_description": "true", "last_commit_sha": "sha",
-            })
+             'classifier_supported_fields': '*'})
             atomic_write_csv(source, [native, framework], CLASSIFICATION_COLUMNS)
             with PipelineCache(root / "cache.sqlite3") as cache:
                 cache.put_record("github.repository", "1", {"readme_text": "Canonical project: https://github.com/example/framework-suite", "docs_text": ""}, "now")
@@ -681,7 +683,7 @@ class GitHubPipelineTests(unittest.TestCase):
             row.update({
                 "github_repo_id": "2", "full_name": "third/ansible-suricata", "owner": "third", "name": "ansible-suricata",
                 "decision": "accept", "role": "support_tooling", "fork": "false", "direct_self_description": "true",
-            })
+             'classifier_supported_fields': '*'})
             atomic_write_csv(source, [row], CLASSIFICATION_COLUMNS)
             result = reconcile(source, output, None, settings.section("ollama"), settings.section("github"), dry_run=True)
             self.assertEqual(result[0]["repository_relationship"], "base_repository_missing")

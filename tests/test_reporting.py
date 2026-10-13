@@ -69,7 +69,7 @@ class ReportingTests(unittest.TestCase):
         keys = {entity_identifier(contract, 'same'), entity_identifier(replace(contract, name='another'), 'same'),
             entity_identifier(replace(contract, entity_kind='paper'), 'same')}
         self.assertEqual(len(keys), 3)
-        self.assertEqual(adapter.normalize([{'repo_id': 'x', 'decision': 'included'}])[0]['decision'], 'accept')
+        self.assertEqual(adapter.normalize([{'repo_id': 'x', 'decision': 'included', 'classifier_supported_fields': '*'}])[0]['decision'], 'accept')
 
     def test_metadata_only_inputs_have_no_classification_count(self) -> None:
         """Do not pretend that imported unclassified metadata constitutes decisions."""
@@ -144,8 +144,8 @@ class ReportingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'reference_fingerprint'):
                 build_classifiers(contract.name, {}, {'A': first, 'B': third}, root / 'rejected', PLOTS)
 
-    def test_legacy_import_and_cache_isolation(self) -> None:
-        """Mark unverifiable historical provenance and refuse to reuse inference cache schemas."""
+    def test_import_requires_fingerprints_and_separate_cache_schema(self) -> None:
+        """Reject unpinned reports and refuse to reuse inference cache schemas."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             contract = load_source_contract(EXAMPLES / 'repositories.toml')
@@ -156,31 +156,9 @@ class ReportingTests(unittest.TestCase):
             metrics = json.loads(path.read_text())
             metrics.pop('input_fingerprints')
             path.write_text(json.dumps(metrics))
-            with ReportingDatabase(root / 'legacy.sqlite3') as db:
-                db.ingest_evaluation(evaluation, contract)
-                status = db.db.execute('SELECT provenance_status FROM runs').fetchone()[0]
-                self.assertIn('historical inputs not verified', status)
-            with sqlite3.connect(root / 'cache.sqlite3') as db:
-                db.execute('CREATE TABLE records(id TEXT PRIMARY KEY)')
-            with self.assertRaisesRegex(ValueError, 'separate'):
-                ReportingDatabase(root / 'cache.sqlite3')
-
-    def test_pinned_import_rejects_changed_classifications(self) -> None:
-        """Do not attach a saved evaluation to different live classifier results."""
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            build_report(EXAMPLES / 'repositories.toml', EXAMPLES / 'repositories.csv', root / 'report', PLOTS,
-                ratings_path=EXAMPLES / 'repository_references.toml')
-            path = root / 'report/normalized/classifications.csv'
-            path.write_text(path.read_text().replace('accept', 'exclude'))
-            with ReportingDatabase(root / 'another.sqlite3') as db:
-                with self.assertRaisesRegex(ValueError, 'input changed'):
-                    db.ingest_evaluation(root / 'report/evaluation', load_source_contract(EXAMPLES / 'repositories.toml'))
-
-    def test_sqlite_snapshot_includes_wal_and_is_stable(self) -> None:
-        """Freeze concurrent cache state without writes and preserve committed WAL records."""
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            with ReportingDatabase(root / 'unpinned.sqlite3') as db:
+                with self.assertRaisesRegex(ValueError, 'fingerprints'):
+                    db.ingest_evaluation(evaluation, contract)
             with PipelineCache(root / 'cache.sqlite3') as cache:
                 cache.put_record('fixture', 'one', {'value': 1}, '2026-10-12T00:00:00Z')
                 frozen = freeze_database(root / 'cache.sqlite3', root / 'report')

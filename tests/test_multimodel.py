@@ -8,7 +8,8 @@ from pathlib import Path
 from ids_meta.cli import _execute_github, _execute_openalex, _execution_paths, _variant_paths
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import Settings
-from ids_meta.common.csvio import atomic_write_csv, read_csv
+from ids_meta.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.github.schema import CANDIDATE_COLUMNS as GITHUB_CANDIDATE_COLUMNS
 from ids_meta.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
 
@@ -30,9 +31,9 @@ class MultiModelPipelineTests(unittest.TestCase):
                 "github_prompts": str(ROOT / "config/prompts/github.toml"),
                 "openalex_prompts": str(ROOT / "config/prompts/openalex.toml"),
                 "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
-            },
+             'evaluation_dir': str(root / 'evaluation')},
             "logging": {"progress_every": 25},
-            "ollama": {"model": "legacy", "models": ["model-alpha", "model-beta"], "temperature": 0.0, "seed": 42},
+            "ollama": {"models": ["model-alpha", "model-beta"], "temperature": 0.0, "seed": 42},
             "ensemble": {"enabled": True, "models": [], "threshold": .5},
             "github": {"collection_limit": 10, "classification_limit": 10, "borderline_threshold": 4, "reconcile_with_llm": False},
             "openalex": {"collection_limit": 10, "classification_limit": 10, "borderline_threshold": 4, "reconcile_with_llm": False, "enrich_missing_abstracts": False},

@@ -84,10 +84,12 @@ class StudyScreeningAdapter(LocalSourceAdapter):
     """
 
     def __init__(self, protocol: StudyProtocol):
+        """Initialize the adapter or fixture state."""
         super().__init__(protocol.contract)
         self.protocol = protocol
 
     def normalize(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Validate evidence and replay the screening rules."""
         screened = []
         expected = set(self.protocol.filters) | set(self.protocol.quality)
         for index, row in enumerate(rows, 1):
@@ -157,6 +159,7 @@ def screen_study(protocol_path: Path, input_path: Path, output_path: Path) -> li
         raise ValueError("study assessments changed while screening")
     for row in rows:
         row["assessment_input_sha256"] = digest
+        row["classifier_supported_fields"] = "*"
     columns = list(dict.fromkeys(key for row in rows for key in row))
     atomic_write_csv(output_path, rows, columns)
     return rows

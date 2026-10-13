@@ -11,11 +11,10 @@ def recovered_taxonomy_table(input_dir: Path) -> pd.DataFrame | None:
 
     Reuse the persisted per-entity field checks so aliases, cited-paper fallback,
     unscored labels and exact multi-label matching follow the original evaluation.
-    Older bundles without an entity audit cannot provide this conditional view.
     """
     audit_path = input_dir / "instances.csv"
     if not audit_path.is_file():
-        return None
+        raise ValueError("recovered taxonomy requires instances.csv")
     fields = pd.read_csv(input_dir / "field_metrics.csv", keep_default_na=False)
     audit = pd.read_csv(audit_path, keep_default_na=False)
     positive = audit["expected_disposition"].eq("include")

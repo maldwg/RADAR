@@ -8,11 +8,13 @@ import io
 import json
 from contextlib import redirect_stdout
 from pathlib import Path
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 from unittest.mock import patch
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.architecture import build as build_architecture
-from ids_meta.common.csvio import atomic_write_csv, read_csv
+from ids_meta.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.common.ensemble import consensus_classification, ensemble_classifications
 from ids_meta.common.config import Settings
 from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
@@ -115,8 +117,6 @@ class CommonTests(unittest.TestCase):
         self.assertEqual(_pipeline_limits(defaults, config), (1000, 100))
         explicit = argparse.Namespace(action="run", limit=None, collect_limit=750, classify_limit=80, classify_all=False)
         self.assertEqual(_pipeline_limits(explicit, config), (750, 80))
-        legacy = argparse.Namespace(action="run", limit=12, collect_limit=None, classify_limit=None, classify_all=False)
-        self.assertEqual(_pipeline_limits(legacy, config), (12, 12))
         classify_all = argparse.Namespace(action="run", limit=None, collect_limit=250, classify_limit=None, classify_all=True)
         self.assertEqual(_pipeline_limits(classify_all, config), (250, None))
         configured_all = argparse.Namespace(action="run", limit=None, collect_limit=None, classify_limit=None, classify_all=False)
@@ -199,7 +199,7 @@ class CommonTests(unittest.TestCase):
         settings = load_settings(ROOT / "config/default.toml")
         github_config = load_prompt_profile(settings, "github")
         openalex_config = load_prompt_profile(settings, "openalex")
-        github = github_prompt([EvidenceSection("README", "repository fixture evidence")], github_config)
+        github = github_prompt([EvidenceSection("README", "repository fixture evidence")], github_config, system_type_profile=SYSTEM_TYPE_PROFILE)
         openalex = openalex_prompt([EvidenceSection("Abstract", "paper fixture evidence")], openalex_config)
         self.assertIn("native_detector", github)
         self.assertIn("repository fixture evidence", github)
@@ -210,11 +210,11 @@ class CommonTests(unittest.TestCase):
         """Verify classifiers reject absent templates and taxonomy descriptions."""
         sections = [EvidenceSection("README", "fixture evidence")]
         with self.assertRaisesRegex(ValueError, "roles"):
-            github_prompt(sections, None)
+            github_prompt(sections, None, system_type_profile=SYSTEM_TYPE_PROFILE)
         incomplete = dict(load_prompt_profile(load_settings(ROOT / "config/default.toml"), "github"))
         incomplete.pop("methods")
         with self.assertRaisesRegex(ValueError, "methods"):
-            github_prompt(sections, incomplete)
+            github_prompt(sections, incomplete, system_type_profile=SYSTEM_TYPE_PROFILE)
         with self.assertRaisesRegex(ValueError, "roles"):
             openalex_prompt([EvidenceSection("Abstract", "fixture evidence")], None)
 
@@ -282,19 +282,7 @@ class CommonTests(unittest.TestCase):
                 cache.put_decision("x", "1", "profile-a", "evidence-a", {"decision": "accept"}, "now")
                 self.assertIsNotNone(cache.get_decision("x", "1", "profile-a", "evidence-a"))
                 self.assertIsNone(cache.get_decision("x", "1", "profile-a", "evidence-b"))
-                cache.put_decision(
-                    "x", "2", "runtime-profile", "evidence-a",
-                    {"decision": "accept", "profile_hash": "runtime-profile",
-                     "classifier_profile_hash": "runtime-profile", "classified_at": "now"},
-                    "now",
-                )
-                migrated = cache.get_compatible_decision(
-                    "x", "2", "semantic-profile", "evidence-a", ("runtime-profile",),
-                )
-                self.assertEqual(migrated["profile_hash"], "semantic-profile")
-                self.assertIsNotNone(
-                    cache.get_decision("x", "2", "semantic-profile", "evidence-a"),
-                )
+                self.assertIsNone(cache.get_decision("x", "1", "another-profile", "evidence-a"))
 
     def test_multi_model_configuration_and_paths(self) -> None:
         """Verify model lists, ensemble subsets, and isolated filesystem paths."""
@@ -304,8 +292,8 @@ class CommonTests(unittest.TestCase):
                 "paths": {
                     "interim_dir": "interim", "processed_dir": "processed", "plots_dir": "plots",
                     "github_cache": "github.sqlite3", "openalex_cache": "openalex.sqlite3",
-                },
-                "ollama": {"model": "legacy", "models": ["model/a", "model:b", "model/a"]},
+                 'evaluation_dir': str(root / 'evaluation')},
+                "ollama": {"models": ["model/a", "model:b", "model/a"]},
                 "ensemble": {"enabled": True, "models": ["model:b"], "threshold": .75},
             }
             settings = Settings(root, values)
@@ -326,7 +314,7 @@ class CommonTests(unittest.TestCase):
                 "artifact_display_name": artifact_name, "direct_release_evidence": "true",
                 "evidence_quote_verified": "true",
             }
-        result = consensus_classification("openalex", votes, .5)
+        result = consensus_classification("openalex", votes, .5, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(result["decision"], "uncertain")
         self.assertIn("artifact_identity_consensus_conflict", result["consensus_validation_flags"])
         self.assertEqual(json.loads(result["consensus_field_audit"])["artifact_identity"]["status"], "conflict")
@@ -346,7 +334,7 @@ class CommonTests(unittest.TestCase):
                 rows = []
                 for identifier, decision in model_decisions.items():
                     row = {column: "" for column in GITHUB_CLASSIFICATION_COLUMNS}
-                    row.update({"github_repo_id": identifier, "full_name": f"fixture/{identifier}", "decision": decision, "llm_model": model})
+                    row.update({"github_repo_id": identifier, "full_name": f"fixture/{identifier}", "decision": decision, "llm_model": model, 'classifier_supported_fields': '*'})
                     rows.append(row)
                 atomic_write_csv(path, rows, GITHUB_CLASSIFICATION_COLUMNS)
                 inputs[model] = path
@@ -373,7 +361,7 @@ class CommonTests(unittest.TestCase):
             for model, decision, tier in (("core-model", "accept", "core"), ("adjacent-model", "accept_adjacent", "adjacent")):
                 path = root / f"{model}-openalex.csv"
                 row = {column: "" for column in OPENALEX_CLASSIFICATION_COLUMNS}
-                row.update({"openalex_id": "W1", "title": "Fixture release", "decision": decision, "relevance_tier": tier, "llm_model": model})
+                row.update({"openalex_id": "W1", "title": "Fixture release", "decision": decision, "relevance_tier": tier, "llm_model": model, 'classifier_supported_fields': '*'})
                 atomic_write_csv(path, [row], OPENALEX_CLASSIFICATION_COLUMNS)
                 openalex_inputs[model] = path
             openalex_rows = ensemble_classifications("openalex", openalex_inputs, root / "openalex-ensemble.csv", .5, OPENALEX_CLASSIFICATION_COLUMNS)
@@ -389,7 +377,7 @@ class CommonTests(unittest.TestCase):
                     "openalex_id": "W-conflict", "title": "A new intrusion dataset",
                     "decision": "accept", "relevance_tier": "core", "paper_role": "original_release",
                     "artifact_name": artifact_name, "artifact_display_name": artifact_name, "llm_model": model,
-                })
+                 'classifier_supported_fields': '*'})
                 atomic_write_csv(path, [row], OPENALEX_CLASSIFICATION_COLUMNS)
                 conflict_inputs[model] = path
             conflict = ensemble_classifications("openalex", conflict_inputs, root / "openalex-conflict.csv", .5, OPENALEX_CLASSIFICATION_COLUMNS)[0]

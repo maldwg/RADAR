@@ -4,10 +4,11 @@ import tempfile
 import unittest
 from xml.etree import ElementTree as ET
 from pathlib import Path
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 
 import pandas as pd
 
-from ids_meta.common.csvio import atomic_write_csv
+from tests.fixtures import write_csv as atomic_write_csv
 from ids_meta.cli import build_parser
 from ids_meta.plotting.common import add_heading, configure_style, percentage_bars, save_figure, stamp, subcaption
 from ids_meta.github.schema import CATALOGUE_COLUMNS as GITHUB_COLUMNS
@@ -17,6 +18,11 @@ from ids_meta.plotting.openalex import _cumulative_dimension, _openalex_why_not_
 from ids_meta.plotting.compare import build as build_compare
 from ids_meta.plotting.compare import build_models
 from ids_meta.architecture import _draw_pipeline_figure, _draw_system_figure, build as build_architecture
+
+from ids_meta.common.provenance import audited_bundle
+save_figure = audited_bundle(save_figure)
+publication_timeline = audited_bundle(publication_timeline)
+
 
 
 class PlottingTests(unittest.TestCase):
@@ -93,7 +99,7 @@ class PlottingTests(unittest.TestCase):
             }.items():
                 path = root / f"{model}.csv"
                 atomic_write_csv(path, [
-                    {"openalex_id": identity, "decision": decision} for identity, decision in rows
+                    {"openalex_id": identity, "decision": decision, 'classifier_supported_fields': '*'} for identity, decision in rows
                 ], ["openalex_id", "decision"])
                 inputs[model] = path
             output = root / "comparison"
@@ -151,11 +157,11 @@ class PlottingTests(unittest.TestCase):
             {"openalex_id": f"W{index}", "artifact_name": f"Long network traffic resource {index}",
              "publication_year": year, "cited_by_count": ("0", "250", "9", "100", "100", "")[index % 6],
              "artifact_type": ("dataset", "generator_framework", "dataset_and_generator")[index % 3],
-             "domain": "general_network"}
+             "domain": "general_network", 'artifact_display_name': f"Long network traffic resource {index}", 'resource_name': f"Long network traffic resource {index}"}
             for index, year in enumerate(years)
         ]
         rows.append({**rows[0], "openalex_id": "Wold", "artifact_name": "Early resource",
-                     "publication_year": 1997, "cited_by_count": 5000})
+                     "publication_year": 1997, "cited_by_count": 5000, 'artifact_display_name': "Early resource", 'resource_name': "Early resource"})
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             publication_timeline(prepare_frame(pd.DataFrame(rows)), root, ["svg"], 72)
@@ -225,7 +231,7 @@ class PlottingTests(unittest.TestCase):
             {**common, "github_repo_id": "5", "full_name": "a/fork", "primary_system_type": "NIDS", "created_at": "2020-01-01", "repository_relationship": "fork"},
             {**common, "github_repo_id": "6", "full_name": "a/analyzer", "primary_system_type": "NSM", "created_at": "2020-01-01", "role": "traffic_analyzer"},
         ])
-        records, counts = _repository_density_data(frame)
+        records, counts = _repository_density_data(frame, profile=SYSTEM_TYPE_PROFILE)
         bins = counts.set_index(["primary_system_type", "creation_year"])["count"]
         self.assertEqual(int(counts["count"].sum()), 4)
         self.assertEqual(int(bins.loc[("NIDS", "2020")]), 2)
@@ -283,7 +289,7 @@ class PlottingTests(unittest.TestCase):
             root = Path(directory)
             github_csv = root / "github.csv"
             github_row = {column: "" for column in GITHUB_COLUMNS}
-            github_row.update({"schema_version": "1.0", "run_id": "run", "github_repo_id": "1", "project_id": "p1", "canonical_repo_id": "1", "repository_relationship": "canonical", "full_name": "example/repo", "role": "native_detector", "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", "system_type_names": "Network intrusion detection system", "language": "Python", "stars": "5", "forks": "1", "pushed_at": "2025-01-01T00:00:00Z", "html_url": "https://example.invalid", "evidence_json": "[]", "prefilter_band": "candidate", "prefilter_score": "10", "decision": "accept", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true"})
+            github_row.update({"schema_version": "1.0", "run_id": "run", "github_repo_id": "1", "project_id": "p1", "canonical_repo_id": "1", "repository_relationship": "canonical", "full_name": "example/repo", "role": "native_detector", "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", "system_type_names": "Network intrusion detection system", "language": "Python", "stars": "5", "forks": "1", "pushed_at": "2025-01-01T00:00:00Z", "html_url": "https://example.invalid", "evidence_json": "[]", "prefilter_band": "candidate", "prefilter_score": "10", "decision": "accept", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true", 'classifier_supported_fields': '*'})
             analyzer_row = {**github_row, "github_repo_id": "2", "project_id": "p2", "canonical_repo_id": "2",
                             "full_name": "example/analyzer", "role": "traffic_analyzer", "capabilities": "monitoring",
                             "detection_methods": "unknown", "primary_system_type": "NSM", "system_types": "NSM",
@@ -294,7 +300,7 @@ class PlottingTests(unittest.TestCase):
                              "primary_system_type": "AV", "system_types": "AV",
                              "system_type_names": "Antivirus / malware file scanner"}
             atomic_write_csv(github_csv, [github_row, analyzer_row, antivirus_row], GITHUB_COLUMNS)
-            outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg", "pdf"], "dpi": 72, "top_n": 5}, classifications_path=github_csv)
+            outputs = build_github(github_csv, root / "github-plots", {"formats": ["svg", "pdf"], "dpi": 72, "top_n": 5}, classifications_path=github_csv, system_type_profile=SYSTEM_TYPE_PROFILE)
             self.assertTrue(outputs)
             self.assertTrue((root / "github-plots/data/01_repository_timeline.csv").is_file())
             overview = root / "github-plots/data/00_repository_overview.csv"
@@ -345,7 +351,7 @@ class PlottingTests(unittest.TestCase):
 
             openalex_csv = root / "openalex.csv"
             paper = {column: "" for column in OPENALEX_COLUMNS}
-            paper.update({"schema_version": "1.0", "run_id": "run", "openalex_id": "W1", "artifact_id": "a1", "artifact_name": "Fixture trace corpus", "artifact_display_name": "FTC", "publication_family_id": "f1", "canonical_openalex_id": "W1", "paper_relationship": "canonical_base", "artifact_type": "dataset", "publication_year": "2024", "domain": "general_network", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled", "cited_by_count": "42", "citation_as_of": "2026-08-07", "discovery_relations": "direct_search;survey_reference:W9", "prefilter_score": "11", "prefilter_band": "candidate", "decision": "accept", "paper_role": "original_release", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true"})
+            paper.update({"schema_version": "1.0", "run_id": "run", "openalex_id": "W1", "artifact_id": "a1", "artifact_name": "Fixture trace corpus", "artifact_display_name": "FTC", "publication_family_id": "f1", "canonical_openalex_id": "W1", "paper_relationship": "canonical_base", "artifact_type": "dataset", "publication_year": "2024", "domain": "general_network", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled", "cited_by_count": "42", "citation_as_of": "2026-08-07", "discovery_relations": "direct_search;survey_reference:W9", "prefilter_score": "11", "prefilter_band": "candidate", "decision": "accept", "paper_role": "original_release", "evidence_expansion_required": "true", "evidence_expansion_attempted": "true", "evidence_expansion_changed": "true", "evidence_expansion_improved": "true", "evidence_expansion_resolved": "true", 'classifier_supported_fields': '*'})
             atomic_write_csv(openalex_csv, [paper], OPENALEX_COLUMNS)
             stale = root / "openalex-plots/08_publication_timeline.svg"
             stale.parent.mkdir(parents=True)
