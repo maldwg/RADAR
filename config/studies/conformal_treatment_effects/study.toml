@@ -6,21 +6,13 @@ runtime = "../../shared/runtime.toml"
 models = "../../shared/models.toml"
 reporting = "reporting.toml"
 output_root = "../../../artifacts/studies/conformal_treatment_effects"
-protocol = "screening.toml"
-taxonomy = "taxonomy.toml"
+pipeline = "pipeline.toml"
+screening = "screening.toml"
 
 [[sources]]
 name = "openalex"
 profile = "../../shared/sources/openalex.toml"
 search = "search/openalex.toml"
-prompts = "prompts/classification.toml"
-
-[collection]
-limit = 200
-
-[assessment]
-fetch_full_text = true
-max_full_text_chars = 120000
 
 [evaluation]
 enabled = true

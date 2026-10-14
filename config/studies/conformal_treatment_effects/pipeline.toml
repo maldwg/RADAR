@@ -1,0 +1,20 @@
+schema_version = "1.0"
+
+[collection]
+collection_limit = 100
+query_limit_factor = 3.0
+
+[evidence]
+fetch_full_text = true
+max_full_text_chars = 120000
+evidence_lookup_timeout_seconds = 30
+
+[classification]
+classification_limit = "all"
+consecutive_runs = 5
+consensus_threshold = 0.8
+
+[classification.ensemble]
+enabled = true
+models = ["gemma4:31b", "qwen3.8:27b"]
+threshold = 1.0

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import tomllib
 from contextlib import nullcontext
 from dataclasses import replace
 from pathlib import Path
@@ -881,13 +880,13 @@ def _configured_review_protocol(settings: Settings):
     """Validate that review execution and reporting select the same profiles."""
     from ids_meta.common.study_screening import load_study_protocol
     from ids_meta.common.study_pipeline import load_assessment_template, load_assessment_fields
+    from ids_meta.common.screening import load_screening_profile
 
-    protocol = load_study_protocol(settings.path("protocol"))
+    protocol = load_study_protocol(settings.path("screening"))
     load_assessment_fields(protocol)
     _, prompt_path, _ = load_assessment_template(protocol)
-    with protocol.path.open("rb") as handle:
-        protocol_config = tomllib.load(handle)
-    if (protocol.path.parent / protocol_config["source_profile"]).resolve() != settings.path("taxonomy"):
+    screening = load_screening_profile(protocol.path)
+    if screening.taxonomy_path != settings.path("taxonomy"):
         raise ConfigError("review protocol must reference the study taxonomy")
     source = settings.section("study")["sources"][0]
     if prompt_path != settings.path(f"{source}_prompts"):
@@ -907,12 +906,15 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
     action = args.action
     if action not in {"collect", "classify", "screen", "plot", "evaluate", "run"}:
         raise ConfigError(f"systematic_review does not support stage {action!r}")
-    if getattr(args, "collect_all", False):
-        raise ConfigError("systematic_review requires an explicit bounded collection limit")
     models = _configured_models(settings)
-    if args.output and action in {"classify", "plot", "evaluate", "run"} and len(models) > 1:
-        raise ConfigError("a single custom output cannot represent multiple review models")
+    ensemble_enabled, ensemble_members, ensemble_threshold = _ensemble_config(settings, models)
+    if len(models) > 1 or ensemble_enabled:
+        _reject_ambiguous_custom_paths(args)
     source = settings.section("study")["sources"][0]
+    config = dict(settings.section(source))
+    collect_limit, classify_limit = _pipeline_limits(args, config)
+    config["classification_limit"] = classify_limit
+    config["collection_limit"] = collect_limit
     candidates = settings.path("interim_dir") / source / "candidates.json"
     protocol = _configured_review_protocol(settings).path
     paths = _execution_paths(settings, source, models)
@@ -924,9 +926,7 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
             if args.dry_run:
                 raise ConfigError("review collection needs network access; use classify --dry-run --input for an offline preview")
             target = args.output if action == "collect" and args.output else candidates
-            limit = args.collect_limit or settings.section("collection").get("limit", 200)
-            rows = collect_study(settings.path(f"{source}_terms"), target, limit=limit,
-                source_config=settings.section(source))
+            rows = collect_study(settings.path(f"{source}_terms"), target, limit=collect_limit, source_config=config)
             counts["candidate_papers"] = len(rows)
         if action == "screen":
             if not args.input:
@@ -936,12 +936,16 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
         for model in models:
             classification = args.output if action == "classify" and args.output else paths[model]["classifications"]
             if action in {"classify", "run"}:
-                assessment = settings.section("assessment")
-                limit = None if args.classify_all else args.classify_limit or assessment.get("limit")
+                pipeline = settings.section("pipeline")
+                evidence = pipeline["evidence"]
+                classification_settings = pipeline["classification"]
                 rows = classify_study(protocol, args.input or candidates, classification,
-                    _model_ollama_config(settings, model), limit=limit, resume=args.resume, dry_run=args.dry_run,
-                    fetch_full_text=bool(assessment.get("fetch_full_text", False)),
-                    max_chars=assessment.get("max_full_text_chars", 120000))
+                    _model_ollama_config(settings, model), limit=classify_limit, resume=args.resume, dry_run=args.dry_run,
+                    fetch_full_text=bool(evidence.get("fetch_full_text", False)),
+                    max_chars=evidence.get("max_full_text_chars", 120000),
+                    evidence_lookup_timeout_seconds=evidence.get("evidence_lookup_timeout_seconds", 30),
+                    consecutive_runs=classification_settings.get("consecutive_runs", 1),
+                    consensus_threshold=classification_settings.get("consensus_threshold", 0.8))
                 counts[f"classified_{slug(model)}"] = len(rows)
                 counts[f"errors_{slug(model)}"] = sum(r["decision"] == "error" for r in rows)
             if action in {"plot", "evaluate", "run"}:
@@ -956,6 +960,26 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
                     ratings_path=Path(ratings) if ratings and (enabled or action == "evaluate") else None,
                     confidence_level=_evaluation_confidence_level(settings))
                 counts[f"report_files_{slug(model)}"] = len(files)
+        if ensemble_enabled and action in {"classify", "run"}:
+            from ids_meta.common.study_consensus import ensemble_study
+
+            ensemble_paths = _variant_paths(settings, source, Path("ensemble"))
+            model_inputs = {model: paths[model]["classifications"] for model in ensemble_members}
+            if args.output and len(models) == 1 and action == "classify":
+                model_inputs[models[0]] = args.output
+            rows = ensemble_study(protocol, model_inputs, ensemble_paths["classifications"], ensemble_threshold)
+            counts["classified_ensemble"] = len(rows)
+        if ensemble_enabled and action in {"plot", "evaluate", "run"}:
+            ensemble_paths = _variant_paths(settings, source, Path("ensemble"))
+            ratings = getattr(args, "ratings", None) or settings.section("evaluation").get("references")
+            enabled = settings.section("evaluation").get("enabled", False)
+            files = build_report(settings.path("taxonomy"), ensemble_paths["classifications"], ensemble_paths["plots"],
+                settings.section("plots"),
+                candidates_path=(getattr(args, "candidates", None) or
+                    (args.input if action == "run" and args.input else candidates if candidates.is_file() else None)),
+                ratings_path=Path(ratings) if ratings and (enabled or action == "evaluate") else None,
+                confidence_level=_evaluation_confidence_level(settings))
+            counts["report_files_ensemble"] = len(files)
     except Exception:
         manifest.status = "failed"
         manifest.write()
@@ -1040,8 +1064,13 @@ def build_parser() -> argparse.ArgumentParser:
     study_collect = subparsers.add_parser("study-collect", help="discover papers for an external review with OpenAlex")
     study_collect.add_argument("--search-profile", required=True, type=Path)
     study_collect.add_argument("--output", required=True, type=Path, help="candidate JSON and collection audit")
-    study_collect.add_argument("--limit", type=int, default=200)
-    study_collect.add_argument("--per-query-limit", type=int)
+    group = study_collect.add_mutually_exclusive_group()
+    group.add_argument("--collect-limit", type=int)
+    group.add_argument("--collect-all", action="store_true")
+    group = study_collect.add_mutually_exclusive_group()
+    group.add_argument("--classify-limit", type=int)
+    group.add_argument("--classify-all", action="store_true")
+    study_collect.add_argument("--query-limit-factor", type=float, default=3.0)
     study_classify = subparsers.add_parser("study-classify", help="assess external-review candidates with Ollama")
     study_classify.add_argument("--protocol", required=True, type=Path)
     study_classify.add_argument("--input", required=True, type=Path, help="candidate JSON, optionally containing full text")
@@ -1052,6 +1081,8 @@ def build_parser() -> argparse.ArgumentParser:
     study_classify.add_argument("--dry-run", action="store_true", help="write uncertain previews without HTTP or model calls")
     study_classify.add_argument("--fetch-full-text", action="store_true", help="download open PDFs declared by candidate metadata")
     study_classify.add_argument("--max-full-text-chars", type=int, default=120000)
+    study_classify.add_argument("--consecutive-runs", type=int, default=1)
+    study_classify.add_argument("--consensus-threshold", type=float, default=0.8)
     verify = subparsers.add_parser("verify", help="independently check figure bundles or reporting databases")
     target = verify.add_mutually_exclusive_group(required=True)
     target.add_argument("--input", type=Path)
@@ -1099,6 +1130,7 @@ def main(argv: list[str] | None = None) -> int:
                     for _, profile_path in _configured_reference_sets(settings, source):
                         load_rating_profile(profile_path, source)
             _configured_models(settings)
+            _ensemble_config(settings, _configured_models(settings))
             print(json.dumps(settings.section("study"), indent=2))
             return 0
         if args.command in STUDY_STAGES:
@@ -1131,7 +1163,11 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "study-collect":
             from ids_meta.common.study_pipeline import collect_study
 
-            rows = collect_study(args.search_profile, args.output, limit=args.limit, per_query_limit=args.per_query_limit)
+            source_config = dict(settings.section("openalex"))
+            source_config["query_limit_factor"] = args.query_limit_factor
+            collect_limit, classify_limit = _pipeline_limits(args, source_config)
+            source_config["classification_limit"] = classify_limit
+            rows = collect_study(args.search_profile, args.output, limit=collect_limit, source_config=source_config)
             counts = {"candidate_papers": len(rows)}
         elif args.command == "study-classify":
             from ids_meta.common.study_pipeline import classify_study
@@ -1140,7 +1176,8 @@ def main(argv: list[str] | None = None) -> int:
             config["model"] = args.model or _configured_models(settings)[0]
             rows = classify_study(args.protocol, args.input, args.output, config,
                 limit=args.limit, resume=args.resume, dry_run=args.dry_run,
-                fetch_full_text=args.fetch_full_text, max_chars=args.max_full_text_chars)
+                fetch_full_text=args.fetch_full_text, max_chars=args.max_full_text_chars,
+                consecutive_runs=args.consecutive_runs, consensus_threshold=args.consensus_threshold)
             counts = {"classified_papers": len(rows), "assessment_errors": sum(r["decision"] == "error" for r in rows)}
         elif args.command == "report":
             from ids_meta.plotting.generic import build_report

@@ -2,6 +2,7 @@ schema_version = "1.0"
 
 [ollama]
 models = ["gemma4:31b", "qwen3.8:27b"]
+#models_soon = ["gemma4:31b","qwen3.8:27b", "devstral-small-2:24b", "glm-4.7-flash:bf16"]
 timeout_seconds = 300
 retries = 3
 temperature = 0.0

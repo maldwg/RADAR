@@ -32,7 +32,8 @@ used by `ids-meta report`.
 | `config/studies/conformal_treatment_effects/study.toml` | Study entry point, models, discovery source and isolated outputs |
 | `config/studies/conformal_treatment_effects/prompts/classification.toml` | Blind assessment prompt with explicit scientific inputs |
 | `config/studies/conformal_treatment_effects/screening.toml` | Five eligibility rules, nine quality rules, and threshold |
-| `config/studies/conformal_treatment_effects/search/openalex.toml` | OpenAlex query adaptations, dates, and query caps |
+| `config/studies/conformal_treatment_effects/pipeline.toml` | Collection limits, full-text policy and classification budget |
+| `config/studies/conformal_treatment_effects/search/openalex.toml` | OpenAlex query adaptations and publication-date window |
 | `config/studies/conformal_treatment_effects/evaluation/references.toml` | Eleven positive papers and three rated assumption fields |
 | `src/ids_meta/common/study_screening.py` | Evidence validation, rule replay, and CSV export |
 | `src/ids_meta/common/study_pipeline.py` | Independent discovery, PDF extraction, and blind model assessments |
@@ -129,14 +130,14 @@ Author names and references can still occur within the paper text itself.
 ```bash
 ids-meta study-collect \
   --search-profile config/studies/conformal_treatment_effects/search/openalex.toml \
-  --limit 200 --per-query-limit 200 \
+  --collect-limit 100 --classify-all --query-limit-factor 3 \
   --output data/verification/memmesheimer/candidates.json
 
 ids-meta study-classify \
   --protocol config/studies/conformal_treatment_effects/screening.toml \
   --input data/verification/memmesheimer/candidates.json \
   --output data/verification/memmesheimer/classifications.csv \
-  --fetch-full-text --resume
+  --fetch-full-text --resume --consecutive-runs 5 --consensus-threshold 0.8
 ```
 
 `study-classify --limit 2` limits inference to a pilot; `--dry-run` performs no
@@ -144,6 +145,27 @@ PDF downloads or model calls. Missing text produces an uncertain record. Invalid
 assessments get one correction request listing all schema/quotation problems,
 without reference labels. Both responses and their validation errors are retained.
 If the correction still fails, or the backend fails, the record is an error.
+
+The configured study commands use the same limits, five repeated assessments and
+ensemble policy as the IDS workflows:
+
+```bash
+ids-meta --study conformal_treatment_effects run
+ids-meta --study conformal_treatment_effects collect --collect-all --classify-all
+```
+
+The default retains 100 candidates after retrieving up to 300 hits per query.
+The full run classifies each retained candidate five times per selected model,
+votes with threshold 0.8, then combines the selected models at threshold 1.0.
+Winning judgments retain source quotes, and disposition conflicts abstain.
+With unlimited collection and classification, searches paginate to exhaustion
+within the configured publication-date window. The standalone commands above
+write explicit files; the study runner additionally writes the ensemble and
+model-specific reports under `artifacts/studies/conformal_treatment_effects/`.
+
+Individual invalid assessments remain recorded as errors. Failed assessments
+count toward the voting denominator; enough valid, agreeing assessments can
+still produce a usable consensus, while all failed assessments produce an error.
 A PDF download is
 capped at 30 MiB and supplied text at 120,000 characters by default; truncation is
 recorded. The model gets at least 4,000 output tokens for fourteen criteria and

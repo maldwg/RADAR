@@ -89,7 +89,7 @@ def prefilter(
         evidence_client = ScholarlyEvidenceClient(
             timeout=float(config.get("evidence_lookup_timeout_seconds", 30)),
             api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY", ""),
-            max_full_text_chars=int(config.get("max_enriched_full_text_chars", 30000)),
+            max_full_text_chars=int(config.get("max_full_text_chars", 30000)),
         )
     LOG.info(
         "starting OpenAlex paper prefilter active_collection=%s active_pool=%s",
@@ -191,7 +191,7 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         evidence_client = ScholarlyEvidenceClient(
             timeout=float(enrichment_config.get("evidence_lookup_timeout_seconds", 30)),
             api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY", ""),
-            max_full_text_chars=int(enrichment_config.get("max_enriched_full_text_chars", 30000)),
+            max_full_text_chars=int(enrichment_config.get("max_full_text_chars", 30000)),
         )
     model = getattr(client, "model", str(ollama_config.get("model") or "dry-run"))
     consecutive_runs = max(1, int(consecutive_runs))
@@ -201,7 +201,7 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         "evidence_fallback": {
             "missing_abstract": bool(enrichment_config.get("enrich_missing_abstracts", False)),
             "uncertain_full_text": bool(enrichment_config.get("enrich_uncertain_with_full_text", False)),
-            "max_full_text_chars": int(enrichment_config.get("max_enriched_full_text_chars", 30000)),
+            "max_full_text_chars": int(enrichment_config.get("max_full_text_chars", 30000)),
         },
     }
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)

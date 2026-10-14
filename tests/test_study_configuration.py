@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
+import tomllib
 from unittest.mock import patch
 
 from ids_meta.cli import _execution_paths, main
@@ -13,6 +14,12 @@ from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import ConfigError, load_prompt_profile, load_settings
 from ids_meta.common.csvio import atomic_write_csv, read_csv
 from ids_meta.github.schema import CANDIDATE_COLUMNS
+from ids_meta.common.screening import load_screening_profile
+from ids_meta.common.study_screening import load_study_protocol, StudyScreeningAdapter
+from ids_meta.github.pipeline import prompt as repository_prompt
+from ids_meta.openalex.pipeline import prompt as paper_prompt
+from ids_meta.common.config import load_system_type_profile
+from ids_meta.common.prompts import render_prompt
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -139,4 +146,90 @@ class StudyConfigurationTests(unittest.TestCase):
                 self.assertEqual(row["sutva"], "unknown")
                 checkpoint = json.loads(output.with_suffix(".assessments.json").read_text())
                 self.assertEqual(len(checkpoint["prompt_sha256"]), 64)
+
+    def test_all_studies_share_file_responsibilities_with_optional_quality(self):
+        """Scientific profiles contain no collection, evidence or voting budgets."""
+        for name in ("ids_repositories", "ids_datasets", "conformal_treatment_effects"):
+            base = ROOT / "config/studies" / name
+            settings = load_settings(base / "study.toml")
+            profile = load_screening_profile(base / "screening.toml")
+            self.assertTrue(profile.eligibility)
+            self.assertEqual(set(settings.section("pipeline")), {"collection", "evidence", "classification", "reconciliation"})
+            raw = tomllib.loads((base / "study.toml").read_text())
+            self.assertEqual(raw["screening"], "screening.toml")
+            self.assertEqual(raw["pipeline"], "pipeline.toml")
+            self.assertEqual(set(raw["sources"][0]), {"name", "profile", "search"})
+            if name == "conformal_treatment_effects":
+                self.assertEqual(len(profile.eligibility), 5)
+                self.assertEqual(len(profile.quality), 9)
+                self.assertEqual(profile.quality_minimum, 5)
+            else:
+                self.assertFalse(profile.quality)
+
+    def test_misplaced_operational_and_scientific_settings_fail_validation(self):
+        """Catch the old mixed responsibilities before any API or model call."""
+        with tempfile.TemporaryDirectory() as directory:
+            studies = self._copy_config(Path(directory))
+            base = studies / "ids_datasets"
+            screening = base / "screening.toml"
+            original = screening.read_text()
+            screening.write_text('collection_limit = 10\n' + original)
+            with self.assertRaisesRegex(ValueError, "unknown scientific screening"):
+                load_settings(base / "study.toml")
+            screening.write_text(original)
+            pipeline = base / "pipeline.toml"
+            pipeline.write_text(pipeline.read_text().replace('[evidence]', '[evidence]\nquality_minimum = 5'))
+            with self.assertRaisesRegex(ConfigError, "pipeline.evidence"):
+                load_settings(base / "study.toml")
+
+    def test_catalogue_scientific_rules_are_rendered_from_screening_profiles(self):
+        """Editing either study's eligibility text changes its actual model input."""
+        with tempfile.TemporaryDirectory() as directory:
+            studies = self._copy_config(Path(directory))
+            for name, source in (("ids_repositories", "github"), ("ids_datasets", "openalex")):
+                base = studies / name
+                screening = base / "screening.toml"
+                text = screening.read_text()
+                screening.write_text(text.replace('E1 = "', 'E1 = "Use the added scientific rule. ', 1))
+                settings = load_settings(base / "study.toml")
+                config = load_prompt_profile(settings, source)
+                rendered = repository_prompt([], config, load_system_type_profile(settings, source)) if source == "github" else paper_prompt([], config)
+                self.assertIn("Use the added scientific rule.", rendered)
+                self.assertNotIn('${eligibility_', rendered)
+
+    def test_unreferenced_scientific_criteria_cannot_silently_disappear(self):
+        """Validate that every catalogue criterion reaches the model prompt."""
+        with tempfile.TemporaryDirectory() as directory:
+            studies = self._copy_config(Path(directory))
+            base = studies / "ids_datasets"
+            path = base / "screening.toml"
+            path.write_text(path.read_text().replace('[eligibility]', '[eligibility]\nNEW = "A further requirement."'))
+            settings = load_settings(base / "study.toml")
+            with self.assertRaisesRegex(ConfigError, "omits screening criteria"):
+                load_prompt_profile(settings, "openalex")
+
+    def test_evidence_placeholders_are_preserved_as_untrusted_text(self):
+        """Scientific template expansion cannot rewrite source evidence."""
+        config = {"template": "Rules: ${eligibility_E1}\nEvidence: ${evidence}",
+            "screening": {"eligibility": {"E1": "Scientific instruction"}}}
+        evidence = "Literal ${eligibility_E1} and ${unrecognized} text"
+        self.assertEqual(render_prompt(config, {}, evidence), "Rules: Scientific instruction\nEvidence: " + evidence)
+
+    def test_review_without_quality_uses_eligibility_only(self):
+        """Absent quality assessment creates no invented scoring requirement."""
+        with tempfile.TemporaryDirectory() as directory:
+            studies = self._copy_config(Path(directory))
+            base = studies / "conformal_treatment_effects"
+            path = base / "screening.toml"
+            text = path.read_text()
+            start, stop = text.index('[quality]'), text.index('[decision]')
+            path.write_text((text[:start] + text[stop:]).replace('quality_minimum = 5\n', ''))
+            protocol = load_study_protocol(path)
+            row = {"paper_id": "one", "title": "fixture", "full_text": "Direct evidence", "criteria": {
+                key: {"value": "yes", "quote": "Direct evidence", "source": "full_text"} for key in protocol.filters}}
+            result = StudyScreeningAdapter(protocol).normalize([row])[0]
+            self.assertEqual(result["decision"], "accept")
+            self.assertEqual(result["decision_basis"], "eligibility_passed")
+            row["criteria"][next(iter(protocol.filters))] = {"value": "unknown"}
+            self.assertEqual(StudyScreeningAdapter(protocol).normalize([row])[0]["decision"], "uncertain")
 

@@ -9,12 +9,34 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ids_meta.common.screening import load_screening_profile
+
 
 class ConfigError(ValueError):
     pass
 
 
 DEFAULT_STUDY = Path("config/studies/ids_repositories/study.toml")
+
+PIPELINE_OPTIONS = {
+    "collection": {"collection_limit", "minimum_stars", "query_limit_factor", "search_sort", "search_order",
+        "created_from", "max_surveys", "snowball_start_papers", "snowball_max_depth", "survey_reference_fraction",
+        "survey_query_limit_factor", "reference_limit_factor", "survey_consensus_threshold", "retrieval_minimum_score",
+        "retrieval_minimum_title_tokens", "retrieval_title_weight", "minimum_citations", "candidate_threshold", "borderline_threshold"},
+    "evidence": {"max_docs_files", "enrich_uncertain_evidence", "uncertain_max_docs_files", "enrich_missing_abstracts",
+        "enrich_uncertain_with_full_text", "evidence_lookup_timeout_seconds", "max_full_text_chars", "fetch_full_text"},
+    "classification": {"classification_limit", "consecutive_runs", "consensus_threshold", "classify_borderline", "ensemble"},
+    "reconciliation": {"reconcile_with_llm", "canonical_ambiguity_margin", "canonical_role_scores", "canonical_direct_release_score",
+        "canonical_core_relevance_score", "canonical_earliest_year_score", "canonical_year_distance_penalty", "canonical_year_distance_cap",
+        "canonical_citation_weight"},
+}
+
+REVIEW_PIPELINE_OPTIONS = {
+    "collection": {"collection_limit", "query_limit_factor"},
+    "evidence": {"fetch_full_text", "max_full_text_chars", "evidence_lookup_timeout_seconds"},
+    "classification": {"classification_limit", "consecutive_runs", "consensus_threshold", "ensemble"},
+    "reconciliation": set(),
+}
 
 
 @dataclass(frozen=True)
@@ -82,7 +104,7 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
     if manifest.get("schema_version") != "2.0":
         raise ConfigError("study manifest requires schema_version 2.0")
     allowed = {"schema_version", "id", "workflow", "project_root", "runtime", "models", "methods", "reporting",
-        "output_root", "sources", "evaluation", "protocol", "taxonomy", "collection", "assessment"}
+        "output_root", "sources", "evaluation", "pipeline", "screening", "keyword", "nli", "llm_nli_prompt"}
     if set(manifest) - allowed:
         raise ConfigError(f"unknown study settings: {', '.join(sorted(set(manifest) - allowed))}")
     study_id = manifest.get("id")
@@ -98,9 +120,9 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
     values: dict[str, Any] = {"schema_version": "2.0"}
     fingerprints = {str(config_path): hashlib.sha256(config_path.read_bytes()).hexdigest()}
 
-    def read(value: Any, label: str) -> tuple[Path, dict[str, Any]]:
+    def read(value: Any, label: str, parent: Path = config_path.parent) -> tuple[Path, dict[str, Any]]:
         """Read and fingerprint a profile referenced by the study manifest."""
-        profile_path = _reference(config_path.parent, value, label)
+        profile_path = _reference(parent, value, label)
         profile = _read_toml(profile_path)
         if profile.get("schema_version") != "1.0":
             raise ConfigError(f"{label} profile requires schema_version 1.0: {profile_path}")
@@ -118,6 +140,52 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
         "raw_dir": "raw", "interim_dir": "interim", "processed_dir": "processed",
         "plots_dir": "plots", "runs_dir": "runs", "evaluation_dir": "evaluation",
     }.items()}
+    pipeline_path, pipeline_raw = read(manifest.get("pipeline"), "pipeline")
+    if set(pipeline_raw) - {"schema_version", *PIPELINE_OPTIONS}:
+        raise ConfigError("pipeline may contain only collection, evidence, classification and reconciliation tables")
+    pipeline: dict[str, Any] = {}
+    execution: dict[str, Any] = {}
+    for stage, allowed_options in PIPELINE_OPTIONS.items():
+        options = pipeline_raw.get(stage, {})
+        if not isinstance(options, dict) or set(options) - allowed_options:
+            raise ConfigError(f"pipeline.{stage} contains unknown or misplaced settings")
+        if workflow == "systematic_review" and set(options) - REVIEW_PIPELINE_OPTIONS[stage]:
+            raise ConfigError(f"systematic_review does not support pipeline.{stage} settings: "
+                + ", ".join(sorted(set(options) - REVIEW_PIPELINE_OPTIONS[stage])))
+        pipeline[stage] = copy.deepcopy(options)
+        native = {key: value for key, value in options.items() if key != "ensemble"}
+        _compose(execution, native)
+    ensemble = pipeline["classification"].get("ensemble")
+    if ensemble is not None:
+        if not isinstance(ensemble, dict):
+            raise ConfigError("pipeline.classification.ensemble must be a table")
+        _compose(values, {"ensemble": ensemble})
+    values["pipeline"] = pipeline
+    from ids_meta.common.limits import optional_limit, query_result_limit
+    from ids_meta.common.study_consensus import validate_consensus
+
+    query_result_limit(execution, optional_limit(execution.get("collection_limit"), "collection_limit"))
+    validate_consensus(execution.get("consecutive_runs", 1), execution.get("consensus_threshold", 0.8))
+    if workflow == "systematic_review" and values.get("baselines", {}).get("enabled", False):
+        raise ConfigError("systematic_review does not support baseline execution")
+    paths["pipeline"] = str(pipeline_path)
+    screening_path, _ = read(manifest.get("screening"), "screening")
+    screening = load_screening_profile(screening_path)
+    expected_strategy = {"repository_catalogue": "repository_role_validation",
+        "dataset_catalogue": "dataset_release_validation", "systematic_review": "criterion_assessment"}[workflow]
+    if screening.strategy != expected_strategy:
+        raise ConfigError(f"workflow {workflow!r} requires screening strategy {expected_strategy!r}")
+    paths["screening"] = str(screening_path)
+    taxonomy_path, _ = read(str(screening.taxonomy_path), "screening.taxonomy")
+    prompt_path, _ = read(str(screening.prompt_path), "screening.prompt")
+    paths["taxonomy"], paths["prompts"] = str(taxonomy_path), str(prompt_path)
+    values["screening"] = screening.prompt_rules()
+    for key in ("keyword", "nli", "llm_nli_prompt"):
+        if key in manifest:
+            profile_path, _ = read(manifest[key], key)
+            paths[key] = str(profile_path)
+        elif workflow != "systematic_review":
+            raise ConfigError(f"catalogue study requires {key}")
     sources = manifest.get("sources")
     if not isinstance(sources, list) or not sources or any(not isinstance(item, dict) for item in sources):
         raise ConfigError("study sources must be a non-empty array of tables")
@@ -129,7 +197,7 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
         if source in names:
             raise ConfigError(f"duplicate study source: {source}")
         names.append(source)
-        keys = {"name", "profile", "settings", "search", "prompts", "taxonomy", "keyword", "nli", "llm_nli_prompt"}
+        keys = {"name", "profile", "search"}
         if set(item) - keys:
             raise ConfigError(f"unknown {source} source settings: {', '.join(sorted(set(item) - keys))}")
         _, provider = read(item.get("profile"), f"sources.{source}.profile")
@@ -141,31 +209,18 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
         source_settings = copy.deepcopy(provider.get("settings", {}))
         if not isinstance(source_settings, dict):
             raise ConfigError(f"sources.{source}.settings must be a table")
-        if "settings" in item:
-            _, selection = read(item["settings"], f"sources.{source}.settings")
-            _compose(source_settings, {k: v for k, v in selection.items() if k != "schema_version"})
+        _compose(source_settings, execution)
         values[source] = source_settings
         paths[f"{source}_cache"] = str(output / "raw" / source / "cache.sqlite3")
-        required = {"search"} if workflow == "systematic_review" else {"search", "prompts", "taxonomy", "keyword", "nli", "llm_nli_prompt", "settings"}
-        for key in required:
-            if key not in item:
-                raise ConfigError(f"sources.{source} requires {key}")
-        for key, target in {"search": "terms", "prompts": "prompts", "taxonomy": "taxonomy", "keyword": "keyword", "nli": "nli", "llm_nli_prompt": "llm_nli_prompt"}.items():
-            if key not in item:
-                continue
-            profile_path, _ = read(item[key], f"sources.{source}.{key}")
-            target_key = target if key == "llm_nli_prompt" else f"{source}_{target}"
-            if target_key in paths and paths[target_key] != str(profile_path):
-                raise ConfigError("all branches of a study must select the same LLM NLI prompt")
-            paths[target_key] = str(profile_path)
-            if key == "taxonomy" and workflow == "repository_catalogue":
-                paths[f"{source}_system_types"] = str(profile_path)
-    for key in ("protocol", "taxonomy"):
-        if key in manifest:
-            profile_path, _ = read(manifest[key], key)
-            paths[key] = str(profile_path)
-        elif workflow == "systematic_review":
-            raise ConfigError(f"systematic_review requires {key}")
+        search_path, _ = read(item.get("search"), f"sources.{source}.search")
+        paths[f"{source}_terms"] = str(search_path)
+        paths[f"{source}_taxonomy"], paths[f"{source}_prompts"] = str(taxonomy_path), str(prompt_path)
+        paths[f"{source}_screening"] = str(screening_path)
+        if workflow == "repository_catalogue":
+            paths[f"{source}_system_types"] = str(taxonomy_path)
+        for key in ("keyword", "nli"):
+            if key in paths:
+                paths[f"{source}_{key}"] = paths[key]
     evaluation = copy.deepcopy(manifest.get("evaluation", {}))
     if not isinstance(evaluation, dict):
         raise ConfigError("evaluation must be a table")
@@ -184,11 +239,6 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
     values["paths"] = paths
     values["study"] = {"id": study_id, "workflow": workflow, "sources": names,
         "manifest": str(config_path), "output_root": str(output), "input_fingerprints": fingerprints}
-    for key in ("collection", "assessment"):
-        value = manifest.get(key, {})
-        if not isinstance(value, dict):
-            raise ConfigError(f"{key} must be a table")
-        values[key] = value
     ollama = values.setdefault("ollama", {})
     ollama["url"] = os.getenv("OLLAMA_URL", str(ollama.get("url", "http://127.0.0.1:11434")))
     if os.getenv("OLLAMA_MODEL"):
@@ -228,6 +278,15 @@ def load_prompt_profile(settings: Settings, source: str) -> dict[str, Any]:
         if table in profile:
             raise ConfigError(f"prompt table {table!r} belongs in the study taxonomy")
         profile[table] = descriptions
+    screening = load_screening_profile(settings.path(f"{source}_screening"))
+    if screening.prompt_path != settings.path(f"{source}_prompts") or screening.taxonomy_path != settings.path(f"{source}_taxonomy"):
+        raise ConfigError("catalogue prompt and taxonomy must match the scientific screening profile")
+    profile["screening"] = screening.prompt_rules()
+    identifiers = set(re.findall(r"\$\{([^}]+)\}", profile["template"]))
+    if "eligibility" not in identifiers:
+        missing = {f"eligibility_{key}" for key in screening.eligibility} - identifiers
+        if missing:
+            raise ConfigError(f"classification prompt omits screening criteria: {', '.join(sorted(missing))}")
     return profile
 
 

@@ -7,17 +7,16 @@ models = "../../shared/models.toml"
 methods = "baselines/settings.toml"
 reporting = "reporting.toml"
 output_root = "../../../artifacts/studies/ids_repositories"
+pipeline = "pipeline.toml"
+screening = "screening.toml"
+keyword = "baselines/keyword.toml"
+nli = "baselines/nli.toml"
+llm_nli_prompt = "baselines/llm_nli.toml"
 
 [[sources]]
 name = "github"
 profile = "../../shared/sources/github.toml"
 search = "search/github.toml"
-settings = "screening.toml"
-prompts = "prompts/classification.toml"
-taxonomy = "taxonomy.toml"
-keyword = "baselines/keyword.toml"
-nli = "baselines/nli.toml"
-llm_nli_prompt = "baselines/llm_nli.toml"
 
 [evaluation]
 enabled = true

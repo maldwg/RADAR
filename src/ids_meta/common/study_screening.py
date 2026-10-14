@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import tomllib
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,6 +10,7 @@ from typing import Any
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.common.provenance import file_hash
 from ids_meta.common.sources import LocalSourceAdapter, SourceContract, load_source_contract
+from ids_meta.common.screening import load_screening_profile
 
 
 SCREENING_FIELDS = {"decision", "decision_basis", "criteria_json", "protocol_sha256",
@@ -42,35 +42,16 @@ class StudyProtocol:
 
 def load_study_protocol(path: Path) -> StudyProtocol:
     """Validate a local, versioned assessment protocol before reading records."""
-    digest = file_hash(path)
-    with path.open("rb") as handle:
-        raw = tomllib.load(handle)
-    if raw.get("schema_version") != "1.0":
-        raise ValueError("study protocol requires schema_version 1.0")
-    profile = raw.get("source_profile")
-    if not isinstance(profile, str) or not profile.strip():
-        raise ValueError("study protocol requires source_profile")
-    profile_path = path.parent / profile
+    profile = load_screening_profile(path)
+    if profile.strategy != "criterion_assessment":
+        raise ValueError("assessment replay requires criterion_assessment screening")
+    digest = profile.sha256
+    profile_path = profile.taxonomy_path
     profile_digest = file_hash(profile_path)
     contract = load_source_contract(profile_path)
     if SCREENING_FIELDS & set(contract.mapping) or contract.identity in SCREENING_FIELDS:
         raise ValueError("study source profile cannot override screening output fields")
-    groups = []
-    for name in ("filters", "quality"):
-        group = raw.get(name)
-        if not isinstance(group, dict) or not group or any(
-            not isinstance(key, str) or not key.strip()
-            or not isinstance(value, str) or not value.strip()
-            for key, value in group.items()
-        ):
-            raise ValueError(f"study protocol {name} must define non-empty criterion descriptions")
-        groups.append(group)
-    filters, quality = groups
-    if set(filters) & set(quality):
-        raise ValueError("filter and quality criterion IDs must be disjoint")
-    minimum = raw.get("quality_minimum")
-    if isinstance(minimum, bool) or not isinstance(minimum, int) or not 1 <= minimum <= len(quality):
-        raise ValueError("quality_minimum must be an integer between 1 and the number of quality criteria")
+    filters, quality, minimum = profile.eligibility, profile.quality, profile.quality_minimum
     if file_hash(path) != digest or file_hash(profile_path) != profile_digest:
         raise ValueError("study protocol inputs changed while loading")
     return StudyProtocol(path, contract, filters, quality, minimum, digest, profile_digest)
@@ -131,7 +112,7 @@ class StudyScreeningAdapter(LocalSourceAdapter):
             elif quality["yes"] < self.protocol.quality_minimum:
                 decision, basis = "uncertain", "quality_incomplete"
             else:
-                decision, basis = "accept", "eligibility_and_quality_passed"
+                decision, basis = "accept", "eligibility_and_quality_passed" if self.protocol.quality else "eligibility_passed"
             item = {key: value for key, value in row.items() if key != "criteria"}
             item.update(decision=decision, decision_basis=basis, failed_filters=failed,
                 unknown_filters=unknown, quality_yes=quality["yes"], quality_no=quality["no"],

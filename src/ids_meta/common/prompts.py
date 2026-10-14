@@ -33,10 +33,14 @@ def render_prompt(
     if "${evidence}" not in template:
         raise ValueError(f"prompt configuration {template_key} must contain ${{evidence}}")
     values = {**blocks, "evidence": evidence}
-    rendered = template
-    for name, value in values.items():
-        rendered = rendered.replace(f"${{{name}}}", value)
-    unknown = sorted(set(re.findall(r"\$\{([^}]+)\}", rendered)))
+    screening = settings.get("screening", {})
+    if not isinstance(screening, dict):
+        raise ValueError("prompt screening must be a table")
+    for name, text in screening.get("eligibility", {}).items():
+        values[f"eligibility_{name}"] = text
+    values["eligibility"] = "\n\n".join(screening.get("eligibility", {}).values())
+    unknown = sorted(set(re.findall(r"\$\{([^}]+)\}", template)) - set(values))
     if unknown:
         raise ValueError(f"unknown classifier prompt placeholders: {', '.join(unknown)}")
-    return rendered
+    # Substitute only the template, so literal placeholders in evidence stay data.
+    return re.sub(r"\$\{([^}]+)\}", lambda match: values[match.group(1)], template)

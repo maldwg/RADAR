@@ -29,6 +29,8 @@ class MultiModelPipelineTests(unittest.TestCase):
                 "github_terms": str(ROOT / "config/studies/ids_repositories/search/github.toml"),
                 "openalex_terms": str(ROOT / "config/studies/ids_datasets/search/openalex.toml"),
                 "github_prompts": str(ROOT / "config/studies/ids_repositories/prompts/classification.toml"),
+                "github_screening": str(ROOT / "config/studies/ids_repositories/screening.toml"),
+                "openalex_screening": str(ROOT / "config/studies/ids_datasets/screening.toml"),
                 "github_taxonomy": str(ROOT / "config/studies/ids_repositories/taxonomy.toml"),
                 "openalex_taxonomy": str(ROOT / "config/studies/ids_datasets/taxonomy.toml"),
                 "openalex_prompts": str(ROOT / "config/studies/ids_datasets/prompts/classification.toml"),

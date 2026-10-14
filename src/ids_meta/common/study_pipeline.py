@@ -15,12 +15,14 @@ import requests
 
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.common.logging import logger
+from ids_meta.common.limits import optional_limit, query_result_limit, limit_label
 from ids_meta.common.ollama import OllamaClient
 from ids_meta.common.provenance import file_hash
 from ids_meta.common.run import utc_now
 from ids_meta.common.sources import LocalSourceAdapter, content_hash
+from ids_meta.common.screening import load_screening_profile
 from ids_meta.common.study_screening import (
-    EVIDENCE_NORMALIZATION, SCREENING_FIELDS, StudyScreeningAdapter,
+    EVIDENCE_NORMALIZATION, SCREENING_FIELDS,
     load_study_protocol, normalize_evidence_text,
 )
 from ids_meta.openalex.collect import OpenAlexClient, normalize_work
@@ -43,8 +45,8 @@ def _write_json(path: Path, value: Any) -> None:
         raise
 
 
-def collect_study(profile_path: Path, output: Path, *, limit: int = 200,
-                  per_query_limit: int | None = None, client: OpenAlexClient | None = None,
+def collect_study(profile_path: Path, output: Path, *, limit: int | str | None = 100,
+                  client: OpenAlexClient | None = None,
                   source_config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Search independently of ratings, retain capped query audits and export a cohort."""
     if output.suffix.casefold() != ".json" or output.resolve() == profile_path.resolve():
@@ -68,10 +70,9 @@ def collect_study(profile_path: Path, output: Path, *, limit: int = 200,
     start, stop = profile.get("from_publication_date"), profile.get("to_publication_date")
     if not isinstance(start, str) or not isinstance(stop, str) or date.fromisoformat(start) > date.fromisoformat(stop):
         raise ValueError("study search requires an ordered ISO publication-date window")
-    cap = profile.get("per_query_limit", 200) if per_query_limit is None else per_query_limit
-    if any(isinstance(n, bool) or not isinstance(n, int) or n < 1 for n in (cap, limit)):
-        raise ValueError("study collection limits must be positive integers")
     source_config = source_config or {}
+    limit = optional_limit(limit, "collection_limit")
+    cap = query_result_limit(source_config, limit)
     page_size = source_config.get("per_page", 200)
     if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 200:
         raise ValueError("OpenAlex per_page must be an integer between 1 and 200")
@@ -84,20 +85,20 @@ def collect_study(profile_path: Path, output: Path, *, limit: int = 200,
         seen = set()
         pages = []
         exhausted = False
-        LOG.info("searching study query=%s cap=%d", query["name"], cap)
-        while scanned < cap:
+        LOG.info("searching study query=%s cap=%s", query["name"], limit_label(cap))
+        while cap is None or scanned < cap:
             if cursor in seen:
                 raise RuntimeError("OpenAlex repeated study-search cursor")
             seen.add(cursor)
             payload = client.get("/works", {parameter: query["search"], "cursor": cursor,
-                "per-page": min(page_size, cap - scanned), "select": client.select,
+                "per-page": page_size if cap is None else min(page_size, cap - scanned), "select": client.select,
                 "filter": f"from_publication_date:{start},to_publication_date:{stop}"})
             items, meta = payload.get("results"), payload.get("meta", {})
             if not isinstance(items, list) or not isinstance(meta, dict):
                 raise ValueError("OpenAlex returned an invalid study-search page")
             total = meta.get("count", total)
             pages.append({"cursor": cursor, "response": payload})
-            for item in items[:cap - scanned]:
+            for item in items if cap is None else items[:cap - scanned]:
                 work = normalize_work(item)
                 key = work["openalex_id"]
                 if not isinstance(key, str) or not key.strip():
@@ -124,18 +125,20 @@ def collect_study(profile_path: Path, output: Path, *, limit: int = 200,
     _write_json(output.with_suffix(".collection.json"), {"schema_version": "1.0", "provider": "openalex",
         "collected_at": utc_now(), "profile_sha256": digest, "profile": profile,
         "candidate_sha256": file_hash(output), "retained": len(rows), "pool_size": len(pool),
-        "selection": "best per-query result rank, query declaration order, OpenAlex ID", "collection_limit": limit, "per_query_limit": cap,
+        "selection": "best per-query result rank, query declaration order, OpenAlex ID", "collection_limit": limit,
+        "classification_limit": optional_limit(source_config.get("classification_limit"), "classification_limit"),
+        "query_limit_factor": source_config.get("query_limit_factor", 3.0), "per_query_limit": cap,
         "selected_ids": [r["paper_id"] for r in rows], "queries": audits})
     LOG.info("study collection retained=%d pool=%d", len(rows), len(pool))
     return rows
 
 
-def download_study_text(url: str, max_chars: int) -> dict[str, Any]:
+def download_study_text(url: str, max_chars: int, timeout: float = 30) -> dict[str, Any]:
     """Extract an openly supplied PDF with bounded download and text size."""
     if not url.startswith(("https://", "http://")):
         return {"full_text_status": "no_pdf_url"}
     try:
-        with requests.get(url, timeout=30, stream=True,
+        with requests.get(url, timeout=timeout, stream=True,
                           headers={"User-Agent": "ids-meta/0.1 review replication"}) as response:
             response.raise_for_status()
             chunks, size = [], 0
@@ -159,11 +162,10 @@ def download_study_text(url: str, max_chars: int) -> dict[str, Any]:
 
 def load_assessment_fields(protocol: Any) -> dict[str, Any]:
     """Load scientific extraction definitions from the study taxonomy."""
-    with protocol.path.open("rb") as handle:
-        raw = tomllib.load(handle)
+    profile = load_screening_profile(protocol.path)
     if file_hash(protocol.path) != protocol.sha256:
         raise ValueError("study protocol changed before assessment")
-    profile_path = protocol.path.parent / raw["source_profile"]
+    profile_path = profile.taxonomy_path
     with profile_path.open("rb") as handle:
         taxonomy = tomllib.load(handle)
     if file_hash(profile_path) != protocol.source_profile_sha256:
@@ -189,20 +191,15 @@ def _judgment_schema(values: list[str]) -> dict[str, Any]:
 
 def load_assessment_template(protocol: Any) -> tuple[str, Path, str]:
     """Load a study-owned prompt and require only blind assessment inputs."""
-    with protocol.path.open("rb") as handle:
-        raw = tomllib.load(handle)
-    value = raw.get("prompt_profile")
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError("study protocol requires prompt_profile")
-    path = (protocol.path.parent / value).resolve()
+    path = load_screening_profile(protocol.path).prompt_path
     digest = file_hash(path)
     with path.open("rb") as handle:
         prompt = tomllib.load(handle)
     template = prompt.get("template")
     if prompt.get("schema_version") != "1.0" or not isinstance(template, str) or not Template(template).is_valid():
         raise ValueError("study assessment prompt requires schema_version 1.0 and a valid template")
-    if set(Template(template).get_identifiers()) != {"filters", "quality", "fields", "evidence"}:
-        raise ValueError("study assessment prompt requires exactly filters, quality, fields and evidence placeholders")
+    if set(Template(template).get_identifiers()) != {"eligibility", "quality", "fields", "evidence"}:
+        raise ValueError("study assessment prompt requires exactly eligibility, quality, fields and evidence placeholders")
     return template, path, digest
 
 
@@ -213,7 +210,7 @@ def _assessment_prompt(protocol: Any, fields: dict[str, Any], row: dict[str, Any
     schema = {"type": "object", "additionalProperties": False, "required": ["criteria", "fields"], "properties": {
         "criteria": {"type": "object", "additionalProperties": False, "required": list(criteria), "properties": criteria},
         "fields": {"type": "object", "additionalProperties": False, "required": list(taxonomy), "properties": taxonomy}}}
-    prompt = Template(template).substitute(filters=json.dumps(protocol.filters), quality=json.dumps(protocol.quality),
+    prompt = Template(template).substitute(eligibility=json.dumps(protocol.filters), quality=json.dumps(protocol.quality),
         fields=json.dumps(fields), evidence=json.dumps({k: row.get(k, '') for k in
             ('title', 'abstract', 'full_text', 'full_text_complete')}, ensure_ascii=False))
     return prompt, schema
@@ -252,22 +249,63 @@ def _validate_assessment(answer: Any, protocol: Any, fields: dict[str, Any], tex
         raise ValueError("; ".join(errors))
 
 
+def _assess_once(record: dict[str, Any], protocol: Any, fields: dict[str, Any], template: str,
+                 client: Any, label: str) -> dict[str, Any]:
+    """Obtain one validated assessment, allowing one literal-quote correction."""
+    prompt, schema = _assessment_prompt(protocol, fields, record, template)
+    vote: dict[str, Any] = {"label": label, "status": "error", "attempts": []}
+    try:
+        for attempt in range(2):
+            answer = client.generate(prompt, schema)
+            vote["model_response_json"] = json.dumps(answer, sort_keys=True)
+            entry = {"response": answer, "validation_error": ""}
+            vote["attempts"].append(entry)
+            try:
+                _validate_assessment(answer, protocol, fields, record["full_text"])
+            except ValueError as exc:
+                entry["validation_error"] = str(exc)
+                if attempt:
+                    raise
+                LOG.info("correcting invalid study evidence paper_id=%s run=%s", record[protocol.contract.identity], label)
+                prompt += ("\nCORRECTION REQUEST\nYour previous JSON failed validation. "
+                    "Return a complete corrected JSON object. Copy the shortest sufficient literal "
+                    "passage from full_text, preserving its characters; never paraphrase a quotation. "
+                    "If evidence cannot be supported, use unknown with empty quote/source. "
+                    "A passage's presence does not establish its relevance: recheck its meaning.\n"
+                    + json.dumps(entry, ensure_ascii=False))
+            else:
+                vote.update(status="success", answer=answer)
+                break
+    except (RuntimeError, ValueError, requests.RequestException) as exc:
+        vote.update(error_type=type(exc).__name__, error_detail=str(exc) if isinstance(exc, ValueError) else "")
+        LOG.warning("study model assessment failed paper_id=%s run=%s (%s)", record[protocol.contract.identity], label, type(exc).__name__)
+    return vote
+
+
 def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_config: dict[str, Any], *,
                    limit: int | None = None, resume: bool = False, dry_run: bool = False,
-                   fetch_full_text: bool = False, max_chars: int = 120000, client: Any = None) -> list[dict[str, Any]]:
-    """Assess candidates with Ollama, replay review rules, and checkpoint each record."""
+                   fetch_full_text: bool = False, max_chars: int = 120000, client: Any = None,
+                   consecutive_runs: int = 1, consensus_threshold: float = 0.8,
+                   evidence_lookup_timeout_seconds: float = 30) -> list[dict[str, Any]]:
+    """Repeat validated assessments, vote, replay rules, and checkpoint each record."""
+    from ids_meta.common.study_consensus import combine_assessments, normalize_consensus, validate_consensus
+
+    validate_consensus(consecutive_runs, consensus_threshold)
     if output.suffix.casefold() != ".csv" or output.resolve() == input_path.resolve():
         raise ValueError("study classification requires a separate CSV output")
-    if max_chars < 1 or (limit is not None and limit < 1):
-        raise ValueError("study classification limits must be positive")
+    limit = optional_limit(limit, "classification_limit")
+    if isinstance(max_chars, bool) or not isinstance(max_chars, int) or max_chars < 1:
+        raise ValueError("max_full_text_chars must be a positive integer")
+    if isinstance(evidence_lookup_timeout_seconds, bool) or not isinstance(evidence_lookup_timeout_seconds, (int, float)) or not 0 < evidence_lookup_timeout_seconds < float('inf'):
+        raise ValueError("evidence_lookup_timeout_seconds must be finite and positive")
     protocol = load_study_protocol(protocol_path)
     fields = load_assessment_fields(protocol)
     template, prompt_path, prompt_digest = load_assessment_template(protocol)
     input_digest = file_hash(input_path)
     candidates = json.loads(input_path.read_text(encoding="utf-8"))
-    if not isinstance(candidates, list) or not candidates or any(not isinstance(r, dict) for r in candidates):
-        raise ValueError("study candidates must be a non-empty JSON array")
-    LocalSourceAdapter(protocol.contract).normalize(candidates)  # Fail before inference on identity collisions.
+    if not isinstance(candidates, list) or any(not isinstance(r, dict) for r in candidates):
+        raise ValueError("study candidates must be a JSON array")
+    LocalSourceAdapter(protocol.contract).normalize(candidates)
     selected = candidates if limit is None else candidates[:limit]
     if any(not isinstance(row.get("full_text", ""), str) for row in selected):
         raise ValueError("candidate full_text must be a string")
@@ -278,100 +316,83 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
         "prompt": PROMPT_VERSION, "prompt_sha256": prompt_digest, "model": model,
         "evidence_normalization": EVIDENCE_NORMALIZATION,
         "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens')},
-        "max_chars": max_chars, "fetch_full_text": fetch_full_text, "dry_run": dry_run})
+        "max_chars": max_chars, "fetch_full_text": fetch_full_text, "dry_run": dry_run,
+        "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold,
+        "evidence_lookup_timeout_seconds": evidence_lookup_timeout_seconds})
     cached = {}
     if resume and checkpoint.is_file() and output.is_file():
         previous = json.loads(checkpoint.read_text())
         if previous.get("fingerprint") == fingerprint and previous.get("output_sha256") == file_hash(output):
-            cached = {r["input_record_sha256"]: r for r in previous.get("records", [])}
+            cached = {r["input_record_sha256"]: r for r in previous["records"]}
     assessed, rows = [], []
-    adapter = StudyScreeningAdapter(protocol)
+    payload = {"schema_version": "1.0", "fingerprint": fingerprint, "completed": False,
+        "input_sha256": input_digest, "protocol_sha256": protocol.sha256,
+        "source_profile_sha256": protocol.source_profile_sha256,
+        "prompt_version": PROMPT_VERSION, "prompt_sha256": prompt_digest, "model": model,
+        "evidence_normalization": EVIDENCE_NORMALIZATION,
+        "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens', 'timeout_seconds', 'retries')},
+        "max_full_text_chars": max_chars, "fetch_full_text": fetch_full_text, "dry_run": dry_run,
+        "evidence_lookup_timeout_seconds": evidence_lookup_timeout_seconds,
+        "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold, "records": assessed}
     for position, candidate in enumerate(selected, 1):
         digest = content_hash(candidate)
         prior = cached.get(digest)
-        if prior and prior.get("assessment_status") == "success":
+        if prior and prior["assessment_status"] == "success":
             record = prior
             LOG.info("restored study assessment %d/%d", position, len(selected))
         else:
             record = {k: v for k, v in candidate.items() if k not in {"criteria", *SCREENING_FIELDS, *fields}}
             text = record.get("full_text", "")
-            if not isinstance(text, str):
-                raise ValueError("candidate full_text must be a string")
             if not text.strip() and fetch_full_text and not dry_run:
                 LOG.info("fetching study PDF paper_id=%s", record[protocol.contract.identity])
-                record.update(download_study_text(str(record.get("pdf_url", "")), max_chars))
+                record.update(download_study_text(str(record.get("pdf_url", "")), max_chars, evidence_lookup_timeout_seconds))
                 text = record.get("full_text", "")
             if len(text) > max_chars:
                 record.update(full_text_original_sha256=content_hash(text), full_text_complete=False)
             record["full_text"] = text[:max_chars]
-            record.update(input_record_sha256=digest, criteria={})
-            for field in fields:
-                record[field] = "unknown"
-            if dry_run:
-                record["assessment_status"] = "dry_run"
-            elif not record["full_text"].strip():
-                record["assessment_status"] = "missing_full_text"
-            else:
+            record["input_record_sha256"] = digest
+            votes = []
+            for run in range(consecutive_runs):
+                label = f"run-{run + 1}"
+                if dry_run or not record["full_text"].strip():
+                    votes.append({"label": label, "status": "dry_run" if dry_run else "missing_full_text", "attempts": []})
+                    continue
                 try:
                     client = client or OllamaClient(config)
-                    LOG.info("assessing study paper_id=%s model=%s text_chars=%d",
-                        record[protocol.contract.identity], model, len(record["full_text"]))
-                    prompt, schema = _assessment_prompt(protocol, fields, record, template)
-                    attempts = []
-                    for attempt in range(2):
-                        answer = client.generate(prompt, schema)
-                        record["model_response_json"] = json.dumps(answer, sort_keys=True)
-                        entry = {"response": answer, "validation_error": ""}
-                        attempts.append(entry)
-                        try:
-                            _validate_assessment(answer, protocol, fields, record["full_text"])
-                        except ValueError as exc:
-                            entry["validation_error"] = str(exc)
-                            record["assessment_attempts_json"] = json.dumps(attempts, sort_keys=True)
-                            if attempt:
-                                raise
-                            LOG.info("correcting invalid study evidence paper_id=%s", record[protocol.contract.identity])
-                            prompt += ("\nCORRECTION REQUEST\nYour previous JSON failed validation. "
-                                "Return a complete corrected JSON object. Copy the shortest sufficient literal "
-                                "passage from full_text, preserving its characters; never paraphrase a quotation. "
-                                "If evidence cannot be supported, use unknown with empty quote/source. "
-                                "A passage's presence does not establish its relevance: recheck its meaning.\n"
-                                + json.dumps(entry, ensure_ascii=False))
-                        else:
-                            record["assessment_attempts_json"] = json.dumps(attempts, sort_keys=True)
-                            break
-                    trial = {**record, "criteria": answer["criteria"]}
-                    adapter.normalize([trial])
-                    record.update(criteria=answer["criteria"], field_assessments_json=json.dumps(answer["fields"], sort_keys=True),
-                        assessment_status="success", **{field: answer["fields"][field]["value"] for field in fields})
-                except (RuntimeError, ValueError, requests.RequestException) as exc:
-                    record.update(criteria={}, assessment_status="error", assessment_error=type(exc).__name__)
-                    if isinstance(exc, ValueError):
-                        record["assessment_error_detail"] = str(exc)
-                    LOG.warning("study model assessment failed paper_id=%s (%s)", record[protocol.contract.identity], type(exc).__name__)
-        normalized = adapter.normalize([record])[0]
+                    LOG.info("assessing study paper_id=%s model=%s run=%s text_chars=%d",
+                        record[protocol.contract.identity], model, label, len(record["full_text"]))
+                    votes.append(_assess_once(record, protocol, fields, template, client, label))
+                except (ValueError, RuntimeError, requests.RequestException) as exc:
+                    votes.append({"label": label, "status": "error", "attempts": [], "error_type": type(exc).__name__})
+            record = combine_assessments(record, votes, protocol, fields, consensus_threshold)
+            successes = sum(vote["status"] == "success" for vote in votes)
+            errors = [vote for vote in votes if vote["status"] == "error"]
+            record["assessment_status"] = ("success" if successes == consecutive_runs else "partial_error" if successes
+                else "error" if errors else votes[0]["status"])
+            record["assessment_attempts_json"] = json.dumps([entry for vote in votes for entry in vote["attempts"]], sort_keys=True)
+            responses = [vote["model_response_json"] for vote in votes if "model_response_json" in vote]
+            if responses:
+                record["model_response_json"] = responses[-1]
+            if errors:
+                record.update(assessment_error=errors[0]["error_type"], assessment_error_detail=errors[0].get("error_detail", ""))
+        normalized = normalize_consensus(record, protocol)
         normalized.update(classifier_method="llm", classifier_id=f"study_llm:{model}", model=model,
-            classifier_supported_fields="*",
+            classifier_supported_fields="*", consecutive_runs=consecutive_runs,
             classifier_profile_hash=fingerprint, candidate_input_sha256=input_digest)
-        if record["assessment_status"] == "error":
-            normalized.update(decision="error", error=record["assessment_error"])
         assessed.append(record)
         rows.append(normalized)
         atomic_write_csv(output, rows, list(dict.fromkeys(k for row in rows for k in row)))
-        _write_json(checkpoint, {"schema_version": "1.0", "fingerprint": fingerprint,
-            "input_sha256": input_digest, "output_sha256": file_hash(output),
-            "protocol_sha256": protocol.sha256, "source_profile_sha256": protocol.source_profile_sha256,
-            "prompt_version": PROMPT_VERSION, "prompt_sha256": prompt_digest, "model": model,
-            "evidence_normalization": EVIDENCE_NORMALIZATION,
-            "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens', 'timeout_seconds', 'retries')},
-            "max_full_text_chars": max_chars, "fetch_full_text": fetch_full_text,
-            "dry_run": dry_run, "records": assessed})
+        payload["output_sha256"] = file_hash(output)
+        _write_json(checkpoint, payload)
         LOG.info("study classification %d/%d status=%s decision=%s", position, len(selected), record["assessment_status"], normalized["decision"])
-    if file_hash(input_path) != input_digest:
-        raise ValueError("study candidate input changed during classification")
-    if file_hash(prompt_path) != prompt_digest:
-        raise ValueError("study assessment prompt changed during classification")
+    if not rows:
+        atomic_write_csv(output, [], [protocol.contract.identity, "decision", "classifier_supported_fields", *fields])
+        payload["output_sha256"] = file_hash(output)
+    if file_hash(input_path) != input_digest or file_hash(prompt_path) != prompt_digest:
+        raise ValueError("study candidate or assessment prompt changed during classification")
     current_protocol = load_study_protocol(protocol_path)
     if (current_protocol.sha256, current_protocol.source_profile_sha256) != (protocol.sha256, protocol.source_profile_sha256):
         raise ValueError("study protocol inputs changed during classification")
+    payload["completed"] = True
+    _write_json(checkpoint, payload)
     return rows

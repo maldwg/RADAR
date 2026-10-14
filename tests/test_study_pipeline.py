@@ -56,7 +56,8 @@ class StudyPipelineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "candidates.json"
             client = FakeSearch()
-            rows = collect_study(PROFILE / "search/openalex.toml", output, limit=2, per_query_limit=2, client=client)
+            rows = collect_study(PROFILE / "search/openalex.toml", output, limit=2,
+                source_config={"query_limit_factor": 1}, client=client)
             self.assertEqual([r['paper_id'] for r in rows], ['https://openalex.org/W2', 'https://openalex.org/W1'])
             self.assertEqual(rows[1]['discovery_queries'], ['picoc', 'core_concepts'])
             audit = json.loads(output.with_suffix('.collection.json').read_text())

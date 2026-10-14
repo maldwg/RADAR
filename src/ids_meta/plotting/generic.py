@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import csv
 from pathlib import Path
 from typing import Any
 
@@ -14,9 +15,10 @@ from ids_meta.common.sources import LocalSourceAdapter, SourceContract, load_sou
 from ids_meta.plotting.common import configure_style, load_frame, save_figure, write_table, taxonomy_field_label
 
 
-def _write_records(path: Path, rows: list[dict[str, Any]], contract: SourceContract) -> None:
+def _write_records(path: Path, rows: list[dict[str, Any]], contract: SourceContract, extra_columns: tuple[str, ...] = ()) -> None:
     """Export lossless normalized records, retaining a usable schema for empty inputs."""
-    columns = list(dict.fromkeys([contract.identity, contract.label, 'entity_id', 'provider', 'entity_kind', 'decision', *contract.fields, *[key for row in rows for key in row]]))
+    columns = list(dict.fromkeys([contract.identity, contract.label, 'entity_id', 'provider', 'entity_kind', 'decision',
+        *contract.fields, *extra_columns, *[key for row in rows for key in row]]))
     atomic_write_csv(path, rows, columns)
 
 
@@ -54,6 +56,10 @@ def build_report(
     candidates = adapter.read(candidates_path) if candidates_path else None
     exports = adapter.read(exports_path) if exports_path else None
     decisions_observed = all(row.get('decision') for row in rows) and bool(rows)
+    if not rows and input_path.suffix.casefold() == '.csv':
+        with input_path.open(encoding='utf-8', newline='') as handle:
+            columns = set(csv.DictReader(handle).fieldnames or [])
+        decisions_observed = {'decision', 'classifier_supported_fields'} <= columns
     if any(row.get('decision') for row in rows) and not decisions_observed:
         raise ValueError('classification input mixes decided and unclassified records; supply unclassified records as candidates')
     if ratings_path and not decisions_observed:
@@ -64,7 +70,7 @@ def build_report(
     if exported is not None and (included is None or not exported <= included):
         raise ValueError('export contains records absent from accepted classifications')
     classifications = out_dir / 'normalized' / 'classifications.csv'
-    _write_records(classifications, rows, contract)
+    _write_records(classifications, rows, contract, ('classifier_supported_fields',) if decisions_observed else ())
     register_input(classifications)
     candidate_csv = None
     if candidates is not None:

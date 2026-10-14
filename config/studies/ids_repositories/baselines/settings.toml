@@ -1,10 +1,5 @@
 schema_version = "1.0"
 
-[ensemble]
-enabled = true
-models = ["gemma4:31b", "qwen3.8:27b"]
-threshold = 1.0
-
 [baselines]
 enabled = true
 methods = ["keyword", "nli"]
