@@ -58,7 +58,7 @@ class StudyPipelineTests(unittest.TestCase):
             client = FakeSearch()
             rows = collect_study(PROFILE / "search/openalex.toml", output, limit=2,
                 source_config={"query_limit_factor": 1}, client=client)
-            self.assertEqual([r['paper_id'] for r in rows], ['https://openalex.org/W2', 'https://openalex.org/W1'])
+            self.assertEqual([r['paper_id'] for r in rows], ['openalex:https://openalex.org/W2', 'openalex:https://openalex.org/W1'])
             self.assertEqual(rows[1]['discovery_queries'], ['picoc', 'core_concepts'])
             audit = json.loads(output.with_suffix('.collection.json').read_text())
             self.assertEqual(audit['pool_size'], 3)
@@ -144,7 +144,7 @@ class StudyPipelineTests(unittest.TestCase):
             source = root / 'candidates.json'
             source.write_text(json.dumps([{'paper_id': 'one', 'title': 'Missing text', 'pdf_url': 'https://example.org/paper.pdf'}]))
             with patch('ids_meta.common.study_pipeline.OllamaClient', side_effect=AssertionError('model call')), patch(
-                'ids_meta.common.study_pipeline.download_study_text', side_effect=AssertionError('HTTP call')):
+                'ids_meta.common.paper_evidence.download_pdf_text', side_effect=AssertionError('HTTP call')):
                 missing = classify_study(PROFILE / 'screening.toml', source, root / 'missing.csv', {})
                 preview = classify_study(PROFILE / 'screening.toml', source, root / 'preview.csv', {}, dry_run=True, fetch_full_text=True)
             self.assertEqual(missing[0]['decision'], 'uncertain')

@@ -2,6 +2,9 @@ schema_version = "1.0"
 
 [collection]
 collection_limit = 100
+collection_mode = "ranked"
+survey_query_limit_factor = 3.0
+reference_limit_factor = 3.0
 max_surveys = 100
 snowball_start_papers = 50
 snowball_max_depth = 10
@@ -16,6 +19,7 @@ candidate_threshold = 7.0
 borderline_threshold = -100.0
 
 [evidence]
+fetch_full_text = false
 enrich_missing_abstracts = true
 enrich_uncertain_with_full_text = true
 evidence_lookup_timeout_seconds = 30
@@ -33,16 +37,5 @@ models = ["gemma4:31b", "qwen3.8:27b"]
 threshold = 1.0
 
 [reconciliation]
+strategy = "dataset_release"
 reconcile_with_llm = true
-canonical_ambiguity_margin = 2.0
-canonical_direct_release_score = 4.0
-canonical_core_relevance_score = 1.0
-canonical_earliest_year_score = 8.0
-canonical_year_distance_penalty = 1.0
-canonical_year_distance_cap = 8
-canonical_citation_weight = 2.0
-
-[reconciliation.canonical_role_scores]
-original_release = 60.0
-generator_release = 60.0
-versioned_release = 20.0

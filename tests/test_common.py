@@ -185,7 +185,7 @@ class CommonTests(unittest.TestCase):
         settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         datasets = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         self.assertTrue(load_term_profile(settings, "github")["search_queries"])
-        self.assertTrue(load_term_profile(datasets, "openalex")["direct_queries"])
+        self.assertTrue(load_term_profile(datasets, "openalex")["queries"])
         self.assertTrue(load_prompt_profile(settings, "github")["template"])
         self.assertTrue(load_prompt_profile(datasets, "openalex")["template"])
         self.assertIn("NIDS", load_system_type_profile(settings, "github")["types"])

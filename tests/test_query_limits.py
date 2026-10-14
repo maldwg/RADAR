@@ -12,7 +12,9 @@ from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import ConfigError
 from ids_meta.common.limits import optional_limit, query_result_limit
 from ids_meta.github.collect import collect as collect_github, search_best_matches
-from ids_meta.openalex.collect import OpenAlexClient, collect as collect_openalex, sample_query_results
+from ids_meta.openalex.collect import OpenAlexClient
+from ids_meta.common.paper_collection import sample_query_results
+from tests.fixtures import collect_paper_fixture as collect_openalex
 
 
 class RepositoryClient:
@@ -152,7 +154,7 @@ class QueryLimitTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, PipelineCache(Path(directory) / "cache.sqlite3") as cache:
             counts = collect_openalex({"max_surveys": 0, "per_page": 10, "max_pages_per_query": 1,
                                       "query_limit_factor": 3, "retrieval_minimum_score": 0},
-                                     {"direct_queries": ["first", "second"]}, cache, 40, client)
+                                     {"queries": [{"name": "first", "search": "first"}, {"name": "second", "search": "second"}]}, cache, 40, client)
             active = cache.get_record("openalex.collection", "latest")
             self.assertEqual(counts["direct_results_scanned"], 240)
             self.assertEqual(counts["discovered"], 40)
@@ -166,7 +168,7 @@ class QueryLimitTests(unittest.TestCase):
             counts = collect_openalex({"max_surveys": 1, "per_page": 10, "max_pages_per_query": 1,
                                       "query_sample_size": 1, "reference_sample_size": 1,
                                       "retrieval_minimum_score": 0},
-                                     {"survey_queries": ["survey"], "direct_queries": ["direct"]}, cache, client=client)
+                                     {"survey_queries": ["survey"], "queries": [{"name": "direct", "search": "direct"}]}, cache, client=client)
             active = cache.get_record("openalex.collection", "latest")
             self.assertEqual(counts["direct_results_scanned"], 150)
             self.assertEqual(counts["reference_results_scanned"], 310)
@@ -182,7 +184,7 @@ class QueryLimitTests(unittest.TestCase):
             counts = collect_openalex({"classification_limit": 2, "query_limit_factor": 3,
                                       "survey_query_limit_factor": 2, "reference_limit_factor": 4,
                                       "per_page": 1, "max_surveys": 1, "retrieval_minimum_score": 0},
-                                     {"survey_queries": ["survey"], "direct_queries": ["direct"]},
+                                     {"survey_queries": ["survey"], "queries": [{"name": "direct", "search": "direct"}]},
                                      cache, client=client)
             active = cache.get_record("openalex.collection", "latest")
             self.assertEqual(counts["direct_results_scanned"], 6)

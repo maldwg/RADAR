@@ -24,7 +24,7 @@ class FunnelTests(unittest.TestCase):
         )
         openalex_terms = root / "openalex_terms.toml"
         openalex_terms.write_text(
-            'schema_version = "1.0"\ndirect_queries = ["direct"]\n'
+            'schema_version = "1.0"\nqueries = [{name="direct", search="direct"}]\n'
             'survey_queries = ["survey"]\n[survey_publishers]\n',
             encoding="utf-8",
         )

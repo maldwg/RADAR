@@ -59,3 +59,17 @@ labeled = "Provides ground-truth or class labels for the released observations."
 partially_labeled = "Only part of the data or label space has ground truth."
 unlabeled = "Released data intentionally has no labels."
 unknown = "Label availability is not established."
+
+[reconciliation]
+canonical_ambiguity_margin = 2.0
+canonical_direct_release_score = 4.0
+canonical_core_relevance_score = 1.0
+canonical_earliest_year_score = 8.0
+canonical_year_distance_penalty = 1.0
+canonical_year_distance_cap = 8
+canonical_citation_weight = 2.0
+
+[reconciliation.canonical_role_scores]
+original_release = 60.0
+generator_release = 60.0
+versioned_release = 20.0

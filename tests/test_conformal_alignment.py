@@ -109,7 +109,7 @@ class ConformalAlignmentTests(unittest.TestCase):
             root = Path(directory)
             manifest = self._config(root)
             output = root / 'collected.json'
-            with patch('ids_meta.common.study_pipeline.OpenAlexClient', return_value=PagedSearch()), redirect_stdout(io.StringIO()):
+            with patch('ids_meta.adapters.openalex.OpenAlexClient', return_value=PagedSearch()), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'collect', '--collect-limit', '4', '--classify-limit', '6',
                     '--output', str(output)]), 0)
             audit = json.loads(output.with_suffix('.collection.json').read_text())
@@ -209,17 +209,17 @@ class ConformalAlignmentTests(unittest.TestCase):
                 self.assertEqual(main(['--config', str(manifest), 'classify', '--input', str(self._candidates(root))]), 0)
             settings = load_settings(manifest)
             self.assertEqual(model.calls, 5 * len(settings.section('ollama')['models']))
-            ensemble = _variant_paths(settings, 'openalex', Path('ensemble'))['classifications']
+            ensemble = _variant_paths(settings, 'cohort', Path('ensemble'))['classifications']
             self.assertEqual(read_csv(ensemble)[0]['decision'], 'accept')
 
     def test_unsupported_and_obsolete_controls_are_rejected(self):
-        """Configured snowballing or fixed caps cannot be silently ignored."""
+        """Repository-only controls and obsolete fixed query caps are rejected."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             manifest = self._config(root)
             path = manifest.parent / 'pipeline.toml'
             original = path.read_text()
-            for setting in ('snowball_max_depth = 10', 'per_query_limit = 300'):
+            for setting in ('minimum_stars = 100', 'per_query_limit = 300'):
                 path.write_text(original.replace('[collection]', '[collection]\n' + setting))
                 with self.assertRaises(ConfigError):
                     load_settings(manifest)
@@ -242,12 +242,12 @@ class ConformalAlignmentTests(unittest.TestCase):
             manifest = self._config(root)
             reporting = manifest.parent / 'reporting.toml'
             reporting.write_text(reporting.read_text().replace('["svg", "pdf"]', '["svg"]'))
-            with patch('ids_meta.common.study_pipeline.OpenAlexClient', return_value=PagedSearch(0)), patch(
+            with patch('ids_meta.adapters.openalex.OpenAlexClient', return_value=PagedSearch(0)), patch(
                 'ids_meta.common.study_pipeline.OllamaClient', side_effect=AssertionError('inference')), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'run', '--collect-all', '--classify-all']), 0)
             settings = load_settings(manifest)
-            reports = [paths['plots'] for paths in _execution_paths(settings, 'openalex', settings.section('ollama')['models']).values()]
-            reports.append(_variant_paths(settings, 'openalex', Path('ensemble'))['plots'])
+            reports = [paths['plots'] for paths in _execution_paths(settings, 'cohort', settings.section('ollama')['models']).values()]
+            reports.append(_variant_paths(settings, 'cohort', Path('ensemble'))['plots'])
             for report in reports:
                 metrics = json.loads((report / 'evaluation/metrics.json').read_text())
                 self.assertEqual(metrics['operational']['fn'], 11)
@@ -268,8 +268,8 @@ class ConformalAlignmentTests(unittest.TestCase):
             with patch('ids_meta.common.study_pipeline.OllamaClient', return_value=SequenceModel([answer()])), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'run', '--input', str(source)]), 0)
             settings = load_settings(manifest)
-            reports = [paths['plots'] for paths in _execution_paths(settings, 'openalex', settings.section('ollama')['models']).values()]
-            reports.append(_variant_paths(settings, 'openalex', Path('ensemble'))['plots'])
+            reports = [paths['plots'] for paths in _execution_paths(settings, 'cohort', settings.section('ollama')['models']).values()]
+            reports.append(_variant_paths(settings, 'cohort', Path('ensemble'))['plots'])
             for report in reports:
                 metrics = json.loads((report / 'evaluation/metrics.json').read_text())
                 self.assertEqual(metrics['operational']['tp'], 1)

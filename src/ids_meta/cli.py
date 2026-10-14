@@ -20,13 +20,13 @@ from ids_meta.common.run import RunManifest
 from ids_meta.common.text import slug
 from ids_meta.common.logging import configure_logging, logger
 from ids_meta.common.nli import classify_nli_baseline, load_nli_profile, load_nli_runtime_config
-from ids_meta.github.collect import collect as collect_github
+from ids_meta.adapters.registry import create_adapter
+from ids_meta.adapters.contracts import CatalogueAdapter
 from ids_meta.github.pipeline import classify as classify_github
 from ids_meta.github.pipeline import export as export_github
 from ids_meta.github.pipeline import prefilter as prefilter_github
 from ids_meta.github.reconcile import reconcile as reconcile_github
 from ids_meta.github.schema import CLASSIFICATION_COLUMNS as GITHUB_CLASSIFICATION_COLUMNS
-from ids_meta.openalex.collect import collect as collect_openalex
 from ids_meta.openalex.pipeline import classify as classify_openalex
 from ids_meta.openalex.pipeline import export as export_openalex
 from ids_meta.openalex.pipeline import export_survey_sources as export_openalex_surveys
@@ -66,6 +66,9 @@ def _default_paths(settings: Settings, source: str) -> dict[str, Path]:
     plots = settings.path("plots_dir") / source
     evaluation_root = _evaluation_root(settings, source)
     comparison = settings.path("plots_dir") / source / "comparison"
+    if settings.section("study").get("workflow") == "systematic_review":
+        return {"candidates": interim / "candidates.json", "plots": plots,
+            "comparison": comparison, "evaluation_comparison": evaluation_root / "comparison"}
     if source == "github":
         return {
             "cache": settings.path("github_cache"), "candidates": interim / "candidates.csv",
@@ -673,7 +676,7 @@ def _execute_github_models(args: argparse.Namespace, settings: Settings, models:
     LOG.info("starting multi-model command source=github stage=%s run_id=%s models=%s ensemble=%s", args.action, manifest.run_id, ",".join(models), ensemble_enabled)
     with PipelineCache(base_paths["cache"]) as cache:
         if args.action in {"collect", "run"}:
-            counts = {"cached": sum(1 for _ in cache.records("github.repository"))} if args.dry_run else collect_github({**config, "classification_limit": classify_limit}, profile, cache, collect_limit, resume=args.resume)
+            counts = {"cached": sum(1 for _ in cache.records("github.repository"))} if args.dry_run else _collect_catalogue(settings, "github", {**config, "classification_limit": classify_limit}, profile, cache, collect_limit, args.resume)
             manifest.counts.update(counts)
         if args.action in {"prefilter", "run"}:
             output_path = Path(args.output) if args.output and args.action == "prefilter" else base_paths["candidates"]
@@ -789,7 +792,7 @@ def _execute_openalex_models(args: argparse.Namespace, settings: Settings, model
     LOG.info("starting multi-model command source=openalex stage=%s run_id=%s models=%s ensemble=%s", args.action, manifest.run_id, ",".join(models), ensemble_enabled)
     with PipelineCache(base_paths["cache"]) as cache:
         if args.action in {"collect", "run"}:
-            counts = {"cached": sum(1 for _ in cache.records("openalex.work"))} if args.dry_run else collect_openalex({**config, "classification_limit": classify_limit}, profile, cache, collect_limit)
+            counts = {"cached": sum(1 for _ in cache.records("openalex.work"))} if args.dry_run else _collect_catalogue(settings, "openalex", {**config, "classification_limit": classify_limit}, profile, cache, collect_limit, args.resume)
             manifest.counts.update(counts)
         if args.action in {"collect", "prefilter", "run"}:
             survey_rows = export_openalex_surveys(cache, base_paths["surveys"], manifest.run_id)
@@ -897,37 +900,70 @@ def _configured_review_protocol(settings: Settings):
     return protocol
 
 
+def _collect_catalogue(settings: Settings, source: str, config: dict[str, object],
+                       profile: dict[str, object], cache: PipelineCache, limit: int | None,
+                       resume: bool) -> dict[str, int]:
+    """Dispatch specialized collection through the registered optional capability."""
+    adapter = create_adapter(source, config, settings.path(f"{source}_terms"))
+    if not isinstance(adapter, CatalogueAdapter):
+        raise ConfigError(f"provider {source!r} has no catalogue collection strategy")
+    return adapter.collect_catalogue(config, profile, cache, limit, resume=resume)
+
+
 def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
     """Run a configured evidence-backed review without named-study branches."""
-    from ids_meta.common.study_pipeline import collect_study, classify_study
+    from ids_meta.common.study_pipeline import classify_study, prefilter_study
+    from ids_meta.common.discovery import DiscoverySource, collect_sources
+    from ids_meta.common.paper_evidence import PaperEvidenceService
     from ids_meta.common.study_screening import screen_study
     from ids_meta.plotting.generic import build_report
 
     action = args.action
-    if action not in {"collect", "classify", "screen", "plot", "evaluate", "run"}:
+    if action not in {"collect", "prefilter", "classify", "screen", "plot", "evaluate", "run"}:
         raise ConfigError(f"systematic_review does not support stage {action!r}")
     models = _configured_models(settings)
     ensemble_enabled, ensemble_members, ensemble_threshold = _ensemble_config(settings, models)
     if len(models) > 1 or ensemble_enabled:
         _reject_ambiguous_custom_paths(args)
-    source = settings.section("study")["sources"][0]
-    config = dict(settings.section(source))
+    selected = getattr(args, "source", None)
+    sources = [selected] if selected else settings.section("study")["sources"]
+    for name in sources:
+        settings.require_source(name)
+    source = "cohort" if selected is None else f"cohort_{selected}"
+    pipeline = settings.section("pipeline")
+    config = {**pipeline["collection"], **pipeline["classification"]}
     collect_limit, classify_limit = _pipeline_limits(args, config)
     config["classification_limit"] = classify_limit
     config["collection_limit"] = collect_limit
     candidates = settings.path("interim_dir") / source / "candidates.json"
+    prefiltered = settings.path("interim_dir") / source / "prefiltered.json"
+    evidence_service = PaperEvidenceService(pipeline["evidence"])
     protocol = _configured_review_protocol(settings).path
     paths = _execution_paths(settings, source, models)
     manifest = _manifest(settings, source, action)
+    manifest.parameters.update(providers=sources, collection_limit=collect_limit, classification_limit=classify_limit)
     manifest.write()
     counts: dict[str, int] = {}
     try:
         if action in {"collect", "run"} and not (action == "run" and args.input):
             if args.dry_run:
-                raise ConfigError("review collection needs network access; use classify --dry-run --input for an offline preview")
+                raise ConfigError("use classify --dry-run --input for an offline preview of a frozen cohort")
             target = args.output if action == "collect" and args.output else candidates
-            rows = collect_study(settings.path(f"{source}_terms"), target, limit=collect_limit, source_config=config)
+            inputs = [DiscoverySource(name, settings.path(f"{name}_terms"),
+                {**settings.section(name), "collection_limit": collect_limit, "classification_limit": classify_limit},
+                cache_path=settings.path(f"{name}_cache"))
+                for name in sources]
+            rows = collect_sources(inputs, target, limit=collect_limit, entity_kind="paper")
             counts["candidate_papers"] = len(rows)
+        if action in {"prefilter", "run"} or action == "classify" and args.input:
+            target = args.output if action == "prefilter" and args.output else prefiltered
+            # Ranking vocabulary belongs to the study; the selected provider supplies its query syntax.
+            profile = load_term_profile(settings, sources[0])
+            rows = prefilter_study(args.input or candidates, target, profile, config,
+                evidence_service, dry_run=args.dry_run,
+                freeze_uncertain_evidence=ensemble_enabled and pipeline["evidence"]["enrich_uncertain_with_full_text"])
+            counts["prefiltered_papers"] = len(rows)
+            prefiltered = target
         if action == "screen":
             if not args.input:
                 raise ConfigError("screen requires --input containing criterion assessments")
@@ -939,11 +975,15 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
                 pipeline = settings.section("pipeline")
                 evidence = pipeline["evidence"]
                 classification_settings = pipeline["classification"]
-                rows = classify_study(protocol, args.input or candidates, classification,
+                rows = classify_study(protocol, prefiltered, classification,
                     _model_ollama_config(settings, model), limit=classify_limit, resume=args.resume, dry_run=args.dry_run,
                     fetch_full_text=bool(evidence.get("fetch_full_text", False)),
                     max_chars=evidence.get("max_full_text_chars", 120000),
                     evidence_lookup_timeout_seconds=evidence.get("evidence_lookup_timeout_seconds", 30),
+                    enrich_missing_abstracts=evidence["enrich_missing_abstracts"],
+                    enrich_uncertain_with_full_text=evidence["enrich_uncertain_with_full_text"],
+                    classify_borderline=classification_settings["classify_borderline"],
+                    evidence_service=evidence_service,
                     consecutive_runs=classification_settings.get("consecutive_runs", 1),
                     consensus_threshold=classification_settings.get("consensus_threshold", 0.8))
                 counts[f"classified_{slug(model)}"] = len(rows)
@@ -1061,7 +1101,7 @@ def build_parser() -> argparse.ArgumentParser:
     screening.add_argument("--protocol", required=True, type=Path)
     screening.add_argument("--input", required=True, type=Path, help="JSON records with criterion assessments and full text")
     screening.add_argument("--output", required=True, type=Path, help="classification CSV for report/evaluation")
-    study_collect = subparsers.add_parser("study-collect", help="discover papers for an external review with OpenAlex")
+    study_collect = subparsers.add_parser("study-collect", help="discover papers through a registered provider search profile")
     study_collect.add_argument("--search-profile", required=True, type=Path)
     study_collect.add_argument("--output", required=True, type=Path, help="candidate JSON and collection audit")
     group = study_collect.add_mutually_exclusive_group()
@@ -1135,15 +1175,15 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command in STUDY_STAGES:
             args.action = args.command
+            if settings.section("study")["workflow"] == "systematic_review":
+                counts = _execute_review(args, settings)
+                LOG.info("command summary %s", counts)
+                return 0
             sources = settings.section("study")["sources"]
             source = args.source or (sources[0] if len(sources) == 1 else None)
             if source is None:
                 raise ConfigError("this study has multiple source branches; select one with --source")
             settings.require_source(source)
-            if settings.section("study")["workflow"] == "systematic_review":
-                counts = _execute_review(args, settings)
-                LOG.info("command summary %s", counts)
-                return 0
             args.command = source
         if args.command in {"github", "openalex", "funnel", "compare"}:
             settings.require_source(args.command if args.command in {"github", "openalex"} else args.source)

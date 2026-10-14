@@ -5,11 +5,13 @@ import unittest
 from pathlib import Path
 from tests.fixtures import fixture_collection
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from ids_meta.common.cache import PipelineCache
 from ids_meta.common.config import load_prompt_profile, load_settings, load_term_profile
-from ids_meta.openalex.collect import OpenAlexClient, balanced_search, collect, is_survey_work, normalize_work, publisher_diverse_surveys, rank_work_pool, reconstruct_abstract
+from ids_meta.openalex.collect import OpenAlexClient, normalize_work, reconstruct_abstract
+from ids_meta.common.paper_collection import is_survey_work, publisher_diverse_surveys, rank_work_pool
+from tests.fixtures import collect_paper_fixture as collect
 from ids_meta.openalex.pipeline import classify, export, export_survey_sources, prefilter
 from ids_meta.openalex.reconcile import reconcile
 from ids_meta.openalex.entities import canonicalize_artifact_ids
@@ -49,18 +51,6 @@ class FakePaperModel:
 
 
 class OpenAlexPipelineTests(unittest.TestCase):
-    def test_balanced_search_visits_every_query_before_repeating(self) -> None:
-        """Verify retrieval scans generic queries round-robin rather than sequentially."""
-        class Client:
-            def search(self, query: str, _per_page: int, _max_pages: int, sort="best_match", order="desc"):
-                """Yield three identifiable results for each fixture query."""
-                for index in range(3):
-                    yield {"id": f"{query}-{index}"}
-
-        results, scanned, _exhausted = balanced_search(Client(), ["first", "second"], 100, 1, 4)  # type: ignore[arg-type]
-        self.assertEqual([query for query, _item in results], ["first", "second", "first", "second"])
-        self.assertEqual(scanned, {"first": 2, "second": 2})
-
     def test_retrieval_ranking_uses_evidence_not_citations(self) -> None:
         """Verify textual evidence outranks citation popularity during retrieval."""
         profile = {
@@ -70,17 +60,17 @@ class OpenAlexPipelineTests(unittest.TestCase):
             },
         }
         pool = {
-            "W1": {"openalex_id": "W1", "title": "Highly cited unrelated analysis paper", "abstract": "", "cited_by_count": 10000},
-            "W2": {"openalex_id": "W2", "title": "We introduce an intrusion detection corpus", "abstract": "", "cited_by_count": 0},
+            "W1": {"native_id": "W1", "title": "Highly cited unrelated analysis paper", "abstract": "", "cited_by_count": 10000},
+            "W2": {"native_id": "W2", "title": "We introduce an intrusion detection corpus", "abstract": "", "cited_by_count": 0},
         }
         ranked, _scores = rank_work_pool(pool, profile, 0, 3)
-        self.assertEqual([row["openalex_id"] for row in ranked], ["W2", "W1"])
+        self.assertEqual([row["native_id"] for row in ranked], ["W2", "W1"])
 
     def test_survey_consensus_can_bypass_textual_retrieval_floor(self) -> None:
         """Verify opaque dataset-paper titles survive when multiple surveys cite them."""
         pool = {
             "W-ctu": {
-                "openalex_id": "W-ctu", "title": "An empirical comparison of botnet detection methods",
+                "native_id": "W-ctu", "title": "An empirical comparison of botnet detection methods",
                 "abstract": "", "cited_by_count": 937,
             },
         }
@@ -88,19 +78,19 @@ class OpenAlexPipelineTests(unittest.TestCase):
             pool, {"positive": {}}, 1, 3, retain_below_minimum={"W-ctu"},
         )
         self.assertEqual(scores["W-ctu"][0].score, 0)
-        self.assertEqual([row["openalex_id"] for row in ranked], ["W-ctu"])
+        self.assertEqual([row["native_id"] for row in ranked], ["W-ctu"])
 
     def test_survey_selection_reserves_available_publisher_families(self) -> None:
         """Verify publisher targets are represented before rank-only survey filling."""
         ranked = [
-            {"openalex_id": "W1", "venue": "IEEE Access"},
-            {"openalex_id": "W2", "publisher": "Elsevier"},
-            {"openalex_id": "W3", "publisher": "IEEE"},
+            {"native_id": "W1", "venue": "IEEE Access"},
+            {"native_id": "W2", "publisher": "Elsevier"},
+            {"native_id": "W3", "publisher": "IEEE"},
         ]
         selected, covered = publisher_diverse_surveys(
             ranked, 2, {"IEEE": ["IEEE"], "Elsevier": ["Elsevier"]},
         )
-        self.assertEqual({row["openalex_id"] for row in selected}, {"W1", "W2"})
+        self.assertEqual({row["native_id"] for row in selected}, {"W1", "W2"})
         self.assertEqual(covered, {"IEEE", "Elsevier"})
 
     def test_mixed_survey_and_release_work_remains_a_candidate(self) -> None:
@@ -125,12 +115,16 @@ class OpenAlexPipelineTests(unittest.TestCase):
     def test_client_paces_every_request(self) -> None:
         """Verify OpenAlex calls respect the configured minimum interval."""
         client = OpenAlexClient(request_pause_seconds=.5)
-        client._last_request_at = 20.0
-        with patch("ids_meta.openalex.collect.time.monotonic", side_effect=[20.2, 20.5]), patch("ids_meta.openalex.collect.time.sleep") as sleep:
-            client._wait_before_request()
-        self.assertEqual(sleep.call_count, 1)
-        self.assertAlmostEqual(sleep.call_args.args[0], .3)
-        self.assertEqual(client._last_request_at, 20.5)
+        client.transport.last_request = 20.0
+        response = Mock(status_code=200)
+        response.json.return_value = {"results": []}
+        with patch("ids_meta.adapters.http.time.monotonic", side_effect=[20.2, 20.5, 20.7, 21.0]), patch(
+            "ids_meta.adapters.http.time.sleep") as sleep, patch.object(client.transport.session, "get", return_value=response):
+            self.assertEqual(client.get("/works"), {"results": []})
+            self.assertEqual(client.get("/works"), {"results": []})
+        self.assertEqual(sleep.call_count, 2)
+        self.assertTrue(all(abs(call.args[0] - .3) < 1e-8 for call in sleep.call_args_list))
+        self.assertEqual(client.transport.last_request, 21.0)
 
     def test_release_roles_and_adjacent_tier(self) -> None:
         """Verify release roles map correctly to core, adjacent, and exclusions."""
@@ -245,7 +239,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
                 "max_reference_works_per_survey": 10, "max_survey_reference_candidates_total": 10,
                 "survey_reference_fraction": .4, "progress_every": 10, "retrieval_minimum_score": 0,
             }
-            profile = {"survey_queries": ["dataset survey"], "direct_queries": ["intrusion dataset"]}
+            profile = {"survey_queries": ["dataset survey"], "queries": [{"name": "direct", "search": "intrusion dataset"}]}
             with PipelineCache(root / "cache.sqlite3") as cache:
                 counts = collect(settings, profile, cache, limit=5, client=fake)  # type: ignore[arg-type]
                 referenced = cache.get_record("openalex.work", "https://openalex.org/W2")
@@ -297,7 +291,7 @@ class OpenAlexPipelineTests(unittest.TestCase):
                     "survey_reference_fraction": .75, "reference_sample_size": 10,
                     "snowball_start_papers": 1, "snowball_max_depth": 10,
                     "retrieval_minimum_score": 0,
-                }, {"survey_queries": ["dataset survey"], "direct_queries": ["intrusion dataset"]},
+                }, {"survey_queries": ["dataset survey"], "queries": [{"name": "direct", "search": "intrusion dataset"}]},
                     cache, limit=4, client=fake)  # type: ignore[arg-type]
                 latest = cache.get_record("openalex.collection", "latest")
                 depth_two = cache.get_record("openalex.work", "https://openalex.org/W3")

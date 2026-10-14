@@ -1,4 +1,4 @@
-"""Provider contracts independent of research entity types and storage formats."""
+"""Reporting and record-import contracts, separate from discovery adapters."""
 from __future__ import annotations
 
 import csv
@@ -7,7 +7,7 @@ import json
 import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 from ids_meta.common.csvio import configure_csv_limit
 
@@ -97,15 +97,6 @@ def entity_identifier(contract: SourceContract, external_id: str) -> str:
     return content_hash([contract.name, contract.entity_kind, external_id])
 
 
-class SourceAdapter(Protocol):
-    """Minimal contract for imported or API-provided research records."""
-    contract: SourceContract
-
-    def normalize(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Produce identity-checked records using the declared provider mapping."""
-        ...
-
-
 class LocalSourceAdapter:
     """Adapt CSV/JSON records without provider-specific plotting logic."""
     def __init__(self, contract: SourceContract):
@@ -139,7 +130,8 @@ class LocalSourceAdapter:
             # Keep collection dates and citation counts as optional capabilities.
             for key, value in list(item.items()):
                 if isinstance(value, list):
-                    item[key] = ";".join(str(v) for v in value)
+                    item[key] = (json.dumps(value, sort_keys=True) if any(isinstance(v, (dict, list)) for v in value)
+                        else ";".join(str(v) for v in value))
                 elif isinstance(value, dict):
                     item[key] = json.dumps(value, sort_keys=True)
             result.append(item)

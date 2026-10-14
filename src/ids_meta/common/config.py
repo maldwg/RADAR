@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ids_meta.common.screening import load_screening_profile
+from ids_meta.common.paper_config import PAPER_PIPELINE_OPTIONS, validate_paper_pipeline
 
 
 class ConfigError(ValueError):
@@ -30,14 +31,6 @@ PIPELINE_OPTIONS = {
         "canonical_core_relevance_score", "canonical_earliest_year_score", "canonical_year_distance_penalty", "canonical_year_distance_cap",
         "canonical_citation_weight"},
 }
-
-REVIEW_PIPELINE_OPTIONS = {
-    "collection": {"collection_limit", "query_limit_factor"},
-    "evidence": {"fetch_full_text", "max_full_text_chars", "evidence_lookup_timeout_seconds"},
-    "classification": {"classification_limit", "consecutive_runs", "consensus_threshold", "ensemble"},
-    "reconciliation": set(),
-}
-
 
 @dataclass(frozen=True)
 class Settings:
@@ -111,7 +104,7 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
     if not isinstance(study_id, str) or not re.fullmatch(r"[a-z][a-z0-9_\-]*", study_id):
         raise ConfigError("study id must be a filesystem-safe lowercase identifier")
     workflow = manifest.get("workflow")
-    supported = {"repository_catalogue": {"github"}, "dataset_catalogue": {"openalex"}, "systematic_review": {"openalex"}}
+    supported = {"repository_catalogue", "dataset_catalogue", "systematic_review"}
     if not isinstance(workflow, str) or workflow not in supported:
         raise ConfigError(f"unsupported study workflow: {workflow!r}")
     root = _reference(config_path.parent, manifest.get("project_root"), "project_root")
@@ -145,13 +138,16 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
         raise ConfigError("pipeline may contain only collection, evidence, classification and reconciliation tables")
     pipeline: dict[str, Any] = {}
     execution: dict[str, Any] = {}
-    for stage, allowed_options in PIPELINE_OPTIONS.items():
+    paper_study = workflow in {"dataset_catalogue", "systematic_review"}
+    if paper_study:
+        try:
+            validate_paper_pipeline(pipeline_raw, workflow)
+        except ValueError as exc:
+            raise ConfigError(str(exc)) from exc
+    for stage, allowed_options in (PAPER_PIPELINE_OPTIONS if paper_study else PIPELINE_OPTIONS).items():
         options = pipeline_raw.get(stage, {})
         if not isinstance(options, dict) or set(options) - allowed_options:
             raise ConfigError(f"pipeline.{stage} contains unknown or misplaced settings")
-        if workflow == "systematic_review" and set(options) - REVIEW_PIPELINE_OPTIONS[stage]:
-            raise ConfigError(f"systematic_review does not support pipeline.{stage} settings: "
-                + ", ".join(sorted(set(options) - REVIEW_PIPELINE_OPTIONS[stage])))
         pipeline[stage] = copy.deepcopy(options)
         native = {key: value for key, value in options.items() if key != "ensemble"}
         _compose(execution, native)
@@ -165,6 +161,9 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
     from ids_meta.common.study_consensus import validate_consensus
 
     query_result_limit(execution, optional_limit(execution.get("collection_limit"), "collection_limit"))
+    if paper_study:
+        for factor in ("survey_query_limit_factor", "reference_limit_factor"):
+            query_result_limit(execution, optional_limit(execution.get("collection_limit"), "collection_limit"), factor)
     validate_consensus(execution.get("consecutive_runs", 1), execution.get("consensus_threshold", 0.8))
     if workflow == "systematic_review" and values.get("baselines", {}).get("enabled", False):
         raise ConfigError("systematic_review does not support baseline execution")
@@ -176,7 +175,12 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
     if screening.strategy != expected_strategy:
         raise ConfigError(f"workflow {workflow!r} requires screening strategy {expected_strategy!r}")
     paths["screening"] = str(screening_path)
-    taxonomy_path, _ = read(str(screening.taxonomy_path), "screening.taxonomy")
+    taxonomy_path, taxonomy = read(str(screening.taxonomy_path), "screening.taxonomy")
+    if workflow == "dataset_catalogue":
+        canonical = taxonomy.get("reconciliation")
+        if not isinstance(canonical, dict) or not canonical:
+            raise ConfigError("dataset taxonomy requires scientific reconciliation weights")
+        _compose(execution, canonical)
     prompt_path, _ = read(str(screening.prompt_path), "screening.prompt")
     paths["taxonomy"], paths["prompts"] = str(taxonomy_path), str(prompt_path)
     values["screening"] = screening.prompt_rules()
@@ -190,10 +194,18 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
     if not isinstance(sources, list) or not sources or any(not isinstance(item, dict) for item in sources):
         raise ConfigError("study sources must be a non-empty array of tables")
     names = []
+    from ids_meta.adapters.registry import create_adapter, provider_descriptor
+
     for item in sources:
         source = item.get("name")
-        if not isinstance(source, str) or source not in supported[workflow]:
-            raise ConfigError(f"source {source!r} is unsupported for workflow {workflow!r}")
+        try:
+            descriptor = provider_descriptor(source)
+        except (ValueError, TypeError) as exc:
+            raise ConfigError(f"source {source!r} is unsupported: {exc}") from exc
+        if workflow != "systematic_review" and workflow not in descriptor.catalogue_workflows:
+            raise ConfigError(f"source {source!r} has no collection strategy for workflow {workflow!r}")
+        if "discovery" not in descriptor.capabilities:
+            raise ConfigError(f"source {source!r} does not support discovery")
         if source in names:
             raise ConfigError(f"duplicate study source: {source}")
         names.append(source)
@@ -206,13 +218,26 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
         expected_kind = "repository" if workflow == "repository_catalogue" else "paper"
         if provider.get("entity_kind") != expected_kind:
             raise ConfigError(f"source {source!r} must provide {expected_kind} entities")
+        if expected_kind not in descriptor.entity_kinds:
+            raise ConfigError(f"source {source!r} cannot provide {expected_kind} entities")
         source_settings = copy.deepcopy(provider.get("settings", {}))
         if not isinstance(source_settings, dict):
             raise ConfigError(f"sources.{source}.settings must be a table")
         _compose(source_settings, execution)
         values[source] = source_settings
         paths[f"{source}_cache"] = str(output / "raw" / source / "cache.sqlite3")
-        search_path, _ = read(item.get("search"), f"sources.{source}.search")
+        search_path, search = read(item.get("search"), f"sources.{source}.search")
+        if paper_study:
+            try:
+                adapter = create_adapter(source, source_settings, search_path)
+                for query in adapter.queries(search):
+                    adapter.validate_query(query)
+            except ValueError as exc:
+                raise ConfigError(f"invalid {source} search: {exc}") from exc
+            if search.get("entity_kind", expected_kind) != expected_kind:
+                raise ConfigError(f"search input must provide {expected_kind} entities")
+            if (execution["max_surveys"] > 0 or execution["snowball_max_depth"] > 0) and "references" not in descriptor.capabilities:
+                raise ConfigError(f"{source} does not support survey/reference traversal; set max_surveys and snowball_max_depth to 0")
         paths[f"{source}_terms"] = str(search_path)
         paths[f"{source}_taxonomy"], paths[f"{source}_prompts"] = str(taxonomy_path), str(prompt_path)
         paths[f"{source}_screening"] = str(screening_path)

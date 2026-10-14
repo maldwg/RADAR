@@ -237,7 +237,7 @@ def _github_shared_stages(
 
 def _openalex_search_queries(profile: dict[str, Any]) -> tuple[list[str], list[str]]:
     """Return direct queries and the expanded survey-query plan used by collection."""
-    direct = [str(value) for value in profile.get("direct_queries", []) if str(value).strip()]
+    direct = [query["search"] for query in profile.get("queries", []) if query["search"].strip()]
     survey = [str(value) for value in profile.get("survey_queries", []) if str(value).strip()]
     publishers = profile.get("survey_publishers", {})
     publisher_queries = [

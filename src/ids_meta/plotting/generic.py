@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import Counter
 import csv
+import json
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,54 @@ from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.common.provenance import audited_bundle, file_hash, register_input
 from ids_meta.common.sources import LocalSourceAdapter, SourceContract, load_source_contract
 from ids_meta.plotting.common import configure_style, load_frame, save_figure, write_table, taxonomy_field_label
+
+
+def _provider_memberships(row: dict[str, Any]) -> set[str]:
+    """Read provider memberships retained by the shared discovery runner."""
+    value = row.get("source_memberships") or []
+    if isinstance(value, str):
+        # CSV import stores structured memberships as JSON, never delimiter guessing.
+        value = json.loads(value)
+    if not isinstance(value, list) or any(not isinstance(member, dict) or
+        not isinstance(member.get("provider"), str) for member in value):
+        raise ValueError("source_memberships must be structured provider memberships")
+    return {member["provider"] for member in value}
+
+
+def _source_reports(rating: Any, rows: list[dict[str, Any]], candidates: list[dict[str, Any]] | None,
+                    contract: SourceContract, evaluation: Path, config: dict[str, object],
+                    confidence_level: float, candidates_path: Path | None) -> list[Path]:
+    """Score each provider's retained cohort against the same independent references."""
+    from ids_meta.common.evaluation import evaluate_results
+    from ids_meta.plotting.evaluation import build as plot_evaluation
+
+    providers = set().union(*(_provider_memberships(row) for row in [*rows, *(candidates or [])]))
+    if candidates_path:
+        audit_path = candidates_path.with_suffix(".collection.json")
+        if audit_path.is_file():
+            audit = json.loads(audit_path.read_text(encoding="utf-8"))
+            if audit.get("candidate_sha256") != file_hash(candidates_path):
+                raise ValueError("discovery audit does not match the candidate cohort")
+            providers.update(audit["providers"])
+            register_input(audit_path)
+    outputs = []
+    for provider in sorted(providers):
+        if not provider or Path(provider).name != provider or provider in {".", ".."}:
+            raise ValueError("provider identity must be safe for report paths")
+        root = evaluation / "sources" / provider
+        classifications = root / "inputs" / "classifications.csv"
+        _write_records(classifications, [row for row in rows if provider in _provider_memberships(row)],
+            contract, ('classifier_supported_fields',))
+        register_input(classifications)
+        candidate_csv = None
+        if candidates is not None:
+            candidate_csv = root / "inputs" / "candidates.csv"
+            _write_records(candidate_csv, [row for row in candidates if provider in _provider_memberships(row)], contract)
+            register_input(candidate_csv)
+        result = evaluate_results(rating, classifications, root, candidate_csv, confidence_level=confidence_level)
+        outputs.extend(result.outputs)
+        outputs.extend(plot_evaluation(root, {**config, 'field_labels': contract.field_labels}))
+    return outputs
 
 
 def _write_records(path: Path, rows: list[dict[str, Any]], contract: SourceContract, extra_columns: tuple[str, ...] = ()) -> None:
@@ -149,6 +198,8 @@ def build_report(
             reporting_database=store, confidence_level=confidence_level)
         outputs.extend(result.outputs)
         outputs.extend(plot_evaluation(evaluation, {**config, 'field_labels': contract.field_labels}))
+        outputs.extend(_source_reports(rating, rows, candidates, contract, evaluation, config,
+            confidence_level, candidates_path))
         with ReportingDatabase(store) as database:
             with database.db:
                 database.snapshot(input_path, 'provider_input')

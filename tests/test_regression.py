@@ -5,7 +5,7 @@ from tests.fixtures import SYSTEM_TYPE_PROFILE
 
 from ids_meta.common.ensemble import consensus_classification
 from ids_meta.common.regression import evaluate_github_regression, evaluate_openalex_regression
-from ids_meta.openalex.collect import is_survey_work, sample_query_results
+from ids_meta.common.paper_collection import is_survey_work, sample_query_results
 
 
 class RegressionEvaluationTests(unittest.TestCase):

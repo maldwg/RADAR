@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -11,10 +10,12 @@ from ids_meta.common.evidence import evidence_expansion_audit, merge_new_evidenc
 from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, format_evidence, verify_evidence
 from ids_meta.common.prompts import description_block, render_prompt
 from ids_meta.common.run import utc_now
-from ids_meta.common.scoring import score_evidence, shortlist_candidates
+from ids_meta.common.scoring import shortlist_candidates
 from ids_meta.common.text import normalize_text, slug, stable_hash
 from ids_meta.common.logging import logger
-from ids_meta.openalex.enrich import ScholarlyEvidenceClient
+from ids_meta.common.paper_evidence import PaperEvidenceService
+from ids_meta.common.paper_collection import eligible_papers, prefilter_paper
+from ids_meta.adapters.contracts import EvidenceAdapter
 from ids_meta.openalex.schema import ARTIFACT_TYPES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, RESPONSE_SCHEMA, SURVEY_COLUMNS, TIERS, ensure_resource_name, normalize_response, validate_processed_row
 
 PROMPT_VERSION = "openalex-12"
@@ -24,12 +25,6 @@ class Generator(Protocol):
     model: str
     def generate(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         """Return one structured model response for the supplied prompt."""
-        ...
-
-
-class EvidenceEnricher(Protocol):
-    def enrich(self, work: dict[str, Any]) -> dict[str, str]:
-        """Return discovered abstract and optional full-text evidence."""
         ...
 
 
@@ -74,7 +69,7 @@ def metadata_row(key: str, payload: dict[str, Any], fetched_at: str, run_id: str
 
 def prefilter(
     config: dict[str, Any], profile: dict[str, Any], cache: PipelineCache, output: Path, run_id: str,
-    enricher: EvidenceEnricher | None = None,
+    enricher: EvidenceAdapter | None = None,
 ) -> list[dict[str, object]]:
     """Score cached works and export every candidate with its prefilter band."""
     rows: list[dict[str, object]] = []
@@ -84,13 +79,7 @@ def prefilter(
     if latest_collection is None or "work_ids" not in latest_collection or not latest_collection.get("selected_at"):
         raise ValueError("openalex prefilter requires a completed collection with selected IDs and a timestamp")
     active_ids = {str(value) for value in latest_collection["work_ids"]}
-    evidence_client = enricher
-    if evidence_client is None and bool(config.get("enrich_missing_abstracts", False)):
-        evidence_client = ScholarlyEvidenceClient(
-            timeout=float(config.get("evidence_lookup_timeout_seconds", 30)),
-            api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY", ""),
-            max_full_text_chars=int(config.get("max_full_text_chars", 30000)),
-        )
+    evidence_client = PaperEvidenceService(config, enricher)
     LOG.info(
         "starting OpenAlex paper prefilter active_collection=%s active_pool=%s",
         latest_collection["selected_at"], len(active_ids),
@@ -103,9 +92,9 @@ def prefilter(
             LOG.debug("skipping paper below citation floor citations=%d minimum=%d title=%s", citations, minimum_citations, (payload.get("work") or {}).get("title", key))
             continue
         work = payload.get("work") or {}
-        if evidence_client is not None and not work.get("abstract") and not work.get("full_text"):
+        if not work.get("abstract") and not work.get("full_text") or config.get("fetch_full_text", False):
             try:
-                enriched = evidence_client.enrich(work)
+                enriched = evidence_client.prepare(work)
             except Exception as exc:
                 LOG.warning("prefilter evidence enrichment failed title=%s error=%s", work.get("title", key), exc)
                 enriched = {}
@@ -117,21 +106,16 @@ def prefilter(
                     "enriched paper before prefilter title=%s abstract=%s full_text=%s",
                     work.get("title", key), bool(work.get("abstract")), bool(work.get("full_text")),
                 )
-        result = score_evidence(format_evidence(evidence_sections(payload), 30000), profile, float(config.get("candidate_threshold", 7)), float(config.get("borderline_threshold", 4)))
         relations = set(payload.get("discovery_relations", []))
         survey_sources = {value for value in relations if str(value).startswith("survey_reference:")}
-        consensus_threshold = max(2, int(config.get("survey_consensus_threshold", 2)))
-        band = "borderline" if result.band == "reject" and len(survey_sources) >= consensus_threshold else result.band
-        signals = list(result.signals)
-        if band != result.band:
-            signals.append(f"survey_consensus:{len(survey_sources)}")
+        result = prefilter_paper(work, profile, config, len(survey_sources))
         row = metadata_row(key, payload, fetched_at, run_id)
-        row.update({"prefilter_score": result.score, "prefilter_band": band, "prefilter_signals": ";".join(signals)})
+        row.update(result)
+        counts[result["prefilter_band"]] += 1
         rows.append(row)
-        counts[band] += 1
         LOG.info(
             "prefiltered paper score=%.1f band=%s retrieval_rank_score=%s citations=%s provenance=%s title=%s",
-            result.score, band, row.get("retrieval_rank_score", ""), row.get("cited_by_count", 0), row.get("discovery_relations", "") or "unknown",
+            result["prefilter_score"], result["prefilter_band"], row.get("retrieval_rank_score", ""), row.get("cited_by_count", 0), row.get("discovery_relations", "") or "unknown",
             row.get("title", key),
         )
     atomic_write_csv(output, rows, CANDIDATE_COLUMNS)
@@ -175,24 +159,16 @@ def prompt(sections: list[EvidenceSection], prompt_config: dict[str, Any] | None
     return render_prompt(settings, blocks, format_evidence(sections))
 
 
-def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_config: dict[str, Any], limit: int | None = None, resume: bool = True, dry_run: bool = False, generator: Generator | None = None, prompt_config: dict[str, Any] | None = None, openalex_config: dict[str, Any] | None = None, enricher: EvidenceEnricher | None = None, consecutive_runs: int = 1, consensus_threshold: float = 0.5) -> list[dict[str, str]]:
+def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_config: dict[str, Any], limit: int | None = None, resume: bool = True, dry_run: bool = False, generator: Generator | None = None, prompt_config: dict[str, Any] | None = None, openalex_config: dict[str, Any] | None = None, enricher: EvidenceAdapter | None = None, consecutive_runs: int = 1, consensus_threshold: float = 0.5) -> list[dict[str, str]]:
     """Classify eligible papers while checkpointing auditable LLM decisions."""
     rows = read_csv(candidates_path)
     require_columns(rows, ("openalex_id", "prefilter_band", "evidence_hash"), candidates_path)
-    eligible = shortlist_candidates(rows, "openalex_id", None, "retrieval_rank_score")
-    selected = shortlist_candidates(rows, "openalex_id", limit, "retrieval_rank_score")
-    client = generator if generator is not None else (None if dry_run else OllamaClient(ollama_config))
     enrichment_config = openalex_config or {}
-    evidence_client = enricher
-    if evidence_client is None and not dry_run and (
-        bool(enrichment_config.get("enrich_missing_abstracts", False))
-        or bool(enrichment_config.get("enrich_uncertain_with_full_text", False))
-    ):
-        evidence_client = ScholarlyEvidenceClient(
-            timeout=float(enrichment_config.get("evidence_lookup_timeout_seconds", 30)),
-            api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY", ""),
-            max_full_text_chars=int(enrichment_config.get("max_full_text_chars", 30000)),
-        )
+    eligible_rows = eligible_papers(rows, enrichment_config.get("classify_borderline", True))
+    eligible = shortlist_candidates(eligible_rows, "openalex_id", None, "retrieval_rank_score")
+    selected = shortlist_candidates(eligible_rows, "openalex_id", limit, "retrieval_rank_score")
+    client = generator if generator is not None else (None if dry_run else OllamaClient(ollama_config))
+    evidence_client = None if dry_run else PaperEvidenceService(enrichment_config, enricher)
     model = getattr(client, "model", str(ollama_config.get("model") or "dry-run"))
     consecutive_runs = max(1, int(consecutive_runs))
     decision_config = {
@@ -200,6 +176,9 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         "consensus_threshold": consensus_threshold,
         "evidence_fallback": {
             "missing_abstract": bool(enrichment_config.get("enrich_missing_abstracts", False)),
+            "fetch_full_text": bool(enrichment_config.get("fetch_full_text", False)),
+            "lookup_timeout_seconds": enrichment_config.get("evidence_lookup_timeout_seconds", 30),
+            "classify_borderline": enrichment_config.get("classify_borderline", True),
             "uncertain_full_text": bool(enrichment_config.get("enrich_uncertain_with_full_text", False)),
             "max_full_text_chars": int(enrichment_config.get("max_full_text_chars", 30000)),
         },
@@ -217,9 +196,9 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         if not payload:
             raise ValueError(f"raw OpenAlex work is missing: {key}")
         work = payload.get("work") or {}
-        if evidence_client is not None and not work.get("abstract") and not work.get("full_text"):
+        if evidence_client is not None and ((not work.get("abstract") and not work.get("full_text")) or enrichment_config.get("fetch_full_text", False)):
             try:
-                enriched = evidence_client.enrich(work)
+                enriched = evidence_client.prepare(work)
             except Exception as exc:  # Enrichment is best-effort and must not block classification.
                 LOG.warning("paper evidence enrichment failed title=%s error=%s", row.get("title", key), exc)
                 enriched = {}

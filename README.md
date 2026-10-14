@@ -14,6 +14,16 @@ reconciliation. Shared runtime,
 model and source transport settings live under `config/shared/`. See
 [study configuration](docs/configuration.md) for the layout and extension guide.
 
+[Shared provider adapters](docs/adapters.md) connect GitHub, OpenAlex, Semantic
+Scholar and local files to common discovery contracts. Reviews can select several
+paper providers, freeze one deduplicated cohort and assess it with the same study
+protocol, with recovery reported for each provider and the union.
+
+The IDS dataset and conformal studies share the same paper collector, evidence
+service and operational config keys. Their query vocabularies, screening rules
+and configuration values remain study-specific. Review `run` includes the shared
+prefilter; individual stages run as `collect`, `prefilter`, then `classify`.
+
 ```bash
 ids-meta --study ids_repositories validate
 ids-meta --study ids_datasets validate

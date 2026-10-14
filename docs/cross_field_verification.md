@@ -36,7 +36,11 @@ used by `ids-meta report`.
 | `config/studies/conformal_treatment_effects/search/openalex.toml` | OpenAlex query adaptations and publication-date window |
 | `config/studies/conformal_treatment_effects/evaluation/references.toml` | Eleven positive papers and three rated assumption fields |
 | `src/ids_meta/common/study_screening.py` | Evidence validation, rule replay, and CSV export |
-| `src/ids_meta/common/study_pipeline.py` | Independent discovery, PDF extraction, and blind model assessments |
+| `src/ids_meta/common/study_pipeline.py` | Blind model assessments and single-provider collection entry point |
+| `src/ids_meta/common/discovery.py` | Shared provider discovery, deduplication, union selection and raw audits |
+| `src/ids_meta/common/paper_collection.py` | Same paper collector as IDS datasets, including survey and reference traversal |
+| `src/ids_meta/common/paper_evidence.py` | Shared scholarly evidence and PDF acquisition policy |
+| `src/ids_meta/adapters/` | GitHub, OpenAlex, Semantic Scholar and local-file provider operations |
 | `examples/verification/memmesheimer/assessments.json` | Synthetic input illustrating accept, exclude, and uncertain |
 
 The configured workflow can be selected directly:
@@ -44,6 +48,7 @@ The configured workflow can be selected directly:
 ```bash
 ids-meta --study conformal_treatment_effects validate
 ids-meta --study conformal_treatment_effects collect --collect-limit 200
+ids-meta --study conformal_treatment_effects prefilter
 ids-meta --study conformal_treatment_effects classify --classify-limit 5
 ids-meta --study conformal_treatment_effects evaluate
 ```
@@ -51,6 +56,11 @@ ids-meta --study conformal_treatment_effects evaluate
 These commands use study-local queries, criteria, extraction definitions and
 prompts. The standalone commands below remain useful for explicit input/output
 files and supplied assessment replay.
+
+Add the supplied Semantic Scholar search profile to run both scholarly sources
+through the same protocol; see [shared adapters](adapters.md). Review outputs now
+use `interim/cohort/` and `plots/cohort/`. Evaluation includes recovery for each
+provider's retained cohort as well as the combined cohort.
 
 The reference crosswalk converts Table 3 checkmarks to `required` and crosses
 to `not_required` for SUTVA, strong ignorability, and overlap. A cross does not

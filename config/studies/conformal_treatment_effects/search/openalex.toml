@@ -1,12 +1,16 @@
 schema_version = "1.0"
 protocol_id = "memmesheimer-openalex-replication-v1"
 provider = "openalex"
+protocol_scope = "Original conformal-inference contributions to treatment-effect estimation."
+query_language = "English"
 search_parameter = "search.title_and_abstract.exact"
 source_url = "https://arxiv.org/html/2509.21660v1#S3.SS1"
 from_publication_date = "2015-01-01"
 to_publication_date = "2025-09-25"
 window_basis = "Adapter choice: 2015 start and preprint submission cutoff; original exact search date is unavailable."
 named_entity_seeding = false
+
+survey_queries = []
 
 [[queries]]
 name = "picoc"
@@ -15,3 +19,21 @@ search = "(individual OR patient OR subject) AND (treatment OR ITE OR CATE OR co
 [[queries]]
 name = "core_concepts"
 search = "conformal AND (\"treatment effect\" OR counterfactual OR \"causal effect\" OR \"off-policy\" OR \"dose-response\")"
+
+[survey_identification]
+survey_terms = ["survey", "systematic review", "literature review", "mapping study"]
+release_terms = ["we propose", "we introduce", "novel method"]
+
+[survey_publishers]
+
+[positive.conformal]
+weight = 4.0
+terms = ["conformal", "conformal prediction", "conformal inference"]
+
+[positive.treatment_effects]
+weight = 3.0
+terms = ["treatment effect", "counterfactual", "causal effect", "off-policy", "dose-response"]
+
+[negative.review]
+weight = -2.0
+terms = ["systematic review", "literature review", "survey"]

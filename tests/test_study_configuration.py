@@ -140,7 +140,7 @@ class StudyConfigurationTests(unittest.TestCase):
             with patch("requests.Session.request", side_effect=AssertionError("network call")), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(["--config", str(manifest), "classify", "--input", str(candidates), "--dry-run"]), 0)
             for model in settings.section("ollama")["models"]:
-                output = _execution_paths(settings, "openalex", [model])[model]["classifications"]
+                output = _execution_paths(settings, "cohort", [model])[model]["classifications"]
                 row = read_csv(output)[0]
                 self.assertEqual(row["decision"], "uncertain")
                 self.assertEqual(row["sutva"], "unknown")

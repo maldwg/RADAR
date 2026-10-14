@@ -1,0 +1,6 @@
+schema_version = "1.0"
+name = "local"
+entity_kind = "paper"
+
+[settings]
+per_page = 100

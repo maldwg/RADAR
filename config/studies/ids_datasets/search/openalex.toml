@@ -1,4 +1,10 @@
 schema_version = "1.0"
+provider = "openalex"
+search_parameter = "search"
+from_publication_date = "1900-01-01"
+to_publication_date = "2026-10-14"
+source_url = ""
+window_basis = "Broad publication window for the IDS dataset catalogue."
 protocol_id = "ids-openalex-boolean-search-2026-08-28"
 protocol_scope = "Papers introducing IDS/security datasets, materially new dataset versions, or reusable security-data generators; surveys are traversal sources only."
 query_language = "English"
@@ -8,27 +14,30 @@ named_entity_seeding = false
 # discovery does not privilege already-known resources. OpenAlex searches title,
 # abstract, and indexed full text and supports uppercase Boolean operators, quoted
 # phrases, and parenthesized synonym blocks. Queries remain well below its URL limit.
-direct_queries = [
-  # Broad construct × resource block.
-  '("intrusion detection" OR "intrusion prevention" OR "attack detection" OR "cyber attack" OR cyberattack OR "malicious activity" OR "malicious traffic" OR "security anomaly" OR "threat detection") AND (dataset OR "data set" OR corpus OR benchmark OR testbed OR "trace collection" OR "traffic collection" OR telemetry OR logs)',
-
-  # Network observations, including non-NIDS terminology.
-  '("network attack" OR "network security" OR intrusion OR malicious OR anomaly) AND ("network traffic" OR packet OR flow OR session OR DNS OR encrypted OR VPN OR Tor) AND (dataset OR "data set" OR corpus OR benchmark OR trace OR capture)',
-
-  # Host, application, and malicious-software observations.
-  '(intrusion OR attack OR malicious OR anomaly OR security) AND (host OR endpoint OR "system call" OR "event log" OR provenance OR database OR "web application" OR malware OR botnet) AND (dataset OR "data set" OR corpus OR benchmark OR telemetry OR traces)',
-
-  # Cyber-physical, embedded, cloud, and mobile environments.
-  '(intrusion OR attack OR malicious OR anomaly OR security) AND (IoT OR IIoT OR "industrial control" OR SCADA OR "operational technology" OR "smart grid" OR automotive OR "CAN bus" OR wireless OR cloud OR container OR mobile) AND (dataset OR "data set" OR corpus OR benchmark OR testbed OR traffic OR telemetry OR logs)',
-
-  # Reusable generators and testbeds, with or without a released principal dataset.
-  '(intrusion OR "cyber attack" OR cybersecurity OR "network attack" OR malicious OR security) AND ("data generation framework" OR "dataset generation framework" OR "traffic generator" OR "attack generator" OR "generation toolkit" OR "testbed framework" OR "cyber range" OR "simulation framework" OR "emulation framework")',
-]
-
 survey_queries = [
   '("intrusion detection" OR "intrusion prevention" OR "cyber attack" OR cybersecurity OR "network security" OR "malicious traffic") AND (dataset OR "data set" OR corpus OR benchmark OR testbed) AND (survey OR review OR "mapping study" OR "systematic mapping" OR taxonomy)',
   '(IoT OR IIoT OR "industrial control" OR SCADA OR automotive OR wireless OR host OR endpoint OR cloud) AND (intrusion OR attack OR security) AND (dataset OR corpus OR benchmark OR testbed) AND (survey OR review OR taxonomy OR mapping)',
 ]
+
+[[queries]]
+name = "direct_1"
+search = "(\"intrusion detection\" OR \"intrusion prevention\" OR \"attack detection\" OR \"cyber attack\" OR cyberattack OR \"malicious activity\" OR \"malicious traffic\" OR \"security anomaly\" OR \"threat detection\") AND (dataset OR \"data set\" OR corpus OR benchmark OR testbed OR \"trace collection\" OR \"traffic collection\" OR telemetry OR logs)"
+
+[[queries]]
+name = "direct_2"
+search = "(\"network attack\" OR \"network security\" OR intrusion OR malicious OR anomaly) AND (\"network traffic\" OR packet OR flow OR session OR DNS OR encrypted OR VPN OR Tor) AND (dataset OR \"data set\" OR corpus OR benchmark OR trace OR capture)"
+
+[[queries]]
+name = "direct_3"
+search = "(intrusion OR attack OR malicious OR anomaly OR security) AND (host OR endpoint OR \"system call\" OR \"event log\" OR provenance OR database OR \"web application\" OR malware OR botnet) AND (dataset OR \"data set\" OR corpus OR benchmark OR telemetry OR traces)"
+
+[[queries]]
+name = "direct_4"
+search = "(intrusion OR attack OR malicious OR anomaly OR security) AND (IoT OR IIoT OR \"industrial control\" OR SCADA OR \"operational technology\" OR \"smart grid\" OR automotive OR \"CAN bus\" OR wireless OR cloud OR container OR mobile) AND (dataset OR \"data set\" OR corpus OR benchmark OR testbed OR traffic OR telemetry OR logs)"
+
+[[queries]]
+name = "direct_5"
+search = "(intrusion OR \"cyber attack\" OR cybersecurity OR \"network attack\" OR malicious OR security) AND (\"data generation framework\" OR \"dataset generation framework\" OR \"traffic generator\" OR \"attack generator\" OR \"generation toolkit\" OR \"testbed framework\" OR \"cyber range\" OR \"simulation framework\" OR \"emulation framework\")"
 
 [survey_identification]
 # Survey roles are traversal-only. Include the principal review-study vocabulary,

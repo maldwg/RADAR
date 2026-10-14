@@ -1,0 +1,9 @@
+schema_version = "1.0"
+name = "semantic_scholar"
+entity_kind = "paper"
+
+[settings]
+# Bulk search returns up to 1,000 records; the shared runner applies study caps.
+per_page = 1000
+request_pause_seconds = 1
+timeout_seconds = 30

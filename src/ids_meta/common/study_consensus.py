@@ -101,7 +101,8 @@ def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: P
     context = None
     keys = ("input_sha256", "protocol_sha256", "source_profile_sha256", "prompt_sha256",
         "evidence_normalization", "max_full_text_chars", "fetch_full_text", "evidence_lookup_timeout_seconds",
-        "dry_run", "consecutive_runs", "consensus_threshold")
+        "dry_run", "consecutive_runs", "consensus_threshold",
+        "enrich_missing_abstracts", "enrich_uncertain_with_full_text", "classify_borderline")
     for model, path in model_inputs.items():
         checkpoint = json.loads(path.with_suffix(".assessments.json").read_text())
         if checkpoint.get("completed") is not True or checkpoint.get("output_sha256") != file_hash(path):

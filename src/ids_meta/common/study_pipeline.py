@@ -2,11 +2,7 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 import tomllib
-from datetime import date
-from io import BytesIO
 from pathlib import Path
 from string import Template
 from typing import Any
@@ -15,7 +11,11 @@ import requests
 
 from ids_meta.common.csvio import atomic_write_csv
 from ids_meta.common.logging import logger
-from ids_meta.common.limits import optional_limit, query_result_limit, limit_label
+from ids_meta.common.limits import optional_limit
+from ids_meta.common.jsonio import write_json as _write_json
+from ids_meta.common.paper_evidence import PaperEvidenceService
+from ids_meta.common.paper_collection import eligible_papers, prefilter_paper
+from ids_meta.common.evidence import merge_new_evidence
 from ids_meta.common.ollama import OllamaClient
 from ids_meta.common.provenance import file_hash
 from ids_meta.common.run import utc_now
@@ -25,139 +25,64 @@ from ids_meta.common.study_screening import (
     EVIDENCE_NORMALIZATION, SCREENING_FIELDS,
     load_study_protocol, normalize_evidence_text,
 )
-from ids_meta.openalex.collect import OpenAlexClient, normalize_work
 
 LOG = logger("study")
 PROMPT_VERSION = "external-review-assessment-v4"
 
 
-def _write_json(path: Path, value: Any) -> None:
-    """Replace a JSON checkpoint without exposing partial file contents."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(value, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-        os.replace(name, path)
-    except Exception:
-        Path(name).unlink(missing_ok=True)
-        raise
-
-
 def collect_study(profile_path: Path, output: Path, *, limit: int | str | None = 100,
-                  client: OpenAlexClient | None = None,
+                  client: Any = None,
                   source_config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Search independently of ratings, retain capped query audits and export a cohort."""
-    if output.suffix.casefold() != ".json" or output.resolve() == profile_path.resolve():
-        raise ValueError("study collection requires a separate JSON output")
-    digest = file_hash(profile_path)
+    """Collect one configured provider through the same union discovery runner."""
+    from ids_meta.adapters.registry import create_adapter
+    from ids_meta.common.discovery import DiscoverySource, collect_sources
+
     with profile_path.open("rb") as handle:
-        profile = tomllib.load(handle)
-    if profile.get("schema_version") != "1.0" or profile.get("provider") != "openalex":
-        raise ValueError("study search requires schema_version 1.0 and provider openalex")
-    if profile.get("named_entity_seeding") is not False:
-        raise ValueError("study search must explicitly disable named_entity_seeding")
-    parameter = profile.get("search_parameter", "search")
-    if parameter not in {"search", "search.exact", "search.title_and_abstract", "search.title_and_abstract.exact"}:
-        raise ValueError("unsupported study search_parameter")
-    queries = profile.get("queries")
-    if not isinstance(queries, list) or not queries or any(
-        not isinstance(q, dict) or not isinstance(q.get("name"), str) or not q["name"].strip()
-        or not isinstance(q.get("search"), str) or not q["search"].strip() for q in queries
-    ) or len({q["name"] for q in queries}) != len(queries):
-        raise ValueError("study search requires distinct named queries")
-    start, stop = profile.get("from_publication_date"), profile.get("to_publication_date")
-    if not isinstance(start, str) or not isinstance(stop, str) or date.fromisoformat(start) > date.fromisoformat(stop):
-        raise ValueError("study search requires an ordered ISO publication-date window")
-    source_config = source_config or {}
-    limit = optional_limit(limit, "collection_limit")
-    cap = query_result_limit(source_config, limit)
-    page_size = source_config.get("per_page", 200)
-    if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 200:
-        raise ValueError("OpenAlex per_page must be an integer between 1 and 200")
-    client = client or OpenAlexClient(os.getenv("OPENALEX_API_KEY"), os.getenv("OPENALEX_MAILTO"),
-        request_pause_seconds=float(source_config.get("request_pause_seconds", 1)))
-    pool: dict[str, dict[str, Any]] = {}
-    audits = []
-    for query_index, query in enumerate(queries):
-        cursor, scanned, total = "*", 0, None
-        seen = set()
-        pages = []
-        exhausted = False
-        LOG.info("searching study query=%s cap=%s", query["name"], limit_label(cap))
-        while cap is None or scanned < cap:
-            if cursor in seen:
-                raise RuntimeError("OpenAlex repeated study-search cursor")
-            seen.add(cursor)
-            payload = client.get("/works", {parameter: query["search"], "cursor": cursor,
-                "per-page": page_size if cap is None else min(page_size, cap - scanned), "select": client.select,
-                "filter": f"from_publication_date:{start},to_publication_date:{stop}"})
-            items, meta = payload.get("results"), payload.get("meta", {})
-            if not isinstance(items, list) or not isinstance(meta, dict):
-                raise ValueError("OpenAlex returned an invalid study-search page")
-            total = meta.get("count", total)
-            pages.append({"cursor": cursor, "response": payload})
-            for item in items if cap is None else items[:cap - scanned]:
-                work = normalize_work(item)
-                key = work["openalex_id"]
-                if not isinstance(key, str) or not key.strip():
-                    raise ValueError("OpenAlex study-search result lacks an identity")
-                if key not in pool:
-                    pool[key] = {**work, "paper_id": key, "discovery_queries": [], "query_ranks": {},
-                        "selection_rank": [scanned + 1, query_index, key]}
-                if query["name"] not in pool[key]["discovery_queries"]:
-                    pool[key]["discovery_queries"].append(query["name"])
-                pool[key]["query_ranks"].setdefault(query["name"], scanned + 1)
-                pool[key]["selection_rank"] = min(pool[key]["selection_rank"], [scanned + 1, query_index, key])
-                scanned += 1
-            next_cursor = str(meta.get("next_cursor") or "")
-            exhausted = not items or not next_cursor or (isinstance(total, int) and scanned >= total)
-            if exhausted:
-                break
-            cursor = next_cursor
-        audits.append({**query, "scanned": scanned, "reported_hits": total,
-            "coverage": "complete" if exhausted else "bounded", "pages": pages})
-    if file_hash(profile_path) != digest:
-        raise ValueError("study search profile changed during collection")
-    rows = sorted(pool.values(), key=lambda row: row["selection_rank"])[:limit]
+        provider = tomllib.load(handle).get("provider")
+    config = source_config or {}
+    adapter = create_adapter(provider, config, profile_path, client=client)
+    return collect_sources([DiscoverySource(provider, profile_path, config, adapter)], output,
+        limit=limit, entity_kind="paper")
+
+
+def prefilter_study(input_path: Path, output: Path, profile: dict[str, Any], settings: dict[str, Any],
+                    evidence_service: PaperEvidenceService, *, dry_run: bool = False,
+                    freeze_uncertain_evidence: bool = False) -> list[dict[str, Any]]:
+    """Freeze shared paper evidence and scores before models use different scientific strategies."""
+    if input_path.resolve() == output.resolve() or output.suffix.lower() != ".json":
+        raise ValueError("paper prefilter requires a separate JSON output")
+    input_digest = file_hash(input_path)
+    rows = json.loads(input_path.read_text(encoding="utf-8"))
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise ValueError("paper prefilter requires a JSON array")
+    identities = []
+    for row in rows:
+        identity = row.get("paper_id")
+        if not isinstance(identity, (str, int)) or isinstance(identity, bool) or not str(identity).strip():
+            raise ValueError("paper prefilter requires paper_id")
+        identities.append(str(identity).strip())
+        if not isinstance(row.get("full_text", ""), str):
+            raise ValueError("candidate full_text must be a string")
+    if len(set(identities)) != len(identities):
+        raise ValueError("paper prefilter requires unique paper_id values")
+    audit = input_path.with_suffix(".collection.json")
+    value = None
+    if audit.is_file():
+        value = json.loads(audit.read_text(encoding="utf-8"))
+        if value.get("candidate_sha256") != input_digest:
+            raise ValueError("collection audit does not match paper prefilter input")
+    for row in rows:
+        if not dry_run:
+            row.update(evidence_service.prepare(row, uncertain=freeze_uncertain_evidence))
+        surveys = {relation for relation in row.get("discovery_relations", []) if relation.startswith("survey_reference:")}
+        row.update(prefilter_paper(row, profile, settings, len(surveys)))
+    if file_hash(input_path) != input_digest:
+        raise ValueError("paper prefilter input changed during acquisition")
     _write_json(output, rows)
-    _write_json(output.with_suffix(".collection.json"), {"schema_version": "1.0", "provider": "openalex",
-        "collected_at": utc_now(), "profile_sha256": digest, "profile": profile,
-        "candidate_sha256": file_hash(output), "retained": len(rows), "pool_size": len(pool),
-        "selection": "best per-query result rank, query declaration order, OpenAlex ID", "collection_limit": limit,
-        "classification_limit": optional_limit(source_config.get("classification_limit"), "classification_limit"),
-        "query_limit_factor": source_config.get("query_limit_factor", 3.0), "per_query_limit": cap,
-        "selected_ids": [r["paper_id"] for r in rows], "queries": audits})
-    LOG.info("study collection retained=%d pool=%d", len(rows), len(pool))
+    if value is not None:
+        _write_json(output.with_suffix(".collection.json"), {**value, "candidate_sha256": file_hash(output),
+            "prefilter_input_sha256": input_digest, "evidence_policy": evidence_service.config})
     return rows
-
-
-def download_study_text(url: str, max_chars: int, timeout: float = 30) -> dict[str, Any]:
-    """Extract an openly supplied PDF with bounded download and text size."""
-    if not url.startswith(("https://", "http://")):
-        return {"full_text_status": "no_pdf_url"}
-    try:
-        with requests.get(url, timeout=timeout, stream=True,
-                          headers={"User-Agent": "ids-meta/0.1 review replication"}) as response:
-            response.raise_for_status()
-            chunks, size = [], 0
-            for chunk in response.iter_content(65536):
-                size += len(chunk)
-                if size > 30 * 1024 * 1024:
-                    raise ValueError("PDF exceeds download limit")
-                chunks.append(chunk)
-        data = b"".join(chunks)
-        if not data.startswith(b"%PDF"):
-            raise ValueError("PDF URL returned non-PDF content")
-        from pypdf import PdfReader
-        text = "\n\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(data)).pages)
-        return {"full_text": text[:max_chars], "full_text_url": url,
-            "full_text_complete": len(text) <= max_chars, "full_text_status": "downloaded" if text.strip() else "empty_pdf",
-            "full_text_original_sha256": content_hash(text)}
-    except Exception as exc:
-        LOG.info("study PDF unavailable (%s)", type(exc).__name__)
-        return {"full_text_status": "download_failed", "full_text_error": type(exc).__name__}
 
 
 def load_assessment_fields(protocol: Any) -> dict[str, Any]:
@@ -282,11 +207,30 @@ def _assess_once(record: dict[str, Any], protocol: Any, fields: dict[str, Any], 
     return vote
 
 
+def _assessment_votes(record: dict[str, Any], protocol: Any, fields: dict[str, Any], template: str,
+                      client: Any, config: dict[str, Any], consecutive_runs: int, dry_run: bool) -> tuple[list[dict[str, Any]], Any]:
+    """Assess one frozen evidence version, retaining failures in the vote denominator."""
+    votes = []
+    for run in range(consecutive_runs):
+        label = f"run-{run + 1}"
+        if dry_run or not record["full_text"].strip():
+            votes.append({"label": label, "status": "dry_run" if dry_run else "missing_full_text", "attempts": []})
+            continue
+        try:
+            client = client or OllamaClient(config)
+            votes.append(_assess_once(record, protocol, fields, template, client, label))
+        except (ValueError, RuntimeError, requests.RequestException) as exc:
+            votes.append({"label": label, "status": "error", "attempts": [], "error_type": type(exc).__name__})
+    return votes, client
+
+
 def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_config: dict[str, Any], *,
                    limit: int | None = None, resume: bool = False, dry_run: bool = False,
                    fetch_full_text: bool = False, max_chars: int = 120000, client: Any = None,
                    consecutive_runs: int = 1, consensus_threshold: float = 0.8,
-                   evidence_lookup_timeout_seconds: float = 30) -> list[dict[str, Any]]:
+                   evidence_lookup_timeout_seconds: float = 30, enrich_missing_abstracts: bool = False,
+                   enrich_uncertain_with_full_text: bool = False, classify_borderline: bool = True,
+                   evidence_service: PaperEvidenceService | None = None) -> list[dict[str, Any]]:
     """Repeat validated assessments, vote, replay rules, and checkpoint each record."""
     from ids_meta.common.study_consensus import combine_assessments, normalize_consensus, validate_consensus
 
@@ -306,7 +250,12 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
     if not isinstance(candidates, list) or any(not isinstance(r, dict) for r in candidates):
         raise ValueError("study candidates must be a JSON array")
     LocalSourceAdapter(protocol.contract).normalize(candidates)
-    selected = candidates if limit is None else candidates[:limit]
+    eligible = eligible_papers(candidates, classify_borderline)
+    selected = eligible if limit is None else eligible[:limit]
+    evidence_policy = {"fetch_full_text": fetch_full_text, "max_full_text_chars": max_chars,
+        "evidence_lookup_timeout_seconds": evidence_lookup_timeout_seconds,
+        "enrich_missing_abstracts": enrich_missing_abstracts, "enrich_uncertain_with_full_text": enrich_uncertain_with_full_text}
+    evidence_service = evidence_service or PaperEvidenceService(evidence_policy)
     if any(not isinstance(row.get("full_text", ""), str) for row in selected):
         raise ValueError("candidate full_text must be a string")
     checkpoint = output.with_suffix(".assessments.json")
@@ -316,7 +265,7 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
         "prompt": PROMPT_VERSION, "prompt_sha256": prompt_digest, "model": model,
         "evidence_normalization": EVIDENCE_NORMALIZATION,
         "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens')},
-        "max_chars": max_chars, "fetch_full_text": fetch_full_text, "dry_run": dry_run,
+        "max_chars": max_chars, "evidence_policy": evidence_policy, "classify_borderline": classify_borderline, "dry_run": dry_run,
         "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold,
         "evidence_lookup_timeout_seconds": evidence_lookup_timeout_seconds})
     cached = {}
@@ -332,6 +281,8 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
         "evidence_normalization": EVIDENCE_NORMALIZATION,
         "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens', 'timeout_seconds', 'retries')},
         "max_full_text_chars": max_chars, "fetch_full_text": fetch_full_text, "dry_run": dry_run,
+        "enrich_missing_abstracts": enrich_missing_abstracts, "enrich_uncertain_with_full_text": enrich_uncertain_with_full_text,
+        "classify_borderline": classify_borderline,
         "evidence_lookup_timeout_seconds": evidence_lookup_timeout_seconds,
         "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold, "records": assessed}
     for position, candidate in enumerate(selected, 1):
@@ -342,29 +293,32 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
             LOG.info("restored study assessment %d/%d", position, len(selected))
         else:
             record = {k: v for k, v in candidate.items() if k not in {"criteria", *SCREENING_FIELDS, *fields}}
+            if not dry_run:
+                record.update(evidence_service.prepare(record))
             text = record.get("full_text", "")
-            if not text.strip() and fetch_full_text and not dry_run:
-                LOG.info("fetching study PDF paper_id=%s", record[protocol.contract.identity])
-                record.update(download_study_text(str(record.get("pdf_url", "")), max_chars, evidence_lookup_timeout_seconds))
-                text = record.get("full_text", "")
             if len(text) > max_chars:
                 record.update(full_text_original_sha256=content_hash(text), full_text_complete=False)
             record["full_text"] = text[:max_chars]
             record["input_record_sha256"] = digest
-            votes = []
-            for run in range(consecutive_runs):
-                label = f"run-{run + 1}"
-                if dry_run or not record["full_text"].strip():
-                    votes.append({"label": label, "status": "dry_run" if dry_run else "missing_full_text", "attempts": []})
-                    continue
-                try:
-                    client = client or OllamaClient(config)
-                    LOG.info("assessing study paper_id=%s model=%s run=%s text_chars=%d",
-                        record[protocol.contract.identity], model, label, len(record["full_text"]))
-                    votes.append(_assess_once(record, protocol, fields, template, client, label))
-                except (ValueError, RuntimeError, requests.RequestException) as exc:
-                    votes.append({"label": label, "status": "error", "attempts": [], "error_type": type(exc).__name__})
+            votes, client = _assessment_votes(record, protocol, fields, template, client, config,
+                consecutive_runs, dry_run)
             record = combine_assessments(record, votes, protocol, fields, consensus_threshold)
+            initial_votes = votes
+            attempted, changed = False, False
+            if not dry_run and enrich_uncertain_with_full_text and normalize_consensus(record, protocol)["decision"] == "uncertain":
+                attempted = True
+                discovered = evidence_service.enrich(record)
+                changed = merge_new_evidence(record, discovered)
+                if changed and record.get("full_text", "").strip():
+                    text = record["full_text"]
+                    if len(text) > max_chars:
+                        record.update(full_text_original_sha256=content_hash(text), full_text_complete=False)
+                    record["full_text"] = text[:max_chars]
+                    votes, client = _assessment_votes(record, protocol, fields, template, client, config,
+                        consecutive_runs, False)
+                    record = combine_assessments(record, votes, protocol, fields, consensus_threshold)
+            record.update(evidence_expansion_attempted=attempted, evidence_expansion_changed=changed,
+                initial_assessment_votes_json=json.dumps(initial_votes, sort_keys=True))
             successes = sum(vote["status"] == "success" for vote in votes)
             errors = [vote for vote in votes if vote["status"] == "error"]
             record["assessment_status"] = ("success" if successes == consecutive_runs else "partial_error" if successes

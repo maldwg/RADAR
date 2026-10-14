@@ -7,6 +7,7 @@ ids-meta --study ids_repositories validate
 ids-meta --study ids_repositories run --collect-limit 100 --classify-all
 ids-meta --study ids_datasets baseline --methods keyword
 ids-meta --study conformal_treatment_effects collect --collect-limit 200
+ids-meta --study conformal_treatment_effects prefilter
 ids-meta --study conformal_treatment_effects classify --classify-limit 5
 ```
 
@@ -23,7 +24,7 @@ config/
   shared/
     runtime.toml                    # logging and backend connection
     models.toml                     # model names, revisions and inference settings
-    sources/{github,openalex}.toml   # source identity and transport settings
+    sources/*.toml                  # GitHub, OpenAlex, Semantic Scholar and local transport
   studies/
     ids_repositories/
       study.toml                    # entry point and explicit file references
@@ -58,6 +59,38 @@ under `[classification]`, with ensemble settings in `[classification.ensemble]`.
 API transport settings remain in the shared source profile. Unknown or misplaced
 pipeline options are rejected.
 
+Both paper studies use `OpenAlexAdapter` and the same collector in
+`common/paper_collection.py`. Their `pipeline.toml` files declare identical keys
+in the same order; the loader requires the shared paper schema. Their OpenAlex
+search profiles also share the same structure: named `[[queries]]`, explicit
+search parameter and publication window, survey queries, survey identification,
+publisher targets and retrieval weights. Topic vocabulary and scoring groups vary
+with the study.
+
+| Setting | IDS datasets | Conformal treatment effects |
+| --- | --- | --- |
+| `collection_mode` | `ranked` by generic evidence | `query_position` |
+| `max_surveys` / `snowball_max_depth` | 100 / 10 | 0 / 0 |
+| `survey_reference_fraction` | 0.5 | 0.0 |
+| `fetch_full_text` | false | true |
+| Abstract / uncertain-text enrichment | true / true | false / false |
+| `max_full_text_chars` | 60,000 | 120,000 |
+| `reconciliation.strategy` | `dataset_release` | `none` |
+
+Survey and backward-reference collection can be enabled for conformal work by
+changing these values and supplying survey queries. Providers without reference
+capabilities must keep both traversal controls at zero. Direct, survey and
+reference budgets each have an explicit factor; all three default to 3.0.
+Both studies use the same evidence service, prefilter scores and borderline gate.
+`fetch_full_text` works in either study. `classify_borderline = false` excludes
+borderline candidates from either scientific classifier.
+
+Dataset release-family weights such as `canonical_role_scores` are scientific
+definitions in the dataset `taxonomy.toml` under `[reconciliation]`. They are
+separate from the shared operational pipeline. Criterion assessment and dataset
+release validation remain distinct scientific strategies, with their own labels,
+prompts and optional baseline profiles.
+
 `screening.toml` contains a protocol ID, relative `taxonomy` and `prompt`
 references, `[eligibility]` descriptions, optional `[quality]` criteria,
 `[decision]` and optional `[provenance]` attribution. Operational limits and
@@ -89,6 +122,12 @@ strategy is rejected because that engine does not produce those assessments.
 
 ## Shared collection and classification controls
 
+Provider interfaces and multi-provider review configuration are described in
+[shared adapters](adapters.md). Review stages collect all configured providers
+into `interim/cohort/`; `--source` selects a separate provider cohort. Study
+criteria, prompts and taxonomy apply to the resulting cohort regardless of its
+discovery providers.
+
 All three checked-in studies retain at most 100 candidates and use
 `query_limit_factor = 3.0`. Each query retrieves up to three times the largest
 finite collection/classification limit before deduplication and final selection.
@@ -112,11 +151,11 @@ produces uncertainty. Review ensembles require completed model checkpoints with
 the same selected cohort, protocol, prompt and full-text evidence. These repeated
 votes are not independent statistical confidence estimates.
 
-The review retains its 120,000-character full-text budget and five-of-nine quality
-protocol. GitHub documentation controls and dataset-release reconciliation remain
-specific to their entities. Review snowballing, catalogue reconciliation and
-keyword/NLI baselines are not implemented; configuring those operations is
-rejected before execution rather than ignored.
+The review retains its five-of-nine quality protocol. GitHub documentation
+controls and dataset release-family reconciliation remain specific to their
+entities. Review release-family reconciliation and keyword/NLI baselines are
+rejected because its scientific classifier does not implement those operations.
+Shared paper acquisition and prefilter settings are implemented for both studies.
 
 ## Manifest
 
