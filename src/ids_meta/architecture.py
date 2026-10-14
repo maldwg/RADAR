@@ -1,5 +1,5 @@
 from __future__ import annotations
-from ids_meta.common.provenance import audited_bundle
+from ids_meta.common.provenance import audited_bundle, register_input
 
 import argparse
 from io import BytesIO
@@ -297,6 +297,7 @@ def _add_icon(
 
 def _read_brand_image(path: Path) -> np.ndarray:
     """Decode raster lockups and render genuine SVG lockups to an RGBA array."""
+    register_input(path)
     raw = path.read_bytes()
     prefix = raw.lstrip()[:512].lower()
     if prefix.startswith(b"<?xml") or b"<svg" in prefix:
@@ -395,7 +396,7 @@ def _brand_box(
     if label:
         _card_label(
             ax, (x + width * .08, y + height * .08, width * .84, height * .32),
-            label, color=MUTED, fontsize=6.6,
+            label, color=MUTED, fontsize=9.0,
         )
 
 
@@ -436,7 +437,7 @@ def _model_badge(
     )
     _card_label(
         ax, (x + width * .10, y + height * .08, width * .80, height * .28),
-        label, fontsize=5.5,
+        label, fontsize=9.0,
     )
 
 
@@ -536,74 +537,6 @@ def _elbow_arrow(
     )
 
 
-def _phase(ax: Axes, x0: float, x1: float, label: str) -> None:
-    """Add an editorial phase heading and rule aligned to its column group."""
-    y = 0.905
-    ax.text(
-        x0, y, label, ha="left", va="center",
-        color=MUTED, fontsize=6.3, fontweight="bold",
-    )
-    ax.plot(
-        [x0, x1], [y - 0.022, y - 0.022],
-        color=GUIDE, linewidth=0.8, zorder=1,
-    )
-
-
-def _classifier_box(ax: Axes) -> dict[str, float]:
-    """Draw the shared classifier family with identifiable methods."""
-    x, y, width, height = 0.660, 0.145, 0.140, 0.715
-    ax.add_patch(FancyBboxPatch(
-        (x, y), width, height,
-        boxstyle="round,pad=0.004,rounding_size=0.007",
-        linewidth=1.0, edgecolor=EDGE, facecolor=CLASSIFY, zorder=3,
-    ))
-    _add_icon(ax, x + width / 2, y + height - 0.035, "classifier", size=15)
-    ax.text(
-        x + width / 2, y + height - 0.082, "Classification",
-        ha="center", va="center", color=INK,
-        fontsize=7.2, fontweight="bold", zorder=5,
-    )
-
-    labels = (
-        ("key", "Keyword rules"),
-        ("language", "Zero-shot NLI"),
-        ("model", "Repeated LLMs"),
-        ("ensemble", "LLM ensemble"),
-    )
-    centers = (0.695, 0.555, 0.415, 0.275)
-    for (icon, label), center_y in zip(labels, centers, strict=True):
-        ax.add_patch(FancyBboxPatch(
-            (x + 0.011, center_y - 0.050), width - 0.022, 0.100,
-            boxstyle="round,pad=0.002,rounding_size=0.004",
-            facecolor=WHITE, edgecolor="#C9C1B2", linewidth=0.65, zorder=4,
-        ))
-        _add_icon(ax, x + 0.035, center_y, icon, size=14)
-        _card_label(
-            ax, (x + .059, center_y - .039, width - .080, .078),
-            label, fontsize=6.4, fontweight="normal",
-        )
-    return {
-        "left": x, "right": x + width, "keyword": centers[0],
-        "nli": centers[1], "llm": centers[2], "ensemble": centers[3],
-    }
-
-
-def _branch_label(
-    ax: Axes, x: float, y: float, label: str, color: str,
-) -> None:
-    """Place a small label over a branching connector."""
-    ax.text(
-        x, y, label, ha="center", va="center",
-        fontsize=5.6, color=color, fontweight="bold",
-        bbox={
-            "boxstyle": "square,pad=0.12",
-            "facecolor": WHITE,
-            "edgecolor": "none",
-        },
-        zorder=8,
-    )
-
-
 def _color_legend(
     ax: Axes,
     items: tuple[tuple[str, str, str], ...],
@@ -622,396 +555,261 @@ def _color_legend(
         ))
         ax.text(
             left + 0.30, y, label, ha="left", va="center",
-            color=MUTED, fontsize=6.2, zorder=5,
+            color=MUTED, fontsize=9.0, zorder=5,
         )
+
+
+def _component(
+    ax: Axes, x: float, y: float, width: float, height: float,
+    title: str, body: str = "", *, icon: str = "documents", facecolor: str = WHITE,
+    edgecolor: str = EDGE, linestyle: str = "-",
+) -> None:
+    """Draw a readable component with separate heading and explanatory text."""
+    ax.add_patch(FancyBboxPatch(
+        (x, y), width, height,
+        boxstyle="round,pad=0.004,rounding_size=0.025",
+        linewidth=0.95, edgecolor=edgecolor, facecolor=facecolor,
+        linestyle=linestyle, zorder=3,
+    ))
+    heading_height = min(.40, height * .33)
+    heading_bottom = y + height - heading_height - .12
+    _add_icon(ax, x + width * .15, heading_bottom + heading_height / 2,
+        icon, color=edgecolor, size=14)
+    _card_label(ax, (x + width * .27, heading_bottom, width * .65, heading_height),
+        title, fontsize=11.0)
+    if body:
+        _card_label(ax, (x + width * .07, y + .12, width * .86, height - heading_height - .36),
+            body, fontsize=10.0, fontweight="normal", color=MUTED)
+
+
+def _section_heading(ax: Axes, left: float, right: float, y: float, label: str, color: str) -> None:
+    """Align a phase or subsystem heading with its component column."""
+    ax.text((left + right) / 2, y, label, ha="center", va="center",
+        color=INK, fontsize=10.5, fontweight="bold")
+    ax.plot([left, right], [y - .24, y - .24], color=color, linewidth=3,
+        solid_capstyle="round", zorder=1)
+
+
+def _study_configuration(ax: Axes, y: float) -> None:
+    """Show three independent studies and their shared paper execution schema."""
+    for left, title, detail in (
+        (.25, "IDS repositories", "Repository criteria, taxonomy and prompts"),
+        (4.95, "IDS datasets", "Dataset criteria, taxonomy and prompts"),
+        (9.65, "Conformal treatment effects", "Eligibility, quality and assumption extraction"),
+    ):
+        _component(ax, left, y, 4.30, .95, title, detail,
+            icon="checklist", facecolor=REPORT)
+    _component(ax, 14.65, y, 3.75, .95, "Shared paper config schema",
+        "Same operational keys; study-specific values", icon="merge", facecolor=OPENALEX)
 
 
 def _draw_pipeline_figure() -> Figure:
-    """Create the detailed five-stage pipeline and evaluation architecture."""
-    figure, ax = plt.subplots(figsize=(14.6, 5.8))
-    figure.subplots_adjust(left=0.008, right=0.992, bottom=0.020, top=0.992)
+    """Show shared acquisition and separate scientific strategies for all three studies."""
+    figure, ax = plt.subplots(figsize=(18.8, 10.0))
+    figure.subplots_adjust(left=.01, right=.99, bottom=.02, top=.99)
     figure.patch.set_facecolor(WHITE)
-    ax.set_xlim(0, 14.0)
-    ax.set_ylim(0, 6.5)
+    ax.set_xlim(0, 18.65)
+    ax.set_ylim(0, 10.65)
     ax.axis("off")
 
-    stage_headings = (
-        (0.15, 6.10, "(i)  Source-specific discovery", GITHUB),
-        (6.45, 7.95, "(ii)  Deterministic prefilter", CLASSIFY),
-        (8.20, 9.90, "(iii)  LLM-based adjudication", CLASSIFY),
-        (10.10, 13.75, "Evaluation path", EVALUATE),
-    )
-    for left, right, label, color in stage_headings:
-        center = (left + right) / 2
-        ax.text(
-            center, 5.88, label, ha="center", va="center",
-            color=INK, fontsize=8.0, fontweight="bold",
-        )
-        ax.plot(
-            [left, right], [5.68, 5.68], color=color, linewidth=3.0,
-            solid_capstyle="round", zorder=1,
-        )
-    # Discovery contains one lane per source; show both source colors.
-    ax.plot([3.125, 6.10], [5.68, 5.68], color=OPENALEX, linewidth=3.0, solid_capstyle="round", zorder=2)
+    ax.text(.25, 10.30, "Study-owned configuration", color=INK, fontsize=11, fontweight="bold")
+    _study_configuration(ax, 9.08)
+    ax.text(9.32, 8.80,
+        "Search profiles + pipeline values + screening + taxonomy + prompts  |  Shared runtime and model profiles",
+        ha="center", color=MUTED, fontsize=9.5)
+    for left, right, label, color in (
+        (.25, 5.35, "(i)  Provider discovery", OPENALEX),
+        (5.70, 8.10, "(ii)  Evidence + prefilter", CLASSIFY),
+        (8.55, 11.40, "(iii)  Scientific screening", CLASSIFY),
+        (11.80, 14.50, "(iv)  Consensus + reconciliation", CLASSIFY),
+        (14.95, 18.40, "(v)  Outputs + evaluation", REPORT),
+    ):
+        _section_heading(ax, left, right, 8.42, label, color)
 
-    github_y = 4.96
-    openalex_source_y = 2.56
-    direct_y = 3.41
-    survey_y = 1.69
-    card_height = 0.82
-    ax.plot([0.14, 6.08], [github_y, github_y], color="#DCE9DF", linewidth=0.8, zorder=0)
-    ax.plot([0.14, 6.08], [openalex_source_y, openalex_source_y], color="#DCE7EF", linewidth=0.8, zorder=0)
+    _brand_box(ax, .25, 6.10, 1.90, 1.10, "github-lockup-black.svg",
+        facecolor=GITHUB, target_width=36, label="Repository API")
+    _brand_box(ax, .25, 4.48, 1.90, 1.10, "openalex-lockup-black.svg",
+        facecolor=OPENALEX, target_width=64, label="Both paper studies")
+    _component(ax, .25, 3.17, 1.90, 1.05, "Semantic Scholar", "Review discovery",
+        icon="web", facecolor=OPENALEX)
+    _component(ax, .25, 1.86, 1.90, 1.05, "Local CSV / JSON", "Review discovery",
+        icon="documents", facecolor=OPENALEX)
 
-    _brand_box(
-        ax, 0.15, github_y - card_height / 2, 1.10, card_height,
-        "github-lockup-black.svg", facecolor=GITHUB, target_width=28,
-    )
-    _box(
-        ax, 1.60, github_y - card_height / 2, 1.20, card_height,
-        "Repository search", icon="search", facecolor=GITHUB, title_size=7.0,
-    )
-    _box(
-        ax, 3.15, github_y - card_height / 2, 1.25, card_height,
-        "Deduplicate & rank", icon="rank", facecolor=GITHUB, title_size=6.8,
-    )
-    _box(
-        ax, 4.75, github_y - card_height / 2, 1.30, card_height,
-        "README + docs", icon="documents", facecolor=GITHUB, title_size=7.0,
-    )
-    _arrow(ax, (1.33, github_y), (1.52, github_y), linewidth=1.45)
-    _arrow(ax, (2.88, github_y), (3.07, github_y), linewidth=1.45)
-    _arrow(ax, (4.48, github_y), (4.67, github_y), linewidth=1.45)
+    _component(ax, 2.55, 5.98, 2.80, 1.34, "Repository search",
+        "Date sharding, deduplication, README + docs", icon="repository", facecolor=GITHUB)
+    _component(ax, 2.55, 1.84, 2.80, 3.76, "Shared paper collector",
+        "Direct paper search\nDiverse survey seeds (optional)\nBackward snowballing (optional)\nUnion, dedupe + configurable ranking",
+        icon="merge", facecolor=OPENALEX)
+    _arrow(ax, (2.23, 6.65), (2.47, 6.65))
+    for center in (5.03, 3.695, 2.385):
+        _arrow(ax, (2.23, center), (2.47, center))
 
-    _brand_box(
-        ax, 0.15, openalex_source_y - card_height / 2, 1.10, card_height,
-        "openalex-lockup-black.svg", facecolor=OPENALEX, target_width=44,
-    )
-    _box(
-        ax, 1.60, direct_y - card_height / 2, 1.20, card_height,
-        "Direct paper search", icon="search", facecolor=OPENALEX, title_size=6.7,
-    )
-    _box(
-        ax, 1.60, survey_y - card_height / 2, 1.20, card_height,
-        "Survey search", icon="survey", facecolor=OPENALEX, title_size=7.0,
-    )
-    _box(
-        ax, 3.15, survey_y - card_height / 2, 1.25, card_height,
-        "Diverse survey seeds", icon="diverse", facecolor=OPENALEX, title_size=6.4,
-    )
-    _box(
-        ax, 4.75, survey_y - card_height / 2, 1.25, card_height,
-        "Backward snowballing", icon="snowball", facecolor=OPENALEX, title_size=6.3,
-    )
-    _box(
-        ax, 4.725, direct_y - 0.46, 1.30, 0.92,
-        "Merge, dedupe & rank", icon="merge", facecolor=OPENALEX, title_size=6.5,
-    )
-    _elbow_arrow(
-        ax, [(1.33, openalex_source_y), (1.33, direct_y), (1.52, direct_y)],
-        linewidth=1.45,
-    )
-    _elbow_arrow(
-        ax, [(1.33, openalex_source_y), (1.33, survey_y), (1.52, survey_y)],
-        linewidth=1.45,
-    )
-    _arrow(ax, (2.88, direct_y), (4.645, direct_y), linewidth=1.45)
-    _arrow(ax, (2.88, survey_y), (3.07, survey_y), linewidth=1.45)
-    _arrow(ax, (4.48, survey_y), (4.67, survey_y), linewidth=1.45)
-    _arrow(ax, (5.375, 2.18), (5.375, 2.87), linewidth=1.45)
+    _component(ax, 5.70, 5.98, 2.40, 1.34, "Repository prefilter",
+        "Deterministic evidence scores", icon="rank", facecolor=GITHUB)
+    _component(ax, 5.70, 2.60, 2.40, 2.65, "Shared paper evidence",
+        "DOI / title lookup + bounded PDF\nDeterministic prefilter\nCandidate / borderline gate",
+        icon="documents", facecolor=OPENALEX)
+    _arrow(ax, (5.43, 6.65), (5.62, 6.65))
+    _arrow(ax, (5.43, 3.72), (5.62, 3.72))
+    ax.text(5.30, 1.45, "Native query syntax · proportional budgets · raw audits · frozen cohorts",
+        ha="center", color=MUTED, fontsize=9.5)
 
-    _box(
-        ax, 6.55, 2.885, 1.30, 1.05,
-        "Deterministic prefilter", icon="rank", facecolor=CLASSIFY,
-        title_size=6.6, icon_size=18,
-    )
-    ax.plot(
-        [6.13, 6.30, 6.30], [github_y, github_y, direct_y],
-        color=EDGE, linewidth=1.50, solid_capstyle="round", solid_joinstyle="round", zorder=6,
-    )
-    _arrow(ax, (6.105, direct_y), (6.47, direct_y), linewidth=1.50)
+    _component(ax, 8.55, 5.98, 2.85, 1.34, "Repository role validation",
+        "IDS repositories", icon="repository", facecolor=GITHUB)
+    _component(ax, 8.55, 4.03, 2.85, 1.34, "Dataset release validation",
+        "IDS datasets", icon="paper", facecolor=OPENALEX)
+    _component(ax, 8.55, 2.28, 2.85, 1.34, "Criterion assessment",
+        "Conformal treatment effects\nEligibility + quality + literal quotes", icon="checklist", facecolor=OPENALEX)
+    _arrow(ax, (8.18, 6.65), (8.47, 6.65))
+    _elbow_arrow(ax, [(8.18, 4.36), (8.33, 4.36), (8.33, 4.70), (8.47, 4.70)])
+    _elbow_arrow(ax, [(8.18, 3.19), (8.33, 3.19), (8.33, 2.95), (8.47, 2.95)])
 
-    classifier_x, classifier_y = 8.20, 1.00
-    classifier_width, classifier_height = 1.65, 4.20
-    ax.add_patch(FancyBboxPatch(
-        (classifier_x, classifier_y), classifier_width, classifier_height,
-        boxstyle="round,pad=0.004,rounding_size=0.007",
-        linewidth=1.0, edgecolor=EDGE, facecolor=CLASSIFY, zorder=3,
-    ))
-    _add_icon(ax, 9.05, 4.92, "classifier", size=16)
-    ax.text(
-        9.05, 4.62, "Classification", ha="center", va="center",
-        color=INK, fontsize=8.0, fontweight="bold", zorder=5,
-    )
-    classifier_rows = (
-        (3.95, "Structured prompts", "language", EDGE),
-        (3.10, "Repeated LLM runs", "model", EDGE),
-        (2.25, "Consensus decision", "ensemble", EDGE),
-    )
-    for center_y, label, icon, edge in classifier_rows:
-        ax.add_patch(FancyBboxPatch(
-            (8.35, center_y - 0.29), 1.35, 0.58,
-            boxstyle="round,pad=0.002,rounding_size=0.004",
-            facecolor=WHITE, edgecolor=edge, linewidth=0.75, zorder=4,
-        ))
-        _add_icon(ax, 8.56, center_y, icon, color=edge, size=13)
-        _card_label(
-            ax, (8.80, center_y - .22, .80, .44), label, fontsize=6.4,
-        )
-    _arrow(ax, (7.93, direct_y), (8.12, direct_y), linewidth=1.50)
+    _component(ax, 11.80, 5.98, 2.70, 1.34, "Consensus + ensemble",
+        "Structured prompts\nRepeated assessments per model", icon="ensemble", facecolor=CLASSIFY)
+    _arrow(ax, (11.48, 6.65), (11.72, 6.65))
+    # The scientific strategy is selected per run; its result enters the same voting stage.
+    _elbow_arrow(ax, [(11.48, 4.70), (11.59, 4.70), (11.59, 6.29), (11.72, 6.29)])
+    _elbow_arrow(ax, [(11.48, 2.95), (11.64, 2.95), (11.64, 6.12), (11.72, 6.12)])
+    for bottom, height, title, body, fill, icon in (
+        (4.37, 1.10, "Repository families", "Repository reconciliation", GITHUB, "family"),
+        (2.93, 1.10, "Publication families", "Dataset release reconciliation", OPENALEX, "family"),
+        (1.56, 1.05, "Review assessments", "Release reconciliation disabled", OPENALEX, "checklist"),
+    ):
+        _component(ax, 11.80, bottom, 2.70, height, title, body, icon=icon, facecolor=fill)
+    # Route each configured reconciliation path outside its cards, never through their labels.
+    for target_y, target_top, route_x in ((4.92, 5.47, 14.66), (3.48, 4.03, 14.72), (2.085, 2.61, 14.78)):
+        _elbow_arrow(ax, [(14.50, 6.20), (route_x, 6.20), (route_x, target_top + .15),
+            (13.15, target_top + .15), (13.15, target_top + .07)], color=CATALOGUE_EDGE, linewidth=.95)
 
-    _box(
-        ax, 10.15, 4.85, 1.50, 0.75,
-        "Human-labelled reference", icon="people", facecolor=WHITE,
-        edgecolor=EVALUATION_EDGE, linestyle="--", title_size=6.2, icon_size=15,
-    )
-    _box(
-        ax, 12.15, 4.85, 1.50, 0.75,
-        "Keyword + NLI baselines", icon="key", facecolor=EVALUATE,
-        edgecolor=EVALUATION_EDGE, title_size=6.2, icon_size=15,
-    )
-    _box(
-        ax, 10.15, 3.55, 1.50, 0.85,
-        "Compare all classifiers", icon="checklist", facecolor=EVALUATE,
-        edgecolor=EVALUATION_EDGE, title_size=6.2, icon_size=16,
-    )
-    _box(
-        ax, 12.15, 3.55, 1.50, 0.85,
-        "Metrics & figures", icon="chart", facecolor=EVALUATE,
-        edgecolor=EVALUATION_EDGE, title_size=6.6, icon_size=16,
-    )
-    _arrow(ax, (9.93, 3.975), (10.07, 3.975), color=EVALUATION_EDGE, linewidth=1.50)
-    _arrow(ax, (10.90, 4.77), (10.90, 4.48), color=EVALUATION_EDGE, linestyle="--", linewidth=1.35)
-    _elbow_arrow(
-        ax, [(12.90, 4.77), (12.90, 4.70), (11.45, 4.70), (11.45, 4.48)],
-        color=EVALUATION_EDGE, linewidth=1.35,
-    )
-    _arrow(ax, (11.73, 3.975), (12.07, 3.975), color=EVALUATION_EDGE, linewidth=1.50)
+    for bottom, height, title, body, fill, icon in (
+        (4.37, 1.10, "Repository catalogue", "Accepted repository records", GITHUB, "catalogue"),
+        (2.93, 1.10, "Dataset catalogue", "Canonical releases and versions", OPENALEX, "catalogue"),
+        (1.56, 1.05, "Review classifications", "Criteria, assumptions and audit quotes", OPENALEX, "checklist"),
+    ):
+        _component(ax, 14.95, bottom, 3.45, height, title, body, icon=icon,
+            facecolor=fill, edgecolor=CATALOGUE_EDGE)
+        _arrow(ax, (14.58, bottom + height / 2), (14.87, bottom + height / 2), color=CATALOGUE_EDGE)
 
-    output_groups = (
-        (10.15, "Reconciliation", "Repository families", "Publication families", "family"),
-        (12.15, "Final catalogues", "Repository catalogue", "Dataset catalogue", "catalogue"),
-    )
-    for x, title, github_label, openalex_label, icon in output_groups:
-        ax.add_patch(FancyBboxPatch(
-            (x, 0.50), 1.50, 1.90,
-            boxstyle="round,pad=0.004,rounding_size=0.007",
-            linewidth=1.0, edgecolor=CATALOGUE_EDGE, facecolor=REPORT, zorder=3,
-        ))
-        ax.text(
-            x + 0.75, 2.16, title, ha="center", va="center",
-            color=INK, fontsize=7.1, fontweight="bold", zorder=5,
-        )
-        for center_y, label, fill in (
-            (1.58, github_label, GITHUB), (0.88, openalex_label, OPENALEX),
-        ):
-            ax.add_patch(FancyBboxPatch(
-                (x + 0.10, center_y - 0.275), 1.30, 0.55,
-                boxstyle="round,pad=0.002,rounding_size=0.004",
-                facecolor=fill, edgecolor=CATALOGUE_EDGE, linewidth=0.70, zorder=4,
-            ))
-            _add_icon(ax, x + 0.27, center_y, icon, color=CATALOGUE_EDGE, size=13)
-            _card_label(
-                ax, (x + .47, center_y - .20, .83, .40), label, fontsize=5.5,
-            )
-
-    ax.text(
-        10.90, 2.72, "(iv)  Source-specific reconciliation",
-        ha="center", va="center", color=INK, fontsize=7.0, fontweight="bold",
-    )
-    ax.text(
-        12.90, 2.72, "(v)  Catalogue export",
-        ha="center", va="center", color=INK, fontsize=7.0, fontweight="bold",
-    )
-    for left, middle, right in ((10.15, 10.90, 11.65), (12.15, 12.90, 13.65)):
-        ax.plot([left, middle], [2.53, 2.53], color=GITHUB, linewidth=3.0, solid_capstyle="round")
-        ax.plot([middle, right], [2.53, 2.53], color=OPENALEX, linewidth=3.0, solid_capstyle="round")
-    _arrow(ax, (9.93, 1.40), (10.07, 1.40), color=CATALOGUE_EDGE, linewidth=1.50)
-    _arrow(ax, (11.73, 1.40), (12.07, 1.40), color=CATALOGUE_EDGE, linewidth=1.50)
-
-    _color_legend(
-        ax,
-        (
-            ("GitHub-specific", GITHUB, EDGE),
-            ("OpenAlex-specific", OPENALEX, EDGE),
-            ("Shared processing", CLASSIFY, EDGE),
-            ("Evaluation only", EVALUATE, EVALUATION_EDGE),
-            ("Reporting container", REPORT, CATALOGUE_EDGE),
-        ),
-        x=0.35, y=0.20, item_width=2.65,
-    )
-
+    _component(ax, 14.95, 6.00, 3.45, 1.25, "Evaluation + reporting",
+        "Recovery + extraction metrics\nReview: per-provider and union", icon="chart",
+        facecolor=EVALUATE, edgecolor=EVALUATION_EDGE)
+    _arrow(ax, (14.58, 6.65), (14.87, 6.65), color=EVALUATION_EDGE)
+    # Reference labels feed evaluation only, not retrieval, evidence or scientific prompts.
+    ax.add_patch(FancyBboxPatch((14.95, 7.51), 3.45, .49,
+        boxstyle="round,pad=0.004,rounding_size=0.025", facecolor=WHITE,
+        edgecolor=EVALUATION_EDGE, linestyle="--", linewidth=.9, zorder=3))
+    _card_label(ax, (15.06, 7.58, 3.23, .33), "Reference profiles · evaluation only", fontsize=8.0)
+    _arrow(ax, (16.68, 7.43), (16.68, 7.33), color=EVALUATION_EDGE, linestyle="--")
+    _component(ax, 8.55, .70, 2.85, 1.07, "Catalogue baselines",
+        "Keyword + NLI + LLM NLI\nRepository + dataset studies", icon="key",
+        facecolor=EVALUATE, edgecolor=EVALUATION_EDGE)
+    _elbow_arrow(ax, [(8.10, 2.63), (8.24, 2.63), (8.24, 1.24), (8.47, 1.24)],
+        color=EVALUATION_EDGE, linewidth=.9)
+    _elbow_arrow(ax, [(11.48, 1.20), (18.56, 1.20), (18.56, 6.65), (18.48, 6.65)],
+        color=EVALUATION_EDGE, linewidth=.95)
+    ax.text(.25, .96, "Select one study per run.\nPaper studies share acquisition code and config keys.",
+        color=MUTED, fontsize=9.5, va="center")
+    _color_legend(ax, (
+        ("Repository strategy", GITHUB, EDGE), ("Shared paper code", OPENALEX, EDGE),
+        ("Shared voting", CLASSIFY, EDGE), ("Evaluation only", EVALUATE, EVALUATION_EDGE),
+        ("Study configuration", REPORT, EDGE),
+    ), x=.35, y=.28, item_width=3.68)
     return figure
 
 
 def _draw_system_figure() -> Figure:
-    """Create the high-level, grid-aligned pipeline architecture."""
-    figure, ax = plt.subplots(figsize=(11.2, 4.8))
-    figure.subplots_adjust(left=0.008, right=0.992, bottom=0.025, top=0.990)
+    """Show provider contracts, shared paper modules, inference and audited study outputs."""
+    figure, ax = plt.subplots(figsize=(18.8, 9.5))
+    figure.subplots_adjust(left=.01, right=.99, bottom=.02, top=.99)
     figure.patch.set_facecolor(WHITE)
-    ax.set_xlim(0, 13.8)
-    ax.set_ylim(-0.40, 5.25)
+    ax.set_xlim(0, 19.65)
+    ax.set_ylim(0, 10.1)
     ax.axis("off")
-    headings = (
-        (2.72, "Source adapters", GITHUB, 2.04, 3.40),
-        (4.90, "Evidence store", REPORT, 4.22, 5.58),
-        (6.92, "Prefilter", CLASSIFY, 6.24, 7.60),
-        (8.92, "Inference", CLASSIFY, 8.24, 9.60),
-        (11.90, "Outputs", REPORT, 10.27, 13.60),
-    )
-    for center, label, color, left, right in headings:
-        ax.text(
-            center, 4.65, label, ha="center", va="center",
-            fontsize=7.7, color=INK, fontweight="bold",
-        )
-        ax.plot(
-            [left, right], [4.48, 4.48],
-            color=color if color != WHITE else GUIDE, linewidth=3.0,
-            solid_capstyle="round", zorder=1,
-        )
+    ax.text(.25, 9.80, "Study manifests + shared runtime / models", color=INK,
+        fontsize=11, fontweight="bold")
+    _study_configuration(ax, 8.57)
+    for left, right, label, color in (
+        (.25, 2.35, "Providers", OPENALEX), (2.85, 5.50, "Adapter contracts", OPENALEX),
+        (6.10, 9.25, "Collection runners", REPORT), (9.75, 12.85, "Evidence + scientific rules", CLASSIFY),
+        (13.30, 15.65, "Inference", CLASSIFY), (16.05, 19.40, "Outputs", REPORT),
+    ):
+        _section_heading(ax, left, right, 8.08, label, color)
 
-    github_y = 3.85
-    openalex_y = 2.45
-    card_height = 0.84
-    ax.plot([0.14, 13.63], [github_y, github_y], color="#DCE9DF", linewidth=0.8, zorder=0)
-    ax.plot([0.14, 13.63], [openalex_y, openalex_y], color="#DCE7EF", linewidth=0.8, zorder=0)
+    _brand_box(ax, .25, 6.35, 2.10, 1.10, "github-lockup-black.svg",
+        facecolor=GITHUB, target_width=36, label="Repository API")
+    _brand_box(ax, .25, 4.85, 2.10, 1.10, "openalex-lockup-black.svg",
+        facecolor=OPENALEX, target_width=65, label="Paper API")
+    _component(ax, .25, 3.35, 2.10, 1.10, "Semantic Scholar",
+        "Review discovery + shared evidence", icon="web", facecolor=OPENALEX)
+    _component(ax, .25, 1.85, 2.10, 1.10, "Local CSV / JSON",
+        "Frozen review paper input", icon="documents", facecolor=OPENALEX)
+    _component(ax, 2.85, 1.85, 2.65, 5.60, "Provider registry",
+        "adapters/registry.py\nGitHubAdapter\nOpenAlexAdapter\nSemanticScholarAdapter\nLocalDiscoveryAdapter\nDiscoveryAdapter + SourceRecord\nOptional lookup, evidence, references and catalogue protocols",
+        icon="merge", facecolor=OPENALEX)
+    for center in (6.90, 5.40, 3.90, 2.40):
+        _arrow(ax, (2.43, center), (2.77, center))
 
-    _brand_box(
-        ax, 0.15, github_y - card_height / 2, 1.20, card_height,
-        "github-lockup-black.svg", facecolor=GITHUB,
-        target_width=24, label="",
-    )
-    _brand_box(
-        ax, 0.15, openalex_y - card_height / 2, 1.20, card_height,
-        "openalex-lockup-black.svg", facecolor=OPENALEX,
-        target_width=45, label="",
-    )
+    _component(ax, 6.10, 6.05, 3.15, 1.60, "Repository collection",
+        "github/collect.py\nDate sharding + repository docs", icon="repository", facecolor=GITHUB)
+    _component(ax, 6.10, 4.05, 3.15, 1.45, "Shared paper collector",
+        "common/paper_collection.py\nIDS datasets + conformal", icon="paper", facecolor=OPENALEX)
+    _component(ax, 6.10, 2.10, 3.15, 1.25, "Review provider union",
+        "common/discovery.py\nStrong-ID deduplication + memberships", icon="merge", facecolor=OPENALEX)
+    _arrow(ax, (5.58, 6.85), (6.02, 6.85))
+    _arrow(ax, (5.58, 4.775), (6.02, 4.775))
+    _arrow(ax, (5.58, 2.725), (6.02, 2.725))
+    _arrow(ax, (7.675, 3.43), (7.675, 3.97))
+    ax.text(7.89, 3.70, "uses", fontsize=7.6, color=MUTED, va="center")
 
-    _box(
-        ax, 1.85, github_y - card_height / 2, 1.75, card_height,
-        "GitHub crawler", icon="web", facecolor=GITHUB,
-        title_size=7.2, icon_size=18,
-        secondary_logo="python.svg", secondary_logo_width=11,
-    )
-    _box(
-        ax, 1.85, openalex_y - card_height / 2, 1.75, card_height,
-        "OpenAlex crawler", icon="web", facecolor=OPENALEX,
-        title_size=7.2, icon_size=18,
-        secondary_logo="python.svg", secondary_logo_width=11,
-    )
+    _component(ax, 9.75, 6.05, 3.10, 1.60, "Repository prefilter",
+        "github/pipeline.py\nRepository document evidence", icon="rank", facecolor=GITHUB)
+    _component(ax, 9.75, 4.05, 3.10, 1.45, "Shared paper evidence",
+        "paper_evidence.py + paper_collection.py\nLookup, bounded PDF + prefilter", icon="documents", facecolor=OPENALEX)
+    _component(ax, 9.75, 2.10, 3.10, 1.25, "Scientific strategies",
+        "Repository roles · dataset releases\nReview eligibility + quality", icon="checklist", facecolor=CLASSIFY)
+    _arrow(ax, (9.33, 6.85), (9.67, 6.85))
+    _arrow(ax, (9.33, 4.775), (9.67, 4.775))
+    _elbow_arrow(ax, [(9.33, 2.725), (9.48, 2.725), (9.48, 4.39), (9.67, 4.39)])
+    _elbow_arrow(ax, [(12.85, 6.14), (13.01, 6.14), (13.01, 2.725), (12.93, 2.725)])
+    _arrow(ax, (11.30, 3.97), (11.30, 3.43))
 
-    _logo_box(
-        ax, 4.20, 2.72, 1.40, 0.90,
-        "sqlite.svg", "Evidence + LLM results",
-        facecolor=REPORT, target_width=42, title_size=5.8,
-    )
-    _logo_box(
-        ax, 4.20, 1.32, 1.40, 0.88,
-        "python.svg", "Evidence enrichment",
-        facecolor=CLASSIFY, target_width=17, title_size=5.9,
-    )
-    _box(
-        ax, 6.15, 2.72, 1.55, 0.90,
-        "Deterministic prefilter", icon="rank", facecolor=CLASSIFY,
-        title_size=6.7, icon_size=18,
-        secondary_logo="python.svg", secondary_logo_width=11,
-    )
-    _logo_box(
-        ax, 8.20, 2.72, 1.45, 0.90,
-        "python.svg", "Adjudication client",
-        facecolor=CLASSIFY, target_width=18, title_size=6.1,
-    )
+    _component(ax, 13.30, 4.05, 2.35, 1.45, "Adjudication client",
+        "common/ollama.py\nStructured prompts + repeated votes", icon="classifier", facecolor=CLASSIFY)
+    _elbow_arrow(ax, [(12.93, 2.40), (13.14, 2.40), (13.14, 4.775), (13.22, 4.775)])
+    ax.add_patch(FancyBboxPatch((13.30, 1.60), 2.35, 2.05,
+        boxstyle="round,pad=0.004,rounding_size=0.025", facecolor=CLASSIFY,
+        edgecolor=EDGE, linewidth=.95, zorder=3))
+    _logo_box(ax, 13.48, 2.84, 1.99, .61, "ollama.svg", "Ollama server",
+        facecolor=WHITE, target_width=13, title_size=7.6)
+    ax.text(14.475, 2.61, "Configured local models", ha="center", color=MUTED,
+        fontsize=7.5, fontweight="bold", zorder=5)
+    _model_badge(ax, 13.48, 1.78, .89, .66, "qwen.svg", "Qwen", target_width=23)
+    _model_badge(ax, 14.58, 1.78, .89, .66, "gemma.png", "Gemma", target_width=18)
+    _arrow(ax, (14.26, 3.97), (14.26, 3.73), color=EDGE)
+    _arrow(ax, (14.69, 3.73), (14.69, 3.97), color=EDGE)
 
-    ax.add_patch(FancyBboxPatch(
-        (7.80, 0.30), 2.24, 1.90,
-        boxstyle="round,pad=0.004,rounding_size=0.007",
-        linewidth=0.9, edgecolor=EDGE, facecolor=CLASSIFY, zorder=3,
-    ))
-    _logo_box(
-        ax, 8.12, 1.40, 1.60, 0.62,
-        "ollama.svg", "Ollama server",
-        facecolor=WHITE, target_width=11, title_size=6.4,
-    )
-    ax.text(
-        8.92, 1.21, "Local model families", ha="center", va="center",
-        color=MUTED, fontsize=6.0, fontweight="bold", zorder=5,
-    )
-    _model_badge(ax, 7.94, 0.49, 0.60, 0.58, "qwen.svg", "Qwen", target_width=20)
-    _model_badge(ax, 8.62, 0.49, 0.60, 0.58, "openai.svg", "gpt-oss", target_width=12)
-    _model_badge(ax, 9.30, 0.49, 0.60, 0.58, "gemma.png", "Gemma", target_width=13)
+    _component(ax, 16.05, 5.86, 3.35, 1.79, "Study results",
+        "Consensus + configured reconciliation\nRepository / dataset catalogues\nReview classifications", icon="catalogue", facecolor=REPORT)
+    _component(ax, 16.05, 3.19, 3.35, 1.77, "Reporting + verification",
+        "Tables, plots, reporting database\nFingerprints + figure manifests\nReview source + union recovery", icon="chart",
+        facecolor=EVALUATE, edgecolor=EVALUATION_EDGE)
+    _component(ax, 16.05, 1.43, 3.35, 1.14, "Reference profiles",
+        "Evaluation only", icon="people", edgecolor=EVALUATION_EDGE, linestyle="--")
+    _elbow_arrow(ax, [(15.73, 4.775), (15.86, 4.775), (15.86, 6.755), (15.97, 6.755)])
+    _arrow(ax, (17.725, 5.78), (17.725, 5.04), color=EVALUATION_EDGE)
+    _arrow(ax, (17.725, 2.65), (17.725, 3.11), color=EVALUATION_EDGE, linestyle="--")
 
-    _box(
-        ax, 10.15, github_y - card_height / 2, 1.60, card_height,
-        "Repository families", icon="family", facecolor=GITHUB,
-        edgecolor=CATALOGUE_EDGE, title_size=6.8, icon_size=17,
-    )
-    _box(
-        ax, 10.15, openalex_y - card_height / 2, 1.60, card_height,
-        "Publication families", icon="family", facecolor=OPENALEX,
-        edgecolor=CATALOGUE_EDGE, title_size=6.8, icon_size=17,
-    )
-    _box(
-        ax, 12.20, github_y - card_height / 2, 1.45, card_height,
-        "Repository catalogue", icon="catalogue", facecolor=GITHUB,
-        edgecolor=CATALOGUE_EDGE, title_size=6.4, icon_size=17,
-    )
-    _box(
-        ax, 12.20, openalex_y - card_height / 2, 1.45, card_height,
-        "Dataset catalogue", icon="catalogue", facecolor=OPENALEX,
-        edgecolor=CATALOGUE_EDGE, title_size=6.7, icon_size=17,
-    )
-
-    _arrow(ax, (1.77, github_y), (1.43, github_y), linewidth=1.45)
-    _arrow(ax, (1.77, openalex_y), (1.43, openalex_y), linewidth=1.45)
-    _elbow_arrow(
-        ax, [(3.68, github_y), (3.90, github_y), (3.90, 3.33), (4.12, 3.33)],
-        linewidth=1.45,
-    )
-    _elbow_arrow(
-        ax, [(3.68, openalex_y), (3.90, openalex_y), (3.90, 2.97), (4.12, 2.97)],
-        linewidth=1.45,
-    )
-    _arrow(ax, (5.68, 3.17), (6.07, 3.17), linewidth=1.45)
-    _arrow(ax, (7.78, 3.17), (8.12, 3.17), linewidth=1.45)
-    _arrow(ax, (4.90, 2.28), (4.90, 2.64), linewidth=1.20)
-    _elbow_arrow(
-        ax, [(6.925, 2.64), (6.925, 1.76), (5.68, 1.76)],
-        linewidth=1.20,
-    )
-    ax.plot(
-        [8.40, 8.40], [2.64, 2.42], color=EDGE, linewidth=1.20,
-        solid_capstyle="round", zorder=6,
-    )
-    ax.plot(
-        [6.925, 8.40], [2.42, 2.42], color=EDGE, linewidth=1.20,
-        solid_capstyle="round", zorder=6,
-    )
-    _elbow_arrow(
-        ax, [(8.92, 3.70), (8.92, 4.14), (4.90, 4.14), (4.90, 3.70)],
-        linewidth=1.35,
-    )
-    _elbow_arrow(
-        ax, [(9.73, 3.17), (9.90, 3.17), (9.90, github_y), (10.07, github_y)],
-        linewidth=1.45,
-    )
-    _elbow_arrow(
-        ax, [(9.73, 3.17), (9.90, 3.17), (9.90, openalex_y), (10.07, openalex_y)],
-        linewidth=1.45,
-    )
-    _arrow(ax, (11.83, github_y), (12.12, github_y), color=CATALOGUE_EDGE, linewidth=1.50)
-    _arrow(ax, (11.83, openalex_y), (12.12, openalex_y), color=CATALOGUE_EDGE, linewidth=1.50)
-    _arrow(ax, (8.92, 2.64), (8.92, 2.28), color=EVALUATION_EDGE, linewidth=1.45)
-
-    _color_legend(
-        ax,
-        (
-            ("GitHub path", GITHUB, EDGE),
-            ("OpenAlex path", OPENALEX, EDGE),
-            ("Shared state", REPORT, EDGE),
-            ("Shared processing", CLASSIFY, EDGE),
-        ),
-        x=1.10, y=-0.19, item_width=3.05,
-    )
-
+    _logo_box(ax, .25, .48, 1.60, .88, "sqlite.svg", "Per-study state",
+        facecolor=REPORT, target_width=42, title_size=7.0)
+    _component(ax, 2.12, .48, 10.73, .88, "Run state + provenance",
+        "Raw responses · SQLite caches · frozen JSON / CSV cohorts · assessment audits · run manifests",
+        icon="database", facecolor=REPORT)
+    ax.text(7.70, 1.58, "Stored per study and model; shared components do not mix studies",
+        ha="center", color=MUTED, fontsize=8.0)
+    _color_legend(ax, (
+        ("Repository strategy", GITHUB, EDGE), ("Shared paper code", OPENALEX, EDGE),
+        ("Scientific / inference", CLASSIFY, EDGE), ("Evaluation only", EVALUATE, EVALUATION_EDGE),
+    ), x=1.70, y=.18, item_width=4.30)
     return figure
 
 

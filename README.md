@@ -188,7 +188,9 @@ ids-meta architecture --formats pdf
 python -m ids_meta.architecture
 ```
 
-The detailed pipeline figure labels the five paper stages `(i)`–`(v)` and keeps GitHub and OpenAlex discovery, reconciliation, and export paths visually distinct. The separate system figure shows the GitHub and OpenAlex APIs, crawlers, evidence database, pipeline client, Ollama server, configured LLMs, and outputs.
+The detailed pipeline figure labels five stages `(i)`–`(v)` for the selected study: provider discovery, evidence and prefiltering, scientific screening, consensus and reconciliation, and outputs and evaluation. IDS datasets and conformal treatment effects share the paper collector, evidence acquisition, prefilter, and operational configuration schema, with study-specific values and scientific criteria. Repository screening and catalogue reconciliation retain their own scientific rules. Reference profiles feed evaluation only.
+
+The system figure shows the shared adapter contracts and provider registry for GitHub, OpenAlex, Semantic Scholar, and local CSV/JSON input; collection and evidence modules; the Ollama client and configured model families; and study outputs, reporting, and provenance. Semantic Scholar and local-file discovery currently support review studies. Stored cohorts, assessments, and state remain scoped to each study and model.
 
 All catalogue, evaluation, comparison, and funnel builders use `plots.formats`.
 The default `formats = ["svg", "pdf"]` therefore writes a matching PDF beside

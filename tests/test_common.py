@@ -6,6 +6,7 @@ import tempfile
 import unittest
 import io
 import json
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from pathlib import Path
 from tests.fixtures import SYSTEM_TYPE_PROFILE
@@ -23,6 +24,7 @@ from ids_meta.common.scoring import score_evidence
 from ids_meta.common.scoring import shortlist_candidates
 from ids_meta.common.text import contains_concept, normalize_text, stable_hash, unicode_safe
 from ids_meta.common.logging import configure_logging, logger
+from ids_meta.common.verification import verify_manifest
 from ids_meta.cli import _configured_models, _ensemble_config, _execution_paths, _pipeline_limits, build_parser
 from ids_meta.github.pipeline import prompt as github_prompt
 from ids_meta.github.schema import CLASSIFICATION_COLUMNS as GITHUB_CLASSIFICATION_COLUMNS
@@ -132,7 +134,7 @@ class CommonTests(unittest.TestCase):
             parser.parse_args(["openalex", "classify", "--classify-all", "--classify-limit", "25"])
 
     def test_architecture_emits_detailed_pipeline_and_system_views(self) -> None:
-        """Keep the sequential method and deployed components as separate figures."""
+        """Show shared paper stages and provider contracts with verifiable vector exports."""
         with tempfile.TemporaryDirectory() as directory:
             outputs = build_architecture(Path(directory))
             self.assertEqual(
@@ -142,36 +144,52 @@ class CommonTests(unittest.TestCase):
                     "system_architecture.svg", "system_architecture.pdf",
                 },
             )
-            pipeline = (Path(directory) / "pipeline_architecture.svg").read_text(encoding="utf-8")
-            system = (Path(directory) / "system_architecture.svg").read_text(encoding="utf-8")
+            texts = {}
+            for stem in ("pipeline_architecture", "system_architecture"):
+                tree = ET.parse(Path(directory) / f"{stem}.svg")
+                texts[stem] = " ".join(
+                    " ".join("".join(node.itertext()).split())
+                    for node in tree.iter("{http://www.w3.org/2000/svg}text")
+                )
+                manifest_path = Path(directory) / f"{stem}.manifest.json"
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                self.assertTrue({
+                    "github-lockup-black.svg", "openalex-lockup-black.svg",
+                    "ollama.svg", "qwen.svg", "gemma.png", "sqlite.svg",
+                }.issubset({Path(item["path"]).name for item in manifest["inputs"]}))
+                verification = verify_manifest(manifest_path)
+                self.assertTrue(verification["ok"], verification["errors"])
+            pipeline = texts["pipeline_architecture"]
+            system = texts["system_architecture"]
         for label in (
+            "IDS repositories", "IDS datasets", "Conformal treatment effects",
+            "Shared paper config schema", "Same operational keys; study-specific values",
+            "Semantic Scholar", "Local CSV / JSON", "Shared paper collector", "Shared paper evidence",
             "Repository search", "Direct paper search", "Diverse survey seeds",
-            "Backward snowballing", "Deterministic prefilter", "Structured prompts", "Keyword + NLI baselines",
+            "Backward snowballing", "Deterministic prefilter", "Structured prompts", "Keyword + NLI + LLM NLI",
             "Repository families", "Publication families", "Repository catalogue",
-            "Dataset catalogue", "GitHub-specific", "OpenAlex-specific",
-            "Shared processing", "Evaluation only", "Reporting container",
+            "Dataset catalogue", "Review classifications", "Repository role validation",
+            "Dataset release validation", "Criterion assessment", "Release reconciliation disabled",
+            "Reference profiles · evaluation only", "Evaluation + reporting", "Catalogue baselines",
+            "Review: per-provider and union", "Select one study per run.",
             "(i)", "(ii)", "(iii)", "(iv)", "(v)",
         ):
             self.assertIn(label, pipeline)
         for label in (
-            "GitHub", "OpenAlex", "GitHub crawler", "OpenAlex crawler",
-            "Evidence + LLM results", "Evidence enrichment", "Adjudication client",
-            "Ollama server", "Qwen", "gpt-oss", "Gemma",
-            "Repository families", "Publication families",
-            "GitHub path", "OpenAlex path", "Shared state", "Shared processing",
+            "Provider registry", "adapters/registry.py", "GitHubAdapter", "OpenAlexAdapter",
+            "SemanticScholarAdapter", "LocalDiscoveryAdapter", "DiscoveryAdapter + SourceRecord",
+            "Optional lookup, evidence, references and catalogue protocols",
+            "Shared paper collector", "common/paper_collection.py", "IDS datasets + conformal",
+            "Review provider union", "common/discovery.py", "Shared paper evidence",
+            "Scientific strategies", "Adjudication client", "common/ollama.py",
+            "Ollama server", "Qwen", "Gemma", "Study results", "Reporting + verification",
+            "Reference profiles", "Evaluation only", "Run state + provenance", "Per-study state",
         ):
             self.assertIn(label, system)
-        self.assertNotIn("Keyword baseline", system)
+        for obsolete in ("GitHub crawler", "OpenAlex crawler", "gpt-oss", "Catalogue baselines"):
+            self.assertNotIn(obsolete, system)
         self.assertNotIn("(i)", system)
-        self.assertNotIn("structured request", system)
-        self.assertNotIn(">serves<", system)
-        self.assertNotIn("IDS meta-study", pipeline)
-        self.assertNotIn("IDS meta-study", system)
-        self.assertNotIn(">Python<", system)
-        self.assertNotIn(">Record families<", system)
-        self.assertEqual(system.count(">Outputs<"), 1)
-        for asset in ("sqlite.svg", "python.svg", "ollama.svg", "qwen.svg", "openai.svg", "gemma.png"):
-            self.assertTrue((ROOT / "assets" / "architecture" / asset).is_file())
+        self.assertEqual(system.split().count("Outputs"), 1)
 
     def test_architecture_is_an_independent_cli_command(self) -> None:
         """Expose architecture generation outside both source plotting commands."""

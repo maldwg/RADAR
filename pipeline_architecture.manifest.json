@@ -1,0 +1,59 @@
+{
+  "artifacts": [
+    {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/pipeline_architecture.svg",
+      "sha256": "d81feb8ea85b7471b123c5b78fbd4788bb64fac76db701e60f3017b7f1194320"
+    },
+    {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/pipeline_architecture.pdf",
+      "sha256": "7d61674a4627ff3c78dfb9c6d8eef47e43e2597698233c899098b47a4bac8370"
+    }
+  ],
+  "definition": {
+    "code_sha256": "12817c82ee8ebac7851916602b5045d2af16221b258cb67fd4e5632578c364e2",
+    "renderer": "__main__.build",
+    "renderer_snapshot": {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/src/ids_meta/architecture.py",
+      "sha256": "12817c82ee8ebac7851916602b5045d2af16221b258cb67fd4e5632578c364e2",
+      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/12817c82ee8ebac7851916602b5045d2af16221b258cb67fd4e5632578c364e2"
+    },
+    "settings": {}
+  },
+  "figure_id": "3a2ef665de1a9022fcc7e58ad7b594216cc61ebc99f68212c2c4f6247f248642",
+  "inputs": [
+    {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/assets/architecture/github-lockup-black.svg",
+      "sha256": "3960440cf63f4e8734d85581924ccecf06bad4b49cb1e74f87bb2e7a175e9548",
+      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/3960440cf63f4e8734d85581924ccecf06bad4b49cb1e74f87bb2e7a175e9548"
+    },
+    {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/assets/architecture/openalex-lockup-black.svg",
+      "sha256": "64c321f5e7e3520078052c3c1680dc56283e409b808c9b263f300b50adf1fd84",
+      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/64c321f5e7e3520078052c3c1680dc56283e409b808c9b263f300b50adf1fd84"
+    },
+    {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/assets/architecture/ollama.svg",
+      "sha256": "397a6ee071cce1496edd8a86dd1c91ce005712ec161690e411b3dc7f151181f5",
+      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/397a6ee071cce1496edd8a86dd1c91ce005712ec161690e411b3dc7f151181f5"
+    },
+    {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/assets/architecture/qwen.svg",
+      "sha256": "31b4be86e7c19494e81823892e608ab161026c4bdd08474b55834fec1767ba8c",
+      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/31b4be86e7c19494e81823892e608ab161026c4bdd08474b55834fec1767ba8c"
+    },
+    {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/assets/architecture/gemma.png",
+      "sha256": "5bf74d2407276ae2d65f1366c120638f7e882cae0d8acc189276837d319cb6f7",
+      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/5bf74d2407276ae2d65f1366c120638f7e882cae0d8acc189276837d319cb6f7"
+    },
+    {
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/assets/architecture/sqlite.svg",
+      "sha256": "c9b1490b34532aaa125f7a757297500127788b3950140132eb117920fbd98e36",
+      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/c9b1490b34532aaa125f7a757297500127788b3950140132eb117920fbd98e36"
+    }
+  ],
+  "lineage": "input_snapshot; contribution mapping not declared",
+  "schema_version": "1.0",
+  "tables": [],
+  "verification": "integrity_only"
+}
