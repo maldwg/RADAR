@@ -1,0 +1,27 @@
+schema_version = "1.0"
+
+[ollama]
+models = ["gemma4:31b", "qwen3.8:27b"]
+#models_soon = ["gemma4:31b","qwen3.8:27b", "devstral-small-2:24b", "glm-4.7-flash:bf16"]
+timeout_seconds = 300
+retries = 3
+temperature = 0.0
+seed = 42
+max_output_tokens = 1500
+context_length = 131072
+keep_alive = "30m"
+require_verified_quote = true
+
+[baselines]
+
+[baselines.nli]
+model = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+revision = "84109e11e5d6e1238485596706ad12e8a03ba82c"
+device = "auto"
+batch_size = 8
+
+[baselines.llm_nli]
+models = ["qwen3.8:27b"]
+seed = 42
+timeout_seconds = 300
+retries = 2

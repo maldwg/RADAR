@@ -1,0 +1,125 @@
+schema_version = "1.0"
+
+[types]
+
+[types.AV]
+name = "Antivirus / malware file scanner"
+description = "Scans files, uploaded content, binaries, archives, or cloud-storage objects for malware or malicious content using signatures, hashes, YARA rules, heuristics, or learned models. On-demand and offline scanning and integrated external scanning engines are permitted. File scanning, upload rejection, or malware quarantine alone does not establish IDS, HIDS, HIPS, or APIDS. File-integrity monitoring against a trusted baseline remains distinct from malware-content scanning. Select an additional intrusion-system type only for a separately evidenced intrusion detection path. Signature-only content can target AV without implementing a scanner."
+
+[types.NIDS]
+name = "Network intrusion detection system"
+description = "Detects intrusions through inspection of network packets, frames, or protocol streams from network interfaces, taps, or saved packet captures, including a materially integrated packet detector. Requires an implemented traffic-inspection detection path; service logs, aggregated flow records, or endpoint connection permissions alone do not establish NIDS. Running a packet intrusion detector on one host does not disqualify it."
+
+[types.NSM]
+name = "Network security monitoring / traffic analysis system"
+description = "Principally inspects, decodes, reconstructs, or analyzes network traffic to produce security telemetry and evidence for investigation or threat hunting. May provide limited notices, optional detections, or programmable detection hooks; these alone do not make its principal function intrusion detection, prevention, or response. Zeek, Arkime, and Joy are archetypes."
+
+[types.SM]
+name = "Security monitoring / telemetry analysis system"
+description = "Principally collects, aggregates, searches, analyzes, or presents security logs, audit events, endpoint activity, or application, database, and cloud telemetry for security visibility, investigation, or threat hunting. Covers non-network and mixed-source monitoring; use NSM for principal network-traffic inspection and analysis. Intrusion decisions, alerts, prevention, and response are not required; limited or optional checks are permitted. Requires an implemented security-monitoring contribution: generic observability, configuration-only content, deployment packaging, and bare forwarding alone do not establish this system type."
+
+[types.NIPS]
+name = "Network intrusion prevention system"
+description = "Combines network packet/interface intrusion inspection as defined for NIDS with implemented network enforcement, such as dropping or rejecting traffic or updating firewall rules. Firewall updates alone, log-derived IP bans, endpoint application connection policies, and an NDR marketing label do not establish NIPS."
+
+[types.HIDS]
+name = "Host intrusion detection system"
+description = "Detects intrusions from host or endpoint activity and state: files, processes, execution, system calls, registry, accounts, or operating-system audit events and logs describing these. Endpoint observations or local analysis may be forwarded to a central manager; centralized correlation does not remove HIDS. Local installation, malware-content scanning alone, or reading network-service authentication/traffic logs alone does not establish HIDS. Malware-content scanning belongs to AV; trusted-baseline file-integrity monitoring can support HIDS."
+
+[types.HIPS]
+name = "Host intrusion prevention system"
+description = "Combines host or endpoint intrusion detection as defined for HIDS with implemented enforcement on endpoint activity or state, such as blocking execution, terminating malicious processes, quarantining files, removing persistence, or disabling compromised accounts. Network-only firewall rules, source-IP bans, or connection isolation alone do not establish HIPS, even when executed on the protected host. Antivirus scanning and quarantine alone belong to AV and do not establish HIPS. An EDR label or an unimplemented response hook is insufficient."
+
+[types.WIDS]
+name = "Wireless intrusion detection system"
+description = "Detects intrusions by observing Wi-Fi, cellular, sensor, radio, ad-hoc, or other wireless activity."
+
+[types.WIPS]
+name = "Wireless intrusion prevention system"
+description = "Detects wireless threats and actively blocks or prevents them."
+
+[types.DBIDS]
+name = "Database intrusion detection system"
+description = "Detects malicious or anomalous database queries, transactions, audit events, or state changes."
+
+[types.DBIPS]
+name = "Database intrusion prevention system"
+description = "Detects database threats and actively blocks or prevents them."
+
+[types.APIDS]
+name = "Application-protocol intrusion detection system"
+description = "Detects intrusions in application-layer requests, APIs, services, middleware, application protocols, or application events."
+
+[types.PIDS]
+name = "Protocol-based intrusion detection system"
+description = "Detects protocol violations or attacks through explicit stateful or semantic protocol analysis; PIDS always has this meaning in this catalogue."
+
+[types.ProvIDS]
+name = "Provenance-based intrusion detection system"
+description = "Detects intrusions using information-flow or system-provenance graphs and event lineage."
+
+[types.XDR]
+name = "Extended detection and response"
+description = "Combines detection and active response across materially different observation scopes."
+
+[types.IDS]
+name = "Intrusion detection system"
+description = "General intrusion detection, including detectors analyzing network-service authentication/traffic logs, aggregated flow records, or local connection-policy events without a packet intrusion inspection path or endpoint activity detection as defined for NIDS/HIDS. Also covers detection when a more specific configured type is not supported. Single-host deployment does not imply HIDS; network-related evidence does not imply NIDS. Select alongside a specific type only for a separately evidenced general detection path."
+
+[types.IPS]
+name = "Intrusion prevention system"
+description = "General intrusion prevention with implemented enforcement, including network-service log detection followed by source-IP bans or firewall updates, and endpoint application connection-policy enforcement without a NIPS packet intrusion inspection path or HIPS endpoint enforcement. Fail2ban is an archetype. Also covers prevention when a more specific configured type is not supported. Alerts or response hooks alone are insufficient; select alongside a specific type only for a separately evidenced general prevention path."
+
+[prompt_tables]
+
+[prompt_tables.centralization]
+centralized = "One logical detection/analysis node makes the decisions, including central, single-node, single-process, or standalone detection; remote raw-data collectors alone do not make this hierarchical."
+hierarchical = "Local detection/analysis components feed or cooperate under a higher-level manager or coordinator, including multi-tier and manager-coordinated collaborative IDS (CIDS)."
+fully_distributed = "Autonomous peer detection components cooperate without a required central decision/coordinator node, including decentralized, peer-to-peer, or explicitly fully distributed IDS (DIDS)."
+unknown = "The repository's own decision-making topology is not established, is not applicable, or has multiple alternatives without a primary architecture."
+
+[prompt_tables.roles]
+native_detector = "Independently runnable repository whose principal contribution is a detector or prevention engine implementing its own intrusion decisions over live operational observations, without requiring another IDS engine to decide intrusions. Limited detection checks in a principal traffic-analysis system do not by themselves establish this role."
+classifier_engine = "Reusable runnable IDS-specific classification or anomaly-detection engine with implemented decision logic but without a complete live observation pipeline; static datasets are permitted."
+detection_framework = "One cohesive extensible detection system and ecosystem with its own material detection components, often using agents, servers, plugins, or a distributed architecture; Wazuh, OSSEC, and Elkeid are archetypes."
+detection_platform = "Deployable composition that integrates and coordinates multiple independently usable detector engines; Security Onion, T-Pot, and Malcolm are archetypes."
+traffic_analyzer = "Runnable security-focused network or wireless traffic inspection, protocol decoding, session reconstruction, metadata analysis, or forensic investigation system whose principal contribution is monitoring and analysis. May include limited notices, optional checks, or programmable detection policies; a complete operational intrusion decision engine is not required. Live traffic, saved PCAPs, and aggregated records are permitted."
+antivirus = "Runnable antivirus or malware file scanner whose principal contribution examines files, uploads, binaries, archives, or cloud-storage objects for malicious content using signatures, hashes, YARA rules, heuristics, or learned models. Includes on-demand/offline scanners and services integrating external scanning engines. File scanning alone does not make this an intrusion detector; rule-only content, signature generators, and illustrative demos retain their corresponding roles."
+research_project = "Substantive paper- or named-dataset-backed IDS implementation with a reproducible training, inference, evaluation, or detection path; maintained-product maturity and live input are not required."
+demo = "Illustrative notebook, tutorial, toy application, lab walkthrough, or incomplete proof of concept without proper documentation or description of its detection, training, evaluation path. Also includes projects that require extensive retraining or refitting to be usable."
+rules_content = "IDS- or antivirus-relevant detection signatures, rules, policies, queries, or threat content rather than a detector."
+support_tooling = "IDS-specific or security-monitoring tooling that collects, aggregates, searches, prepares, converts, labels, tests, deploys, manages, or visualizes detection and monitoring evidence. Includes security telemetry monitors and log-analysis tools without a principal intrusion decision engine."
+out_of_scope = "Dataset-only repository, offensive-only tool, generic monitor, tutorial without a material implementation, list, unrelated library, or mere IDS mention/use example."
+uncertain = "Evidence cannot support a reliable repository-level role."
+
+[prompt_tables.scopes]
+network = "Observes communications as packets, flows, frames, sessions, or protocol exchanges, including enterprise, cloud, IoT/IIoT, industrial, smart-grid, and vehicle networks."
+host_endpoint = "Observes files, processes, events, system calls, or workload state on servers, desktops, mobile devices, virtual machines, containers, cloud workloads, or embedded hosts."
+wireless = "Observes Wi-Fi, cellular, sensor, radio, ad-hoc, or other wireless protocols, networks, signals, or devices."
+database = "Observes database queries, transactions, audit trails, or database state."
+provenance = "Uses information-flow or system-provenance graphs and event lineage."
+application = "Observes application-layer behavior such as web requests, APIs, services, middleware, application protocols, or application events."
+multi_scope = "Directly combines two or more materially different observation scopes."
+unknown = "Observation scope is not established by the evidence."
+
+[prompt_tables.capabilities]
+detection = "Identifies suspicious, malicious, anomalous, or policy-violating activity."
+prevention = "Actively blocks, drops, rejects, or prevents detected activity."
+monitoring = "Collects or presents security-relevant state without necessarily deciding or acting."
+
+[prompt_tables.methods]
+signature_based = "Matches known attack signatures or fingerprints."
+rule_based = "Evaluates explicit logical rules, policies, or expert conditions."
+anomaly_based = "Detects deviations from learned or defined normal behavior."
+protocol_analysis = "Tracks communication, application, industrial, embedded, or vehicle protocol states or semantics to identify invalid, unexpected, or malicious behavior."
+ml_based = "Uses machine learning not more specifically identified as neural network"
+nn_based = "Uses a neural network of any kind."
+unknown = "Detection method is not established by the evidence."
+
+[prompt_tables.observation_objects]
+packet_analysis = "Analyzes packet headers or payloads."
+flow_analysis = "Analyzes aggregated network-flow or session records, mostly in the form of CSVs. This category explicitly excludes PCAPs and network interface data."
+log_analysis = "Analyzes operating-system, application, security, or device logs."
+system_calls = "Analyzes system-call sequences, arguments, or frequencies."
+file_analysis = "Analyzes file content, bytes, hashes, names, metadata, binaries, archives, or uploaded/cloud-stored objects as input. Includes malware-content scanning and file-integrity analysis. Scanning process memory alone or merely writing files/logs does not establish this object."
+unknown = "The analyzed observation object is not established by the evidence."

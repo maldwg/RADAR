@@ -1,0 +1,12 @@
+schema_version = "1.0"
+provider = "semantic_scholar"
+# Native Semantic Scholar bulk syntax: + means AND, | means OR.
+# This query is an additional retrieval strategy, not a claim of exact replication.
+search_parameter = "bulk"
+from_publication_date = "2015-01-01"
+to_publication_date = "2025-09-25"
+named_entity_seeding = false
+
+[[queries]]
+name = "core_concepts"
+search = 'conformal + ("treatment effect" | counterfactual | "causal effect" | "off-policy" | "dose-response")'

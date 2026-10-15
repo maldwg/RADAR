@@ -4,18 +4,20 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 from unittest.mock import patch
 
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.csvio import atomic_write_csv, read_csv
-from ids_meta.common.nli import (
+from radar.common.cache import PipelineCache
+from radar.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
+from radar.common.nli import (
     EvidenceChunk, NLIField, NLIProfile, NLIRuntimeConfig, NLIScore,
     classify_nli_baseline, infer_nli_fields, nli_profile_hash, rescore_nli_rows,
 )
-from ids_meta.common.nli_diagnostics import NLIThresholdGrid, build_nli_threshold_diagnostics
-from ids_meta.common.ollama import EvidenceSection
-from ids_meta.common.evaluation import load_rating_profile
-from ids_meta.github.schema import CANDIDATE_COLUMNS
+from radar.common.nli_diagnostics import NLIThresholdGrid, build_nli_threshold_diagnostics
+from radar.common.ollama import EvidenceSection
+from radar.common.evaluation import load_rating_profile
+from radar.github.schema import CANDIDATE_COLUMNS
 
 
 class FakeNLIBackend:
@@ -100,24 +102,24 @@ class NLITests(unittest.TestCase):
                 first = classify_nli_baseline(
                     "github", candidates, output, cache, profile, _config(),
                     backend=FakeNLIBackend(), progress_every=1,
-                )
+                 adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
                 resumed = classify_nli_baseline(
                     "github", candidates, output, cache, profile, _config(),
                     backend=FakeNLIBackend(), progress_every=1,
-                )
+                 adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
             self.assertEqual(first[0]["decision"], "exclude")
             self.assertEqual(first[0]["classifier_method"], "nli")
             self.assertEqual(first[0]["classified_at"], resumed[0]["classified_at"])
             self.assertEqual(read_csv(output)[0]["nli_model_revision"], "revision-1")
 
             with PipelineCache(root / "empty-cache.sqlite3") as empty_cache, patch(
-                "ids_meta.common.nli.TransformersNLIBackend",
+                "radar.common.nli.TransformersNLIBackend",
                 side_effect=AssertionError("a compatible output CSV must not initialize the model"),
             ):
                 reused_from_csv = classify_nli_baseline(
                     "github", candidates, output, empty_cache, profile, _config(),
                     progress_every=1,
-                )
+                 adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
             self.assertEqual(reused_from_csv[0]["classified_at"], first[0]["classified_at"])
 
     def test_saved_scores_can_be_rescored_without_a_backend(self) -> None:
@@ -133,8 +135,8 @@ class NLITests(unittest.TestCase):
         row = {
             "github_repo_id": "g1", "fork": "false", "nli_scores_json": json.dumps(audit),
         }
-        relaxed = rescore_nli_rows("github", [row], profile, .5, .1)[0]
-        strict = rescore_nli_rows("github", [row], profile, .9, .1)[0]
+        relaxed = rescore_nli_rows("github", [row], profile, .5, .1, adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})[0]
+        strict = rescore_nli_rows("github", [row], profile, .9, .1, adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})[0]
         self.assertEqual(relaxed["decision"], "exclude")
         self.assertEqual(strict["decision"], "uncertain")
 
@@ -157,7 +159,7 @@ class NLITests(unittest.TestCase):
                 "classifier_profile_hash": nli_profile_hash(profile, _config()),
                 "nli_entailment_threshold": ".5", "nli_label_margin": ".1",
                 "nli_scores_json": json.dumps(audit),
-            }], [
+             'classifier_supported_fields': '*'}], [
                 "github_repo_id", "full_name", "fork", "decision", "classifier_method",
                 "classifier_profile_hash", "nli_entailment_threshold", "nli_label_margin",
                 "nli_scores_json",

@@ -4,23 +4,29 @@ import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 
 import pandas as pd
 
-from ids_meta.common.baselines import infer_keyword_fields, load_keyword_taxonomy_profile
-from ids_meta.common.config import load_prompt_profile, load_settings
-from ids_meta.common.csvio import atomic_write_csv
-from ids_meta.common.ensemble import _github_field_consensus, ensemble_classifications
-from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.common.nli import NLIProfile, decide_nli_fields, load_nli_profile
-from ids_meta.github.baseline import normalize_keyword_result, normalize_nli_result
-from ids_meta.github.pipeline import prompt
-from ids_meta.github.schema import CENTRALIZATION, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, normalize_response
-from ids_meta.openalex.schema import RESPONSE_SCHEMA as OPENALEX_SCHEMA
-from ids_meta.plotting.common import configure_style
-from ids_meta.plotting.compare import build_classifiers
-from ids_meta.plotting.evaluation import _field_accuracy
-from ids_meta.plotting.github import _centralization_plots
+from radar.common.baselines import infer_keyword_fields, load_keyword_taxonomy_profile
+from radar.common.config import load_prompt_profile, load_settings
+from tests.fixtures import write_csv as atomic_write_csv
+from radar.common.ensemble import _github_field_consensus, ensemble_classifications
+from radar.common.evaluation import evaluate_results, load_rating_profile
+from radar.common.nli import NLIProfile, decide_nli_fields, load_nli_profile
+from radar.github.baseline import normalize_keyword_result, normalize_nli_result
+from radar.github.pipeline import prompt
+from radar.github.schema import CENTRALIZATION, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, normalize_response
+from radar.openalex.schema import RESPONSE_SCHEMA as OPENALEX_SCHEMA
+from radar.plotting.common import configure_style
+from radar.plotting.compare import build_classifiers
+from radar.plotting.evaluation import _field_accuracy
+from radar.plotting.github import _centralization_plots
+
+from radar.common.provenance import audited_bundle
+_field_accuracy = audited_bundle(_field_accuracy)
+_centralization_plots = audited_bundle(_centralization_plots)
+
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,12 +37,12 @@ class GitHubCentralizationTests(unittest.TestCase):
 
     def test_schema_prompt_and_normalizers(self) -> None:
         """Require a direct model field and keep it separate from inclusion and OpenAlex."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         self.assertEqual(RESPONSE_SCHEMA["properties"]["centralization"]["enum"], list(CENTRALIZATION))
         self.assertIn("centralization", RESPONSE_SCHEMA["required"])
         self.assertIn("centralization", CLASSIFICATION_COLUMNS)
         self.assertNotIn("centralization", OPENALEX_SCHEMA["properties"])
-        rendered = prompt([], load_prompt_profile(settings, "github"))
+        rendered = prompt([], load_prompt_profile(settings, "github"), system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertIn("Collaborative IDS / CIDS", rendered)
         self.assertIn("distributed IDS / DIDS", rendered)
         self.assertNotIn("${centralization}", rendered)
@@ -50,16 +56,16 @@ class GitHubCentralizationTests(unittest.TestCase):
         for label in (*CENTRALIZATION, "invalid"):
             raw = {"role": "out_of_scope", "centralization": label}
             expected = label if label in CENTRALIZATION else "unknown"
-            self.assertEqual(normalize_response(raw, [], {"require_verified_quote": False}, False)["centralization"], expected)
+            self.assertEqual(normalize_response(raw, [], {"require_verified_quote": False}, False, system_type_profile=SYSTEM_TYPE_PROFILE)["centralization"], expected)
             for normalizer in (normalize_keyword_result, normalize_nli_result):
-                result = normalizer(raw, {}, {})
+                result = normalizer(raw, {}, {"system_type_profile": SYSTEM_TYPE_PROFILE})
                 self.assertEqual(result["centralization"], expected)
                 self.assertEqual(result["decision"], "exclude")
                 self.assertIn("centralization", result["classifier_supported_fields"].split(";"))
 
     def test_architecture_keywords_and_abstention(self) -> None:
         """Honor central/CIDS/DIDS vocabulary without matching DDoS or choosing tied classes."""
-        profile = load_keyword_taxonomy_profile(load_settings(ROOT / "config/default.toml"), "github")
+        profile = load_keyword_taxonomy_profile(load_settings(ROOT / "config/studies/ids_repositories/study.toml"), "github")
         examples = {
             "central analysis engine": "centralized",
             "single-node detector": "centralized",
@@ -100,7 +106,7 @@ class GitHubCentralizationTests(unittest.TestCase):
             inputs = {}
             for model, vote in votes.items():
                 path = root / f"{model}.csv"
-                atomic_write_csv(path, [{"github_repo_id": "1", "decision": "uncertain", **vote}],
+                atomic_write_csv(path, [{"github_repo_id": "1", "decision": "uncertain", **vote, 'classifier_supported_fields': '*'}],
                                  ["github_repo_id", "decision", "role", "centralization"])
                 inputs[model] = path
             rows = ensemble_classifications("github", inputs, root / "ensemble.csv", .5, CLASSIFICATION_COLUMNS)
@@ -110,7 +116,7 @@ class GitHubCentralizationTests(unittest.TestCase):
 
     def test_reference_scoring_and_svg_pdf_plots(self) -> None:
         """Score supported topology only and render it in evaluation and general figures."""
-        profile = load_rating_profile(ROOT / "config/evaluation/github_ghml23.toml", "github")
+        profile = load_rating_profile(ROOT / "config/studies/ids_repositories/evaluation/references.toml", "github")
         counts = Counter(entity["centralization"] for entity in profile.entities.values())
         self.assertEqual(sum(counts.values()), 120)
         self.assertGreater(counts["centralized"], 0)

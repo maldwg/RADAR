@@ -1,6 +1,0 @@
-classifier,classifier_method,metric,classifier_id,value,rated_entities,confidence_level,ci_low,ci_high,tp,fp,tn,fn,rating_profile
-Keyword,keyword,accuracy,keyword-score,0.05714285714285714,105,0.95,0.026449634437321685,0.1190965479856042,2,0,4,99,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-NLI · moritzlaurer-deberta-v3-base-mnli-fever-anli,nli,accuracy,MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,0.11428571428571428,105,0.95,0.06659702003579052,0.1892012678809514,8,0,4,93,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-LLM · gemma4-31b,llm,accuracy,gemma4:31b,0.34285714285714286,105,0.95,0.25905721856144326,0.43774949133056273,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-LLM · qwen3-8-27b,llm,accuracy,qwen3.8:27b,0.34285714285714286,105,0.95,0.25905721856144326,0.43774949133056273,32,0,4,69,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml
-Ensemble,ensemble,accuracy,ensemble,0.3238095238095238,105,0.95,0.2418999623112691,0.41815604574946497,30,0,4,71,/home/max/Doktorarbeit/dataset-and-ids-metastudy/config/evaluation/openalex_ashraf_2026.toml

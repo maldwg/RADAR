@@ -10,18 +10,26 @@ from pathlib import Path
 
 import pandas as pd
 
-from ids_meta.cli import _evaluation_jobs, _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
-from ids_meta.common.config import Settings, load_settings, load_system_type_profile
-from ids_meta.common.csvio import atomic_write_csv, read_csv
-from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.common.ollama import decision_profile
-from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
-from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING
-from ids_meta.plotting.evaluation import _recovered_taxonomy_accuracy, _reference_uncertainty, _taxonomy_accuracy_overview, build as build_evaluation_plots
-from ids_meta.plotting.compare import _reference_uncertainty_overview
-from ids_meta.plotting.common import configure_style
-from ids_meta.plotting.recovery import recovered_taxonomy_table
-from ids_meta.plotting.uncertainty import reference_uncertainty
+from radar.cli import _evaluation_jobs, _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
+from radar.common.config import Settings, load_settings, load_system_type_profile
+from radar.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
+from radar.common.evaluation import evaluate_results, load_rating_profile
+from radar.common.ollama import decision_profile
+from radar.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
+from radar.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING
+from radar.plotting.evaluation import _recovered_taxonomy_accuracy, _reference_uncertainty, _taxonomy_accuracy_overview, build as build_evaluation_plots
+from radar.plotting.compare import _reference_uncertainty_overview
+from radar.plotting.common import configure_style
+from radar.plotting.recovery import recovered_taxonomy_table
+from radar.plotting.uncertainty import reference_uncertainty
+
+from radar.common.provenance import audited_bundle
+_recovered_taxonomy_accuracy = audited_bundle(_recovered_taxonomy_accuracy)
+_reference_uncertainty = audited_bundle(_reference_uncertainty)
+_taxonomy_accuracy_overview = audited_bundle(_taxonomy_accuracy_overview)
+_reference_uncertainty_overview = audited_bundle(_reference_uncertainty_overview)
+
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +72,7 @@ class EvaluationTests(unittest.TestCase):
                 configure_style()
 
     def test_reference_uncertainty_shows_no_attempts_as_unavailable_not_zero(self) -> None:
+        """Keep missing classification attempts distinct from zero observed uncertainty."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             inputs = {}
@@ -127,7 +136,7 @@ class EvaluationTests(unittest.TestCase):
                 svg = (root / "07_recovered_taxonomy_accuracy.svg").read_text()
                 for label in ["90.0%", "0.0%", "N/A", "n=80", "n=60", "recovered 80/100"]:
                     self.assertIn(label, svg)
-                self.assertNotIn("ids-meta-subcaption", svg)
+                self.assertNotIn("radar-subcaption", svg)
             finally:
                 configure_style()
 
@@ -174,7 +183,7 @@ class EvaluationTests(unittest.TestCase):
 
     def test_ghml23_profile_preserves_upstream_ground_truth_and_crosswalk(self) -> None:
         """Keep the upstream snapshot and explicit project-taxonomy crosswalk auditable."""
-        path = ROOT / "config/evaluation/github_ghml23.toml"
+        path = ROOT / "config/studies/ids_repositories/evaluation/references.toml"
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
         profile = load_rating_profile(path, "github")
@@ -186,7 +195,7 @@ class EvaluationTests(unittest.TestCase):
             "secumon": 100, "imageocr": 10, "pentest": 10,
         })
         self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 71, "exclude": 47, "uncertain": 2})
-        self.assertEqual(raw["crosswalk_version"], "ghml23-to-ids-meta-v10")
+        self.assertEqual(raw["crosswalk_version"], "ghml23-to-radar-v10")
         self.assertEqual(raw["taxonomy_revision"], "antivirus-file-scanning-v6")
         self.assertIn("what concrete evidence", raw["taxonomy_semantics"]["observation_objects"].casefold())
         self.assertIn("how", raw["taxonomy_semantics"]["detection_methods"].casefold())
@@ -195,7 +204,7 @@ class EvaluationTests(unittest.TestCase):
             "role", "observation_scopes", "observation_objects", "capabilities", "detection_methods",
             "primary_system_type", "system_types", "centralization",
         ])
-        configured_types = set(system_type_codes(load_system_type_profile(load_settings(ROOT / "config/default.toml"), "github")))
+        configured_types = set(system_type_codes(load_system_type_profile(load_settings(ROOT / "config/studies/ids_repositories/study.toml"), "github")))
         for row in rows:
             self.assertIn(row["role"], AUDIT_ROLES)
             self.assertLessEqual(set(row["observation_scopes"]), set(SCOPES))
@@ -270,12 +279,13 @@ class EvaluationTests(unittest.TestCase):
 
     def test_ashraf_2026_profile_preserves_requested_table_2_dataset_types(self) -> None:
         """Keep the selected survey artifacts source-traceable and the taxonomy exact."""
-        path = ROOT / "config/evaluation/openalex_ashraf_2026.toml"
-        default_settings = load_settings(ROOT / "config/default.toml")
-        reference_sets = default_settings.section("evaluation")["reference_sets"]
+        path = ROOT / "config/studies/ids_datasets/evaluation/references.toml"
+        default_settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
+        dataset_settings = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
+        reference_sets = default_settings.section("evaluation")["reference_sets"] + dataset_settings.section("evaluation")["reference_sets"]
         configured = {item["name"]: item for item in reference_sets}
-        self.assertEqual(configured["ghml23"]["profile"], "config/evaluation/github_ghml23.toml")
-        self.assertEqual(configured["shield"]["profile"], "config/evaluation/openalex_ashraf_2026.toml")
+        self.assertEqual(configured["ghml23"]["profile"], str(ROOT / "config/studies/ids_repositories/evaluation/references.toml"))
+        self.assertEqual(configured["shield"]["profile"], str(path))
         self.assertEqual(default_settings.root / configured["shield"]["profile"], path)
         with path.open("rb") as handle:
             raw = tomllib.load(handle)
@@ -344,11 +354,11 @@ class EvaluationTests(unittest.TestCase):
             profile_path = self._write_profile(root / "github.toml", "github", body)
             classifications = root / "classifications.csv"
             atomic_write_csv(classifications, [
-                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "capabilities": "prevention;detection", "detection_methods": "signature_based"},
-                {"github_repo_id": "g2", "decision": "accept"},
-                {"github_repo_id": "g3", "decision": "exclude"},
-                {"github_repo_id": "g4", "decision": "uncertain"},
-                {"github_repo_id": "unrated", "decision": "accept"},
+                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "capabilities": "prevention;detection", "detection_methods": "signature_based", 'classifier_supported_fields': '*'},
+                {"github_repo_id": "g2", "decision": "accept", 'classifier_supported_fields': '*'},
+                {"github_repo_id": "g3", "decision": "exclude", 'classifier_supported_fields': '*'},
+                {"github_repo_id": "g4", "decision": "uncertain", 'classifier_supported_fields': '*'},
+                {"github_repo_id": "unrated", "decision": "accept", 'classifier_supported_fields': '*'},
             ], ["github_repo_id", "decision", "role", "observation_scopes", "capabilities", "detection_methods"])
             candidates = root / "candidates.csv"
             atomic_write_csv(candidates, [{"github_repo_id": f"g{index}"} for index in range(1, 6)], ["github_repo_id"])
@@ -384,6 +394,7 @@ class EvaluationTests(unittest.TestCase):
                 {
                     "metrics.json", "instances.csv", "decision_confusion.csv",
                     "field_metrics.csv", "field_label_metrics.csv", "README.md",
+                    "reporting.sqlite3",
                 },
             )
             self.assertNotIn("mean_jaccard", result.field_metrics[0])
@@ -406,8 +417,8 @@ class EvaluationTests(unittest.TestCase):
             profile_path = self._write_profile(root / "openalex.toml", "openalex", body)
             actual = root / "classifications.csv"
             atomic_write_csv(actual, [
-                {"openalex_id": "https://openalex.org/W1", "decision": "accept", "paper_role": "original_release", "relevance_tier": "core", "artifact_type": "dataset", "domain": "general_network", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled"},
-                {"openalex_id": "https://openalex.org/W2", "decision": "exclude"},
+                {"openalex_id": "https://openalex.org/W1", "decision": "accept", "paper_role": "original_release", "relevance_tier": "core", "artifact_type": "dataset", "domain": "general_network", "data_form": "packet", "capture_environment": "synthetic_lab", "labeling": "labeled", 'classifier_supported_fields': '*'},
+                {"openalex_id": "https://openalex.org/W2", "decision": "exclude", 'classifier_supported_fields': '*'},
             ], ["openalex_id", "decision", "paper_role", "relevance_tier", "artifact_type", "domain", "data_form", "capture_environment", "labeling"])
             result = evaluate_results(load_rating_profile(profile_path, "openalex"), actual, root / "evaluation")
             self.assertEqual(result.metrics["operational"]["ACC"], 1.0)
@@ -453,31 +464,31 @@ class EvaluationTests(unittest.TestCase):
                     "relevance_tier": "adjacent", "artifact_name": "CICIDS2017",
                     "artifact_display_name": "CICIDS2017", "artifact_aliases": "",
                     "artifact_type": "dataset", "domain": "general_network",
-                },
+                 'classifier_supported_fields': '*'},
                 {
                     "openalex_id": "W-original", "decision": "accept", "paper_role": "original_release",
                     "relevance_tier": "core", "artifact_name": "Canadian Institute for Cybersecurity IDS 2017",
                     "artifact_display_name": "CICIDS2017", "artifact_aliases": "CIC-IDS 2017",
                     "artifact_type": "dataset", "domain": "general_network",
-                },
+                 'classifier_supported_fields': '*'},
                 {
                     "openalex_id": "https://openalex.org/W-reference", "decision": "accept",
                     "paper_role": "original_release", "relevance_tier": "core",
                     "artifact_name": "Long descriptive source title", "artifact_display_name": "LDS",
                     "artifact_aliases": "", "artifact_type": "dataset", "domain": "host_endpoint",
-                },
+                 'classifier_supported_fields': '*'},
                 {
                     "openalex_id": "https://openalex.org/W-downstream", "decision": "exclude",
                     "paper_role": "downstream_application", "relevance_tier": "excluded",
                     "artifact_name": "", "artifact_display_name": "", "artifact_aliases": "",
                     "artifact_type": "unknown", "domain": "general_network",
-                },
+                 'classifier_supported_fields': '*'},
                 {
                     "openalex_id": "https://openalex.org/W-uncertain", "decision": "uncertain",
                     "paper_role": "uncertain", "relevance_tier": "uncertain",
                     "artifact_name": "", "artifact_display_name": "", "artifact_aliases": "",
                     "artifact_type": "unknown", "domain": "iot_iiot",
-                },
+                 'classifier_supported_fields': '*'},
             ], [
                 "openalex_id", "decision", "paper_role", "relevance_tier", "artifact_name",
                 "artifact_display_name", "artifact_aliases", "artifact_type", "domain",
@@ -532,9 +543,9 @@ class EvaluationTests(unittest.TestCase):
             )
             actual = root / "classifications.csv"
             atomic_write_csv(actual, [
-                {"openalex_id": "https://openalex.org/W-good", "artifact_name": "GoodIDS", "decision": "accept", "artifact_type": "dataset"},
-                {"openalex_id": "https://openalex.org/W-citation", "artifact_name": "Other Dataset", "decision": "accept", "artifact_type": "dataset"},
-                {"openalex_id": "https://openalex.org/W-bad", "artifact_name": "BadIDS", "decision": "accept", "artifact_type": "dataset"},
+                {"openalex_id": "https://openalex.org/W-good", "artifact_name": "GoodIDS", "decision": "accept", "artifact_type": "dataset", 'classifier_supported_fields': '*', 'artifact_display_name': "GoodIDS", 'resource_name': "GoodIDS"},
+                {"openalex_id": "https://openalex.org/W-citation", "artifact_name": "Other Dataset", "decision": "accept", "artifact_type": "dataset", 'classifier_supported_fields': '*', 'artifact_display_name': "Other Dataset", 'resource_name': "Other Dataset"},
+                {"openalex_id": "https://openalex.org/W-bad", "artifact_name": "BadIDS", "decision": "accept", "artifact_type": "dataset", 'classifier_supported_fields': '*', 'artifact_display_name': "BadIDS", 'resource_name': "BadIDS"},
             ], ["openalex_id", "artifact_name", "decision", "artifact_type"])
             result = evaluate_results(load_rating_profile(profile_path, "openalex"), actual, root / "evaluation")
             self.assertEqual(result.metrics["benchmark_scope"], "mixed_artifact_reference_set")
@@ -554,7 +565,7 @@ class EvaluationTests(unittest.TestCase):
             root = Path(directory)
             profile = load_rating_profile(self._write_profile(root / "github.toml", "github", '[[entities]]\nrepository = "Owner/Detector"\ndecision = "accept"\n'), "github")
             actual = root / "github.csv"
-            atomic_write_csv(actual, [{"github_repo_id": "42", "full_name": "owner/detector", "decision": "accept"}], ["github_repo_id", "full_name", "decision"])
+            atomic_write_csv(actual, [{"github_repo_id": "42", "full_name": "owner/detector", "decision": "accept", 'classifier_supported_fields': '*'}], ["github_repo_id", "full_name", "decision"])
             candidates = root / "github-candidates.csv"
             atomic_write_csv(candidates, [{"github_repo_id": "42", "full_name": "Owner/Detector"}], ["github_repo_id", "full_name"])
             result = evaluate_results(profile, actual, root / "github-evaluation", candidates)
@@ -563,7 +574,7 @@ class EvaluationTests(unittest.TestCase):
 
             title_profile = load_rating_profile(self._write_profile(root / "openalex.toml", "openalex", '[[entities]]\ntitle = "Repeated title"\ndecision = "exclude"\n'), "openalex")
             duplicate_actual = root / "openalex.csv"
-            atomic_write_csv(duplicate_actual, [{"openalex_id": "W1", "title": "Repeated title", "decision": "exclude"}, {"openalex_id": "W2", "title": "repeated  title", "decision": "exclude"}], ["openalex_id", "title", "decision"])
+            atomic_write_csv(duplicate_actual, [{"openalex_id": "W1", "title": "Repeated title", "decision": "exclude", 'classifier_supported_fields': '*'}, {"openalex_id": "W2", "title": "repeated  title", "decision": "exclude", 'classifier_supported_fields': '*'}], ["openalex_id", "title", "decision"])
             with self.assertRaisesRegex(ValueError, "ambiguous evaluation selector"):
                 evaluate_results(title_profile, duplicate_actual, root / "openalex-evaluation")
 
@@ -585,8 +596,8 @@ class EvaluationTests(unittest.TestCase):
             profile = load_rating_profile(self._write_profile(root / "github.toml", "github", body), "github")
             classifications = root / "classifications.csv"
             atomic_write_csv(classifications, [
-                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS"},
-                {"github_repo_id": "g2", "decision": "uncertain", "role": "uncertain", "observation_scopes": "unknown", "observation_objects": "unknown", "capabilities": "", "detection_methods": "unknown", "primary_system_type": "unknown", "system_types": "unknown"},
+                {"github_repo_id": "g1", "decision": "accept", "role": "native_detector", "observation_scopes": "network", "observation_objects": "packet_analysis", "capabilities": "detection", "detection_methods": "signature_based", "primary_system_type": "NIDS", "system_types": "NIDS", 'classifier_supported_fields': '*'},
+                {"github_repo_id": "g2", "decision": "uncertain", "role": "uncertain", "observation_scopes": "unknown", "observation_objects": "unknown", "capabilities": "", "detection_methods": "unknown", "primary_system_type": "unknown", "system_types": "unknown", 'classifier_supported_fields': '*'},
             ], ["github_repo_id", "decision", "role", "observation_scopes", "observation_objects", "capabilities", "detection_methods", "primary_system_type", "system_types"])
             candidates = root / "candidates.csv"
             atomic_write_csv(candidates, [{"github_repo_id": "g1"}, {"github_repo_id": "g2"}], ["github_repo_id"])
@@ -718,12 +729,16 @@ class EvaluationTests(unittest.TestCase):
                 "plots_dir": str(root / "plots"), "runs_dir": str(root / "runs"),
                 "evaluation_dir": str(root / "evaluation"),
                 "github_cache": str(root / "github.sqlite3"), "openalex_cache": str(root / "openalex.sqlite3"),
-                "github_terms": str(ROOT / "config/terms/github.toml"), "openalex_terms": str(ROOT / "config/terms/openalex.toml"),
-                "github_prompts": str(ROOT / "config/prompts/github.toml"), "openalex_prompts": str(ROOT / "config/prompts/openalex.toml"),
-                "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
+                "github_terms": str(ROOT / "config/studies/ids_repositories/search/github.toml"), "openalex_terms": str(ROOT / "config/studies/ids_datasets/search/openalex.toml"),
+                "github_prompts": str(ROOT / "config/studies/ids_repositories/prompts/classification.toml"),
+                "github_screening": str(ROOT / "config/studies/ids_repositories/screening.toml"),
+                "openalex_screening": str(ROOT / "config/studies/ids_datasets/screening.toml"),
+                "github_taxonomy": str(ROOT / "config/studies/ids_repositories/taxonomy.toml"),
+                "openalex_taxonomy": str(ROOT / "config/studies/ids_datasets/taxonomy.toml"), "openalex_prompts": str(ROOT / "config/studies/ids_datasets/prompts/classification.toml"),
+                "github_system_types": str(ROOT / "config/studies/ids_repositories/taxonomy.toml"),
             },
             "logging": {"progress_every": 25},
-            "ollama": {"model": "fixture-model", "models": [], "temperature": 0.0, "seed": 42},
+            "ollama": {"models": ["fixture-model"], "temperature": 0.0, "seed": 42},
             "ensemble": {"enabled": False, "models": [], "threshold": 0.5},
             "evaluation": {
                 "enabled": False,
@@ -746,18 +761,18 @@ class EvaluationTests(unittest.TestCase):
             settings = self._settings(root, github_profile, openalex_profile)
             github_actual = root / "github-actual.csv"
             github_candidates = root / "github-candidates.csv"
-            atomic_write_csv(github_actual, [{"github_repo_id": "1", "decision": "accept"}], ["github_repo_id", "decision"])
+            atomic_write_csv(github_actual, [{"github_repo_id": "1", "decision": "accept", 'classifier_supported_fields': '*'}], ["github_repo_id", "decision"])
             atomic_write_csv(github_candidates, [{"github_repo_id": "1"}], ["github_repo_id"])
             openalex_actual = root / "openalex-actual.csv"
             openalex_candidates = root / "openalex-candidates.csv"
-            atomic_write_csv(openalex_actual, [{"openalex_id": "W1", "decision": "exclude"}], ["openalex_id", "decision"])
+            atomic_write_csv(openalex_actual, [{"openalex_id": "W1", "decision": "exclude", 'classifier_supported_fields': '*'}], ["openalex_id", "decision"])
             atomic_write_csv(openalex_candidates, [{"openalex_id": "W1"}], ["openalex_id"])
 
             common = {"limit": None, "collect_limit": None, "classify_limit": None, "classify_all": False, "resume": True, "dry_run": False}
             github_counts = _execute_github(argparse.Namespace(action="evaluate", input=github_actual, output=root / "github-report", candidates=github_candidates, **common), settings)
             openalex_counts = _execute_openalex(argparse.Namespace(action="evaluate", input=openalex_actual, output=root / "openalex-report", candidates=openalex_candidates, **common), settings)
-            self.assertEqual(github_counts["evaluation_tp_ghml23"], 1)
-            self.assertEqual(openalex_counts["evaluation_tn_shield"], 1)
+            self.assertEqual(github_counts["evaluation_tp_fixture-model_ghml23"], 1)
+            self.assertEqual(openalex_counts["evaluation_tn_fixture-model_shield"], 1)
             self.assertTrue((root / "github-report/metrics.json").is_file())
             self.assertTrue((root / "openalex-report/metrics.json").is_file())
             self.assertTrue((root / "github-report/figures/03_taxonomy_fields.svg").is_file())
@@ -781,14 +796,14 @@ class EvaluationTests(unittest.TestCase):
             atomic_write_csv(openalex_candidates, [{"openalex_id": "W1"}], ["openalex_id"])
             for model, decision in zip(models, ("accept", "exclude")):
                 target = _execution_paths(settings, "github", models)[model]["classifications"]
-                atomic_write_csv(target, [{"github_repo_id": "1", "decision": decision}], ["github_repo_id", "decision"])
+                atomic_write_csv(target, [{"github_repo_id": "1", "decision": decision, 'classifier_supported_fields': '*'}], ["github_repo_id", "decision"])
             github_ensemble = _variant_paths(settings, "github", Path("ensemble"))["classifications"]
-            atomic_write_csv(github_ensemble, [{"github_repo_id": "1", "decision": "uncertain"}], ["github_repo_id", "decision"])
+            atomic_write_csv(github_ensemble, [{"github_repo_id": "1", "decision": "uncertain", 'classifier_supported_fields': '*'}], ["github_repo_id", "decision"])
             for model, decision in zip(models, ("exclude", "accept")):
                 target = _execution_paths(settings, "openalex", models)[model]["classifications"]
-                atomic_write_csv(target, [{"openalex_id": "W1", "decision": decision}], ["openalex_id", "decision"])
+                atomic_write_csv(target, [{"openalex_id": "W1", "decision": decision, 'classifier_supported_fields': '*'}], ["openalex_id", "decision"])
             openalex_ensemble = _variant_paths(settings, "openalex", Path("ensemble"))["classifications"]
-            atomic_write_csv(openalex_ensemble, [{"openalex_id": "W1", "decision": "uncertain"}], ["openalex_id", "decision"])
+            atomic_write_csv(openalex_ensemble, [{"openalex_id": "W1", "decision": "uncertain", 'classifier_supported_fields': '*'}], ["openalex_id", "decision"])
 
             common = {"action": "evaluate", "limit": None, "collect_limit": None, "classify_limit": None, "classify_all": False, "resume": True, "dry_run": False, "input": None, "output": None, "candidates": None}
             github_counts = _execute_github(argparse.Namespace(**common), settings)

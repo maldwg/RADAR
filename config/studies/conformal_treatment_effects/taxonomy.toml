@@ -1,0 +1,36 @@
+schema_version = "1.0"
+
+[provider]
+name = "memmesheimer_conformal_v1"
+display_name = "Memmesheimer conformal-treatment review (arXiv v1)"
+entity_kind = "paper"
+identity = "paper_id"
+label = "title"
+capabilities = ["publication_dates", "evidence"]
+
+[selectors]
+id = "paper_id"
+title = "title"
+
+[taxonomy]
+version = "memmesheimer-v1-table3-assumptions-v1"
+fields = ["sutva", "strong_ignorability", "overlap"]
+multilabel = []
+
+[taxonomy.labels]
+sutva = "SUTVA assumption"
+strong_ignorability = "Strong ignorability assumption"
+overlap = "Overlap assumption"
+
+# Labels describe requirements of the method, not truth in an experimental dataset.
+[assessment_fields.sutva]
+description = "Does the proposed method require the stable unit treatment value assumption (SUTVA), including consistency and no interference?"
+values = ["required", "not_required", "unknown"]
+
+[assessment_fields.strong_ignorability]
+description = "Does the proposed method require strong ignorability / no unmeasured confounding? A method allowing hidden confounding can explicitly not require it."
+values = ["required", "not_required", "unknown"]
+
+[assessment_fields.overlap]
+description = "Does the proposed method require overlap / positivity of treatment assignment?"
+values = ["required", "not_required", "unknown"]

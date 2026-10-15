@@ -1,0 +1,125 @@
+[
+  {
+    "paper_id": "synthetic:pass",
+    "title": "Synthetic eligible method",
+    "fixture_kind": "synthetic_demonstration",
+    "full_text": "This is synthetic fixture text, not a real research paper. It describes an original conformal treatment-effect method and its prediction regions. It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+    "criteria": {
+      "F1": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "F2": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "F3": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "F4": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "F5": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q1": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q2": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q3": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q4": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q5": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      }
+    }
+  },
+  {
+    "paper_id": "synthetic:reject",
+    "title": "Synthetic ineligible method",
+    "fixture_kind": "synthetic_demonstration",
+    "full_text": "This is synthetic fixture text, not a real research paper. It describes an original conformal treatment-effect method and its prediction regions. It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+    "criteria": {
+      "F1": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "F2": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "F3": {
+        "value": "no",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "F4": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "F5": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q1": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q2": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q3": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q4": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      },
+      "Q5": {
+        "value": "yes",
+        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
+        "source": "full_text"
+      }
+    }
+  },
+  {
+    "paper_id": "synthetic:missing",
+    "title": "Synthetic missing evidence",
+    "fixture_kind": "synthetic_demonstration",
+    "full_text": "",
+    "criteria": {}
+  }
+]

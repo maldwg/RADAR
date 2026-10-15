@@ -1,0 +1,22 @@
+schema_version = "1.0"
+source = "local_library"
+evaluation_unit = "source_record"
+classification_fields = ["resource_type", "topics"]
+
+[[entities]]
+id = "example:paper-1"
+decision = "accept"
+resource_type = "dataset"
+topics = ["network", "host"]
+
+[[entities]]
+id = "example:paper-2"
+decision = "exclude"
+resource_type = "application"
+topics = ["network"]
+
+[[entities]]
+id = "example:paper-3"
+decision = "accept"
+resource_type = "dataset"
+topics = ["network"]

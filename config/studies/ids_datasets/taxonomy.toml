@@ -1,0 +1,75 @@
+schema_version = "1.0"
+
+[prompt_tables]
+
+[prompt_tables.roles]
+original_release = "This paper originates and makes available a concrete reusable dataset, corpus, trace collection, or benchmark data resource."
+versioned_release = "This paper explicitly introduces and makes available a materially new reusable version or extension of an existing resource, not merely preprocessing or a new split."
+generator_release = "This paper introduces a reusable tool, toolkit, framework, testbed, or process whose material contribution is generating research data."
+survey = "Reviews or catalogues existing resources without releasing a new one."
+downstream_application = "Uses existing or temporary experimental data to train, test, compare, or evaluate a method without releasing a materially new reusable resource."
+dataset_analysis = "Analyzes, repairs, critiques, relabels, transforms, merges, or characterizes an existing resource without an explicit materially new reusable release."
+unrelated = "Does not make a relevant dataset or generator contribution."
+uncertain = "Evidence cannot establish the paper's role."
+
+[prompt_tables.tiers]
+core = "Resource was created for intrusion, attack, malicious-behavior, or security-anomaly research."
+adjacent = "Original or versioned neutral traffic, log, telemetry, or trace release demonstrably reusable for IDS research but not created with security intent."
+excluded = "Work is not an eligible original or versioned release."
+uncertain = "Security intent or eligibility cannot be determined."
+
+[prompt_tables.artifact_types]
+dataset = "Released collection of observations, traces, events, records, features, or labels."
+generator_framework = "Reusable tool or framework that produces data but does not itself release a principal dataset."
+dataset_and_generator = "Contribution includes both a reusable generator and a generated or released dataset."
+unknown = "Resource form is not established by the evidence."
+
+[prompt_tables.domains]
+general_network = "General-purpose enterprise or network intrusion traffic."
+host_endpoint = "Host or endpoint operating-system, process, file, system-call, or endpoint-event data."
+iot_iiot = "IoT or industrial-IoT devices and networks."
+cloud = "Cloud-computing infrastructure, services, virtualized workloads, or cloud-network data."
+mobile_android = "Mobile-device or Android application, system, malware, or network data."
+electrical_smartgrid = "Electrical infrastructure, power-system, or smart-grid data."
+uav = "Unmanned aerial vehicle, drone, ground-control, or UAV-network data."
+vpn = "VPN or explicitly VPN-versus-non-VPN traffic data."
+unknown = "Security domain is not established."
+
+[prompt_tables.data_forms]
+packet = "Individual packet headers or payload captures."
+flow = "Aggregated flow or session records."
+network_traffic = "Network traffic without enough evidence to distinguish packet from flow."
+telemetry = "Measurements, counters, sensors, or operational telemetry."
+host_system_call = "Host events or system-call sequences."
+log = "Application, device, operating-system, or security logs."
+tabular_features = "Precomputed tabular feature vectors."
+can = "Automotive or industrial CAN frames."
+wireless = "Wireless-specific frames, signals, or measurements."
+mixed = "Materially combines multiple data forms."
+unknown = "Data representation is not established."
+
+[prompt_tables.environments]
+real_world = "Captured from operational or naturally occurring environments."
+synthetic_lab = "Generated, emulated, replayed, or captured in a controlled laboratory."
+hybrid = "Combines real-world and synthetic or laboratory data."
+unknown = "Capture setting is not established."
+
+[prompt_tables.labeling]
+labeled = "Provides ground-truth or class labels for the released observations."
+partially_labeled = "Only part of the data or label space has ground truth."
+unlabeled = "Released data intentionally has no labels."
+unknown = "Label availability is not established."
+
+[reconciliation]
+canonical_ambiguity_margin = 2.0
+canonical_direct_release_score = 4.0
+canonical_core_relevance_score = 1.0
+canonical_earliest_year_score = 8.0
+canonical_year_distance_penalty = 1.0
+canonical_year_distance_cap = 8
+canonical_citation_weight = 2.0
+
+[reconciliation.canonical_role_scores]
+original_release = 60.0
+generator_release = 60.0
+versioned_release = 20.0

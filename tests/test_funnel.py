@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from ids_meta.cli import build_parser
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import Settings
-from ids_meta.common.csvio import atomic_write_csv
-from ids_meta.funnel import build
+from radar.cli import build_parser
+from radar.common.cache import PipelineCache
+from radar.common.config import Settings
+from tests.fixtures import write_csv as atomic_write_csv
+from radar.funnel import build
 
 
 class FunnelTests(unittest.TestCase):
@@ -24,7 +24,7 @@ class FunnelTests(unittest.TestCase):
         )
         openalex_terms = root / "openalex_terms.toml"
         openalex_terms.write_text(
-            'schema_version = "1.0"\ndirect_queries = ["direct"]\n'
+            'schema_version = "1.0"\nqueries = [{name="direct", search="direct"}]\n'
             'survey_queries = ["survey"]\n[survey_publishers]\n',
             encoding="utf-8",
         )
@@ -33,11 +33,10 @@ class FunnelTests(unittest.TestCase):
                 "interim_dir": "interim", "processed_dir": "processed", "plots_dir": "plots",
                 "github_cache": "raw/github.sqlite3", "openalex_cache": "raw/openalex.sqlite3",
                 "github_terms": "github_terms.toml", "openalex_terms": "openalex_terms.toml",
-            },
-            "github": {"query_sample_size": 1000, "collection_limit": 10},
+             'evaluation_dir': str(root / 'evaluation')},
+            "github": {"query_limit_factor": 3, "collection_limit": 10},
             "openalex": {
-                "query_sample_size": 100, "survey_query_sample_size": 50,
-                "reference_sample_size": 25, "collection_limit": 80,
+                "query_limit_factor": 3, "collection_limit": 80,
             },
             "plots": {"formats": formats or ["svg"], "dpi": 72},
         })
@@ -58,16 +57,44 @@ class FunnelTests(unittest.TestCase):
             context = pd.read_csv(root / "plots/github/pipeline_funnel/data/discovery_context.csv")
         self.assertTrue(any(path.name == "00_pipeline_funnel.svg" for path in outputs))
         self.assertTrue(any(path.name == "00_pipeline_funnel.pdf" for path in outputs))
-        self.assertEqual(int(table.iloc[0]["count"]), 2000)
+        self.assertEqual(int(table.iloc[0]["count"]), 60)
         self.assertEqual(int(table.iloc[1]["count"]), 10)
         self.assertTrue(table.iloc[2:]["count"].isna().all())
         self.assertEqual(list(table["stage_label"]), [
             "Crawler capacity",
             "Candidate selection", "Enrichment / prefilter", "Classification", "Inclusion", "Export",
         ])
-        self.assertEqual(int(context.set_index("context_key").loc["initial_results", "count"]), 2000)
+        self.assertEqual(int(context.set_index("context_key").loc["initial_results", "count"]), 60)
         self.assertEqual(set(table["basis"]), {"configured_capacity", "not_observed"})
         self.assertTrue(table.iloc[1:]["removed_from_previous"].isna().all())
+
+    def test_unlimited_funnels_do_not_invent_numeric_capacities(self) -> None:
+        """Render both source funnels without a hidden default or a zero capacity."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = self._settings(root)
+            for source in ("github", "openalex"):
+                settings.section(source)["collection_limit"] = "all"
+                settings.section(source)["classification_limit"] = "all"
+                build(settings, source)
+                table = pd.read_csv(root / f"plots/{source}/pipeline_funnel/data/00_pipeline_funnel.csv")
+                self.assertTrue(table["count"].isna().all())
+                self.assertIn("unlimited", table.iloc[1]["basis_detail"])
+
+    def test_funnel_prefers_saved_unlimited_cap_to_current_config(self) -> None:
+        """Keep observed run bounds intact after configuration changes."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = self._settings(root)
+            for source, ids_key in (("github", "repository_ids"), ("openalex", "work_ids")):
+                with PipelineCache(settings.path(f"{source}_cache")) as cache:
+                    cache.put_record(f"{source}.collection", "latest", {
+                        ids_key: ["1"], "collection_limit": None, "sample_size_per_query": None,
+                        "selected_at": "2026-01-01T00:00:00+00:00",
+                    }, "now")
+                build(settings, source)
+                table = pd.read_csv(root / f"plots/{source}/pipeline_funnel/data/00_pipeline_funnel.csv")
+                self.assertIn("unlimited", table.iloc[1]["basis_detail"])
 
     def test_observed_funnel_aligns_main_stages_and_preserves_discovery_context(self) -> None:
         """Keep deduplication outside common candidate-to-export loss accounting."""
@@ -97,11 +124,11 @@ class FunnelTests(unittest.TestCase):
             ], ["github_repo_id", "prefilter_band"])
             classifications = root / "interim/github/models/model-a/classifications.csv"
             atomic_write_csv(classifications, [
-                {"github_repo_id": "1", "decision": "accept", "classifier_id": "model-a"},
+                {"github_repo_id": "1", "decision": "accept", "classifier_id": "model-a", 'classifier_supported_fields': '*'},
             ], ["github_repo_id", "decision", "classifier_id"])
             catalogue = root / "processed/github/models/model-a/repositories.csv"
             atomic_write_csv(catalogue, [
-                {"github_repo_id": "1", "decision": "accept"},
+                {"github_repo_id": "1", "decision": "accept", 'classifier_supported_fields': '*'},
             ], ["github_repo_id", "decision"])
 
             outputs = build(settings, "github")
@@ -170,7 +197,7 @@ class FunnelTests(unittest.TestCase):
                 {"openalex_id": "paper-2", "prefilter_band": "borderline"},
             ], ["openalex_id", "prefilter_band"])
             atomic_write_csv(root / "interim/openalex/models/model-a/classifications.csv", [
-                {"openalex_id": "paper-1", "decision": "accept", "classifier_id": "model-a"},
+                {"openalex_id": "paper-1", "decision": "accept", "classifier_id": "model-a", 'classifier_supported_fields': '*'},
             ], ["openalex_id", "decision", "classifier_id"])
             atomic_write_csv(root / "processed/openalex/models/model-a/base_papers.csv", [
                 {"openalex_id": "paper-1"},

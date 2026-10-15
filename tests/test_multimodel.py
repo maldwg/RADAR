@@ -5,12 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ids_meta.cli import _execute_github, _execute_openalex, _execution_paths, _variant_paths
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import Settings
-from ids_meta.common.csvio import atomic_write_csv, read_csv
-from ids_meta.github.schema import CANDIDATE_COLUMNS as GITHUB_CANDIDATE_COLUMNS
-from ids_meta.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
+from radar.cli import _execute_github, _execute_openalex, _execution_paths, _variant_paths
+from radar.common.cache import PipelineCache
+from radar.common.config import Settings
+from radar.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
+from radar.github.schema import CANDIDATE_COLUMNS as GITHUB_CANDIDATE_COLUMNS
+from radar.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,14 +26,18 @@ class MultiModelPipelineTests(unittest.TestCase):
                 "processed_dir": str(root / "processed"), "plots_dir": str(root / "plots"),
                 "runs_dir": str(root / "runs"), "github_cache": str(root / "github.sqlite3"),
                 "openalex_cache": str(root / "openalex.sqlite3"),
-                "github_terms": str(ROOT / "config/terms/github.toml"),
-                "openalex_terms": str(ROOT / "config/terms/openalex.toml"),
-                "github_prompts": str(ROOT / "config/prompts/github.toml"),
-                "openalex_prompts": str(ROOT / "config/prompts/openalex.toml"),
-                "github_system_types": str(ROOT / "config/taxonomy/github_system_types.toml"),
-            },
+                "github_terms": str(ROOT / "config/studies/ids_repositories/search/github.toml"),
+                "openalex_terms": str(ROOT / "config/studies/ids_datasets/search/openalex.toml"),
+                "github_prompts": str(ROOT / "config/studies/ids_repositories/prompts/classification.toml"),
+                "github_screening": str(ROOT / "config/studies/ids_repositories/screening.toml"),
+                "openalex_screening": str(ROOT / "config/studies/ids_datasets/screening.toml"),
+                "github_taxonomy": str(ROOT / "config/studies/ids_repositories/taxonomy.toml"),
+                "openalex_taxonomy": str(ROOT / "config/studies/ids_datasets/taxonomy.toml"),
+                "openalex_prompts": str(ROOT / "config/studies/ids_datasets/prompts/classification.toml"),
+                "github_system_types": str(ROOT / "config/studies/ids_repositories/taxonomy.toml"),
+             'evaluation_dir': str(root / 'evaluation')},
             "logging": {"progress_every": 25},
-            "ollama": {"model": "legacy", "models": ["model-alpha", "model-beta"], "temperature": 0.0, "seed": 42},
+            "ollama": {"models": ["model-alpha", "model-beta"], "temperature": 0.0, "seed": 42},
             "ensemble": {"enabled": True, "models": [], "threshold": .5},
             "github": {"collection_limit": 10, "classification_limit": 10, "borderline_threshold": 4, "reconcile_with_llm": False},
             "openalex": {"collection_limit": 10, "classification_limit": 10, "borderline_threshold": 4, "reconcile_with_llm": False, "enrich_missing_abstracts": False},

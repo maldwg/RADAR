@@ -6,26 +6,30 @@ import tempfile
 import unittest
 import io
 import json
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from pathlib import Path
+from tests.fixtures import SYSTEM_TYPE_PROFILE
 from unittest.mock import patch
 
-from ids_meta.common.cache import PipelineCache
-from ids_meta.architecture import build as build_architecture
-from ids_meta.common.csvio import atomic_write_csv, read_csv
-from ids_meta.common.ensemble import consensus_classification, ensemble_classifications
-from ids_meta.common.config import Settings
-from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
-from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, verify_evidence
-from ids_meta.common.scoring import score_evidence
-from ids_meta.common.scoring import shortlist_candidates
-from ids_meta.common.text import contains_concept, normalize_text, stable_hash, unicode_safe
-from ids_meta.common.logging import configure_logging, logger
-from ids_meta.cli import _configured_models, _ensemble_config, _execution_paths, _pipeline_limits, build_parser
-from ids_meta.github.pipeline import prompt as github_prompt
-from ids_meta.github.schema import CLASSIFICATION_COLUMNS as GITHUB_CLASSIFICATION_COLUMNS
-from ids_meta.openalex.pipeline import prompt as openalex_prompt
-from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS as OPENALEX_CLASSIFICATION_COLUMNS
+from radar.common.cache import PipelineCache
+from radar.architecture import build as build_architecture
+from radar.common.csvio import read_csv
+from tests.fixtures import write_csv as atomic_write_csv
+from radar.common.ensemble import consensus_classification, ensemble_classifications
+from radar.common.config import Settings
+from radar.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
+from radar.common.ollama import EvidenceSection, OllamaClient, decision_profile, verify_evidence
+from radar.common.scoring import score_evidence
+from radar.common.scoring import shortlist_candidates
+from radar.common.text import contains_concept, normalize_text, stable_hash, unicode_safe
+from radar.common.logging import configure_logging, logger
+from radar.common.verification import verify_manifest
+from radar.cli import _configured_models, _ensemble_config, _execution_paths, _pipeline_limits, build_parser
+from radar.github.pipeline import prompt as github_prompt
+from radar.github.schema import CLASSIFICATION_COLUMNS as GITHUB_CLASSIFICATION_COLUMNS
+from radar.openalex.pipeline import prompt as openalex_prompt
+from radar.openalex.schema import CLASSIFICATION_COLUMNS as OPENALEX_CLASSIFICATION_COLUMNS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,7 +39,7 @@ class CommonTests(unittest.TestCase):
     def test_every_function_and_method_has_a_docstring(self) -> None:
         """Prevent undocumented production and test callables from being introduced."""
         missing: list[str] = []
-        for directory in (ROOT / "src" / "ids_meta", ROOT / "tests"):
+        for directory in (ROOT / "src" / "radar", ROOT / "tests"):
             for path in sorted(directory.rglob("*.py")):
                 tree = ast.parse(path.read_text(encoding="utf-8"))
                 for node in ast.walk(tree):
@@ -52,7 +56,7 @@ class CommonTests(unittest.TestCase):
         value = output.getvalue()
         configure_logging("WARNING")
         self.assertIn("INFO", value)
-        self.assertIn("ids_meta.fixture: progress 2/10", value)
+        self.assertIn("radar.fixture: progress 2/10", value)
 
     def test_normalization_and_typo_tolerance(self) -> None:
         """Verify text normalization and conservative misspelling matching."""
@@ -115,8 +119,6 @@ class CommonTests(unittest.TestCase):
         self.assertEqual(_pipeline_limits(defaults, config), (1000, 100))
         explicit = argparse.Namespace(action="run", limit=None, collect_limit=750, classify_limit=80, classify_all=False)
         self.assertEqual(_pipeline_limits(explicit, config), (750, 80))
-        legacy = argparse.Namespace(action="run", limit=12, collect_limit=None, classify_limit=None, classify_all=False)
-        self.assertEqual(_pipeline_limits(legacy, config), (12, 12))
         classify_all = argparse.Namespace(action="run", limit=None, collect_limit=250, classify_limit=None, classify_all=True)
         self.assertEqual(_pipeline_limits(classify_all, config), (250, None))
         configured_all = argparse.Namespace(action="run", limit=None, collect_limit=None, classify_limit=None, classify_all=False)
@@ -132,7 +134,7 @@ class CommonTests(unittest.TestCase):
             parser.parse_args(["openalex", "classify", "--classify-all", "--classify-limit", "25"])
 
     def test_architecture_emits_detailed_pipeline_and_system_views(self) -> None:
-        """Keep the sequential method and deployed components as separate figures."""
+        """Show shared paper stages and provider contracts with verifiable vector exports."""
         with tempfile.TemporaryDirectory() as directory:
             outputs = build_architecture(Path(directory))
             self.assertEqual(
@@ -142,36 +144,52 @@ class CommonTests(unittest.TestCase):
                     "system_architecture.svg", "system_architecture.pdf",
                 },
             )
-            pipeline = (Path(directory) / "pipeline_architecture.svg").read_text(encoding="utf-8")
-            system = (Path(directory) / "system_architecture.svg").read_text(encoding="utf-8")
+            texts = {}
+            for stem in ("pipeline_architecture", "system_architecture"):
+                tree = ET.parse(Path(directory) / f"{stem}.svg")
+                texts[stem] = " ".join(
+                    " ".join("".join(node.itertext()).split())
+                    for node in tree.iter("{http://www.w3.org/2000/svg}text")
+                )
+                manifest_path = Path(directory) / f"{stem}.manifest.json"
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                self.assertTrue({
+                    "github-lockup-black.svg", "openalex-lockup-black.svg",
+                    "ollama.svg", "qwen.svg", "gemma.png", "sqlite.svg",
+                }.issubset({Path(item["path"]).name for item in manifest["inputs"]}))
+                verification = verify_manifest(manifest_path)
+                self.assertTrue(verification["ok"], verification["errors"])
+            pipeline = texts["pipeline_architecture"]
+            system = texts["system_architecture"]
         for label in (
+            "IDS repositories", "IDS datasets", "Conformal treatment effects",
+            "Shared paper config schema", "Same operational keys; study-specific values",
+            "Semantic Scholar", "Local CSV / JSON", "Shared paper collector", "Shared paper evidence",
             "Repository search", "Direct paper search", "Diverse survey seeds",
-            "Backward snowballing", "Deterministic prefilter", "Structured prompts", "Keyword + NLI baselines",
+            "Backward snowballing", "Deterministic prefilter", "Structured prompts", "Keyword + NLI + LLM NLI",
             "Repository families", "Publication families", "Repository catalogue",
-            "Dataset catalogue", "GitHub-specific", "OpenAlex-specific",
-            "Shared processing", "Evaluation only", "Reporting container",
+            "Dataset catalogue", "Review classifications", "Repository role validation",
+            "Dataset release validation", "Criterion assessment", "Release reconciliation disabled",
+            "Reference profiles · evaluation only", "Evaluation + reporting", "Catalogue baselines",
+            "Review: per-provider and union", "Select one study per run.",
             "(i)", "(ii)", "(iii)", "(iv)", "(v)",
         ):
             self.assertIn(label, pipeline)
         for label in (
-            "GitHub", "OpenAlex", "GitHub crawler", "OpenAlex crawler",
-            "Evidence + LLM results", "Evidence enrichment", "Adjudication client",
-            "Ollama server", "Qwen", "gpt-oss", "Gemma",
-            "Repository families", "Publication families",
-            "GitHub path", "OpenAlex path", "Shared state", "Shared processing",
+            "Provider registry", "adapters/registry.py", "GitHubAdapter", "OpenAlexAdapter",
+            "SemanticScholarAdapter", "LocalDiscoveryAdapter", "DiscoveryAdapter + SourceRecord",
+            "Optional lookup, evidence, references and catalogue protocols",
+            "Shared paper collector", "common/paper_collection.py", "IDS datasets + conformal",
+            "Review provider union", "common/discovery.py", "Shared paper evidence",
+            "Scientific strategies", "Adjudication client", "common/ollama.py",
+            "Ollama server", "Qwen", "Gemma", "Study results", "Reporting + verification",
+            "Reference profiles", "Evaluation only", "Run state + provenance", "Per-study state",
         ):
             self.assertIn(label, system)
-        self.assertNotIn("Keyword baseline", system)
+        for obsolete in ("GitHub crawler", "OpenAlex crawler", "gpt-oss", "Catalogue baselines"):
+            self.assertNotIn(obsolete, system)
         self.assertNotIn("(i)", system)
-        self.assertNotIn("structured request", system)
-        self.assertNotIn(">serves<", system)
-        self.assertNotIn("IDS meta-study", pipeline)
-        self.assertNotIn("IDS meta-study", system)
-        self.assertNotIn(">Python<", system)
-        self.assertNotIn(">Record families<", system)
-        self.assertEqual(system.count(">Outputs<"), 1)
-        for asset in ("sqlite.svg", "python.svg", "ollama.svg", "qwen.svg", "openai.svg", "gemma.png"):
-            self.assertTrue((ROOT / "assets" / "architecture" / asset).is_file())
+        self.assertEqual(system.split().count("Outputs"), 1)
 
     def test_architecture_is_an_independent_cli_command(self) -> None:
         """Expose architecture generation outside both source plotting commands."""
@@ -182,24 +200,25 @@ class CommonTests(unittest.TestCase):
 
     def test_profiles_contain_generic_query_types(self) -> None:
         """Verify both source profiles expose generic discovery queries."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
+        datasets = load_settings(ROOT / "config/studies/ids_datasets/study.toml")
         self.assertTrue(load_term_profile(settings, "github")["search_queries"])
-        self.assertTrue(load_term_profile(settings, "openalex")["direct_queries"])
+        self.assertTrue(load_term_profile(datasets, "openalex")["queries"])
         self.assertTrue(load_prompt_profile(settings, "github")["template"])
-        self.assertTrue(load_prompt_profile(settings, "openalex")["template"])
+        self.assertTrue(load_prompt_profile(datasets, "openalex")["template"])
         self.assertIn("NIDS", load_system_type_profile(settings, "github")["types"])
         self.assertGreaterEqual(int(settings.section("github")["collection_limit"]), 1)
         self.assertEqual(settings.section("github")["classification_limit"], "all")
-        self.assertGreaterEqual(int(settings.section("openalex")["collection_limit"]), 1)
-        self.assertEqual(settings.section("openalex")["classification_limit"], "all")
+        self.assertGreaterEqual(int(datasets.section("openalex")["collection_limit"]), 1)
+        self.assertEqual(datasets.section("openalex")["classification_limit"], "all")
         self.assertEqual(settings.section("plots")["formats"], ["svg", "pdf"])
 
     def test_configured_prompts_describe_taxonomies_and_include_evidence(self) -> None:
         """Verify both source prompts render configurable taxonomy descriptions and supplied evidence."""
-        settings = load_settings(ROOT / "config/default.toml")
+        settings = load_settings(ROOT / "config/studies/ids_repositories/study.toml")
         github_config = load_prompt_profile(settings, "github")
-        openalex_config = load_prompt_profile(settings, "openalex")
-        github = github_prompt([EvidenceSection("README", "repository fixture evidence")], github_config)
+        openalex_config = load_prompt_profile(load_settings(ROOT / "config/studies/ids_datasets/study.toml"), "openalex")
+        github = github_prompt([EvidenceSection("README", "repository fixture evidence")], github_config, system_type_profile=SYSTEM_TYPE_PROFILE)
         openalex = openalex_prompt([EvidenceSection("Abstract", "paper fixture evidence")], openalex_config)
         self.assertIn("native_detector", github)
         self.assertIn("repository fixture evidence", github)
@@ -210,11 +229,11 @@ class CommonTests(unittest.TestCase):
         """Verify classifiers reject absent templates and taxonomy descriptions."""
         sections = [EvidenceSection("README", "fixture evidence")]
         with self.assertRaisesRegex(ValueError, "roles"):
-            github_prompt(sections, None)
-        incomplete = dict(load_prompt_profile(load_settings(ROOT / "config/default.toml"), "github"))
+            github_prompt(sections, None, system_type_profile=SYSTEM_TYPE_PROFILE)
+        incomplete = dict(load_prompt_profile(load_settings(ROOT / "config/studies/ids_repositories/study.toml"), "github"))
         incomplete.pop("methods")
         with self.assertRaisesRegex(ValueError, "methods"):
-            github_prompt(sections, incomplete)
+            github_prompt(sections, incomplete, system_type_profile=SYSTEM_TYPE_PROFILE)
         with self.assertRaisesRegex(ValueError, "roles"):
             openalex_prompt([EvidenceSection("Abstract", "fixture evidence")], None)
 
@@ -231,7 +250,7 @@ class CommonTests(unittest.TestCase):
             "model": "fixture-model", "context_length": 262144,
             "keep_alive": "30m", "max_output_tokens": 12, "retries": 0,
         }
-        with patch("ids_meta.common.ollama.requests.post") as post:
+        with patch("radar.common.ollama.requests.post") as post:
             post.return_value.json.return_value = {"response": "{}"}
             result = OllamaClient(config).generate("fixture prompt", {"type": "object"})
         self.assertEqual(result, {})
@@ -282,19 +301,7 @@ class CommonTests(unittest.TestCase):
                 cache.put_decision("x", "1", "profile-a", "evidence-a", {"decision": "accept"}, "now")
                 self.assertIsNotNone(cache.get_decision("x", "1", "profile-a", "evidence-a"))
                 self.assertIsNone(cache.get_decision("x", "1", "profile-a", "evidence-b"))
-                cache.put_decision(
-                    "x", "2", "runtime-profile", "evidence-a",
-                    {"decision": "accept", "profile_hash": "runtime-profile",
-                     "classifier_profile_hash": "runtime-profile", "classified_at": "now"},
-                    "now",
-                )
-                migrated = cache.get_compatible_decision(
-                    "x", "2", "semantic-profile", "evidence-a", ("runtime-profile",),
-                )
-                self.assertEqual(migrated["profile_hash"], "semantic-profile")
-                self.assertIsNotNone(
-                    cache.get_decision("x", "2", "semantic-profile", "evidence-a"),
-                )
+                self.assertIsNone(cache.get_decision("x", "1", "another-profile", "evidence-a"))
 
     def test_multi_model_configuration_and_paths(self) -> None:
         """Verify model lists, ensemble subsets, and isolated filesystem paths."""
@@ -304,8 +311,8 @@ class CommonTests(unittest.TestCase):
                 "paths": {
                     "interim_dir": "interim", "processed_dir": "processed", "plots_dir": "plots",
                     "github_cache": "github.sqlite3", "openalex_cache": "openalex.sqlite3",
-                },
-                "ollama": {"model": "legacy", "models": ["model/a", "model:b", "model/a"]},
+                 'evaluation_dir': str(root / 'evaluation')},
+                "ollama": {"models": ["model/a", "model:b", "model/a"]},
                 "ensemble": {"enabled": True, "models": ["model:b"], "threshold": .75},
             }
             settings = Settings(root, values)
@@ -326,7 +333,7 @@ class CommonTests(unittest.TestCase):
                 "artifact_display_name": artifact_name, "direct_release_evidence": "true",
                 "evidence_quote_verified": "true",
             }
-        result = consensus_classification("openalex", votes, .5)
+        result = consensus_classification("openalex", votes, .5, system_type_profile=SYSTEM_TYPE_PROFILE)
         self.assertEqual(result["decision"], "uncertain")
         self.assertIn("artifact_identity_consensus_conflict", result["consensus_validation_flags"])
         self.assertEqual(json.loads(result["consensus_field_audit"])["artifact_identity"]["status"], "conflict")
@@ -346,7 +353,7 @@ class CommonTests(unittest.TestCase):
                 rows = []
                 for identifier, decision in model_decisions.items():
                     row = {column: "" for column in GITHUB_CLASSIFICATION_COLUMNS}
-                    row.update({"github_repo_id": identifier, "full_name": f"fixture/{identifier}", "decision": decision, "llm_model": model})
+                    row.update({"github_repo_id": identifier, "full_name": f"fixture/{identifier}", "decision": decision, "llm_model": model, 'classifier_supported_fields': '*'})
                     rows.append(row)
                 atomic_write_csv(path, rows, GITHUB_CLASSIFICATION_COLUMNS)
                 inputs[model] = path
@@ -373,7 +380,7 @@ class CommonTests(unittest.TestCase):
             for model, decision, tier in (("core-model", "accept", "core"), ("adjacent-model", "accept_adjacent", "adjacent")):
                 path = root / f"{model}-openalex.csv"
                 row = {column: "" for column in OPENALEX_CLASSIFICATION_COLUMNS}
-                row.update({"openalex_id": "W1", "title": "Fixture release", "decision": decision, "relevance_tier": tier, "llm_model": model})
+                row.update({"openalex_id": "W1", "title": "Fixture release", "decision": decision, "relevance_tier": tier, "llm_model": model, 'classifier_supported_fields': '*'})
                 atomic_write_csv(path, [row], OPENALEX_CLASSIFICATION_COLUMNS)
                 openalex_inputs[model] = path
             openalex_rows = ensemble_classifications("openalex", openalex_inputs, root / "openalex-ensemble.csv", .5, OPENALEX_CLASSIFICATION_COLUMNS)
@@ -389,7 +396,7 @@ class CommonTests(unittest.TestCase):
                     "openalex_id": "W-conflict", "title": "A new intrusion dataset",
                     "decision": "accept", "relevance_tier": "core", "paper_role": "original_release",
                     "artifact_name": artifact_name, "artifact_display_name": artifact_name, "llm_model": model,
-                })
+                 'classifier_supported_fields': '*'})
                 atomic_write_csv(path, [row], OPENALEX_CLASSIFICATION_COLUMNS)
                 conflict_inputs[model] = path
             conflict = ensemble_classifications("openalex", conflict_inputs, root / "openalex-conflict.csv", .5, OPENALEX_CLASSIFICATION_COLUMNS)[0]

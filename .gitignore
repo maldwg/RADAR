@@ -1,4 +1,5 @@
 __pycache__/
+.venv/
 *.py[cod]
 *.egg-info/
 .cache/
@@ -10,16 +11,18 @@ artifacts/runs/
 **/*.log
 **/*.csv
 !config/evaluation/*.csv
+!examples/reporting/*.csv
+**/.provenance/
+**/reporting.sqlite3
+docs/_build/
+build/
+dist/
+data/reporting/
 **/*.svg
+!pipeline_architecture.svg
 !assets/architecture/*.svg
+!assets/branding/*.svg
 **/*.pdf
 !pipeline_architecture.pdf
 !system_architecture.svg
 !system_architecture.pdf
-
-# Rated evaluation reports are versioned research artifacts. Keep their figures
-# and companion tables visible after the evaluation tree is regenerated.
-!artifacts/evaluation/**/*.csv
-!artifacts/evaluation/**/*.svg
-!artifacts/evaluation/**/*.pdf
-artifacts/presentation/**/*

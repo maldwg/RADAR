@@ -1,0 +1,41 @@
+schema_version = "1.0"
+
+[collection]
+collection_limit = 100
+collection_mode = "query_position"
+survey_query_limit_factor = 3.0
+reference_limit_factor = 3.0
+max_surveys = 0
+snowball_start_papers = 50
+snowball_max_depth = 0
+survey_reference_fraction = 0.0
+query_limit_factor = 3.0
+survey_consensus_threshold = 2
+retrieval_minimum_score = -100.0
+retrieval_minimum_title_tokens = 1
+retrieval_title_weight = 0.5
+minimum_citations = 0
+candidate_threshold = 0.0
+borderline_threshold = -100.0
+
+[evidence]
+fetch_full_text = true
+enrich_missing_abstracts = false
+enrich_uncertain_with_full_text = false
+evidence_lookup_timeout_seconds = 30
+max_full_text_chars = 120000
+
+[classification]
+classification_limit = "all"
+classify_borderline = true
+consecutive_runs = 5
+consensus_threshold = 0.8
+
+[classification.ensemble]
+enabled = true
+models = ["gemma4:31b", "qwen3.8:27b"]
+threshold = 1.0
+
+[reconciliation]
+strategy = "none"
+reconcile_with_llm = false

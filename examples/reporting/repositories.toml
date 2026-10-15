@@ -1,0 +1,31 @@
+schema_version = "1.0"
+
+[provider]
+name = "local_repositories"
+display_name = "Local repositories"
+entity_kind = "repository"
+identity = "native_id"
+label = "name"
+capabilities = ["repository_metadata"]
+
+[selectors]
+id = "native_id"
+repository = "name"
+
+[mapping]
+native_id = "repo_id"
+name = "repository"
+
+[decisions]
+included = "accept"
+rejected = "exclude"
+undecided = "uncertain"
+
+[taxonomy]
+version = "1.0"
+fields = ["role", "tags"]
+multilabel = ["tags"]
+
+[taxonomy.labels]
+role = "Resource type"
+tags = "Application areas"
