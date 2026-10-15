@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="radar-title radar-description">
+  <title id="radar-title">RADAR</title>
+  <desc id="radar-description">Four folded facets form an open aperture around a discovery point; a mint facet opens toward the upper right.</desc>
+  <rect width="64" height="64" rx="14" fill="#183849"/>
+  <path d="M29 11 10 30h12l7-7Z" fill="#F1F6F7"/>
+  <path d="M10 34 30 54V42l-8-8Z" fill="#F1F6F7"/>
+  <path d="M34 54 54 34H42l-8 8Z" fill="#F1F6F7"/>
+  <path d="m35 10 20 20H43l-8-8Z" fill="#64D6C3"/>
+  <path d="m32 27 5 5-5 5-5-5Z" fill="#64D6C3"/>
+</svg>

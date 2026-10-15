@@ -2,24 +2,24 @@
   "artifacts": [
     {
       "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/pipeline_architecture.svg",
-      "sha256": "d81feb8ea85b7471b123c5b78fbd4788bb64fac76db701e60f3017b7f1194320"
+      "sha256": "78e804b93ce58286cec54a9f487cc2ef4ab5cc2a5941ff653aa5914608fac439"
     },
     {
       "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/pipeline_architecture.pdf",
-      "sha256": "7d61674a4627ff3c78dfb9c6d8eef47e43e2597698233c899098b47a4bac8370"
+      "sha256": "c085bca71908a1311fce63acd2cdf0ba21dc38a33e827f332e5f9e063fbb37aa"
     }
   ],
   "definition": {
-    "code_sha256": "12817c82ee8ebac7851916602b5045d2af16221b258cb67fd4e5632578c364e2",
+    "code_sha256": "c4f18680024a88c8fb5ea2f710213d32ff23c62cae36c368ad4c51953a710c63",
     "renderer": "__main__.build",
     "renderer_snapshot": {
-      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/src/ids_meta/architecture.py",
-      "sha256": "12817c82ee8ebac7851916602b5045d2af16221b258cb67fd4e5632578c364e2",
-      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/12817c82ee8ebac7851916602b5045d2af16221b258cb67fd4e5632578c364e2"
+      "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/src/radar/architecture.py",
+      "sha256": "c4f18680024a88c8fb5ea2f710213d32ff23c62cae36c368ad4c51953a710c63",
+      "snapshot": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/.provenance/objects/c4f18680024a88c8fb5ea2f710213d32ff23c62cae36c368ad4c51953a710c63"
     },
     "settings": {}
   },
-  "figure_id": "3a2ef665de1a9022fcc7e58ad7b594216cc61ebc99f68212c2c4f6247f248642",
+  "figure_id": "bb531fe72df442e3c443a8d207a45127d374ffec8e2aaeb7b83dc3433af4fdad",
   "inputs": [
     {
       "path": "/home/max/Doktorarbeit/dataset-and-ids-metastudy/assets/architecture/github-lockup-black.svg",

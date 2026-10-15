@@ -1,4 +1,5 @@
 __pycache__/
+.venv/
 *.py[cod]
 *.egg-info/
 .cache/
@@ -13,9 +14,14 @@ artifacts/runs/
 !examples/reporting/*.csv
 **/.provenance/
 **/reporting.sqlite3
+docs/_build/
+build/
+dist/
 data/reporting/
 **/*.svg
+!pipeline_architecture.svg
 !assets/architecture/*.svg
+!assets/branding/*.svg
 **/*.pdf
 !pipeline_architecture.pdf
 !system_architecture.svg

@@ -1,0 +1,6 @@
+/* Keep scientific tables and architecture figures readable at desktop widths. */
+.wy-nav-content { max-width: 1120px; }
+.wy-side-nav-search { background: #183849; }
+.rst-content table.radar-table td { white-space: normal; vertical-align: top; }
+.rst-content table.radar-table td p { margin-bottom: 0.4rem; }
+.rst-content .figure { margin: 1.5rem 0; }
