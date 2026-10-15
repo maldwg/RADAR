@@ -11,14 +11,14 @@ import tomllib
 import unittest
 from unittest.mock import Mock, patch
 
-from ids_meta.adapters.openalex import OpenAlexAdapter
-from ids_meta.cli import main, _execution_paths
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import ConfigError, load_settings, load_term_profile
-from ids_meta.common.discovery import DiscoverySource, collect_sources
-from ids_meta.common.paper_collection import collect_papers, eligible_papers, prefilter_paper
-from ids_meta.common.paper_evidence import PaperEvidenceService
-from ids_meta.common.study_pipeline import classify_study
+from radar.adapters.openalex import OpenAlexAdapter
+from radar.cli import main, _execution_paths
+from radar.common.cache import PipelineCache
+from radar.common.config import ConfigError, load_settings, load_term_profile
+from radar.common.discovery import DiscoverySource, collect_sources
+from radar.common.paper_collection import collect_papers, eligible_papers, prefilter_paper
+from radar.common.paper_evidence import PaperEvidenceService
+from radar.common.study_pipeline import classify_study
 from tests.test_study_pipeline import answer, TEXT
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -93,7 +93,7 @@ class SharedPaperStudyTests(unittest.TestCase):
             first = OpenAlexAdapter(first_config, DATASETS / 'search/openalex.toml', first_api)
             second = OpenAlexAdapter(second_config, CONFORMAL / 'search/openalex.toml', second_api)
             spy = Mock(wraps=collect_papers)
-            with patch('ids_meta.adapters.openalex.collect_papers', spy), patch('ids_meta.common.paper_collection.collect_papers', spy):
+            with patch('radar.adapters.openalex.collect_papers', spy), patch('radar.common.paper_collection.collect_papers', spy):
                 with PipelineCache(root / 'datasets.sqlite3') as cache:
                     first.collect_catalogue(first_config, load_term_profile(dataset, 'openalex'), cache, 2)
                 collect_sources([DiscoverySource('openalex', second.profile_path, second_config, second,
@@ -137,7 +137,7 @@ class SharedPaperStudyTests(unittest.TestCase):
         service = PaperEvidenceService({'fetch_full_text': True, 'max_full_text_chars': 100,
             'evidence_lookup_timeout_seconds': 7})
         work = {'title': 'Paper', 'pdf_url': 'https://example.org/paper.pdf'}
-        with patch('ids_meta.common.paper_evidence.download_pdf_text', return_value={'full_text': 'Evidence'}) as download:
+        with patch('radar.common.paper_evidence.download_pdf_text', return_value={'full_text': 'Evidence'}) as download:
             self.assertEqual(service.prepare(work), service.prepare(work))
         download.assert_called_once_with(work['pdf_url'], 100, 7)
 
@@ -172,8 +172,8 @@ class SharedPaperStudyTests(unittest.TestCase):
             service = PaperEvidenceService(load_settings(manifest).section('pipeline')['evidence'], enricher)
             model = Mock()
             model.generate.return_value = answer()
-            with patch('ids_meta.common.paper_evidence.PaperEvidenceService', return_value=service), patch(
-                'ids_meta.common.study_pipeline.OllamaClient', return_value=model), redirect_stdout(io.StringIO()):
+            with patch('radar.common.paper_evidence.PaperEvidenceService', return_value=service), patch(
+                'radar.common.study_pipeline.OllamaClient', return_value=model), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'classify', '--input', str(source)]), 0)
             self.assertEqual(enricher.calls, 1)
             self.assertEqual(model.generate.call_count, 10)

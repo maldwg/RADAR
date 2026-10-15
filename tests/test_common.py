@@ -12,24 +12,24 @@ from pathlib import Path
 from tests.fixtures import SYSTEM_TYPE_PROFILE
 from unittest.mock import patch
 
-from ids_meta.common.cache import PipelineCache
-from ids_meta.architecture import build as build_architecture
-from ids_meta.common.csvio import read_csv
+from radar.common.cache import PipelineCache
+from radar.architecture import build as build_architecture
+from radar.common.csvio import read_csv
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.common.ensemble import consensus_classification, ensemble_classifications
-from ids_meta.common.config import Settings
-from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
-from ids_meta.common.ollama import EvidenceSection, OllamaClient, decision_profile, verify_evidence
-from ids_meta.common.scoring import score_evidence
-from ids_meta.common.scoring import shortlist_candidates
-from ids_meta.common.text import contains_concept, normalize_text, stable_hash, unicode_safe
-from ids_meta.common.logging import configure_logging, logger
-from ids_meta.common.verification import verify_manifest
-from ids_meta.cli import _configured_models, _ensemble_config, _execution_paths, _pipeline_limits, build_parser
-from ids_meta.github.pipeline import prompt as github_prompt
-from ids_meta.github.schema import CLASSIFICATION_COLUMNS as GITHUB_CLASSIFICATION_COLUMNS
-from ids_meta.openalex.pipeline import prompt as openalex_prompt
-from ids_meta.openalex.schema import CLASSIFICATION_COLUMNS as OPENALEX_CLASSIFICATION_COLUMNS
+from radar.common.ensemble import consensus_classification, ensemble_classifications
+from radar.common.config import Settings
+from radar.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
+from radar.common.ollama import EvidenceSection, OllamaClient, decision_profile, verify_evidence
+from radar.common.scoring import score_evidence
+from radar.common.scoring import shortlist_candidates
+from radar.common.text import contains_concept, normalize_text, stable_hash, unicode_safe
+from radar.common.logging import configure_logging, logger
+from radar.common.verification import verify_manifest
+from radar.cli import _configured_models, _ensemble_config, _execution_paths, _pipeline_limits, build_parser
+from radar.github.pipeline import prompt as github_prompt
+from radar.github.schema import CLASSIFICATION_COLUMNS as GITHUB_CLASSIFICATION_COLUMNS
+from radar.openalex.pipeline import prompt as openalex_prompt
+from radar.openalex.schema import CLASSIFICATION_COLUMNS as OPENALEX_CLASSIFICATION_COLUMNS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,7 +39,7 @@ class CommonTests(unittest.TestCase):
     def test_every_function_and_method_has_a_docstring(self) -> None:
         """Prevent undocumented production and test callables from being introduced."""
         missing: list[str] = []
-        for directory in (ROOT / "src" / "ids_meta", ROOT / "tests"):
+        for directory in (ROOT / "src" / "radar", ROOT / "tests"):
             for path in sorted(directory.rglob("*.py")):
                 tree = ast.parse(path.read_text(encoding="utf-8"))
                 for node in ast.walk(tree):
@@ -56,7 +56,7 @@ class CommonTests(unittest.TestCase):
         value = output.getvalue()
         configure_logging("WARNING")
         self.assertIn("INFO", value)
-        self.assertIn("ids_meta.fixture: progress 2/10", value)
+        self.assertIn("radar.fixture: progress 2/10", value)
 
     def test_normalization_and_typo_tolerance(self) -> None:
         """Verify text normalization and conservative misspelling matching."""
@@ -250,7 +250,7 @@ class CommonTests(unittest.TestCase):
             "model": "fixture-model", "context_length": 262144,
             "keep_alive": "30m", "max_output_tokens": 12, "retries": 0,
         }
-        with patch("ids_meta.common.ollama.requests.post") as post:
+        with patch("radar.common.ollama.requests.post") as post:
             post.return_value.json.return_value = {"response": "{}"}
             result = OllamaClient(config).generate("fixture prompt", {"type": "object"})
         self.assertEqual(result, {})

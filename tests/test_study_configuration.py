@@ -9,17 +9,17 @@ import unittest
 import tomllib
 from unittest.mock import patch
 
-from ids_meta.cli import _execution_paths, main
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import ConfigError, load_prompt_profile, load_settings
-from ids_meta.common.csvio import atomic_write_csv, read_csv
-from ids_meta.github.schema import CANDIDATE_COLUMNS
-from ids_meta.common.screening import load_screening_profile
-from ids_meta.common.study_screening import load_study_protocol, StudyScreeningAdapter
-from ids_meta.github.pipeline import prompt as repository_prompt
-from ids_meta.openalex.pipeline import prompt as paper_prompt
-from ids_meta.common.config import load_system_type_profile
-from ids_meta.common.prompts import render_prompt
+from radar.cli import _execution_paths, main
+from radar.common.cache import PipelineCache
+from radar.common.config import ConfigError, load_prompt_profile, load_settings
+from radar.common.csvio import atomic_write_csv, read_csv
+from radar.github.schema import CANDIDATE_COLUMNS
+from radar.common.screening import load_screening_profile
+from radar.common.study_screening import load_study_protocol, StudyScreeningAdapter
+from radar.github.pipeline import prompt as repository_prompt
+from radar.openalex.pipeline import prompt as paper_prompt
+from radar.common.config import load_system_type_profile
+from radar.common.prompts import render_prompt
 
 ROOT = Path(__file__).resolve().parents[1]
 

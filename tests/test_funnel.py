@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from ids_meta.cli import build_parser
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import Settings
+from radar.cli import build_parser
+from radar.common.cache import PipelineCache
+from radar.common.config import Settings
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.funnel import build
+from radar.funnel import build
 
 
 class FunnelTests(unittest.TestCase):

@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from ids_meta.common.csvio import read_csv
+from radar.common.csvio import read_csv
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.plotting.compare import _reference_recovery_overview, _taxonomy_comparison_overview, build_classifiers
-from ids_meta.common.provenance import file_hash
+from radar.plotting.compare import _reference_recovery_overview, _taxonomy_comparison_overview, build_classifiers
+from radar.common.provenance import file_hash
 
-from ids_meta.common.provenance import audited_bundle
+from radar.common.provenance import audited_bundle
 _reference_recovery_overview = audited_bundle(_reference_recovery_overview)
 _taxonomy_comparison_overview = audited_bundle(_taxonomy_comparison_overview)
 

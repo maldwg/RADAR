@@ -10,12 +10,12 @@ import tomllib
 import unittest
 from unittest.mock import patch
 
-from ids_meta.cli import main, _execution_paths, _variant_paths
-from ids_meta.common.verification import verify_directory
-from ids_meta.common.config import ConfigError, load_settings
-from ids_meta.common.csvio import read_csv
-from ids_meta.common.study_consensus import ensemble_study
-from ids_meta.common.study_pipeline import collect_study, classify_study
+from radar.cli import main, _execution_paths, _variant_paths
+from radar.common.verification import verify_directory
+from radar.common.config import ConfigError, load_settings
+from radar.common.csvio import read_csv
+from radar.common.study_consensus import ensemble_study
+from radar.common.study_pipeline import collect_study, classify_study
 from tests.test_study_pipeline import answer, TEXT
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,7 +109,7 @@ class ConformalAlignmentTests(unittest.TestCase):
             root = Path(directory)
             manifest = self._config(root)
             output = root / 'collected.json'
-            with patch('ids_meta.adapters.openalex.OpenAlexClient', return_value=PagedSearch()), redirect_stdout(io.StringIO()):
+            with patch('radar.adapters.openalex.OpenAlexClient', return_value=PagedSearch()), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'collect', '--collect-limit', '4', '--classify-limit', '6',
                     '--output', str(output)]), 0)
             audit = json.loads(output.with_suffix('.collection.json').read_text())
@@ -134,7 +134,7 @@ class ConformalAlignmentTests(unittest.TestCase):
             checkpoint = json.loads(output.with_suffix('.assessments.json').read_text())
             self.assertTrue(checkpoint['completed'])
             self.assertEqual(len(json.loads(checkpoint['records'][0]['assessment_votes_json'])), 5)
-            with patch('ids_meta.common.study_pipeline.OllamaClient', side_effect=AssertionError('inference')):
+            with patch('radar.common.study_pipeline.OllamaClient', side_effect=AssertionError('inference')):
                 self.assertEqual(classify_study(PROFILE / 'screening.toml', source, output, {'model': 'one'},
                     consecutive_runs=5, consensus_threshold=.8, resume=True)[0]['decision'], 'accept')
             rows = classify_study(PROFILE / 'screening.toml', source, output, {'model': 'one'}, client=model,
@@ -205,7 +205,7 @@ class ConformalAlignmentTests(unittest.TestCase):
             root = Path(directory)
             manifest = self._config(root)
             model = SequenceModel([answer()])
-            with patch('ids_meta.common.study_pipeline.OllamaClient', return_value=model), redirect_stdout(io.StringIO()):
+            with patch('radar.common.study_pipeline.OllamaClient', return_value=model), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'classify', '--input', str(self._candidates(root))]), 0)
             settings = load_settings(manifest)
             self.assertEqual(model.calls, 5 * len(settings.section('ollama')['models']))
@@ -242,8 +242,8 @@ class ConformalAlignmentTests(unittest.TestCase):
             manifest = self._config(root)
             reporting = manifest.parent / 'reporting.toml'
             reporting.write_text(reporting.read_text().replace('["svg", "pdf"]', '["svg"]'))
-            with patch('ids_meta.adapters.openalex.OpenAlexClient', return_value=PagedSearch(0)), patch(
-                'ids_meta.common.study_pipeline.OllamaClient', side_effect=AssertionError('inference')), redirect_stdout(io.StringIO()):
+            with patch('radar.adapters.openalex.OpenAlexClient', return_value=PagedSearch(0)), patch(
+                'radar.common.study_pipeline.OllamaClient', side_effect=AssertionError('inference')), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'run', '--collect-all', '--classify-all']), 0)
             settings = load_settings(manifest)
             reports = [paths['plots'] for paths in _execution_paths(settings, 'cohort', settings.section('ollama')['models']).values()]
@@ -265,7 +265,7 @@ class ConformalAlignmentTests(unittest.TestCase):
             with (PROFILE / 'evaluation/references.toml').open('rb') as handle:
                 records[0]['title'] = tomllib.load(handle)['entities'][0]['title']
             source.write_text(json.dumps(records))
-            with patch('ids_meta.common.study_pipeline.OllamaClient', return_value=SequenceModel([answer()])), redirect_stdout(io.StringIO()):
+            with patch('radar.common.study_pipeline.OllamaClient', return_value=SequenceModel([answer()])), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'run', '--input', str(source)]), 0)
             settings = load_settings(manifest)
             reports = [paths['plots'] for paths in _execution_paths(settings, 'cohort', settings.section('ollama')['models']).values()]

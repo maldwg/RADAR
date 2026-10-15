@@ -3,9 +3,9 @@ from __future__ import annotations
 import unittest
 from tests.fixtures import SYSTEM_TYPE_PROFILE
 
-from ids_meta.common.ensemble import consensus_classification
-from ids_meta.common.regression import evaluate_github_regression, evaluate_openalex_regression
-from ids_meta.common.paper_collection import is_survey_work, sample_query_results
+from radar.common.ensemble import consensus_classification
+from radar.common.regression import evaluate_github_regression, evaluate_openalex_regression
+from radar.common.paper_collection import is_survey_work, sample_query_results
 
 
 class RegressionEvaluationTests(unittest.TestCase):

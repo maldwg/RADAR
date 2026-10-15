@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ids-meta"
+name = "radar"
 version = "0.1.0"
-description = "Reproducible GitHub and OpenAlex discovery pipelines for IDS meta-research"
+description = "RADAR: Reproducible Acquisition, Discovery, Assessment, and Reporting for research studies"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -16,7 +16,16 @@ dependencies = [
   "cairosvg>=2.7,<3",
 ]
 
+[project.urls]
+Repository = "https://github.com/maldwg/RADAR"
+Documentation = "https://github.com/maldwg/RADAR/tree/main/docs"
+Issues = "https://github.com/maldwg/RADAR/issues"
+
 [project.optional-dependencies]
+docs = [
+  "Sphinx==8.2.3",
+  "sphinx-rtd-theme==3.1.0",
+]
 nli = [
   "torch>=2.4,<3",
   "transformers>=4.48,<6",
@@ -25,7 +34,7 @@ nli = [
 ]
 
 [project.scripts]
-ids-meta = "ids_meta.cli:main"
+radar = "radar.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

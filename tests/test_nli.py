@@ -7,17 +7,17 @@ from pathlib import Path
 from tests.fixtures import SYSTEM_TYPE_PROFILE
 from unittest.mock import patch
 
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.csvio import read_csv
+from radar.common.cache import PipelineCache
+from radar.common.csvio import read_csv
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.common.nli import (
+from radar.common.nli import (
     EvidenceChunk, NLIField, NLIProfile, NLIRuntimeConfig, NLIScore,
     classify_nli_baseline, infer_nli_fields, nli_profile_hash, rescore_nli_rows,
 )
-from ids_meta.common.nli_diagnostics import NLIThresholdGrid, build_nli_threshold_diagnostics
-from ids_meta.common.ollama import EvidenceSection
-from ids_meta.common.evaluation import load_rating_profile
-from ids_meta.github.schema import CANDIDATE_COLUMNS
+from radar.common.nli_diagnostics import NLIThresholdGrid, build_nli_threshold_diagnostics
+from radar.common.ollama import EvidenceSection
+from radar.common.evaluation import load_rating_profile
+from radar.github.schema import CANDIDATE_COLUMNS
 
 
 class FakeNLIBackend:
@@ -113,7 +113,7 @@ class NLITests(unittest.TestCase):
             self.assertEqual(read_csv(output)[0]["nli_model_revision"], "revision-1")
 
             with PipelineCache(root / "empty-cache.sqlite3") as empty_cache, patch(
-                "ids_meta.common.nli.TransformersNLIBackend",
+                "radar.common.nli.TransformersNLIBackend",
                 side_effect=AssertionError("a compatible output CSV must not initialize the model"),
             ):
                 reused_from_csv = classify_nli_baseline(

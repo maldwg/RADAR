@@ -12,17 +12,17 @@ from unittest.mock import patch
 
 import requests
 
-from ids_meta.cli import _classifier_entries, _execute_baselines, build_parser, main
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import ConfigError, Settings, load_settings
-from ids_meta.common.csvio import read_csv
+from radar.cli import _classifier_entries, _execute_baselines, build_parser, main
+from radar.common.cache import PipelineCache
+from radar.common.config import ConfigError, Settings, load_settings
+from radar.common.csvio import read_csv
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.common.llm_nli import LLMNLIConfig, NLIScoringError, OllamaNLIBackend, augmented_profile, load_llm_nli_config, parse_class_scores
-from ids_meta.common.nli import NLIField, NLIProfile, NLIRuntimeConfig, TransformersNLIBackend, classify_nli_baseline, rescore_nli_rows
-from ids_meta.common.ollama import EvidenceSection
-from ids_meta.common.text import slug
-from ids_meta.plotting.evaluation import build as plot_evaluation
+from radar.common.evaluation import evaluate_results, load_rating_profile
+from radar.common.llm_nli import LLMNLIConfig, NLIScoringError, OllamaNLIBackend, augmented_profile, load_llm_nli_config, parse_class_scores
+from radar.common.nli import NLIField, NLIProfile, NLIRuntimeConfig, TransformersNLIBackend, classify_nli_baseline, rescore_nli_rows
+from radar.common.ollama import EvidenceSection
+from radar.common.text import slug
+from radar.plotting.evaluation import build as plot_evaluation
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -247,7 +247,7 @@ class LLMNLITests(unittest.TestCase):
             values['baselines']['llm_nli']['models'] = ['fixture:1']
             settings = Settings(ROOT, values)
             args = build_parser().parse_args(['github', 'baseline', '--methods', 'llm_nli', '--check-only'])
-            with patch('ids_meta.common.llm_nli.requests.Session', return_value=FakeSession()):
+            with patch('radar.common.llm_nli.requests.Session', return_value=FakeSession()):
                 result = _execute_baselines(args, settings, 'github')
             self.assertEqual(result['baseline_comparison_files'], 0)
             self.assertFalse(list(root.glob('**/classifications.csv')))
@@ -286,7 +286,7 @@ class LLMNLITests(unittest.TestCase):
                     def factory(model, config, reference, ollama, cache):
                         """Inject local fixtures while retaining production backend behavior."""
                         return OllamaNLIBackend(model, config, reference, ollama, cache, session=session, tokenizer=WordTokenizer())
-                    with patch('ids_meta.cli.load_nli_profile', return_value=profile), patch('ids_meta.common.llm_nli.OllamaNLIBackend', side_effect=factory):
+                    with patch('radar.cli.load_nli_profile', return_value=profile), patch('radar.common.llm_nli.OllamaNLIBackend', side_effect=factory):
                         _execute_baselines(build_parser().parse_args(command), settings, source)
                     output = Path(values['paths']['interim_dir']) / source / f'baselines/llm_nli/fixture-1/pilots/{slug(field)}-1/classifications.csv'
                     rows = read_csv(output)
@@ -294,12 +294,12 @@ class LLMNLITests(unittest.TestCase):
                     self.assertEqual(rows[0]['decision'], 'exclude')
                     self.assertEqual(_classifier_entries(settings, source), {})
                     values['baselines']['llm_nli']['entailment_threshold'] = .9
-                    with patch('ids_meta.cli.load_nli_profile', return_value=profile), patch('ids_meta.common.llm_nli.OllamaNLIBackend', side_effect=AssertionError('Offline replay called Ollama')):
+                    with patch('radar.cli.load_nli_profile', return_value=profile), patch('radar.common.llm_nli.OllamaNLIBackend', side_effect=AssertionError('Offline replay called Ollama')):
                         _execute_baselines(build_parser().parse_args(command + ['--evaluate-only']), settings, source)
                         self.assertEqual(read_csv(output)[0]['decision'], 'uncertain')
                         _execute_baselines(build_parser().parse_args(command + ['--evaluate-only']), settings, source)
                     changed = replace(profile, raw={'fixture': 'changed'})
-                    with patch('ids_meta.cli.load_nli_profile', return_value=changed), self.assertRaisesRegex(ConfigError, 'hypotheses/chunking'):
+                    with patch('radar.cli.load_nli_profile', return_value=changed), self.assertRaisesRegex(ConfigError, 'hypotheses/chunking'):
                         _execute_baselines(build_parser().parse_args(command + ['--evaluate-only']), settings, source)
 
     def test_invalid_configuration_is_rejected_before_inference(self):
@@ -318,7 +318,7 @@ class LLMNLITests(unittest.TestCase):
         """Keep top-level CLI postprocessing from reading full results during small checks."""
         for source, role in [('github', 'role'), ('openalex', 'paper_role')]:
             for options in [['--check-only'], ['--fields', role, '--limit', '1']]:
-                with self.subTest(source=source, options=options), patch('ids_meta.cli._execute_baselines', return_value={}), patch('ids_meta.funnel.build', side_effect=AssertionError('Full funnel accessed')):
+                with self.subTest(source=source, options=options), patch('radar.cli._execute_baselines', return_value={}), patch('radar.funnel.build', side_effect=AssertionError('Full funnel accessed')):
                     study = 'ids_repositories' if source == 'github' else 'ids_datasets'
                     self.assertEqual(main(['--study', study, 'baseline', '--methods', 'llm_nli', *options]), 0)
 

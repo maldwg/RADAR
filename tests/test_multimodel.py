@@ -5,13 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ids_meta.cli import _execute_github, _execute_openalex, _execution_paths, _variant_paths
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import Settings
-from ids_meta.common.csvio import read_csv
+from radar.cli import _execute_github, _execute_openalex, _execution_paths, _variant_paths
+from radar.common.cache import PipelineCache
+from radar.common.config import Settings
+from radar.common.csvio import read_csv
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.github.schema import CANDIDATE_COLUMNS as GITHUB_CANDIDATE_COLUMNS
-from ids_meta.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
+from radar.github.schema import CANDIDATE_COLUMNS as GITHUB_CANDIDATE_COLUMNS
+from radar.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
 
 
 ROOT = Path(__file__).resolve().parents[1]

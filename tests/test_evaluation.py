@@ -10,21 +10,21 @@ from pathlib import Path
 
 import pandas as pd
 
-from ids_meta.cli import _evaluation_jobs, _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
-from ids_meta.common.config import Settings, load_settings, load_system_type_profile
-from ids_meta.common.csvio import read_csv
+from radar.cli import _evaluation_jobs, _execute_github, _execute_openalex, _execution_paths, _variant_paths, build_parser
+from radar.common.config import Settings, load_settings, load_system_type_profile
+from radar.common.csvio import read_csv
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.common.ollama import decision_profile
-from ids_meta.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
-from ids_meta.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING
-from ids_meta.plotting.evaluation import _recovered_taxonomy_accuracy, _reference_uncertainty, _taxonomy_accuracy_overview, build as build_evaluation_plots
-from ids_meta.plotting.compare import _reference_uncertainty_overview
-from ids_meta.plotting.common import configure_style
-from ids_meta.plotting.recovery import recovered_taxonomy_table
-from ids_meta.plotting.uncertainty import reference_uncertainty
+from radar.common.evaluation import evaluate_results, load_rating_profile
+from radar.common.ollama import decision_profile
+from radar.github.schema import AUDIT_ROLES, CAPABILITIES, METHODS, OBSERVATION_OBJECTS, SCOPES, system_type_codes
+from radar.openalex.schema import ARTIFACT_TYPES, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING
+from radar.plotting.evaluation import _recovered_taxonomy_accuracy, _reference_uncertainty, _taxonomy_accuracy_overview, build as build_evaluation_plots
+from radar.plotting.compare import _reference_uncertainty_overview
+from radar.plotting.common import configure_style
+from radar.plotting.recovery import recovered_taxonomy_table
+from radar.plotting.uncertainty import reference_uncertainty
 
-from ids_meta.common.provenance import audited_bundle
+from radar.common.provenance import audited_bundle
 _recovered_taxonomy_accuracy = audited_bundle(_recovered_taxonomy_accuracy)
 _reference_uncertainty = audited_bundle(_reference_uncertainty)
 _taxonomy_accuracy_overview = audited_bundle(_taxonomy_accuracy_overview)
@@ -136,7 +136,7 @@ class EvaluationTests(unittest.TestCase):
                 svg = (root / "07_recovered_taxonomy_accuracy.svg").read_text()
                 for label in ["90.0%", "0.0%", "N/A", "n=80", "n=60", "recovered 80/100"]:
                     self.assertIn(label, svg)
-                self.assertNotIn("ids-meta-subcaption", svg)
+                self.assertNotIn("radar-subcaption", svg)
             finally:
                 configure_style()
 
@@ -195,7 +195,7 @@ class EvaluationTests(unittest.TestCase):
             "secumon": 100, "imageocr": 10, "pentest": 10,
         })
         self.assertEqual(Counter(row["decision"] for row in rows), {"accept": 71, "exclude": 47, "uncertain": 2})
-        self.assertEqual(raw["crosswalk_version"], "ghml23-to-ids-meta-v10")
+        self.assertEqual(raw["crosswalk_version"], "ghml23-to-radar-v10")
         self.assertEqual(raw["taxonomy_revision"], "antivirus-file-scanning-v6")
         self.assertIn("what concrete evidence", raw["taxonomy_semantics"]["observation_objects"].casefold())
         self.assertIn("how", raw["taxonomy_semantics"]["detection_methods"].casefold())

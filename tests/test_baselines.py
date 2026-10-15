@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 from tests.fixtures import SYSTEM_TYPE_PROFILE
 
-from ids_meta.cli import _execute_github, build_parser
-from ids_meta.common.baselines import (
+from radar.cli import _execute_github, build_parser
+from radar.common.baselines import (
     KeywordBaselineConfig,
     classify_keyword_baseline,
     configured_baseline_methods,
@@ -15,13 +15,13 @@ from ids_meta.common.baselines import (
     load_keyword_baseline_config,
     load_keyword_taxonomy_profile,
 )
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import ConfigError, Settings
-from ids_meta.common.csvio import read_csv
+from radar.common.cache import PipelineCache
+from radar.common.config import ConfigError, Settings
+from radar.common.csvio import read_csv
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.github.schema import CANDIDATE_COLUMNS
-from ids_meta.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
+from radar.common.evaluation import evaluate_results, load_rating_profile
+from radar.github.schema import CANDIDATE_COLUMNS
+from radar.openalex.schema import CANDIDATE_COLUMNS as OPENALEX_CANDIDATE_COLUMNS
 
 
 ROOT = Path(__file__).resolve().parents[1]

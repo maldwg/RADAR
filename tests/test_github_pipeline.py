@@ -8,14 +8,14 @@ from tests.fixtures import SYSTEM_TYPE_PROFILE
 from typing import Any
 from unittest.mock import Mock, patch
 
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
-from ids_meta.github.pipeline import classify, export, prefilter, prompt
-from ids_meta.github.reconcile import reconcile
-from ids_meta.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, normalize_response, response_schema, system_type_codes
+from radar.common.cache import PipelineCache
+from radar.common.config import load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
+from radar.github.pipeline import classify, export, prefilter, prompt
+from radar.github.reconcile import reconcile
+from radar.github.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ROLES, normalize_response, response_schema, system_type_codes
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.common.text import stable_hash
-from ids_meta.github.collect import GitHubClient, _enrich, collect, search_shards
+from radar.common.text import stable_hash
+from radar.github.collect import GitHubClient, _enrich, collect, search_shards
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,7 +49,7 @@ class GitHubPipelineTests(unittest.TestCase):
         client = GitHubClient(request_pause_seconds=1.0, search_pause_seconds=2.2)
         client._last_request_at = 10.0
         client._last_search_at = 10.0
-        with patch("ids_meta.github.collect.time.monotonic", side_effect=[10.5, 12.2]), patch("ids_meta.github.collect.time.sleep") as sleep:
+        with patch("radar.github.collect.time.monotonic", side_effect=[10.5, 12.2]), patch("radar.github.collect.time.sleep") as sleep:
             client._wait_before_request(True)
         self.assertEqual(sleep.call_count, 1)
         self.assertAlmostEqual(sleep.call_args.args[0], 1.7)
@@ -72,7 +72,7 @@ class GitHubPipelineTests(unittest.TestCase):
             text="{}",
         )
         client.session.get = Mock(side_effect=[limited, success])
-        with patch.object(client, "_wait_before_request"), patch("ids_meta.github.collect.time.time", return_value=100), patch("ids_meta.github.collect.time.sleep") as sleep:
+        with patch.object(client, "_wait_before_request"), patch("radar.github.collect.time.time", return_value=100), patch("radar.github.collect.time.sleep") as sleep:
             response = client.request("/repos/example/project")
         self.assertIs(response, success)
         self.assertEqual(client.session.get.call_count, 2)
@@ -82,7 +82,7 @@ class GitHubPipelineTests(unittest.TestCase):
         """Verify adaptive pacing distributes calls over the reset window."""
         client = GitHubClient(token=None, request_pause_seconds=2, search_pause_seconds=3)
         response = Mock(headers={"X-RateLimit-Remaining": "59", "X-RateLimit-Reset": "3700", "X-RateLimit-Resource": "core"})
-        with patch("ids_meta.github.collect.time.time", return_value=100):
+        with patch("radar.github.collect.time.time", return_value=100):
             client._observe_rate_limit(response)
         self.assertGreater(client._adaptive_core_pause, 60)
 

@@ -7,13 +7,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ids_meta.cli import _pipeline_limits, build_parser
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import ConfigError
-from ids_meta.common.limits import optional_limit, query_result_limit
-from ids_meta.github.collect import collect as collect_github, search_best_matches
-from ids_meta.openalex.collect import OpenAlexClient
-from ids_meta.common.paper_collection import sample_query_results
+from radar.cli import _pipeline_limits, build_parser
+from radar.common.cache import PipelineCache
+from radar.common.config import ConfigError
+from radar.common.limits import optional_limit, query_result_limit
+from radar.github.collect import collect as collect_github, search_best_matches
+from radar.openalex.collect import OpenAlexClient
+from radar.common.paper_collection import sample_query_results
 from tests.fixtures import collect_paper_fixture as collect_openalex
 
 

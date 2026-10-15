@@ -8,22 +8,22 @@ from tests.fixtures import SYSTEM_TYPE_PROFILE
 
 import pandas as pd
 
-from ids_meta.common.baselines import infer_keyword_fields, load_keyword_taxonomy_profile
-from ids_meta.common.config import load_prompt_profile, load_settings
+from radar.common.baselines import infer_keyword_fields, load_keyword_taxonomy_profile
+from radar.common.config import load_prompt_profile, load_settings
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.common.ensemble import _github_field_consensus, ensemble_classifications
-from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.common.nli import NLIProfile, decide_nli_fields, load_nli_profile
-from ids_meta.github.baseline import normalize_keyword_result, normalize_nli_result
-from ids_meta.github.pipeline import prompt
-from ids_meta.github.schema import CENTRALIZATION, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, normalize_response
-from ids_meta.openalex.schema import RESPONSE_SCHEMA as OPENALEX_SCHEMA
-from ids_meta.plotting.common import configure_style
-from ids_meta.plotting.compare import build_classifiers
-from ids_meta.plotting.evaluation import _field_accuracy
-from ids_meta.plotting.github import _centralization_plots
+from radar.common.ensemble import _github_field_consensus, ensemble_classifications
+from radar.common.evaluation import evaluate_results, load_rating_profile
+from radar.common.nli import NLIProfile, decide_nli_fields, load_nli_profile
+from radar.github.baseline import normalize_keyword_result, normalize_nli_result
+from radar.github.pipeline import prompt
+from radar.github.schema import CENTRALIZATION, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, normalize_response
+from radar.openalex.schema import RESPONSE_SCHEMA as OPENALEX_SCHEMA
+from radar.plotting.common import configure_style
+from radar.plotting.compare import build_classifiers
+from radar.plotting.evaluation import _field_accuracy
+from radar.plotting.github import _centralization_plots
 
-from ids_meta.common.provenance import audited_bundle
+from radar.common.provenance import audited_bundle
 _field_accuracy = audited_bundle(_field_accuracy)
 _centralization_plots = audited_bundle(_centralization_plots)
 

@@ -13,19 +13,19 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from ids_meta.adapters.contracts import ProviderDescriptor, ProviderQuery, SearchPage, SourceRecord
-from ids_meta.adapters.github import GitHubAdapter
-from ids_meta.adapters.http import JsonTransport
-from ids_meta.adapters.local import LocalDiscoveryAdapter
-from ids_meta.adapters.openalex import OpenAlexAdapter
-from ids_meta.adapters.registry import PROVIDERS, create_adapter, register_provider
-from ids_meta.adapters.semantic_scholar import SemanticScholarAdapter
-from ids_meta.cli import main
-from ids_meta.common.config import ConfigError, load_settings
-from ids_meta.common.discovery import DiscoverySource, collect_sources
-from ids_meta.common.provenance import file_hash
-from ids_meta.common.verification import verify_directory
-from ids_meta.plotting.generic import build_report
+from radar.adapters.contracts import ProviderDescriptor, ProviderQuery, SearchPage, SourceRecord
+from radar.adapters.github import GitHubAdapter
+from radar.adapters.http import JsonTransport
+from radar.adapters.local import LocalDiscoveryAdapter
+from radar.adapters.openalex import OpenAlexAdapter
+from radar.adapters.registry import PROVIDERS, create_adapter, register_provider
+from radar.adapters.semantic_scholar import SemanticScholarAdapter
+from radar.cli import main
+from radar.common.config import ConfigError, load_settings
+from radar.common.discovery import DiscoverySource, collect_sources
+from radar.common.provenance import file_hash
+from radar.common.verification import verify_directory
+from radar.plotting.generic import build_report
 
 ROOT = Path(__file__).resolve().parents[1]
 REVIEW = ROOT / 'config/studies/conformal_treatment_effects'
@@ -194,11 +194,11 @@ class AdapterTests(unittest.TestCase):
         adapter = GitHubAdapter({}, Path(), client)
         self.assertFalse(adapter.search(ProviderQuery('q', 'intrusion'), '10', 100).complete)
         self.assertEqual(adapter.normalize({'id': 1}).native_id, '1')
-        with patch('ids_meta.adapters.github.collect', return_value={'discovered': 1}) as github:
+        with patch('radar.adapters.github.collect', return_value={'discovered': 1}) as github:
             adapter.collect_catalogue({}, {}, Mock(), 5, resume=False)
             self.assertFalse(github.call_args.kwargs['resume'])
             self.assertIs(github.call_args.kwargs['client'], client)
-        with patch('ids_meta.adapters.openalex.collect_papers', return_value=({'discovered': 1}, {}, {})) as openalex:
+        with patch('radar.adapters.openalex.collect_papers', return_value=({'discovered': 1}, {}, {})) as openalex:
             OpenAlexAdapter({}, Path(), client).collect_catalogue({}, {}, Mock(), 5)
             self.assertIs(openalex.call_args.args[-1].client, client)
 
@@ -206,14 +206,14 @@ class AdapterTests(unittest.TestCase):
         """Rate-limited requests honor bounded Retry-After; authentication errors fail immediately."""
         limited, success = Mock(status_code=429, headers={'Retry-After': '999'}), Mock(status_code=200)
         success.json.return_value = {'data': []}
-        with patch('ids_meta.adapters.http.requests.get', side_effect=[limited, success]) as get, patch(
-            'ids_meta.adapters.http.time.sleep') as sleep:
+        with patch('radar.adapters.http.requests.get', side_effect=[limited, success]) as get, patch(
+            'radar.adapters.http.time.sleep') as sleep:
             self.assertEqual(JsonTransport(pause=0, max_wait=4).get('https://example.org'), {'data': []})
             self.assertEqual(get.call_count, 2)
             sleep.assert_called_once_with(4)
         forbidden = Mock(status_code=401)
         forbidden.raise_for_status.side_effect = requests.HTTPError('unauthorized')
-        with patch('ids_meta.adapters.http.requests.get', return_value=forbidden) as get:
+        with patch('radar.adapters.http.requests.get', return_value=forbidden) as get:
             with self.assertRaises(requests.HTTPError):
                 JsonTransport(pause=0).get('https://example.org')
             self.assertEqual(get.call_count, 1)
@@ -256,8 +256,8 @@ class AdapterTests(unittest.TestCase):
             oa.get.return_value = {'results': [{'id': 'https://openalex.org/W1', 'doi': 'https://doi.org/10.1234/one', 'title': 'Paper'}], 'meta': {}}
             scholar = Mock()
             scholar.get.return_value = {'data': [{'paperId': 's1', 'externalIds': {'DOI': '10.1234/one'}, 'title': 'Paper'}]}
-            with patch('ids_meta.adapters.openalex.OpenAlexClient', return_value=oa), patch(
-                'ids_meta.adapters.semantic_scholar.JsonTransport', return_value=scholar), redirect_stdout(io.StringIO()):
+            with patch('radar.adapters.openalex.OpenAlexClient', return_value=oa), patch(
+                'radar.adapters.semantic_scholar.JsonTransport', return_value=scholar), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'collect']), 0)
                 self.assertEqual(main(['--config', str(manifest), 'collect', '--source', 'semantic_scholar']), 0)
             interim = root / 'artifacts/studies/conformal_treatment_effects/interim'

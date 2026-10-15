@@ -11,16 +11,16 @@ from dataclasses import replace
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from ids_meta.common.csvio import read_csv
-from ids_meta.cli import main
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.common.provenance import freeze_database, freeze_file
-from ids_meta.common.reporting import ReportingDatabase
-from ids_meta.common.sources import LocalSourceAdapter, entity_identifier, load_source_contract
-from ids_meta.common.verification import verify_database, verify_directory, verify_manifest
-from ids_meta.plotting.compare import build_classifiers
-from ids_meta.plotting.generic import build_report
+from radar.common.csvio import read_csv
+from radar.cli import main
+from radar.common.cache import PipelineCache
+from radar.common.evaluation import evaluate_results, load_rating_profile
+from radar.common.provenance import freeze_database, freeze_file
+from radar.common.reporting import ReportingDatabase
+from radar.common.sources import LocalSourceAdapter, entity_identifier, load_source_contract
+from radar.common.verification import verify_database, verify_directory, verify_manifest
+from radar.plotting.compare import build_classifiers
+from radar.plotting.generic import build_report
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / 'examples/reporting'

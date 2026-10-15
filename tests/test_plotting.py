@@ -9,17 +9,17 @@ from tests.fixtures import SYSTEM_TYPE_PROFILE
 import pandas as pd
 
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.cli import build_parser
-from ids_meta.plotting.common import add_heading, configure_style, percentage_bars, save_figure, stamp, subcaption
-from ids_meta.github.schema import CATALOGUE_COLUMNS as GITHUB_COLUMNS
-from ids_meta.openalex.schema import CATALOGUE_COLUMNS as OPENALEX_COLUMNS
-from ids_meta.plotting.github import OPERATIONAL_ROLES, _github_why_not_included, _repository_density_data, _system_type_colors, build as build_github
-from ids_meta.plotting.openalex import _cumulative_dimension, _openalex_why_not_included, build as build_openalex, prepare_frame, publication_timeline, timeline_citation_coordinate, spread_label_boxes, spread_label_coordinates
-from ids_meta.plotting.compare import build as build_compare
-from ids_meta.plotting.compare import build_models
-from ids_meta.architecture import _draw_pipeline_figure, _draw_system_figure, build as build_architecture
+from radar.cli import build_parser
+from radar.plotting.common import add_heading, configure_style, percentage_bars, save_figure, stamp, subcaption
+from radar.github.schema import CATALOGUE_COLUMNS as GITHUB_COLUMNS
+from radar.openalex.schema import CATALOGUE_COLUMNS as OPENALEX_COLUMNS
+from radar.plotting.github import OPERATIONAL_ROLES, _github_why_not_included, _repository_density_data, _system_type_colors, build as build_github
+from radar.plotting.openalex import _cumulative_dimension, _openalex_why_not_included, build as build_openalex, prepare_frame, publication_timeline, timeline_citation_coordinate, spread_label_boxes, spread_label_coordinates
+from radar.plotting.compare import build as build_compare
+from radar.plotting.compare import build_models
+from radar.architecture import _draw_pipeline_figure, _draw_system_figure, build as build_architecture
 
-from ids_meta.common.provenance import audited_bundle
+from radar.common.provenance import audited_bundle
 save_figure = audited_bundle(save_figure)
 publication_timeline = audited_bundle(publication_timeline)
 
@@ -75,7 +75,7 @@ class PlottingTests(unittest.TestCase):
                     svg = path.read_text()
                     for text in ("Protected title", "Protected axis", "Protected heading", "Approach", "40.0%"):
                         self.assertIn(text, svg)
-                    for text in ("Optional footer", "Optional subtitle", "Optional provenance", "Optional axis caption", "ids-meta-subcaption"):
+                    for text in ("Optional footer", "Optional subtitle", "Optional provenance", "Optional axis caption", "radar-subcaption"):
                         self.assertEqual(text in svg, show)
                 configure_style()
                 fig = percentage_bars(["Default"], [0], title="Title", xlabel="Axis", caption="Restored default")

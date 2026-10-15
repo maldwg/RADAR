@@ -9,13 +9,13 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from ids_meta.cli import main
-from ids_meta.common.csvio import read_csv
+from radar.cli import main
+from radar.common.csvio import read_csv
 from tests.fixtures import write_csv as atomic_write_csv
-from ids_meta.common.evaluation import load_rating_profile
-from ids_meta.common.study_screening import StudyScreeningAdapter, load_study_protocol, screen_study
-from ids_meta.common.verification import verify_database, verify_directory
-from ids_meta.plotting.generic import build_report
+from radar.common.evaluation import load_rating_profile
+from radar.common.study_screening import StudyScreeningAdapter, load_study_protocol, screen_study
+from radar.common.verification import verify_database, verify_directory
+from radar.plotting.generic import build_report
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "config/studies/conformal_treatment_effects"

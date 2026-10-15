@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from ids_meta.common.study_pipeline import classify_study, collect_study
+from radar.common.study_pipeline import classify_study, collect_study
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "config/studies/conformal_treatment_effects"
@@ -80,7 +80,7 @@ class StudyPipelineTests(unittest.TestCase):
             self.assertEqual(len(client.calls), 1)
             self.assertNotIn('GOLD_MARKER', client.calls[0][0])
             self.assertEqual(len(client.calls[0][1]['properties']['criteria']['required']), 14)
-            with patch('ids_meta.common.study_pipeline.OllamaClient', side_effect=AssertionError('backend initialized')):
+            with patch('radar.common.study_pipeline.OllamaClient', side_effect=AssertionError('backend initialized')):
                 resumed = classify_study(PROFILE / 'screening.toml', source, output, {'model': 'test'}, resume=True)
             self.assertEqual(resumed[0]['decision'], 'accept')
             candidate['full_text'] += ' New evidence.'
@@ -143,8 +143,8 @@ class StudyPipelineTests(unittest.TestCase):
             root = Path(temporary)
             source = root / 'candidates.json'
             source.write_text(json.dumps([{'paper_id': 'one', 'title': 'Missing text', 'pdf_url': 'https://example.org/paper.pdf'}]))
-            with patch('ids_meta.common.study_pipeline.OllamaClient', side_effect=AssertionError('model call')), patch(
-                'ids_meta.common.paper_evidence.download_pdf_text', side_effect=AssertionError('HTTP call')):
+            with patch('radar.common.study_pipeline.OllamaClient', side_effect=AssertionError('model call')), patch(
+                'radar.common.paper_evidence.download_pdf_text', side_effect=AssertionError('HTTP call')):
                 missing = classify_study(PROFILE / 'screening.toml', source, root / 'missing.csv', {})
                 preview = classify_study(PROFILE / 'screening.toml', source, root / 'preview.csv', {}, dry_run=True, fetch_full_text=True)
             self.assertEqual(missing[0]['decision'], 'uncertain')

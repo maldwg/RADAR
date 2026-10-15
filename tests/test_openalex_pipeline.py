@@ -7,15 +7,15 @@ from tests.fixtures import fixture_collection
 from typing import Any
 from unittest.mock import Mock, patch
 
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import load_prompt_profile, load_settings, load_term_profile
-from ids_meta.openalex.collect import OpenAlexClient, normalize_work, reconstruct_abstract
-from ids_meta.common.paper_collection import is_survey_work, publisher_diverse_surveys, rank_work_pool
+from radar.common.cache import PipelineCache
+from radar.common.config import load_prompt_profile, load_settings, load_term_profile
+from radar.openalex.collect import OpenAlexClient, normalize_work, reconstruct_abstract
+from radar.common.paper_collection import is_survey_work, publisher_diverse_surveys, rank_work_pool
 from tests.fixtures import collect_paper_fixture as collect
-from ids_meta.openalex.pipeline import classify, export, export_survey_sources, prefilter
-from ids_meta.openalex.reconcile import reconcile
-from ids_meta.openalex.entities import canonicalize_artifact_ids
-from ids_meta.openalex.schema import CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ensure_resource_name, normalize_response
+from radar.openalex.pipeline import classify, export, export_survey_sources, prefilter
+from radar.openalex.reconcile import reconcile
+from radar.openalex.entities import canonicalize_artifact_ids
+from radar.openalex.schema import CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, RESPONSE_SCHEMA, ensure_resource_name, normalize_response
 from tests.fixtures import write_csv as atomic_write_csv
 
 
@@ -118,8 +118,8 @@ class OpenAlexPipelineTests(unittest.TestCase):
         client.transport.last_request = 20.0
         response = Mock(status_code=200)
         response.json.return_value = {"results": []}
-        with patch("ids_meta.adapters.http.time.monotonic", side_effect=[20.2, 20.5, 20.7, 21.0]), patch(
-            "ids_meta.adapters.http.time.sleep") as sleep, patch.object(client.transport.session, "get", return_value=response):
+        with patch("radar.adapters.http.time.monotonic", side_effect=[20.2, 20.5, 20.7, 21.0]), patch(
+            "radar.adapters.http.time.sleep") as sleep, patch.object(client.transport.session, "get", return_value=response):
             self.assertEqual(client.get("/works"), {"results": []})
             self.assertEqual(client.get("/works"), {"results": []})
         self.assertEqual(sleep.call_count, 2)

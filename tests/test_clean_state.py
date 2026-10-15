@@ -4,14 +4,14 @@ import json
 import tempfile
 import unittest
 
-from ids_meta.cli import _configured_models, _execution_paths, build_parser
-from ids_meta.common.cache import PipelineCache
-from ids_meta.common.config import ConfigError, Settings
-from ids_meta.common.csvio import atomic_write_csv
-from ids_meta.common.evaluation import evaluate_results, load_rating_profile
-from ids_meta.github.pipeline import prefilter as github_prefilter
-from ids_meta.openalex.pipeline import prefilter as openalex_prefilter
-from ids_meta.plotting.compare import build_classifiers
+from radar.cli import _configured_models, _execution_paths, build_parser
+from radar.common.cache import PipelineCache
+from radar.common.config import ConfigError, Settings
+from radar.common.csvio import atomic_write_csv
+from radar.common.evaluation import evaluate_results, load_rating_profile
+from radar.github.pipeline import prefilter as github_prefilter
+from radar.openalex.pipeline import prefilter as openalex_prefilter
+from radar.plotting.compare import build_classifiers
 
 
 class CleanStateTests(unittest.TestCase):
