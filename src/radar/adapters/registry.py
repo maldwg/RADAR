@@ -29,6 +29,10 @@ def register_provider(descriptor: ProviderDescriptor, factory: Callable[..., Dis
     """Register an extension once and reject accidental name replacement."""
     if descriptor.name in PROVIDERS:
         raise ValueError(f"duplicate provider registration: {descriptor.name}")
+    if (len(set(descriptor.evidence_formats)) != len(descriptor.evidence_formats)
+            or set(descriptor.evidence_formats) - {'tei_xml', 'pdf'}
+            or descriptor.evidence_formats and 'evidence' not in descriptor.capabilities):
+        raise ValueError('provider evidence formats require the evidence capability and supported distinct formats')
     PROVIDERS[descriptor.name] = ProviderRegistration(descriptor, factory)
 
 

@@ -284,7 +284,10 @@ class CommonTests(unittest.TestCase):
         evidence = [{"source": "Abstract", "quote": "First release statement ... Final access statement"}]
         verified, ok = verify_evidence(evidence, sections)
         self.assertTrue(ok)
-        self.assertEqual(verified, evidence)
+        self.assertEqual(verified[0]["model_quote"], evidence[0]["quote"])
+        self.assertEqual(len(verified[0]["source_spans"]), 2)
+        for span in verified[0]["source_spans"]:
+            self.assertEqual(sections[0].text[span["start"]:span["end"]], span["quote"])
         _, reversed_fragments = verify_evidence(
             [{"source": "Abstract", "quote": "Final access statement … First release statement"}], sections,
         )

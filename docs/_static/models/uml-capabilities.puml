@@ -1,0 +1,59 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.adapters.contracts.LookupAdapter" as radar_adapters_contracts_LookupAdapter <<protocol>> {
+  +lookup()
+}
+class "radar.adapters.contracts.EvidenceAdapter" as radar_adapters_contracts_EvidenceAdapter <<protocol>> {
+  +enrich()
+}
+class "radar.adapters.contracts.ReferenceAdapter" as radar_adapters_contracts_ReferenceAdapter <<protocol>> {
+  +references()
+}
+class "radar.adapters.contracts.CatalogueAdapter" as radar_adapters_contracts_CatalogueAdapter <<protocol>> {
+  +collect_catalogue()
+}
+class "radar.adapters.openalex.OpenAlexAdapter" as radar_adapters_openalex_OpenAlexAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +lookup()
+  +enrich()
+  +references()
+  +lookup_many()
+  +collect_catalogue()
+}
+class "radar.adapters.semantic_scholar.SemanticScholarAdapter" as radar_adapters_semantic_scholar_SemanticScholarAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +lookup()
+  +enrich()
+}
+class "radar.adapters.github.GitHubAdapter" as radar_adapters_github_GitHubAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +collect_catalogue()
+}
+class "radar.common.paper_evidence.PaperEvidenceService" as radar_common_paper_evidence_PaperEvidenceService {
+  +__init__()
+  +prepare()
+  +enrich()
+}
+radar_adapters_github_GitHubAdapter ..|> radar_adapters_contracts_CatalogueAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_CatalogueAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_EvidenceAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_LookupAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_ReferenceAdapter : structural candidate
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..|> radar_adapters_contracts_EvidenceAdapter : structural candidate
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..|> radar_adapters_contracts_LookupAdapter : structural candidate
+radar_common_paper_evidence_PaperEvidenceService --> radar_adapters_contracts_EvidenceAdapter : enricher, enrichers
+radar_common_paper_evidence_PaperEvidenceService ..|> radar_adapters_contracts_EvidenceAdapter : structural candidate
+@enduml

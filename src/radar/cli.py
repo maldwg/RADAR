@@ -981,6 +981,8 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
                     max_chars=evidence.get("max_full_text_chars", 120000),
                     evidence_lookup_timeout_seconds=evidence.get("evidence_lookup_timeout_seconds", 30),
                     enrich_missing_abstracts=evidence["enrich_missing_abstracts"],
+                    enrich_missing_full_text=evidence["enrich_missing_full_text"],
+                    full_text_lookup_providers=evidence["full_text_lookup_providers"],
                     enrich_uncertain_with_full_text=evidence["enrich_uncertain_with_full_text"],
                     classify_borderline=classification_settings["classify_borderline"],
                     evidence_service=evidence_service,
@@ -1119,6 +1121,7 @@ def build_parser() -> argparse.ArgumentParser:
     study_classify.add_argument("--limit", type=int)
     study_classify.add_argument("--resume", action="store_true")
     study_classify.add_argument("--dry-run", action="store_true", help="write uncertain previews without HTTP or model calls")
+    study_classify.add_argument("--enrich-missing-full-text", action="store_true", help="look up alternative PDF sources when supplied URLs are missing or fail")
     study_classify.add_argument("--fetch-full-text", action="store_true", help="download open PDFs declared by candidate metadata")
     study_classify.add_argument("--max-full-text-chars", type=int, default=120000)
     study_classify.add_argument("--consecutive-runs", type=int, default=1)
@@ -1216,7 +1219,8 @@ def main(argv: list[str] | None = None) -> int:
             config["model"] = args.model or _configured_models(settings)[0]
             rows = classify_study(args.protocol, args.input, args.output, config,
                 limit=args.limit, resume=args.resume, dry_run=args.dry_run,
-                fetch_full_text=args.fetch_full_text, max_chars=args.max_full_text_chars,
+                fetch_full_text=args.fetch_full_text, enrich_missing_full_text=args.enrich_missing_full_text,
+                max_chars=args.max_full_text_chars,
                 consecutive_runs=args.consecutive_runs, consensus_threshold=args.consensus_threshold)
             counts = {"classified_papers": len(rows), "assessment_errors": sum(r["decision"] == "error" for r in rows)}
         elif args.command == "report":

@@ -15,6 +15,7 @@ from radar.common.config import ConfigError, load_prompt_profile, load_settings
 from radar.common.csvio import atomic_write_csv, read_csv
 from radar.github.schema import CANDIDATE_COLUMNS
 from radar.common.screening import load_screening_profile
+from radar.common.evidence_blocks import EvidenceBlockIndex
 from radar.common.study_screening import load_study_protocol, StudyScreeningAdapter
 from radar.github.pipeline import prompt as repository_prompt
 from radar.openalex.pipeline import prompt as paper_prompt
@@ -226,10 +227,10 @@ class StudyConfigurationTests(unittest.TestCase):
             path.write_text((text[:start] + text[stop:]).replace('quality_minimum = 5\n', ''))
             protocol = load_study_protocol(path)
             row = {"paper_id": "one", "title": "fixture", "full_text": "Direct evidence", "criteria": {
-                key: {"value": "yes", "quote": "Direct evidence", "source": "full_text"} for key in protocol.filters}}
+                key: {"value": "yes", "evidence_ids": [EvidenceBlockIndex("Direct evidence").blocks[0].id]} for key in protocol.filters}}
             result = StudyScreeningAdapter(protocol).normalize([row])[0]
             self.assertEqual(result["decision"], "accept")
             self.assertEqual(result["decision_basis"], "eligibility_passed")
-            row["criteria"][next(iter(protocol.filters))] = {"value": "unknown"}
+            row["criteria"][next(iter(protocol.filters))] = {"value": "unknown", "evidence_ids": []}
             self.assertEqual(StudyScreeningAdapter(protocol).normalize([row])[0]["decision"], "uncertain")
 

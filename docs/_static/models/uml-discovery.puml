@@ -1,0 +1,75 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.adapters.contracts.DiscoveryAdapter" as radar_adapters_contracts_DiscoveryAdapter <<protocol>> {
+  +descriptor: ProviderDescriptor
+  +queries()
+  +validate_query()
+  +search()
+  +normalize()
+}
+class "radar.adapters.github.GitHubAdapter" as radar_adapters_github_GitHubAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +collect_catalogue()
+}
+class "radar.adapters.openalex.OpenAlexAdapter" as radar_adapters_openalex_OpenAlexAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +lookup()
+  +enrich()
+  +references()
+  +lookup_many()
+  +collect_catalogue()
+}
+class "radar.adapters.semantic_scholar.SemanticScholarAdapter" as radar_adapters_semantic_scholar_SemanticScholarAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +lookup()
+  +enrich()
+}
+class "radar.adapters.local.LocalDiscoveryAdapter" as radar_adapters_local_LocalDiscoveryAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+}
+class "radar.github.collect.GitHubClient" as radar_github_collect_GitHubClient {
+  +__init__()
+  +request()
+  +get_json()
+  +search()
+  +raw_readme()
+  +docs()
+}
+class "radar.openalex.collect.OpenAlexClient" as radar_openalex_collect_OpenAlexClient {
+  +__init__()
+  +get()
+  +search()
+  +work()
+  +works_by_ids()
+}
+class "radar.adapters.http.JsonTransport" as radar_adapters_http_JsonTransport {
+  +__init__()
+  +retry_delay()
+  +get()
+}
+radar_adapters_github_GitHubAdapter ..|> radar_adapters_contracts_DiscoveryAdapter : structural candidate
+radar_adapters_github_GitHubAdapter --> radar_github_collect_GitHubClient : client
+radar_adapters_local_LocalDiscoveryAdapter ..|> radar_adapters_contracts_DiscoveryAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_DiscoveryAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter --> radar_openalex_collect_OpenAlexClient : client
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..|> radar_adapters_contracts_DiscoveryAdapter : structural candidate
+radar_adapters_semantic_scholar_SemanticScholarAdapter --> radar_adapters_http_JsonTransport : client
+radar_openalex_collect_OpenAlexClient --> radar_adapters_http_JsonTransport : transport
+@enduml

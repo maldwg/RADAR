@@ -24,7 +24,7 @@ PIPELINE_OPTIONS = {
         "created_from", "max_surveys", "snowball_start_papers", "snowball_max_depth", "survey_reference_fraction",
         "survey_query_limit_factor", "reference_limit_factor", "survey_consensus_threshold", "retrieval_minimum_score",
         "retrieval_minimum_title_tokens", "retrieval_title_weight", "minimum_citations", "candidate_threshold", "borderline_threshold"},
-    "evidence": {"max_docs_files", "enrich_uncertain_evidence", "uncertain_max_docs_files", "enrich_missing_abstracts",
+    "evidence": {"max_docs_files", "enrich_uncertain_evidence", "uncertain_max_docs_files", "enrich_missing_abstracts", "enrich_missing_full_text", "full_text_lookup_providers",
         "enrich_uncertain_with_full_text", "evidence_lookup_timeout_seconds", "max_full_text_chars", "fetch_full_text"},
     "classification": {"classification_limit", "consecutive_runs", "consensus_threshold", "classify_borderline", "ensemble"},
     "reconciliation": {"reconcile_with_llm", "canonical_ambiguity_margin", "canonical_role_scores", "canonical_direct_release_score",

@@ -9,15 +9,18 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from radar.common.study_pipeline import classify_study, collect_study
+from radar.common.evidence_blocks import EvidenceBlockIndex, EVIDENCE_BLOCK_VERSION
+from radar.common.study_consensus import ensemble_study
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "config/studies/conformal_treatment_effects"
 TEXT = "We propose an original conformal treatment-effect method. The method requires SUTVA, ignorability and overlap."
 
 
-def answer() -> dict:
-    """Construct a complete, evidence-backed model response fixture."""
-    assessment = lambda value: {"value": value, "quote": TEXT if value != "unknown" else "", "source": "full_text" if value != "unknown" else ""}
+def answer(text=TEXT) -> dict:
+    """Construct judgments referencing the actual frozen extraction."""
+    block = EvidenceBlockIndex(text).blocks[0].id
+    assessment = lambda value: {"value": value, "evidence_ids": [block] if value != "unknown" else []}
     return {"criteria": {**{f"F{i}": assessment("yes") for i in range(1, 6)},
         **{f"Q{i}": assessment("yes" if i <= 5 else "unknown") for i in range(1, 10)}},
         "fields": {field: assessment("required") for field in ("sutva", "strong_ignorability", "overlap")}}
@@ -27,11 +30,19 @@ class FakeModel:
     def __init__(self, response=None):
         """Initialize the adapter or fixture state."""
         self.calls = []
-        self.response = response or answer()
+        self.response = response
 
     def generate(self, prompt, schema):
         """Return a recorded model response for the test."""
         self.calls.append((prompt, schema))
+        if self.response is None:
+            evidence = json.loads(prompt.split('UNTRUSTED EVIDENCE BLOCKS\n', 1)[1])
+            result = answer()
+            for group in result.values():
+                for judgment in group.values():
+                    if judgment['evidence_ids']:
+                        judgment['evidence_ids'] = [evidence['evidence_blocks'][0]['id']]
+            return result
         return copy.deepcopy(self.response)
 
 
@@ -88,54 +99,113 @@ class StudyPipelineTests(unittest.TestCase):
             classify_study(PROFILE / 'screening.toml', source, output, {'model': 'test'}, resume=True, client=client)
             self.assertEqual(len(client.calls), 2)
 
-    def test_fabricated_model_quotes_are_errors_not_accepted_decisions(self):
-        """Verify fabricated model quotes are errors not accepted decisions."""
+    def test_unknown_block_ids_abstain_only_on_the_affected_judgment(self):
+        """A bad reference is audited once; other supported judgments remain usable."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / 'candidates.json'
-            source.write_text(json.dumps([{'paper_id': 'one', 'title': 'A method', 'full_text': TEXT}]))
+            source.write_text(json.dumps([{'paper_id': 'one', 'full_text': TEXT}]))
             for section, key in [('criteria', 'F1'), ('fields', 'sutva')]:
                 invalid = answer()
-                invalid[section][key]['quote'] = 'invented evidence'
-                rows = classify_study(PROFILE / 'screening.toml', source, root / 'out.csv', {'model': 'test'}, client=FakeModel(invalid))
-                self.assertEqual(rows[0]['decision'], 'error')
-                self.assertEqual(rows[0]['sutva'], 'unknown')
-                self.assertTrue(rows[0]['error'])
-                self.assertIn('invented evidence', rows[0]['model_response_json'])
-                self.assertIn('quot', rows[0]['assessment_error_detail'])
-                self.assertEqual(len(json.loads(rows[0]['assessment_attempts_json'])), 2)
+                invalid[section][key]['evidence_ids'] = ['B000000000000-00001']
+                model = FakeModel(invalid)
+                rows = classify_study(PROFILE / 'screening.toml', source, root / 'out.csv', {'model': 'test'}, client=model)
+                self.assertEqual(rows[0]['decision'], 'uncertain' if section == 'criteria' else 'accept')
+                self.assertEqual(len(model.calls), 1)
+                warning = json.loads(rows[0]['assessment_evidence_warnings_json'])[0]
+                self.assertEqual(warning['field'], f'{section}.{key}')
+                self.assertEqual(warning['judgment']['evidence_ids'], ['B000000000000-00001'])
+                self.assertEqual(len(json.loads(rows[0]['assessment_attempts_json'])), 1)
 
-    def test_one_correction_can_recover_valid_evidence_without_reference_labels(self):
-        """Verify one correction can recover valid evidence without reference labels."""
+    def test_multiple_passages_are_copied_separately_with_math_and_typos_intact(self):
+        """Evidence can span distant blocks without generated quotations or omission stitching."""
+        text = TEXT + '\n\nThe calibartion uses α ≤ 0.05.\n\nAnother section: treat-\nment effects and E fficient SCI-\nENCE.'
+        index = EvidenceBlockIndex(text)
+        response = answer(text)
+        ids = [index.blocks[2].id, index.blocks[0].id]
+        response['criteria']['F5']['evidence_ids'] = ids
+        response['fields']['sutva']['evidence_ids'] = [index.blocks[1].id]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'candidates.json'
+            source.write_text(json.dumps([{'paper_id': 'one', 'full_text': text}]))
+            model = FakeModel(response)
+            row = classify_study(PROFILE / 'screening.toml', source, root / 'out.csv', {'model': 'test'}, client=model)[0]
+            self.assertEqual(row['decision'], 'accept')
+            self.assertEqual(len(model.calls), 1)
+            self.assertEqual(json.loads(row['criteria_json'])['F5']['evidence_ids'], ids)
+            manifest = json.loads(row['evidence_passages_json'])
+            self.assertEqual(len(manifest['passages']), 3)
+            for passage in manifest['passages']:
+                self.assertEqual(text[passage['start']:passage['end']], passage['text'])
+            self.assertIn('calibartion', manifest['passages'][1]['text'])
+            self.assertIn('treat-\nment', manifest['passages'][2]['text'])
+            schema = model.calls[0][1]['properties']['criteria']['properties']['F5']
+            self.assertEqual(schema['required'], ['value', 'evidence_ids'])
+            self.assertNotIn('quote', schema['properties'])
+            self.assertNotIn('assessment_quote_repairs_json', row)
+
+    def test_ensemble_retains_reference_audits_and_rejects_mixed_segmentation(self):
+        """Voting retains IDs and model attribution, and requires the same block policy."""
+        supported, unsupported = answer(), answer()
+        unsupported['criteria']['Q8'] = {'value': 'yes', 'evidence_ids': ['other-document']}
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'candidates.json'
+            source.write_text(json.dumps([{'paper_id': 'one', 'full_text': TEXT}]))
+            inputs = {'one': root / 'one.csv', 'two': root / 'two.csv'}
+            for model, response in [('one', supported), ('two', unsupported)]:
+                classify_study(PROFILE / 'screening.toml', source, inputs[model], {'model': model}, client=FakeModel(response))
+            result = ensemble_study(PROFILE / 'screening.toml', inputs, root / 'ensemble.csv', 1)[0]
+            self.assertEqual(result['decision'], 'accept')
+            self.assertEqual({e['model'] for e in json.loads(result['assessment_evidence_warnings_json'])}, {'two'})
+            self.assertEqual(json.loads(result['evidence_passages_json'])['passages'][0]['text'], TEXT)
+            checkpoint = inputs['two'].with_suffix('.assessments.json')
+            data = json.loads(checkpoint.read_text())
+            data['evidence_block_version'] = 'different-policy'
+            checkpoint.write_text(json.dumps(data))
+            with self.assertRaisesRegex(ValueError, 'evidence block version'):
+                ensemble_study(PROFILE / 'screening.toml', inputs, root / 'mixed.csv', 1)
+
+    def test_repeated_assessments_never_add_evidence_correction_calls(self):
+        """Invalid IDs cost exactly the configured assessments and remain audited."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / 'candidates.json'
             source.write_text(json.dumps([{'paper_id': 'one', 'full_text': TEXT,
                 'expected_decision': 'GOLD_MUST_STAY_PRIVATE'}]))
             invalid = answer()
-            invalid['criteria']['F1']['quote'] = 'invented evidence'
-            client = FakeModel()
-            client.generate = Mock(side_effect=[invalid, answer()])
-            rows = classify_study(PROFILE / 'screening.toml', source, root / 'out.csv', {'model': 'test'}, client=client)
-            self.assertEqual(rows[0]['decision'], 'accept')
-            self.assertEqual(client.generate.call_count, 2)
-            correction_prompt = client.generate.call_args_list[1].args[0]
-            self.assertIn('criteria.F1', correction_prompt)
-            self.assertNotIn('GOLD_MUST_STAY_PRIVATE', correction_prompt)
-            attempts = json.loads(rows[0]['assessment_attempts_json'])
-            self.assertTrue(attempts[0]['validation_error'])
-            self.assertFalse(attempts[1]['validation_error'])
+            invalid['criteria']['F1']['evidence_ids'] = ['invented-id']
+            client = FakeModel(invalid)
+            row = classify_study(PROFILE / 'screening.toml', source, root / 'out.csv', {'model': 'test'},
+                client=client, consecutive_runs=5, consensus_threshold=.8)[0]
+            self.assertEqual(row['decision'], 'uncertain')
+            self.assertEqual(len(client.calls), 5)
+            for prompt, _schema in client.calls:
+                self.assertNotIn('GOLD_MUST_STAY_PRIVATE', prompt)
+                self.assertNotIn('CORRECTION REQUEST', prompt)
+            self.assertEqual(len(json.loads(row['assessment_evidence_warnings_json'])), 5)
 
-    def test_malformed_unknown_field_evidence_is_an_error(self):
-        """Verify malformed unknown field evidence is an error."""
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            source = root / 'candidates.json'
-            source.write_text(json.dumps([{'paper_id': 'one', 'full_text': TEXT}]))
-            invalid = answer()
-            invalid['fields']['sutva'] = {'value': 'unknown', 'quote': 123, 'source': ''}
-            rows = classify_study(PROFILE / 'screening.toml', source, root / 'out.csv', {'model': 'test'}, client=FakeModel(invalid))
-            self.assertEqual(rows[0]['decision'], 'error')
+    def test_malformed_response_is_an_error_without_correction(self):
+        """Keep malformed responses as auditable errors and never ask the model to fix their schema."""
+        unknown_with_reference = answer()
+        unknown_with_reference['fields']['sutva'] = {'value': 'unknown', 'evidence_ids': [EvidenceBlockIndex(TEXT).blocks[0].id]}
+        invalid_type = answer()
+        invalid_type['fields']['sutva'] = {'value': 'unknown', 'evidence_ids': 123}
+        for invalid in (None, {}, {'criteria': [], 'fields': {}}, unknown_with_reference, invalid_type):
+            with self.subTest(response=invalid), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                source = root / 'candidates.json'
+                source.write_text(json.dumps([{'paper_id': 'one', 'full_text': TEXT}]))
+                model = Mock()
+                model.generate.side_effect = [invalid, AssertionError('unexpected schema correction call')]
+                rows = classify_study(PROFILE / 'screening.toml', source, root / 'out.csv', {'model': 'test'}, client=model)
+                self.assertEqual(model.generate.call_count, 1)
+                self.assertEqual(rows[0]['decision'], 'error')
+                attempts = json.loads(rows[0]['assessment_attempts_json'])
+                self.assertEqual(len(attempts), 1)
+                self.assertEqual(attempts[0]['response'], invalid)
+                self.assertTrue(attempts[0]['validation_error'])
 
     def test_missing_text_and_dry_run_make_no_http_or_model_calls(self):
         """Verify missing text and dry run make no http or model calls."""

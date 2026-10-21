@@ -26,7 +26,7 @@ statistical coverage guarantees for the classifier.
 The paper’s screening methodology transfers directly: all five eligibility criteria must pass, and
 at least five of nine quality criteria must pass (Section 3.3 of the preprint; Section III.C of the
 publication). The new ``StudyScreeningAdapter`` replays those rules on supplied criterion judgments,
-keeps supporting quotes, and exports the same portable classification format used by
+keeps selected source passages, and exports the same portable classification format used by
 ``radar report``.
 
 .. list-table::
@@ -98,24 +98,46 @@ assessments. IDs can be reviewed DOIs, arXiv identifiers, or stable local keys. 
 identity convention in candidates and classifications. Resolve duplicate manifestations before
 import; title collisions fail evaluation instead of being merged automatically.
 
-An assessment has this form:
+An assessment selects source evidence by immutable block ID:
 
 .. code:: json
 
    "F1": {
      "value": "yes",
-     "quote": "An exact supporting passage from the supplied paper text",
-     "source": "full_text"
+     "evidence_ids": ["B0123456789ab-00001", "B0123456789ab-00003"]
    }
 
-All values are ``yes``, ``no``, or ``unknown``. ``yes`` means the criterion is satisfied: for
-example, F3=yes means that the paper is not a review. Missing criteria default to ``unknown``. Every
-definite assessment requires a non-empty quote occurring in the supplied full text after whitespace
-and Latin-ligature normalization (for example, ``ﬀ`` and ``ff``). Words, punctuation and
-mathematical characters are otherwise compared literally, and raw quotes/text are retained. Do not
-quote the review as evidence about a candidate paper. Provide taxonomy predictions separately as
-``sutva``, ``strong_ignorability``, and ``overlap``, using ``required``, ``not_required``, or
-``unknown``; absent fields are not filled from the reference labels.
+These IDs are illustrative. Obtain actual IDs from
+``EvidenceBlockIndex.from_record(record).prompt_blocks()`` in
+``radar.common.evidence_blocks``. Definite values require one or more distinct
+IDs from the supplied extraction. Unknown values require an empty array.
+Missing criteria default to unknown. Taxonomy judgments use the same evidence
+references; their values are ``required``, ``not_required`` or ``unknown``.
+Do not use the review or its reference labels as evidence about a candidate.
+
+Evidence blocks are indexed before inference. TEI paragraphs, headings and
+formulae retain their structural boundaries and section names where available.
+PDF extraction retains page numbers; blank lines separate blocks within pages.
+Plain text uses blank-line blocks. A single soft line break does not create a
+new paragraph. Blocks longer than 1,600 characters split at sentence or whitespace
+seams, with a character-boundary fallback for unbroken text. They are addressable
+text blocks, not guaranteed semantic paragraphs. No spelling, whitespace,
+mathematical notation or word-wrap characters are rewritten inside a passage.
+
+Evidence for one judgment may span multiple paragraphs, pages or sections.
+The model selects all necessary IDs and Python retrieves each original range
+separately. Gaps are retained; disconnected passages are never stitched into a
+single quotation. Models do not return copied quotations, LaTeX or offsets.
+
+``criteria_json`` and ``field_assessments_json`` retain the selected IDs.
+``evidence_passages_json`` contains their original text, zero-based/end-exclusive
+character offsets, available page/section metadata, text SHA-256 and segmentation
+fingerprint. IDs depend on the frozen extraction and segmentation policy; an ID
+from another extraction cannot support a judgment. Raw responses and validation
+errors remain in attempt audits. Unknown, empty or duplicated references on a
+definite judgment make that judgment unknown without a correction request.
+Malformed schemas and backend failures remain errors. Ensemble warnings name the
+originating model; checkpoint fingerprints include the prompt and block policy.
 
 The decision is ``exclude`` if any eligibility rule fails, or if the number of quality passes plus
 unknown quality judgments cannot reach five. It is ``accept`` when all eligibility rules pass and at
@@ -123,8 +145,8 @@ least five quality rules pass. Otherwise it is ``uncertain``. Unassessed quality
 unknown once five passes are established. Failed and unknown filter IDs, quality counts, original
 assessments, and input/protocol/profile hashes remain in the classification CSV.
 
-``study-screen`` validates quote occurrence and rule arithmetic. Human review is still needed to
-decide whether a quote supports its criterion. It does not call a model, retrieve papers, infer
+``study-screen`` resolves evidence IDs and validates rule arithmetic. Human review is still needed to
+decide whether selected passages support their criterion. It does not call a model, retrieve papers, infer
 assumptions, or automatically decide that two analogous methods represent the same contribution.
 Record that final reconciliation judgment separately.
 
@@ -152,7 +174,7 @@ These examples are synthetic software checks, not measured research results.
 Evaluate a real run
 -------------------
 
-Collect a bounded cohort and screen its available PDF text with the configured Ollama model.
+Collect a bounded cohort and screen its available full text with the configured Ollama model.
 Collection never reads the reference profile. Model prompts contain the paper title, abstract,
 supplied text and protocol rules; they omit expected labels and separate author, citation-count, or
 discovery-query metadata. Author names and references can still occur within the paper text itself.
@@ -168,13 +190,30 @@ discovery-query metadata. Author names and references can still occur within the
      --protocol config/studies/conformal_treatment_effects/screening.toml \
      --input data/verification/memmesheimer/candidates.json \
      --output data/verification/memmesheimer/classifications.csv \
-     --fetch-full-text --resume --consecutive-runs 5 --consensus-threshold 0.8
+     --fetch-full-text --enrich-missing-full-text --resume --consecutive-runs 5 --consensus-threshold 0.8
 
 ``study-classify --limit 2`` limits inference to a pilot; ``--dry-run`` performs no PDF downloads or
-model calls. Missing text produces an uncertain record. Invalid assessments get one correction
-request listing all schema/quotation problems, without reference labels. Both responses and their
-validation errors are retained. If the correction still fails, or the backend fails, the record is
-an error.
+model calls. Missing text produces an uncertain record. Each configured assessment requests one
+response and validates it locally. Invalid evidence references make the affected judgments unknown;
+malformed response schemas and backend failures remain errors. No model correction is requested.
+The original response and validation errors are retained. Configured consecutive assessments remain
+separate votes, and transport retries remain governed by the Ollama settings.
+
+The configured conformal study enables ``evidence.enrich_missing_full_text``. Missing or failed
+PDF URLs can therefore use the paper's own arXiv identity, OpenAlex cached content or alternative
+repository locations, then Semantic Scholar links, even when an abstract is already available.
+``evidence.full_text_lookup_providers`` declares provider order within format tiers.
+Available GROBID TEI is preferred before PDF extraction, including for papers
+discovered through Semantic Scholar. The shared service checks OpenAlex for TEI
+before using a supplied PDF and keeps PDF-only providers lazy. pypdf runs when
+structured acquisition is unavailable or fails. Existing frozen text is retained;
+re-run collection/prefiltering to choose a new representation. OpenAlex cached PDFs and TEI XML use
+the existing ``OPENALEX_API_KEY``; lookups are independent of which providers discovered the paper. Downloads keep their size and
+text limits, and records retain ``full_text_status``, ``full_text_error_detail`` and
+``full_text_attempts_json``, document format and source-byte hash. A failed lookup or download does not by itself trigger model calls.
+Successful new evidence can be assessed under the configured voting policy. The standalone
+``study-classify`` command enables this fallback with ``--enrich-missing-full-text`` alongside
+``--fetch-full-text``.
 
 The configured study commands use the same limits, five repeated assessments and ensemble policy as
 the IDS workflows:
@@ -186,7 +225,7 @@ the IDS workflows:
 
 The default retains 100 candidates after retrieving up to 300 hits per query. The full run
 classifies each retained candidate five times per selected model, votes with threshold 0.8, then
-combines the selected models at threshold 1.0. Winning judgments retain source quotes, and
+combines the selected models at threshold 1.0. Winning judgments retain their selected source block IDs, and
 disposition conflicts abstain. With unlimited collection and classification, searches paginate to
 exhaustion within the configured publication-date window. The standalone commands above write
 explicit files; the study runner additionally writes the ensemble and model-specific reports under
@@ -196,8 +235,9 @@ Individual invalid assessments remain recorded as errors. Failed assessments cou
 denominator; enough valid, agreeing assessments can still produce a usable consensus, while all
 failed assessments produce an error. A PDF download is capped at 30 MiB and supplied text at 120,000
 characters by default; truncation is recorded. The model gets at least 4,000 output tokens for
-fourteen criteria and three assumption fields. Quote checking establishes textual presence, while
-the meaning and sufficiency of each quotation still require review.
+fourteen criteria and three assumption fields. Block resolution establishes source presence, while
+the meaning and sufficiency of the selected passages still require review. See
+:doc:`research_notes` for observations behind this design.
 
 Each classification is checkpointed in a neighboring ``.assessments.json`` file. Successful
 assessments can be resumed when their input content, protocol, source profile, prompt version, model
@@ -243,8 +283,9 @@ Completed development pilot
 The saved run in ``data/verification/memmesheimer/pilot_scoped/`` collected at most 25 results per
 query and retained five of 49 distinct OpenAlex records. The five retained candidates contain two of
 the eleven reviewed references. Only those first two candidates were submitted to ``gemma4:31b``,
-with a 60,000-character text cap, a 90-second request timeout, no network retries, and one permitted
-evidence correction.
+with a 60,000-character text cap, a 90-second request timeout, no network retries, and the
+then-current policy permitting one evidence correction. Current runs use the single-response policy
+described above; these historical results retain their original assessment settings.
 
 .. list-table::
    :header-rows: 1
@@ -259,8 +300,8 @@ evidence correction.
      - Evidence-validation error: quotations for Q9, strong ignorability and overlap remain absent after
        correction
 
-The adapter fixed a real PDF typography issue by normalizing Latin ligatures, while retaining the
-original text and quotes. It still rejects reworded passages and changed mathematical notation. The
+The then-current quotation adapter fixed a PDF typography issue by normalizing Latin ligatures,
+while retaining original text and quotes. Current review assessments select source block IDs. The
 earlier runs and responses are preserved, so the development history is inspectable rather than
 replaced by hand labels.
 
@@ -317,7 +358,7 @@ Validation
 
    MPLCONFIGDIR=/tmp/radar-mpl python -m unittest tests.test_study_screening tests.test_study_pipeline tests.test_reporting -v
 
-Tests exercise threshold boundaries, missing evidence, definite exclusions, fabricated quotes,
+Tests exercise threshold boundaries, missing evidence, definite exclusions, invalid evidence IDs,
 identity collisions, CLI export, blind model prompts, resumption, query caps, the reference
 crosswalk, and independently verified evaluation/database bundles. Handwritten test predictions
 establish software behavior, not classifier performance.

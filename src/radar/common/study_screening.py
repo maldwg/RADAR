@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from radar.common.csvio import atomic_write_csv
+from radar.common.evidence_blocks import EVIDENCE_BLOCK_VERSION, EvidenceBlockIndex
 from radar.common.provenance import file_hash
 from radar.common.sources import LocalSourceAdapter, SourceContract, load_source_contract
 from radar.common.screening import load_screening_profile
@@ -15,17 +16,7 @@ from radar.common.screening import load_screening_profile
 
 SCREENING_FIELDS = {"decision", "decision_basis", "criteria_json", "protocol_sha256",
     "source_profile_sha256", "quality_yes", "quality_no", "quality_unknown",
-    "failed_filters", "unknown_filters", "assessment_input_sha256", "error", "evidence_normalization"}
-
-EVIDENCE_NORMALIZATION = "whitespace-and-latin-ligatures-v1"
-
-
-def normalize_evidence_text(text: str) -> str:
-    """Compare PDF typography without changing words, punctuation or mathematics."""
-    ligatures = str.maketrans({"ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi",
-        "ﬄ": "ffl", "ﬅ": "st", "ﬆ": "st"})
-    return " ".join(text.translate(ligatures).split())
-
+    "failed_filters", "unknown_filters", "assessment_input_sha256", "error", "evidence_block_version", "evidence_passages_json"}
 
 @dataclass(frozen=True)
 class StudyProtocol:
@@ -60,7 +51,7 @@ def load_study_protocol(path: Path) -> StudyProtocol:
 class StudyScreeningAdapter(LocalSourceAdapter):
     """Turn supplied criterion judgments into auditable inclusion decisions.
 
-    This adapter checks quotes and applies rules; it does not infer criteria or
+    This adapter resolves source block IDs and applies rules; it does not infer criteria or
     validate the semantic correctness of a human/model's assessment.
     """
 
@@ -82,24 +73,14 @@ class StudyScreeningAdapter(LocalSourceAdapter):
             text = row.get("full_text", "")
             if not isinstance(text, str):
                 raise ValueError(f"row {index} full_text must be a string")
-            text = normalize_evidence_text(text)
-            assessments: dict[str, dict[str, str]] = {}
+            block_index = EvidenceBlockIndex.from_record(row)
+            assessments: dict[str, dict[str, Any]] = {}
             for key in [*self.protocol.filters, *self.protocol.quality]:
-                assessment = criteria.get(key, {"value": "unknown"})
-                if not isinstance(assessment, dict):
-                    raise ValueError(f"row {index} {key} must be an assessment object")
-                value = assessment.get("value")
-                if value not in ("yes", "no", "unknown"):
-                    raise ValueError(f"row {index} {key} requires yes, no or unknown")
-                quote, source = assessment.get("quote", ""), assessment.get("source", "")
-                if not isinstance(quote, str) or not isinstance(source, str):
-                    raise ValueError(f"row {index} {key} quote and source must be strings")
-                if value != "unknown" and (
-                    source != "full_text" or not quote.strip()
-                    or normalize_evidence_text(quote) not in text
-                ):
-                    raise ValueError(f"row {index} {key} requires a quote present in supplied full_text")
-                assessments[key] = {"value": value, "quote": quote, "source": source}
+                assessment = criteria.get(key, {"value": "unknown", "evidence_ids": []})
+                error = block_index.judgment_error(assessment, ["yes", "no", "unknown"])
+                if error:
+                    raise ValueError(f"row {index} {key}: {error}")
+                assessments[key] = {"value": assessment["value"], "evidence_ids": list(assessment["evidence_ids"])}
             failed = [key for key in self.protocol.filters if assessments[key]["value"] == "no"]
             unknown = [key for key in self.protocol.filters if assessments[key]["value"] == "unknown"]
             quality = Counter(assessments[key]["value"] for key in self.protocol.quality)
@@ -119,7 +100,10 @@ class StudyScreeningAdapter(LocalSourceAdapter):
                 quality_unknown=quality["unknown"], criteria_json=json.dumps(assessments, sort_keys=True),
                 protocol_sha256=self.protocol.sha256,
                 source_profile_sha256=self.protocol.source_profile_sha256,
-                evidence_normalization=EVIDENCE_NORMALIZATION)
+                evidence_block_version=EVIDENCE_BLOCK_VERSION,
+                evidence_fingerprint=block_index.fingerprint, evidence_text_sha256=block_index.text_sha256,
+                evidence_passages_json=json.dumps(block_index.manifest(list(assessments.values()) +
+                    list(json.loads(row.get('field_assessments_json', '{}')).values())), sort_keys=True))
             screened.append(item)
         return super().normalize(screened)
 

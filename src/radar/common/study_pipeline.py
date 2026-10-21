@@ -1,6 +1,7 @@
 """Independent discovery and structured assessment for external-review replication."""
 from __future__ import annotations
 
+import copy
 import json
 import tomllib
 from pathlib import Path
@@ -13,21 +14,21 @@ from radar.common.csvio import atomic_write_csv
 from radar.common.logging import logger
 from radar.common.limits import optional_limit
 from radar.common.jsonio import write_json as _write_json
-from radar.common.paper_evidence import PaperEvidenceService
+from radar.common.paper_evidence import DEFAULT_FULL_TEXT_PROVIDERS, FULL_TEXT_RETRIEVAL_POLICY, PaperEvidenceService
 from radar.common.paper_collection import eligible_papers, prefilter_paper
 from radar.common.evidence import merge_new_evidence
+from radar.common.evidence_blocks import BLOCK_ID_PATTERN, EVIDENCE_BLOCK_VERSION, MAX_BLOCK_CHARS, EvidenceBlockIndex, clip_structure
 from radar.common.ollama import OllamaClient
 from radar.common.provenance import file_hash
 from radar.common.run import utc_now
 from radar.common.sources import LocalSourceAdapter, content_hash
 from radar.common.screening import load_screening_profile
 from radar.common.study_screening import (
-    EVIDENCE_NORMALIZATION, SCREENING_FIELDS,
-    load_study_protocol, normalize_evidence_text,
+    SCREENING_FIELDS, load_study_protocol,
 )
 
 LOG = logger("study")
-PROMPT_VERSION = "external-review-assessment-v4"
+PROMPT_VERSION = "external-review-block-assessment-v1"
 
 
 def collect_study(profile_path: Path, output: Path, *, limit: int | str | None = 100,
@@ -81,7 +82,8 @@ def prefilter_study(input_path: Path, output: Path, profile: dict[str, Any], set
     _write_json(output, rows)
     if value is not None:
         _write_json(output.with_suffix(".collection.json"), {**value, "candidate_sha256": file_hash(output),
-            "prefilter_input_sha256": input_digest, "evidence_policy": evidence_service.config})
+            "prefilter_input_sha256": input_digest, "evidence_policy": evidence_service.config,
+            "evidence_retrieval_policy": FULL_TEXT_RETRIEVAL_POLICY})
     return rows
 
 
@@ -108,10 +110,11 @@ def load_assessment_fields(protocol: Any) -> dict[str, Any]:
 
 
 def _judgment_schema(values: list[str]) -> dict[str, Any]:
-    """Build the structured schema for one evidence judgment."""
-    return {"type": "object", "additionalProperties": False, "required": ["value", "quote", "source"],
-        "properties": {"value": {"type": "string", "enum": values}, "quote": {"type": "string"},
-            "source": {"type": "string", "enum": ["full_text", ""]}}}
+    """Ask models to select any number of distinct source blocks, never to copy text."""
+    return {"type": "object", "additionalProperties": False, "required": ["value", "evidence_ids"],
+        "properties": {"value": {"type": "string", "enum": values},
+            "evidence_ids": {"type": "array", "uniqueItems": True,
+                "items": {"type": "string", "pattern": BLOCK_ID_PATTERN}}}}
 
 
 def load_assessment_template(protocol: Any) -> tuple[str, Path, str]:
@@ -128,7 +131,7 @@ def load_assessment_template(protocol: Any) -> tuple[str, Path, str]:
     return template, path, digest
 
 
-def _assessment_prompt(protocol: Any, fields: dict[str, Any], row: dict[str, Any], template: str) -> tuple[str, dict[str, Any]]:
+def _assessment_prompt(protocol: Any, fields: dict[str, Any], row: dict[str, Any], template: str, index: EvidenceBlockIndex) -> tuple[str, dict[str, Any]]:
     """Build a blind assessment prompt and its response schema."""
     criteria = {key: _judgment_schema(["yes", "no", "unknown"]) for key in [*protocol.filters, *protocol.quality]}
     taxonomy = {key: _judgment_schema(spec["values"]) for key, spec in fields.items()}
@@ -136,74 +139,70 @@ def _assessment_prompt(protocol: Any, fields: dict[str, Any], row: dict[str, Any
         "criteria": {"type": "object", "additionalProperties": False, "required": list(criteria), "properties": criteria},
         "fields": {"type": "object", "additionalProperties": False, "required": list(taxonomy), "properties": taxonomy}}}
     prompt = Template(template).substitute(eligibility=json.dumps(protocol.filters), quality=json.dumps(protocol.quality),
-        fields=json.dumps(fields), evidence=json.dumps({k: row.get(k, '') for k in
-            ('title', 'abstract', 'full_text', 'full_text_complete')}, ensure_ascii=False))
+        fields=json.dumps(fields), evidence=json.dumps({'title': row.get('title', ''), 'abstract': row.get('abstract', ''),
+            'full_text_complete': row.get('full_text_complete', False),
+            'evidence_fingerprint': index.fingerprint, 'evidence_blocks': index.prompt_blocks()}, ensure_ascii=False))
     return prompt, schema
 
 
-def _validate_assessment(answer: Any, protocol: Any, fields: dict[str, Any], text: str) -> None:
-    """Report every invalid judgment so one correction can address all errors."""
+def _assessment_errors(answer: Any, protocol: Any, fields: dict[str, Any], index: EvidenceBlockIndex) -> dict[str, str]:
+    """Distinguish malformed responses from unsupported individual block references."""
     if not isinstance(answer, dict) or set(answer) != {"criteria", "fields"}:
-        raise ValueError("model output must contain criteria and fields")
+        return {"response": "model output must contain criteria and fields"}
     specifications = {
         "criteria": {key: ["yes", "no", "unknown"] for key in [*protocol.filters, *protocol.quality]},
         "fields": {key: spec["values"] for key, spec in fields.items()},
     }
-    text = normalize_evidence_text(text)
-    errors = []
+    errors = {}
     for section, specifications_for_section in specifications.items():
         judgments = answer[section]
         if not isinstance(judgments, dict) or set(judgments) != set(specifications_for_section):
-            errors.append(f"{section}: assess exactly the required keys")
+            errors[section] = "assess exactly the required keys"
             continue
         for key, values in specifications_for_section.items():
-            judgment = judgments[key]
-            if (not isinstance(judgment, dict) or set(judgment) != {"value", "quote", "source"}
-                or judgment.get("value") not in values
-                or not isinstance(judgment.get("quote"), str)
-                or not isinstance(judgment.get("source"), str)):
-                errors.append(f"{section}.{key}: invalid judgment schema")
-                continue
-            quote, source = judgment["quote"], judgment["source"]
-            if judgment["value"] == "unknown":
-                if quote or source:
-                    errors.append(f"{section}.{key}: unknown requires empty quote and source")
-            elif source != "full_text" or not quote.strip() or normalize_evidence_text(quote) not in text:
-                errors.append(f"{section}.{key}: quotation is absent from supplied full_text")
+            error = index.judgment_error(judgments[key], values)
+            if error:
+                errors[f"{section}.{key}"] = error
+    return errors
+
+
+def _validate_assessment(answer: Any, protocol: Any, fields: dict[str, Any], index: EvidenceBlockIndex) -> None:
+    """Require complete judgments grounded in this frozen extraction's block IDs."""
+    errors = _assessment_errors(answer, protocol, fields, index)
     if errors:
-        raise ValueError("; ".join(errors))
+        raise ValueError("; ".join(f"{key}: {reason}" for key, reason in errors.items()))
 
 
 def _assess_once(record: dict[str, Any], protocol: Any, fields: dict[str, Any], template: str,
-                 client: Any, label: str) -> dict[str, Any]:
-    """Obtain one validated assessment, allowing one literal-quote correction."""
-    prompt, schema = _assessment_prompt(protocol, fields, record, template)
+                 client: Any, label: str, index: EvidenceBlockIndex) -> dict[str, Any]:
+    """Resolve one response locally and abstain on invalid references without a correction call."""
+    prompt, schema = _assessment_prompt(protocol, fields, record, template, index)
     vote: dict[str, Any] = {"label": label, "status": "error", "attempts": []}
     try:
-        for attempt in range(2):
-            answer = client.generate(prompt, schema)
-            vote["model_response_json"] = json.dumps(answer, sort_keys=True)
-            entry = {"response": answer, "validation_error": ""}
-            vote["attempts"].append(entry)
-            try:
-                _validate_assessment(answer, protocol, fields, record["full_text"])
-            except ValueError as exc:
-                entry["validation_error"] = str(exc)
-                if attempt:
-                    raise
-                LOG.info("correcting invalid study evidence paper_id=%s run=%s", record[protocol.contract.identity], label)
-                prompt += ("\nCORRECTION REQUEST\nYour previous JSON failed validation. "
-                    "Return a complete corrected JSON object. Copy the shortest sufficient literal "
-                    "passage from full_text, preserving its characters; never paraphrase a quotation. "
-                    "If evidence cannot be supported, use unknown with empty quote/source. "
-                    "A passage's presence does not establish its relevance: recheck its meaning.\n"
-                    + json.dumps(entry, ensure_ascii=False))
-            else:
-                vote.update(status="success", answer=answer)
-                break
+        response = client.generate(prompt, schema)
+        vote["model_response_json"] = json.dumps(response, sort_keys=True)
+        entry = {"response": copy.deepcopy(response), "validation_error": ""}
+        vote["attempts"].append(entry)
+        answer = copy.deepcopy(response)
+        errors = _assessment_errors(answer, protocol, fields, index)
+        if errors:
+            entry["validation_error"] = "; ".join(f"{key}: {reason}" for key, reason in errors.items())
+            if any(reason != "evidence_ids must select distinct blocks from supplied full_text" for reason in errors.values()):
+                raise ValueError(entry["validation_error"])
+            unresolved = []
+            for path, reason in errors.items():
+                group, key = path.split(".")
+                unresolved.append({"field": path, "judgment": copy.deepcopy(answer[group][key]), "reason": reason})
+                answer[group][key] = {"value": "unknown", "evidence_ids": []}
+            vote["unsupported_evidence"] = unresolved
+            LOG.warning("unsupported study evidence paper_id=%s run=%s fields=%s; using unknown",
+                record[protocol.contract.identity], label, ",".join(errors))
+        _validate_assessment(answer, protocol, fields, index)
+        vote.update(status="success", answer=answer)
     except (RuntimeError, ValueError, requests.RequestException) as exc:
         vote.update(error_type=type(exc).__name__, error_detail=str(exc) if isinstance(exc, ValueError) else "")
-        LOG.warning("study model assessment failed paper_id=%s run=%s (%s)", record[protocol.contract.identity], label, type(exc).__name__)
+        LOG.warning("study model assessment failed paper_id=%s run=%s (%s) detail=%s",
+            record[protocol.contract.identity], label, type(exc).__name__, vote["error_detail"])
     return vote
 
 
@@ -211,6 +210,8 @@ def _assessment_votes(record: dict[str, Any], protocol: Any, fields: dict[str, A
                       client: Any, config: dict[str, Any], consecutive_runs: int, dry_run: bool) -> tuple[list[dict[str, Any]], Any]:
     """Assess one frozen evidence version, retaining failures in the vote denominator."""
     votes = []
+    index = EvidenceBlockIndex.from_record(record)
+    record.update(evidence_fingerprint=index.fingerprint, evidence_text_sha256=index.text_sha256)
     for run in range(consecutive_runs):
         label = f"run-{run + 1}"
         if dry_run or not record["full_text"].strip():
@@ -218,7 +219,7 @@ def _assessment_votes(record: dict[str, Any], protocol: Any, fields: dict[str, A
             continue
         try:
             client = client or OllamaClient(config)
-            votes.append(_assess_once(record, protocol, fields, template, client, label))
+            votes.append(_assess_once(record, protocol, fields, template, client, label, index))
         except (ValueError, RuntimeError, requests.RequestException) as exc:
             votes.append({"label": label, "status": "error", "attempts": [], "error_type": type(exc).__name__})
     return votes, client
@@ -229,6 +230,7 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
                    fetch_full_text: bool = False, max_chars: int = 120000, client: Any = None,
                    consecutive_runs: int = 1, consensus_threshold: float = 0.8,
                    evidence_lookup_timeout_seconds: float = 30, enrich_missing_abstracts: bool = False,
+                   enrich_missing_full_text: bool = False, full_text_lookup_providers: list[str] | None = None,
                    enrich_uncertain_with_full_text: bool = False, classify_borderline: bool = True,
                    evidence_service: PaperEvidenceService | None = None) -> list[dict[str, Any]]:
     """Repeat validated assessments, vote, replay rules, and checkpoint each record."""
@@ -254,7 +256,9 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
     selected = eligible if limit is None else eligible[:limit]
     evidence_policy = {"fetch_full_text": fetch_full_text, "max_full_text_chars": max_chars,
         "evidence_lookup_timeout_seconds": evidence_lookup_timeout_seconds,
-        "enrich_missing_abstracts": enrich_missing_abstracts, "enrich_uncertain_with_full_text": enrich_uncertain_with_full_text}
+        "enrich_missing_abstracts": enrich_missing_abstracts, "enrich_missing_full_text": enrich_missing_full_text,
+        "full_text_lookup_providers": list(full_text_lookup_providers) if full_text_lookup_providers is not None else list(DEFAULT_FULL_TEXT_PROVIDERS),
+        "enrich_uncertain_with_full_text": enrich_uncertain_with_full_text}
     evidence_service = evidence_service or PaperEvidenceService(evidence_policy)
     if any(not isinstance(row.get("full_text", ""), str) for row in selected):
         raise ValueError("candidate full_text must be a string")
@@ -263,9 +267,9 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
     model = str(config.get("model", ""))
     fingerprint = content_hash({"protocol": protocol.sha256, "source_profile": protocol.source_profile_sha256,
         "prompt": PROMPT_VERSION, "prompt_sha256": prompt_digest, "model": model,
-        "evidence_normalization": EVIDENCE_NORMALIZATION,
+        "evidence_block_version": EVIDENCE_BLOCK_VERSION, "evidence_block_max_chars": MAX_BLOCK_CHARS,
         "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens')},
-        "max_chars": max_chars, "evidence_policy": evidence_policy, "classify_borderline": classify_borderline, "dry_run": dry_run,
+        "max_chars": max_chars, "evidence_policy": evidence_policy, "evidence_retrieval_policy": FULL_TEXT_RETRIEVAL_POLICY, "classify_borderline": classify_borderline, "dry_run": dry_run,
         "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold,
         "evidence_lookup_timeout_seconds": evidence_lookup_timeout_seconds})
     cached = {}
@@ -278,10 +282,13 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
         "input_sha256": input_digest, "protocol_sha256": protocol.sha256,
         "source_profile_sha256": protocol.source_profile_sha256,
         "prompt_version": PROMPT_VERSION, "prompt_sha256": prompt_digest, "model": model,
-        "evidence_normalization": EVIDENCE_NORMALIZATION,
+        "evidence_retrieval_policy": FULL_TEXT_RETRIEVAL_POLICY,
+        "evidence_block_version": EVIDENCE_BLOCK_VERSION, "evidence_block_max_chars": MAX_BLOCK_CHARS,
         "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens', 'timeout_seconds', 'retries')},
         "max_full_text_chars": max_chars, "fetch_full_text": fetch_full_text, "dry_run": dry_run,
-        "enrich_missing_abstracts": enrich_missing_abstracts, "enrich_uncertain_with_full_text": enrich_uncertain_with_full_text,
+        "enrich_missing_abstracts": enrich_missing_abstracts, "enrich_missing_full_text": enrich_missing_full_text,
+        "full_text_lookup_providers": list(full_text_lookup_providers) if full_text_lookup_providers is not None else list(DEFAULT_FULL_TEXT_PROVIDERS),
+        "enrich_uncertain_with_full_text": enrich_uncertain_with_full_text,
         "classify_borderline": classify_borderline,
         "evidence_lookup_timeout_seconds": evidence_lookup_timeout_seconds,
         "consecutive_runs": consecutive_runs, "consensus_threshold": consensus_threshold, "records": assessed}
@@ -299,6 +306,8 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
             if len(text) > max_chars:
                 record.update(full_text_original_sha256=content_hash(text), full_text_complete=False)
             record["full_text"] = text[:max_chars]
+            if record.get("full_text_structure"):
+                record["full_text_structure"] = clip_structure(record["full_text_structure"], max_chars)
             record["input_record_sha256"] = digest
             votes, client = _assessment_votes(record, protocol, fields, template, client, config,
                 consecutive_runs, dry_run)
@@ -314,6 +323,8 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
                     if len(text) > max_chars:
                         record.update(full_text_original_sha256=content_hash(text), full_text_complete=False)
                     record["full_text"] = text[:max_chars]
+                    if record.get("full_text_structure"):
+                        record["full_text_structure"] = clip_structure(record["full_text_structure"], max_chars)
                     votes, client = _assessment_votes(record, protocol, fields, template, client, config,
                         consecutive_runs, False)
                     record = combine_assessments(record, votes, protocol, fields, consensus_threshold)
@@ -324,6 +335,8 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
             record["assessment_status"] = ("success" if successes == consecutive_runs else "partial_error" if successes
                 else "error" if errors else votes[0]["status"])
             record["assessment_attempts_json"] = json.dumps([entry for vote in votes for entry in vote["attempts"]], sort_keys=True)
+            record["assessment_evidence_warnings_json"] = json.dumps([
+                {"run": vote["label"], **warning} for vote in votes for warning in vote.get("unsupported_evidence", [])], sort_keys=True)
             responses = [vote["model_response_json"] for vote in votes if "model_response_json" in vote]
             if responses:
                 record["model_response_json"] = responses[-1]

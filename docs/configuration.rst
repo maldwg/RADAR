@@ -102,6 +102,78 @@ Survey and backward-reference collection can be enabled for conformal work by ch
 and supplying survey queries. Providers without reference capabilities must keep both traversal
 controls at zero. Direct, survey and reference budgets each have an explicit factor; all three
 default to 3.0. Both studies use the same evidence service, prefilter scores and borderline gate.
+``enrich_missing_full_text`` is declared in both paper studies. When full-text
+fetching is active, it checks structured-text providers before parsing a PDF,
+even when the candidate already supplies a working PDF link. Both studies use
+``full_text_lookup_providers = ["openalex", "semantic_scholar"]``, independently
+of which provider discovered the paper.
+
+The shared policy is:
+
+#. Try any TEI URL supplied with the candidate.
+#. Resolve configured providers advertising ``tei_xml`` (currently OpenAlex),
+   and try their identity-matched TEI documents.
+#. If no usable TEI was obtained, parse supplied or already discovered PDFs with
+   pypdf, including OpenAlex cached PDFs, repository locations and the candidate's
+   own arXiv identity.
+#. Only if those sources fail, resolve the remaining PDF-only providers
+   (currently Semantic Scholar) and try their alternatives.
+
+Provider order applies within these format tiers. A Semantic Scholar discovery
+record can therefore use OpenAlex's cached GROBID TEI through its own DOI or an
+unambiguous exact title match. Semantic Scholar's Academic Graph adapter supplies
+PDF links and identifiers; it does not itself supply TEI. Conflicting identities
+remain rejected. Failed, invalid or inaccessible TEI, including a missing content
+API key, permits PDF fallback. No local GROBID server is required.
+
+An empty provider list disables external lookups while retaining candidate TEI,
+PDFs and the candidate's own arXiv identity. With enrichment disabled, supplied
+TEI is still preferred, but no additional provider requests are introduced.
+Already supplied full text stays frozen unless configured uncertainty expansion
+requests new evidence. Having an abstract does not suppress full-text acquisition.
+The ``structured-tei-before-pdf-v1`` policy is recorded in review checkpoints,
+collection audits and classifier fingerprints. Re-run acquisition/prefiltering to
+apply it to a previously frozen PDF corpus.
+``enrich_missing_abstracts`` remains independent. The IDS dataset study can continue to fetch full
+text only on uncertainty through ``enrich_uncertain_with_full_text``; the conformal study fetches
+it before assessment. Provider lookup and document results are cached within the shared evidence
+service. OpenAlex cached content uses ``OPENALEX_API_KEY``; the key is sent only to the content
+service and is never added to stored source URLs. Without a key, the audit records
+``api_key_required`` and the service continues to other available sources. Cached downloads count
+against OpenAlex usage; see `OpenAlex full-text access <https://help.openalex.org/access/fulltext/>`__.
+TEI extraction supports modern and older archive shapes, retains article text, appendices and inline
+mathematical characters, and rejects ordinary HTML pages and abstract-only XML. The audit records
+``full_text_format`` and ``full_text_source_sha256`` for the fetched document.
+``full_text_attempts_json`` records lookup and download attempts, including HTTP failure details.
+Failed-attempt audits alone do not cause a new LLM assessment.
+
+At INFO level, ``full-text lookup complete`` separates ``links_found``,
+``record_found_no_document``, ``no_match`` and ``lookup_failed``. A failed
+identifier route remains in the audit even if title lookup subsequently succeeds;
+HTTP 404 is an absent record, whereas HTTP 429, access failures and network errors
+are request failures. Failed requests also produce a contextual WARNING.
+
+``full-text download complete`` names the paper, provider, requested URL and
+redirect destination, HTTP status, content type, extraction format and failure
+reason. ``provider=candidate`` means a supplied candidate link; other provider
+names identify the metadata service that supplied the alternative. In particular,
+``reason=non_pdf_content`` can accompany HTTP 200 and ``text/html``: the request
+returned a page rather than a PDF. No response body is logged. Displayed URLs
+exclude credentials, query strings and fragments.
+
+A final ``full-text retrieval complete`` line reports ``retrieved``,
+``already_available``, ``existing_text_retained``, ``no_document_link``,
+``lookup_incomplete``, ``download_failed``, ``no_extractable_text`` or
+``api_key_required`` with provider/request counts, failure counts, text length
+and elapsed time. Metadata-only lookup uses ``not_requested`` for full text.
+``lookup_failures`` counts unresolved provider lookups; ``lookup_request_failures``
+counts failed identifier/title routes even when a later route succeeds.
+Lookup/download completion lines identify cache hits; elapsed time and cache
+flags are runtime logs, not changes to frozen evidence. HTTP, redirect and media
+diagnostics are retained in ``full_text_attempts_json`` and available
+``full_text_http_status``, ``full_text_content_type``, ``full_text_final_url`` and
+``full_text_failure_reason`` fields. Restart the process to load logging changes.
+
 ``fetch_full_text`` works in either study. ``classify_borderline = false`` excludes borderline
 candidates from either scientific classifier.
 
@@ -171,7 +243,7 @@ rules apply to ``--collect-all``, ``--classify-all``, ``--collect-limit`` and ``
 
 All three defaults also use five consecutive assessments per model, a 0.8 consensus threshold and an
 enabled ensemble with threshold 1.0. Review consensus votes on eligibility/quality judgments and
-extraction fields, retaining actual supporting quotes. Failed or unavailable assessments remain in
+extraction fields, retaining selected source block IDs and exact source passages. Failed or unavailable assessments remain in
 the denominator. A tied vote or a conflict between voted criteria and the voted disposition produces
 uncertainty. Review ensembles require completed model checkpoints with the same selected cohort,
 protocol, prompt and full-text evidence. These repeated votes are not independent statistical

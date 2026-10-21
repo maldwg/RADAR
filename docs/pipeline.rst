@@ -356,6 +356,35 @@ invalidate compatible cached classifications. Use ``--resume`` to explicitly con
 current-format work. New processes log Ollama-reported ``load``, ``prompt_eval``, and ``eval``
 durations for every request; a large ``load`` duration is direct evidence of a model reload.
 
+GitHub and paper catalogue screening share a source-span quotation checker. It preserves punctuation, mathematical operators, variable case,
+numbers, and negation. Whitespace, PDF ligatures, typographic quotes, HTML entities, and a unique
+initial-capitalization change to an English article or pronoun can match the original source.
+PDF line-end hyphens can retain their hyphen while losing the line break, as in
+``decision-\nmaking`` and ``decision-making``. Removing a discretionary hyphen additionally
+requires a multi-letter prose word corroborated unbroken elsewhere in the same source and no
+nearby mathematical notation. Ambiguous cases remain unverified. Original source characters and
+offsets are always retained. Spelling corrections and other rewording do not qualify as verified
+quotations.
+
+Catalogue quotations are checked only against the named sections actually included within the
+prompt's evidence budget. Explicit ellipses may separate fragments, each of which must occur in
+source order without reusing a span. Literal ellipses are matched first. Fragment matching verifies
+textual occurrence; it does not establish that an omission preserves a claim's meaning.
+
+Protocol review instead selects one or more evidence block IDs per judgment.
+Python retrieves each exact source passage separately, retaining offsets and
+available page/section metadata. The block index preserves structured TEI
+boundaries or uses bounded PDF/plain-text blocks. No quotation is generated or
+corrected. Invalid references make only the affected judgment unknown, without
+an LLM correction request. Evidence identity does not establish semantic support.
+See :doc:`cross_field_verification` and the living :doc:`research_notes`.
+
+Catalogue ``evidence_json`` stores the actual source text, original ``model_quote``, and
+``source_spans`` with zero-based, end-exclusive character offsets into the named original section.
+``model_evidence_json`` retains all model-supplied evidence, including rejected quotations. The
+quotation policy is included in classification fingerprints, so resumed runs cannot reuse decisions
+from a different validation policy. Restart running classifier processes to load code changes.
+
 Each source can also repeat the same classification consecutively with
 ``classification.consecutive_runs`` and vote using ``classification.consensus_threshold`` in its
 ``pipeline.toml``. Consensus covers the include/exclude/uncertain disposition and normalized
@@ -678,7 +707,9 @@ CSV conventions
   keyword catalogue.
 
 - When an OpenAlex work has no abstract, classification resolves it by DOI or exact normalized title
-  through Semantic Scholar. Successful abstracts and optional open-access PDF text are cached,
+  through the configured evidence providers. Full-text acquisition prefers OpenAlex TEI,
+  then parses available PDFs with pypdf; Semantic Scholar supplies PDF alternatives.
+  Successful abstracts and acquired full text are cached,
   written back to the candidate audit, and included in the evidence hash; missing full text never
   blocks classification.
 

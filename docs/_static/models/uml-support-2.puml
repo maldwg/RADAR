@@ -1,0 +1,65 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.common.regression.RegressionResult" as radar_common_regression_RegressionResult <<dataclass>> {
+  +metrics: dict[str, Any]
+  +instances: list[dict[str, Any]]
+}
+class "radar.common.reporting.ReportingDatabase" as radar_common_reporting_ReportingDatabase {
+  +__init__()
+  +snapshot()
+  +entity()
+  +relationship()
+  +ingest_records()
+  +ingest_evaluation()
+  +add_figures()
+}
+class "radar.common.run.RunManifest" as radar_common_run_RunManifest <<dataclass>> {
+  +root: Path
+  +runs_dir: Path
+  +source: str
+  +stage: str
+  +config: dict[str, Any]
+  +parameters: dict[str, Any]
+  +run_id: str
+  +started_at: str
+  +counts: dict[str, int]
+  +coverage: list[dict[str, Any]]
+  +status: str
+  +write()
+}
+class "radar.common.scoring.ScoreResult" as radar_common_scoring_ScoreResult <<dataclass>> {
+  +score: float
+  +band: str
+  +signals: tuple[str, ...]
+}
+class "radar.common.screening.ScreeningProfile" as radar_common_screening_ScreeningProfile <<dataclass>> {
+  +path: Path
+  +protocol_id: str
+  +strategy: str
+  +taxonomy_path: Path
+  +prompt_path: Path
+  +eligibility: dict[str, str]
+  +quality: dict[str, str]
+  +quality_minimum: int
+  +provenance: dict[str, Any]
+  +sha256: str
+  +prompt_rules()
+}
+class "radar.funnel.ClassifierVariant" as radar_funnel_ClassifierVariant <<dataclass>> {
+  +label: str
+  +identifier: str
+  +classifications: Path
+  +reconciled: Path
+  +catalogue: Path
+  +adjacent: Path | None
+}
+class "radar.funnel.FunnelStage" as radar_funnel_FunnelStage <<dataclass>> {
+  +key: str
+  +label: str
+  +count: int | None
+  +basis: str
+  +detail: str
+  +removed_label: str
+}
+@enduml

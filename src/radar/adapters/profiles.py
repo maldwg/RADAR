@@ -49,6 +49,43 @@ def strong_identifiers(doi: Any = "", arxiv: Any = "") -> dict[str, str]:
     return result
 
 
+
+
+def identifiers_conflict(expected: dict[str, str], actual: dict[str, str]) -> bool:
+    """Reject conflicting identities while allowing manifestations sharing a strong identifier."""
+    shared = set(expected) & set(actual)
+    return bool(shared) and not any(expected[key] == actual[key] for key in shared)
+
+
+def paper_identifiers(work: dict[str, Any]) -> dict[str, str]:
+    """Resolve a paper's own DOI and arXiv IDs without consulting references or abstract text."""
+    import json
+    import re
+    from urllib.parse import urlparse
+
+    identifiers = work.get('identifiers') or {}
+    if isinstance(identifiers, str):
+        identifiers = json.loads(identifiers)
+    if not isinstance(identifiers, dict):
+        raise ValueError('paper identifiers must be an object')
+    result = strong_identifiers(work.get('doi') or identifiers.get('doi', ''), identifiers.get('arxiv', ''))
+    doi = result.get('doi', '')
+    if doi.startswith('10.48550/arxiv.'):
+        result.setdefault('arxiv', doi.removeprefix('10.48550/arxiv.'))
+    if not result.get('arxiv'):
+        for key in ('pdf_url', 'full_text_url', 'primary_url'):
+            parsed = urlparse(str(work.get(key) or ''))
+            if parsed.hostname in {'arxiv.org', 'www.arxiv.org', 'export.arxiv.org'} and parsed.path.startswith(('/abs/', '/pdf/')):
+                result.update(strong_identifiers(arxiv=parsed.path[5:].removesuffix('.pdf')))
+                break
+    if result.get('arxiv'):
+        value = re.sub(r'v[0-9]+$', '', result['arxiv'])
+        if not re.fullmatch(r'(?:[0-9]{4}\.[0-9]{4,5}|[a-zA-Z][a-zA-Z0-9.-]*/[0-9]{7})', value):
+            raise ValueError('invalid paper arXiv identifier')
+        result['arxiv'] = value
+    return result
+
+
 def validated_page_size(value: Any, maximum: int) -> int:
     """Reject invalid configured page sizes before any request."""
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= maximum:

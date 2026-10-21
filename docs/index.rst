@@ -30,6 +30,8 @@ Start with :doc:`quickstart`, inspect the :doc:`architecture`, and use
    :caption: Architecture and methods
 
    architecture
+   class_diagrams
+   database_model
    adapters
    classification_consensus
    evaluation
@@ -41,6 +43,7 @@ Start with :doc:`quickstart`, inspect the :doc:`architecture`, and use
    :caption: Research artifact
 
    reproducibility
+   research_notes
    development
    ghml23_repository_audit
    llm_nli_plan

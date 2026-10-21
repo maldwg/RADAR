@@ -185,7 +185,9 @@ class AdapterTests(unittest.TestCase):
         client = Mock()
         client.get.return_value = {'data': [{'paperId': '1', 'title': 'Same'}, {'paperId': '2', 'title': 'Same'}]}
         adapter = SemanticScholarAdapter({}, Path(), client)
-        self.assertEqual(adapter.enrich({'title': 'Same'}), {})
+        result = adapter.enrich({'title': 'Same'})
+        self.assertEqual(result['evidence_lookup_attempts'][-1]['status'], 'ambiguous')
+        self.assertNotIn('full_text', result)
 
     def test_github_ceiling_is_bounded_and_native_catalogue_strategies_are_preserved(self):
         """The simple search advertises its API ceiling while catalogue collection retains sharding."""

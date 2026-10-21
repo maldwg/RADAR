@@ -9,7 +9,7 @@ PAPER_PIPELINE_OPTIONS = {
         "survey_reference_fraction", "query_limit_factor", "survey_query_limit_factor", "reference_limit_factor",
         "survey_consensus_threshold", "retrieval_minimum_score", "retrieval_minimum_title_tokens", "retrieval_title_weight",
         "minimum_citations", "candidate_threshold", "borderline_threshold"},
-    "evidence": {"fetch_full_text", "enrich_missing_abstracts", "enrich_uncertain_with_full_text",
+    "evidence": {"fetch_full_text", "enrich_missing_abstracts", "enrich_missing_full_text", "full_text_lookup_providers", "enrich_uncertain_with_full_text",
         "evidence_lookup_timeout_seconds", "max_full_text_chars"},
     "classification": {"classification_limit", "classify_borderline", "consecutive_runs", "consensus_threshold", "ensemble"},
     "reconciliation": {"strategy", "reconcile_with_llm"},
@@ -39,9 +39,17 @@ def validate_paper_pipeline(pipeline: dict[str, Any], workflow: str) -> None:
         raise ValueError("invalid survey allocation or title weight")
     if collection["candidate_threshold"] < collection["borderline_threshold"]:
         raise ValueError("candidate_threshold must be at least borderline_threshold")
-    for key in ("fetch_full_text", "enrich_missing_abstracts", "enrich_uncertain_with_full_text"):
+    for key in ("fetch_full_text", "enrich_missing_abstracts", "enrich_missing_full_text", "enrich_uncertain_with_full_text"):
         if not isinstance(evidence[key], bool):
             raise ValueError(f"evidence.{key} must be boolean")
+    providers = evidence['full_text_lookup_providers']
+    if not isinstance(providers, list) or any(not isinstance(name, str) or not name for name in providers) or len(set(providers)) != len(providers):
+        raise ValueError('full_text_lookup_providers must be a list of distinct provider names')
+    from radar.adapters.registry import provider_descriptor
+
+    for name in providers:
+        if 'evidence' not in provider_descriptor(name).capabilities:
+            raise ValueError(f'full-text provider {name} does not implement evidence lookup')
     if isinstance(evidence["max_full_text_chars"], bool) or not isinstance(evidence["max_full_text_chars"], int) or evidence["max_full_text_chars"] < 1:
         raise ValueError("max_full_text_chars must be a positive integer")
     timeout = evidence["evidence_lookup_timeout_seconds"]

@@ -1,0 +1,104 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.common.nli.NLIBackend" as radar_common_nli_NLIBackend <<protocol>> {
+  +model_id: str
+  +revision: str
+  +chunk_sections()
+  +score()
+}
+class "radar.common.ollama.EvidenceSection" as radar_common_ollama_EvidenceSection <<dataclass>> {
+  +source: str
+  +text: str
+}
+class "radar.common.nli.TransformersNLIBackend" as radar_common_nli_TransformersNLIBackend {
+  +__init__()
+  +chunk_sections()
+  +score()
+}
+class "radar.common.llm_nli.OllamaNLIBackend" as radar_common_llm_nli_OllamaNLIBackend {
+  +__init__()
+  +chunk_sections()
+  +start_record()
+  +record_audit()
+  +score()
+  +preflight()
+  +runtime_config()
+}
+class "radar.common.nli.NLIProfile" as radar_common_nli_NLIProfile <<dataclass>> {
+  +source: str
+  +fields: tuple[NLIField, ...]
+  +raw: dict[str, Any]
+  +path: Path
+}
+class "radar.common.nli.NLIRuntimeConfig" as radar_common_nli_NLIRuntimeConfig <<dataclass>> {
+  +model: str
+  +revision: str
+  +device: str
+  +batch_size: int
+  +max_length: int
+  +premise_tokens: int
+  +chunk_overlap: int
+  +max_chunks: int
+  +top_k: int
+  +entailment_threshold: float
+  +label_margin: float
+}
+class "radar.common.llm_nli.LLMNLIConfig" as radar_common_llm_nli_LLMNLIConfig <<dataclass>> {
+  +models: tuple[str, ...]
+  +template: str
+  +top_logprobs: int
+  +context_length: int
+  +seed: int
+  +timeout_seconds: float
+  +retries: int
+  +entailment_threshold: float
+  +label_margin: float
+  +minimum_label_mass: float
+  +scoring_hash()
+}
+class "radar.common.nli.NLIField" as radar_common_nli_NLIField <<dataclass>> {
+  +name: str
+  +mode: str
+  +fallback: str
+  +hypotheses: dict[str, str]
+}
+class "radar.common.nli.EvidenceChunk" as radar_common_nli_EvidenceChunk <<dataclass>> {
+  +index: int
+  +source: str
+  +text: str
+}
+class "radar.common.nli.NLIScore" as radar_common_nli_NLIScore <<dataclass>> {
+  +entailment: float
+  +neutral: float
+  +contradiction: float
+}
+class "radar.common.cache.PipelineCache" as radar_common_cache_PipelineCache {
+  +__init__()
+  +close()
+  +put_record()
+  +get_record()
+  +records()
+  +put_decision()
+  +get_decision()
+  +put_coverage()
+  +coverage_rows()
+}
+radar_common_llm_nli_LLMNLIConfig ..> radar_common_nli_NLIRuntimeConfig : scoring_hash parameter
+radar_common_llm_nli_OllamaNLIBackend --> radar_common_cache_PipelineCache : cache
+radar_common_llm_nli_OllamaNLIBackend --> radar_common_llm_nli_LLMNLIConfig : config
+radar_common_llm_nli_OllamaNLIBackend ..> radar_common_nli_EvidenceChunk : chunk_sections returns
+radar_common_llm_nli_OllamaNLIBackend ..|> radar_common_nli_NLIBackend : structural candidate
+radar_common_llm_nli_OllamaNLIBackend --> radar_common_nli_NLIRuntimeConfig : reference
+radar_common_llm_nli_OllamaNLIBackend ..> radar_common_nli_NLIScore : constructs, score returns
+radar_common_llm_nli_OllamaNLIBackend ..> radar_common_ollama_EvidenceSection : chunk_sections parameter
+radar_common_nli_NLIBackend ..> radar_common_nli_EvidenceChunk : chunk_sections returns
+radar_common_nli_NLIBackend ..> radar_common_nli_NLIScore : score returns
+radar_common_nli_NLIBackend ..> radar_common_ollama_EvidenceSection : chunk_sections parameter
+radar_common_nli_NLIProfile --> radar_common_nli_NLIField : fields
+radar_common_nli_TransformersNLIBackend ..> radar_common_nli_EvidenceChunk : chunk_sections returns
+radar_common_nli_TransformersNLIBackend ..|> radar_common_nli_NLIBackend : structural candidate
+radar_common_nli_TransformersNLIBackend ..> radar_common_nli_NLIRuntimeConfig : __init__ parameter
+radar_common_nli_TransformersNLIBackend ..> radar_common_nli_NLIScore : constructs, score returns
+radar_common_nli_TransformersNLIBackend ..> radar_common_ollama_EvidenceSection : chunk_sections parameter
+@enduml

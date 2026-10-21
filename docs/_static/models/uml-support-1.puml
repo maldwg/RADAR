@@ -1,0 +1,74 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.common.baselines.KeywordBaselineConfig" as radar_common_baselines_KeywordBaselineConfig <<dataclass>> {
+  +accept_threshold: float
+  +uncertain_threshold: float
+}
+class "radar.common.baselines.KeywordField" as radar_common_baselines_KeywordField <<dataclass>> {
+  +name: str
+  +mode: str
+  +fallback: str
+  +minimum_score: float
+  +margin: float
+  +labels: dict[str, dict[str, Any]]
+}
+class "radar.common.baselines.KeywordTaxonomyProfile" as radar_common_baselines_KeywordTaxonomyProfile <<dataclass>> {
+  +source: str
+  +fields: tuple[KeywordField, ...]
+  +decision_field: str
+  +include_labels: tuple[str, ...]
+  +exclude_labels: tuple[str, ...]
+  +raw: dict[str, Any]
+  +path: Path
+}
+class "radar.common.config.ConfigError" as radar_common_config_ConfigError {
+}
+class "radar.common.config.Settings" as radar_common_config_Settings <<dataclass>> {
+  +root: Path
+  +values: dict[str, Any]
+  +section()
+  +path()
+  +require_source()
+}
+class "radar.common.evaluation.EvaluationResult" as radar_common_evaluation_EvaluationResult <<dataclass>> {
+  +metrics: dict[str, Any]
+  +instances: list[dict[str, Any]]
+  +field_metrics: list[dict[str, Any]]
+  +confusion: list[dict[str, Any]]
+  +outputs: list[Path]
+}
+class "radar.common.llm_nli.NLIScoringError" as radar_common_llm_nli_NLIScoringError {
+}
+class "radar.common.logging.UtcFormatter" as radar_common_logging_UtcFormatter {
+}
+class "radar.common.nli_diagnostics.NLIThresholdGrid" as radar_common_nli_diagnostics_NLIThresholdGrid <<dataclass>> {
+  +enabled: bool
+  +entailment_thresholds: tuple[float, ...]
+  +label_margins: tuple[float, ...]
+}
+class "radar.common.pdf.ContentKeyRequired" as radar_common_pdf_ContentKeyRequired {
+}
+class "radar.common.provenance.BundleAudit" as radar_common_provenance_BundleAudit <<dataclass>> {
+  +root: Path
+  +definition: dict[str, Any]
+  +inputs: dict[str, dict[str, str]]
+  +tables: dict[str, dict[str, Any]]
+  +input()
+}
+class "radar.common.reconcile.UnionFind" as radar_common_reconcile_UnionFind {
+  +__init__()
+  +find()
+  +union()
+  +groups()
+}
+class "builtins.ValueError" as builtins_ValueError <<external>>
+radar_common_config_ConfigError --|> builtins_ValueError
+class "builtins.RuntimeError" as builtins_RuntimeError <<external>>
+radar_common_llm_nli_NLIScoringError --|> builtins_RuntimeError
+class "logging.Formatter" as logging_Formatter <<external>>
+radar_common_logging_UtcFormatter --|> logging_Formatter
+radar_common_pdf_ContentKeyRequired --|> builtins_ValueError
+radar_common_baselines_KeywordTaxonomyProfile --> radar_common_baselines_KeywordField : fields
+radar_common_config_Settings ..> radar_common_config_ConfigError : constructs
+@enduml

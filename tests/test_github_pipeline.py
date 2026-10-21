@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -694,3 +695,43 @@ class GitHubPipelineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_classification_grounds_quotes_with_the_shared_checker(self) -> None:
+        """Audit harmless case repair and reject altered operators or spelling in real screening."""
+        settings = load_settings(ROOT / 'config/studies/ids_repositories/study.toml')
+        prompts = load_prompt_profile(settings, 'github')
+        text = 'a network intruson detction system analyzes network traffic when X >= 1.'
+        correct = 'A' + text[1:]
+        model = FakeGitHubModel()
+        raw = model.generate('', {})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates = root / 'candidates.csv'
+            row = {column: '' for column in CANDIDATE_COLUMNS}
+            row.update(github_repo_id='1', full_name='example/detector', prefilter_band='candidate',
+                prefilter_score='12', evidence_hash='fixture-evidence')
+            atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
+            with PipelineCache(root / 'cache.sqlite3') as cache:
+                cache.put_record('github.repository', '1', {
+                    'repository': {'full_name': 'example/detector'}, 'readme_text': text,
+                }, 'now')
+                for quote, expected in [(correct, 'accept'),
+                        (correct.replace('>=', '<='), 'uncertain'),
+                        (correct.replace('intruson', 'intrusion'), 'uncertain')]:
+                    with self.subTest(quote=quote), patch.object(model, 'generate', return_value={
+                            **raw, 'evidence': [{'source': 'README', 'quote': quote}]}):
+                        result = classify(candidates, root / 'classified.csv', cache,
+                            {'require_verified_quote': True}, resume=False, generator=model,
+                            prompt_config=prompts, system_type_profile=SYSTEM_TYPE_PROFILE,
+                            consecutive_runs=3, consensus_threshold=.66)[0]
+                        self.assertEqual(result['decision'], expected)
+                        self.assertEqual(json.loads(result['model_evidence_json'])[0]['quote'], quote)
+                        verified = json.loads(result['evidence_json'])
+                        if expected == 'accept':
+                            self.assertEqual(verified[0]['quote'], text)
+                            span = verified[0]['source_spans'][0]
+                            self.assertEqual(text[span['start']:span['end']], text)
+                        else:
+                            self.assertEqual(verified, [])
+                            self.assertEqual(result['evidence_quote_verified'], 'false')

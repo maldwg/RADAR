@@ -13,7 +13,7 @@ from radar.common.run import utc_now
 from radar.common.scoring import shortlist_candidates
 from radar.common.text import normalize_text, slug, stable_hash
 from radar.common.logging import logger
-from radar.common.paper_evidence import PaperEvidenceService
+from radar.common.paper_evidence import DEFAULT_FULL_TEXT_PROVIDERS, FULL_TEXT_AUDIT_FIELDS, FULL_TEXT_RETRIEVAL_POLICY, PaperEvidenceService
 from radar.common.paper_collection import eligible_papers, prefilter_paper
 from radar.adapters.contracts import EvidenceAdapter
 from radar.openalex.schema import ARTIFACT_TYPES, CANDIDATE_COLUMNS, CATALOGUE_COLUMNS, CLASSIFICATION_COLUMNS, DATA_FORMS, DOMAINS, ENVIRONMENTS, LABELING, PAPER_ROLES, RESPONSE_SCHEMA, SURVEY_COLUMNS, TIERS, ensure_resource_name, normalize_response, validate_processed_row
@@ -56,6 +56,7 @@ def metadata_row(key: str, payload: dict[str, Any], fetched_at: str, run_id: str
         "publication_date": work.get("publication_date", ""), "work_type": work.get("work_type", ""),
         "primary_url": work.get("primary_url", ""), "pdf_url": work.get("pdf_url", ""), "is_oa": work.get("is_oa", "false"),
         "abstract_source": work.get("abstract_source", "OpenAlex" if work.get("abstract") else ""), "full_text_url": work.get("full_text_url", ""),
+        **{field: work.get(field, "") for field in FULL_TEXT_AUDIT_FIELDS},
         "cited_by_count": work.get("cited_by_count", 0), "citation_as_of": fetched_at[:10],
         "referenced_works_count": len(work.get("referenced_works") or []), "metadata_fetched_at": fetched_at,
         "discovery_relations": ";".join(payload.get("discovery_relations", [])), "matched_queries": ";".join(payload.get("matched_queries", [])),
@@ -175,7 +176,10 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
         "prompt": prompt_config or {}, "consecutive_runs": consecutive_runs,
         "consensus_threshold": consensus_threshold,
         "evidence_fallback": {
+            "retrieval_policy": FULL_TEXT_RETRIEVAL_POLICY,
             "missing_abstract": bool(enrichment_config.get("enrich_missing_abstracts", False)),
+            "missing_full_text": bool(enrichment_config.get("enrich_missing_full_text", False)),
+            "full_text_lookup_providers": enrichment_config.get("full_text_lookup_providers", list(DEFAULT_FULL_TEXT_PROVIDERS)),
             "fetch_full_text": bool(enrichment_config.get("fetch_full_text", False)),
             "lookup_timeout_seconds": enrichment_config.get("evidence_lookup_timeout_seconds", 30),
             "classify_borderline": enrichment_config.get("classify_borderline", True),
@@ -212,6 +216,7 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                     "abstract_source": work.get("abstract_source", ""),
                     "pdf_url": work.get("pdf_url", "") or work.get("full_text_url", ""),
                     "full_text_url": work.get("full_text_url", ""),
+                    **{field: work.get(field, "") for field in FULL_TEXT_AUDIT_FIELDS},
                     "evidence_hash": stable_hash(format_evidence(sections, 30000)),
                 })
                 atomic_write_csv(candidates_path, rows, CANDIDATE_COLUMNS)
@@ -289,9 +294,13 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                     LOG.warning("uncertain-paper full-text enrichment failed title=%s error=%s", row.get("title", key), exc)
                     discovered = {}
                 expansion_changed = merge_new_evidence(work, discovered)
-                if expansion_changed:
+                if discovered:
                     payload["work"] = work
                     cache.put_record("openalex.work", key, payload, utc_now())
+                    row.update({field: work.get(field, "") for field in FULL_TEXT_AUDIT_FIELDS})
+                    atomic_write_csv(candidates_path, rows, CANDIDATE_COLUMNS)
+                    result.update({field: row.get(field, "") for field in FULL_TEXT_AUDIT_FIELDS})
+                if expansion_changed:
                     sections = evidence_sections(payload)
                     evidence_hash = stable_hash(format_evidence(sections, 30000))
                     row.update({

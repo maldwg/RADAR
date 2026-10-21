@@ -1,0 +1,66 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.common.discovery.DiscoverySource" as radar_common_discovery_DiscoverySource <<dataclass>> {
+  +name: str
+  +profile_path: Path
+  +settings: dict[str, Any]
+  +adapter: DiscoveryAdapter | None
+  +cache_path: Path | None
+}
+class "radar.common.paper_collection.PaperSearchClient" as radar_common_paper_collection_PaperSearchClient {
+  +__init__()
+  +search()
+  +works_by_ids()
+}
+class "radar.adapters.registry.ProviderRegistration" as radar_adapters_registry_ProviderRegistration <<dataclass>> {
+  +descriptor: ProviderDescriptor
+  +factory: Callable[..., DiscoveryAdapter]
+}
+class "radar.adapters.contracts.DiscoveryAdapter" as radar_adapters_contracts_DiscoveryAdapter <<protocol>> {
+  +descriptor: ProviderDescriptor
+  +queries()
+  +validate_query()
+  +search()
+  +normalize()
+}
+class "radar.adapters.contracts.ProviderDescriptor" as radar_adapters_contracts_ProviderDescriptor <<dataclass>> {
+  +name: str
+  +entity_kinds: tuple[str, ...]
+  +capabilities: tuple[str, ...]
+  +catalogue_workflows: tuple[str, ...]
+  +default_page_size: int
+  +evidence_formats: tuple[str, ...]
+}
+class "radar.adapters.contracts.ProviderQuery" as radar_adapters_contracts_ProviderQuery <<dataclass>> {
+  +name: str
+  +text: str
+  +parameters: dict[str, Any]
+}
+class "radar.adapters.contracts.SearchPage" as radar_adapters_contracts_SearchPage <<dataclass>> {
+  +records: list[dict[str, Any]]
+  +next_cursor: str | None
+  +raw: dict[str, Any]
+  +total: int | None
+  +complete: bool
+}
+class "radar.adapters.contracts.SourceRecord" as radar_adapters_contracts_SourceRecord <<dataclass>> {
+  +provider: str
+  +native_id: str
+  +entity_kind: str
+  +identifiers: dict[str, str]
+  +metadata: dict[str, Any]
+  +evidence: dict[str, Any]
+  +native: dict[str, Any]
+}
+radar_adapters_contracts_DiscoveryAdapter --> radar_adapters_contracts_ProviderDescriptor : descriptor
+radar_adapters_contracts_DiscoveryAdapter ..> radar_adapters_contracts_ProviderQuery : queries returns, search parameter, validate_query parameter
+radar_adapters_contracts_DiscoveryAdapter ..> radar_adapters_contracts_SearchPage : search returns
+radar_adapters_contracts_DiscoveryAdapter ..> radar_adapters_contracts_SourceRecord : normalize returns
+radar_adapters_registry_ProviderRegistration ..> radar_adapters_contracts_DiscoveryAdapter : factory
+radar_adapters_registry_ProviderRegistration --> radar_adapters_contracts_ProviderDescriptor : descriptor
+radar_common_discovery_DiscoverySource --> radar_adapters_contracts_DiscoveryAdapter : adapter
+radar_common_paper_collection_PaperSearchClient --> radar_adapters_contracts_DiscoveryAdapter : adapter
+radar_common_paper_collection_PaperSearchClient ..> radar_adapters_contracts_ProviderQuery : constructs
+radar_common_paper_collection_PaperSearchClient --> radar_adapters_contracts_SourceRecord : records
+@enduml

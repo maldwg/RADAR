@@ -41,13 +41,18 @@ def vote_round_needs_more_evidence(
 def merge_new_evidence(target: dict[str, Any], discovered: dict[str, Any]) -> bool:
     """Merge non-empty evidence fields and report whether the usable evidence changed."""
     changed = False
+    if discovered.get('full_text') and discovered['full_text'] != target.get('full_text'):
+        target['full_text_structure'] = discovered.get('full_text_structure', [])
+    usable = {'abstract', 'full_text', 'full_text_structure', 'full_text_complete', 'readme_text', 'docs_text', 'repository'}
     for key, value in discovered.items():
         value = unicode_safe(value)
         if value in (None, "", [], {}):
+            if key in {'full_text_error', 'full_text_error_detail', 'full_text_failure_reason'} and discovered.get('full_text'):
+                target[key] = ''
             continue
         if target.get(key) != value:
             target[key] = value
-            changed = True
+            changed = changed or key in usable
     return changed
 
 

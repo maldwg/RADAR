@@ -117,7 +117,7 @@ class ConformalAlignmentTests(unittest.TestCase):
             self.assertEqual(audit['classification_limit'], 6)
             self.assertEqual(audit['per_query_limit'], 18)
 
-    def test_repeated_assessments_vote_retain_quotes_and_resume_without_inference(self):
+    def test_repeated_assessments_vote_retain_evidence_and_resume_without_inference(self):
         """Four of five judgments pass at 0.8 while a higher cutoff abstains."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -130,7 +130,8 @@ class ConformalAlignmentTests(unittest.TestCase):
                 consecutive_runs=5, consensus_threshold=.8)
             self.assertEqual(model.calls, 5)
             self.assertEqual(rows[0]['decision'], 'accept')
-            self.assertEqual(json.loads(rows[0]['criteria_json'])['F1']['quote'], TEXT)
+            self.assertEqual(json.loads(rows[0]['evidence_passages_json'])['passages'][0]['text'], TEXT)
+            self.assertTrue(json.loads(rows[0]['criteria_json'])['F1']['evidence_ids'])
             checkpoint = json.loads(output.with_suffix('.assessments.json').read_text())
             self.assertTrue(checkpoint['completed'])
             self.assertEqual(len(json.loads(checkpoint['records'][0]['assessment_votes_json'])), 5)

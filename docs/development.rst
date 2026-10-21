@@ -43,6 +43,16 @@ The project checks docstrings on production and test functions. Test changes
 against the existing benchmark profiles rather than silently changing expected
 scientific labels to make unrelated checks pass.
 
+Maintain the research record
+----------------------------
+
+When a discovered caveat or implementation decision affects research
+interpretation, append a brief dated entry to :doc:`research_notes` with the
+observation, response and remaining limitation. Keep historical settings and
+results identifiable. Do not describe an engineering change as a measured
+improvement without a fresh evaluation, or as an ablation without a controlled
+comparison.
+
 Documentation layout
 --------------------
 
@@ -51,7 +61,12 @@ reStructuredText in ``docs/``. ``index.rst`` owns navigation, ``conf.py`` select
 the Read the Docs theme, and ``requirements.txt`` pins the documentation build
 dependencies. Guides use explicit Sphinx cross-references and downloadable
 configuration/source files. Architecture figures are generated from
-``radar.architecture`` and included in the architecture guide.
+``radar.architecture`` and included in the architecture guide. UML and database
+models are generated directly from Python and SQL sources by
+``scripts/generate_design_models.py``. SVG is the primary output. The documentation
+workflow runs ``python scripts/generate_design_models.py --check`` to catch stale
+diagrams; see
+:doc:`class_diagrams` and :doc:`database_model` for editable sources and checks.
 
 .. code-block:: bash
 

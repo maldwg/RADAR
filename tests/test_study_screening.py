@@ -11,6 +11,7 @@ from pathlib import Path
 
 from radar.cli import main
 from radar.common.csvio import read_csv
+from radar.common.evidence_blocks import EvidenceBlockIndex, EVIDENCE_BLOCK_VERSION
 from tests.fixtures import write_csv as atomic_write_csv
 from radar.common.evaluation import load_rating_profile
 from radar.common.study_screening import StudyScreeningAdapter, load_study_protocol, screen_study
@@ -30,8 +31,8 @@ class StudyScreeningTests(unittest.TestCase):
         self.example = json.loads(EXAMPLE.read_text())
 
     def assessment(self, value: str) -> dict[str, str]:
-        """Construct a quoted fixture judgment."""
-        return {"value": value, "quote": "synthetic fixture text", "source": "full_text"}
+        """Construct a fixture judgment referencing its source block."""
+        return {"value": value, "evidence_ids": [EvidenceBlockIndex(self.example[0]["full_text"]).blocks[0].id]}
 
     def test_threshold_and_partial_information(self) -> None:
         """Verify threshold and partial information."""
@@ -58,24 +59,23 @@ class StudyScreeningTests(unittest.TestCase):
         row["criteria"].pop("F2")
         self.assertEqual(self.adapter.normalize([row])[0]["decision_basis"], "eligibility_incomplete")
 
-    def test_pdf_ligatures_are_equivalent_but_reworded_quotes_are_rejected(self) -> None:
-        """Verify pdf ligatures are equivalent but reworded quotes are rejected."""
+    def test_replay_resolves_original_source_and_rejects_stale_ids(self) -> None:
+        """Keep literal source typography and bind judgments to the exact frozen extraction."""
         row = copy.deepcopy(self.example[0])
-        row['full_text'] += ' The treatment eﬀects are estimated.'
-        row['criteria']['F1']['quote'] = 'The treatment effects are estimated.'
         result = self.adapter.normalize([row])[0]
-        self.assertEqual(result['decision'], 'accept')
-        self.assertEqual(result['evidence_normalization'], 'whitespace-and-latin-ligatures-v1')
-        self.assertEqual(json.loads(result['criteria_json'])['F1']['quote'], 'The treatment effects are estimated.')
-        row['criteria']['F1']['quote'] = 'The treatment effects are predicted.'
-        with self.assertRaises(ValueError):
+        self.assertEqual(result['evidence_block_version'], EVIDENCE_BLOCK_VERSION)
+        passages = json.loads(result['evidence_passages_json'])['passages']
+        for passage in passages:
+            self.assertEqual(row['full_text'][passage['start']:passage['end']], passage['text'])
+        row['full_text'] += ' A changed extraction with eﬀects and α ≤ 0.05.'
+        with self.assertRaisesRegex(ValueError, 'evidence_ids'):
             self.adapter.normalize([row])
 
     def test_invalid_evidence_ids_and_decisions_fail_before_export(self) -> None:
         """Verify invalid evidence ids and decisions fail before export."""
         for change in (
-            lambda r: r["criteria"]["F1"].update(quote="fabricated quotation"),
-            lambda r: r["criteria"]["F1"].update(source="abstract"),
+            lambda r: r["criteria"]["F1"].update(evidence_ids=["fabricated-id"]),
+            lambda r: r["criteria"]["F1"].update(evidence_ids=[]),
             lambda r: r["criteria"]["F1"].update(value=True),
             lambda r: r["criteria"].update(F99={"value": "unknown"}),
             lambda r: r.update(decision="accept"),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from html import unescape
 from typing import Any
 
 from radar.common.baselines import CLASSIFIER_COLUMNS, KEYWORD_AUDIT_COLUMNS
@@ -43,7 +44,7 @@ CLASSIFICATION_COLUMNS = CANDIDATE_COLUMNS + CLASSIFIER_COLUMNS + [
     "system_types", "system_type_names", "centralization",
     "independent_fork", "direct_self_description", "runtime_observation", "reproducible_execution",
     "offline_dataset_only", "implements_detection_engine", "requires_external_detector",
-    "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "classification_validation_flags", "primary_reason", "evidence_json",
+    "integrates_multiple_detectors", "cohesive_framework_architecture", "research_basis", "upstream_full_name", "classification_validation_flags", "primary_reason", "model_evidence_json", "evidence_json",
     "evidence_quote_verified", "classified_at", "error",
 ] + ENSEMBLE_COLUMNS + EVIDENCE_EXPANSION_COLUMNS + KEYWORD_AUDIT_COLUMNS + NLI_AUDIT_COLUMNS
 RECONCILIATION_COLUMNS = [
@@ -133,7 +134,7 @@ def system_type_names(codes: list[str], profile: dict[str, Any] | None = None) -
 
 
 def normalize_response(
-    raw: dict[str, Any], verified: list[dict[str, str]], config: dict[str, Any], is_fork: bool,
+    raw: dict[str, Any], verified: list[dict[str, Any]], config: dict[str, Any], is_fork: bool,
     system_type_profile: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Validate and normalize a repository model response into auditable decision fields."""
@@ -166,7 +167,7 @@ def normalize_response(
     framework_architecture = bool(raw.get("cohesive_framework_architecture"))
     research_basis = bool(raw.get("research_basis"))
     upstream_full_name = str(raw.get("upstream_full_name", "")).strip().strip("/")
-    verified_text = normalize_text(" ".join(item.get("quote", "") for item in verified))
+    verified_text = normalize_text(" ".join(unescape(item.get("quote", "")) for item in verified))
     if upstream_full_name and (upstream_full_name.count("/") != 1 or normalize_text(upstream_full_name) not in verified_text):
         upstream_full_name = ""
     validation_flags: list[str] = []
@@ -248,6 +249,7 @@ def normalize_response(
         "upstream_full_name": upstream_full_name,
         "classification_validation_flags": ";".join(validation_flags),
         "primary_reason": str(raw.get("primary_reason", "")).strip()[:1000],
+        "model_evidence_json": json.dumps(raw.get("evidence") if isinstance(raw.get("evidence"), list) else [], ensure_ascii=False),
         "evidence_json": json.dumps(verified, ensure_ascii=False),
         "evidence_quote_verified": str(bool(verified)).lower(),
     }

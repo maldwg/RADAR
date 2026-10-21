@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import time
 from dataclasses import dataclass
 from html import unescape
@@ -9,12 +8,13 @@ from typing import Any
 
 import requests
 
+from radar.common.evidence_quotes import QUOTE_GROUNDING, SourceQuoteIndex
 from radar.common.text import normalize_text, stable_hash
 from radar.common.logging import logger
 
 LOG = logger("ollama")
 
-ELLIPSIS_RE = re.compile(r"(?:\.{3,}|\u2026)+")
+EVIDENCE_MAX_CHARS = 14000
 
 
 @dataclass(frozen=True)
@@ -92,47 +92,65 @@ class OllamaClient:
         raise RuntimeError(f"Ollama request failed: {error}") from error
 
 
-def format_evidence(sections: list[EvidenceSection], max_chars: int = 14000) -> str:
-    """Format named evidence sections within a shared character budget."""
-    blocks: list[str] = []
+def _evidence_windows(
+    sections: list[EvidenceSection], max_chars: int,
+) -> list[tuple[EvidenceSection, int, int]]:
+    """Locate the original source windows included in the model's evidence budget."""
+    windows = []
     used = 0
     for section in sections:
         remaining = max_chars - used
         if remaining <= 0:
             break
-        text = section.text.strip()[:remaining]
-        if text:
-            blocks.append(f"--- {section.source} ---\n{text}")
-            used += len(text)
-    return "\n\n".join(blocks)
+        start = len(section.text) - len(section.text.lstrip())
+        end = min(len(section.text.rstrip()), start + remaining)
+        if end > start:
+            windows.append((section, start, end))
+            used += end - start
+    return windows
 
 
-def verify_evidence(value: Any, sections: list[EvidenceSection]) -> tuple[list[dict[str, str]], bool]:
-    """Keep source-bound quotes whose exact or ellipsis-separated fragments occur in order."""
-    supplied = {
-        normalize_text(unescape(section.source)): (section.source, normalize_text(unescape(section.text)))
-        for section in sections
-    }
-    verified: list[dict[str, str]] = []
+def format_evidence(sections: list[EvidenceSection], max_chars: int = EVIDENCE_MAX_CHARS) -> str:
+    """Format named evidence sections within a shared character budget."""
+    return "\n\n".join(
+        f"--- {section.source} ---\n{section.text[start:end]}"
+        for section, start, end in _evidence_windows(sections, max_chars)
+    )
+
+
+def verify_evidence(
+    value: Any, sections: list[EvidenceSection], max_chars: int = EVIDENCE_MAX_CHARS,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Ground catalogue quotes in visible source spans using the shared review checker."""
+    supplied = {}
+    ambiguous = set()
+    for section, start, end in _evidence_windows(sections, max_chars):
+        key = normalize_text(unescape(section.source))
+        if key in supplied:
+            ambiguous.add(key)
+        supplied[key] = (section.source, SourceQuoteIndex(section.text[start:end]), start)
+    verified: list[dict[str, Any]] = []
     for item in value if isinstance(value, list) else []:
-        if not isinstance(item, dict):
+        if not isinstance(item, dict) or not isinstance(item.get("quote"), str):
             continue
-        source = str(item.get("source", "")).strip()
-        quote = str(item.get("quote", "")).strip()
-        source_key = normalize_text(unescape(source))
-        fragments = [normalize_text(unescape(part)) for part in ELLIPSIS_RE.split(quote)]
-        fragments = [fragment for fragment in fragments if fragment]
-        source_text = supplied.get(source_key, ("", ""))[1]
-        offset = 0
-        fragments_match = bool(fragments)
-        for fragment in fragments:
-            position = source_text.find(fragment, offset)
-            if position < 0:
-                fragments_match = False
-                break
-            offset = position + len(fragment)
-        if source_key in supplied and fragments_match:
-            verified.append({"source": supplied[source_key][0], "quote": quote})
+        quote = item["quote"]
+        source_key = normalize_text(unescape(str(item.get("source", ""))))
+        if source_key not in supplied or source_key in ambiguous:
+            continue
+        source, index, offset = supplied[source_key]
+        matches = index.match_fragments(quote)
+        if matches:
+            verified.append({
+                "source": source,
+                "quote": " … ".join(match.text for match in matches),
+                "model_quote": quote,
+                "source_spans": [
+                    {"start": offset + match.start, "end": offset + match.end,
+                     "quote": match.text, "method": match.method}
+                    for match in matches
+                ],
+                "quote_grounding": QUOTE_GROUNDING,
+            })
     return verified, bool(verified)
 
 
@@ -143,6 +161,7 @@ def decision_profile(
     relevant = {
         "model": model,
         "prompt_version": prompt_version,
+        "quote_grounding": QUOTE_GROUNDING,
         "temperature": config.get("temperature"),
         "seed": config.get("seed"),
         "require_verified_quote": config.get("require_verified_quote"),

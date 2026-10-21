@@ -1,0 +1,83 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.common.sources.LocalSourceAdapter" as radar_common_sources_LocalSourceAdapter {
+  +__init__()
+  +normalize()
+  +read()
+}
+class "radar.common.evaluation.RatingProfile" as radar_common_evaluation_RatingProfile <<dataclass>> {
+  +source: str
+  +evaluation_unit: str
+  +classification_fields: list[str]
+  +entities: dict[str, dict[str, Any]]
+  +path: Path
+  +metadata: dict[str, Any]
+  +contract: SourceContract | None
+  +input_fingerprints: dict[str, str] | None
+}
+class "radar.common.study_screening.StudyScreeningAdapter" as radar_common_study_screening_StudyScreeningAdapter {
+  +__init__()
+  +normalize()
+}
+class "radar.common.study_screening.StudyProtocol" as radar_common_study_screening_StudyProtocol <<dataclass>> {
+  +path: Path
+  +contract: SourceContract
+  +filters: dict[str, str]
+  +quality: dict[str, str]
+  +quality_minimum: int
+  +sha256: str
+  +source_profile_sha256: str
+}
+class "radar.common.sources.SourceContract" as radar_common_sources_SourceContract <<dataclass>> {
+  +name: str
+  +entity_kind: str
+  +identity: str
+  +label: str
+  +selectors: dict[str, str]
+  +fields: tuple[str, ...]
+  +multilabel: tuple[str, ...]
+  +display_name: str
+  +capabilities: tuple[str, ...]
+  +field_labels: dict[str, str]
+  +mapping: dict[str, str]
+  +taxonomy_version: str
+  +decisions: dict[str, str]
+  +fingerprint()
+}
+class "radar.common.evidence_blocks.EvidenceBlockIndex" as radar_common_evidence_blocks_EvidenceBlockIndex {
+  +__init__()
+  +from_record()
+  +prompt_blocks()
+  +judgment_error()
+  +manifest()
+}
+class "radar.common.evidence_blocks.EvidenceBlock" as radar_common_evidence_blocks_EvidenceBlock <<dataclass>> {
+  +id: str
+  +start: int
+  +end: int
+  +text: str
+  +kind: str
+  +page: int | None
+  +section: str
+}
+class "radar.common.evidence_quotes.SourceQuoteIndex" as radar_common_evidence_quotes_SourceQuoteIndex {
+  +__init__()
+  +match()
+  +match_fragments()
+}
+class "radar.common.evidence_quotes.SourceQuotation" as radar_common_evidence_quotes_SourceQuotation <<dataclass>> {
+  +text: str
+  +start: int
+  +end: int
+  +method: str
+}
+radar_common_evaluation_RatingProfile --> radar_common_sources_SourceContract : contract
+radar_common_evidence_blocks_EvidenceBlockIndex --> radar_common_evidence_blocks_EvidenceBlock : blocks
+radar_common_evidence_quotes_SourceQuoteIndex ..> radar_common_evidence_quotes_SourceQuotation : _wrapped_occurrences returns, constructs, match returns, match_fragments returns
+radar_common_sources_LocalSourceAdapter --> radar_common_sources_SourceContract : contract
+radar_common_study_screening_StudyProtocol --> radar_common_sources_SourceContract : contract
+radar_common_study_screening_StudyScreeningAdapter ..> radar_common_evidence_blocks_EvidenceBlockIndex : uses
+radar_common_study_screening_StudyScreeningAdapter --|> radar_common_sources_LocalSourceAdapter : extends
+radar_common_study_screening_StudyScreeningAdapter --> radar_common_study_screening_StudyProtocol : protocol
+@enduml

@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from radar.common.csvio import atomic_write_csv
+from radar.common.evidence_blocks import EVIDENCE_BLOCK_VERSION, MAX_BLOCK_CHARS, EvidenceBlockIndex
 from radar.common.provenance import file_hash
+from radar.common.paper_evidence import FULL_TEXT_RETRIEVAL_POLICY
 from radar.common.sources import content_hash
 from radar.common.study_screening import StudyProtocol, StudyScreeningAdapter
 
@@ -30,7 +32,7 @@ def _winner(counts: Counter, denominator: int, threshold: float, fallback: str) 
 
 def combine_assessments(record: dict[str, Any], votes: list[dict[str, Any]], protocol: StudyProtocol,
                         fields: dict[str, Any], threshold: float) -> dict[str, Any]:
-    """Vote criterion judgments and fields while keeping actual supporting quotes."""
+    """Vote criterion judgments and fields while keeping every selected source block."""
     validate_consensus(len(votes), threshold)
     result = copy.deepcopy(record)
     result["criteria"] = {}
@@ -43,14 +45,14 @@ def combine_assessments(record: dict[str, Any], votes: list[dict[str, Any]], pro
             judgments = []
             for vote in votes:
                 answer = vote.get("answer", {}) if vote["status"] == "success" else {}
-                judgment = answer.get(group, {}).get(key, {"value": "unknown", "quote": "", "source": ""})
+                judgment = answer.get(group, {}).get(key, {"value": "unknown", "evidence_ids": []})
                 if judgment.get("value") not in values:
                     raise ValueError(f"invalid consensus judgment: {group}.{key}")
                 judgments.append(judgment)
             counts = Counter(judgment["value"] for judgment in judgments)
             winner = _winner(counts, denominator, threshold, "unknown")
             selected[key] = (copy.deepcopy(next(j for j in judgments if j["value"] == winner))
-                if winner != "unknown" else {"value": "unknown", "quote": "", "source": ""})
+                if winner != "unknown" else {"value": "unknown", "evidence_ids": []})
             audit[f"{group}.{key}"] = {"selected": winner, "counts": dict(counts),
                 "agreement": counts[winner] / denominator, "voters": denominator}
     adapter = StudyScreeningAdapter(protocol)
@@ -100,9 +102,9 @@ def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: P
     checkpoints = {}
     context = None
     keys = ("input_sha256", "protocol_sha256", "source_profile_sha256", "prompt_sha256",
-        "evidence_normalization", "max_full_text_chars", "fetch_full_text", "evidence_lookup_timeout_seconds",
+        "evidence_block_version", "evidence_block_max_chars", "evidence_retrieval_policy", "max_full_text_chars", "fetch_full_text", "evidence_lookup_timeout_seconds",
         "dry_run", "consecutive_runs", "consensus_threshold",
-        "enrich_missing_abstracts", "enrich_uncertain_with_full_text", "classify_borderline")
+        "enrich_missing_abstracts", "enrich_missing_full_text", "full_text_lookup_providers", "enrich_uncertain_with_full_text", "classify_borderline")
     for model, path in model_inputs.items():
         checkpoint = json.loads(path.with_suffix(".assessments.json").read_text())
         if checkpoint.get("completed") is not True or checkpoint.get("output_sha256") != file_hash(path):
@@ -111,6 +113,10 @@ def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: P
             raise ValueError("review ensemble model label does not match its checkpoint")
         if any(key not in checkpoint for key in keys):
             raise ValueError("review ensemble requires complete assessment provenance")
+        if checkpoint['evidence_retrieval_policy'] != FULL_TEXT_RETRIEVAL_POLICY:
+            raise ValueError('review ensemble retrieval policy does not match current code')
+        if checkpoint['evidence_block_version'] != EVIDENCE_BLOCK_VERSION or checkpoint['evidence_block_max_chars'] != MAX_BLOCK_CHARS:
+            raise ValueError('review ensemble evidence block version does not match current code')
         current = {key: checkpoint[key] for key in keys}
         current["selected_ids"] = [row[protocol.contract.identity] for row in checkpoint["records"]]
         if context is not None and context != current:
@@ -126,15 +132,19 @@ def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: P
         votes = []
         for model, checkpoint in checkpoints.items():
             member = checkpoint["records"][index]
-            evidence_keys = ("full_text", "full_text_complete", "full_text_url", "full_text_original_sha256")
+            evidence_keys = ("full_text", "full_text_complete", "full_text_url", "full_text_original_sha256", "full_text_structure")
             if content_hash({key: member.get(key) for key in evidence_keys}) != content_hash({key: record.get(key) for key in evidence_keys}):
                 raise ValueError("review ensemble members assessed different full-text evidence")
             answer = {"criteria": member["criteria"], "fields": json.loads(member["field_assessments_json"])}
-            _validate_assessment(answer, protocol, fields, record.get("full_text", ""))
+            _validate_assessment(answer, protocol, fields, EvidenceBlockIndex.from_record(record))
             votes.append({"label": model, "status": "success" if member["assessment_status"] in {"success", "partial_error"}
                 and member.get("consensus_disposition") != "error" else member["assessment_status"],
                 "answer": answer})
         combined = combine_assessments(record, votes, protocol, fields, threshold)
+        for column in ("assessment_evidence_warnings_json",):
+            combined[column] = json.dumps([
+                {**entry, "model": model} for model, checkpoint in checkpoints.items()
+                for entry in json.loads(checkpoint["records"][index].get(column, "[]"))], sort_keys=True)
         # A model's row-level abstention must also remain an abstention in the ensemble.
         model_decisions = Counter(checkpoint["records"][index]["consensus_disposition"] for checkpoint in checkpoints.values())
         combined["consensus_disposition"] = _winner(Counter({key: model_decisions[key] for key in ("accept", "exclude", "uncertain")}),

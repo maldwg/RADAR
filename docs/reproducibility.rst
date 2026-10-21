@@ -69,3 +69,6 @@ available evidence, and recorded coverage. They should not be described as
 exhaustive beyond those observations. RADAR supplies an auditable artifact;
 publication metadata, artifact badges, benchmark results, and licensing claims
 must reflect the actual associated release.
+
+The living :doc:`research_notes` records encountered caveats and design decisions
+for paper writing; it does not report controlled ablations.

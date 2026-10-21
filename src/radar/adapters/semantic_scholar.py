@@ -10,11 +10,12 @@ import requests
 
 from radar.adapters.contracts import ProviderDescriptor, ProviderQuery, SearchPage, SourceRecord
 from radar.adapters.http import JsonTransport
-from radar.adapters.profiles import named_queries, publication_window, strong_identifiers, validated_page_size, validate_query_fields
+from radar.adapters.profiles import identifiers_conflict, named_queries, paper_identifiers, publication_window, strong_identifiers, validated_page_size, validate_query_fields
+from radar.common.retrieval_diagnostics import lookup_diagnostics, lookup_failure
 from radar.common.pdf import download_pdf_text
 from radar.common.text import normalize_text
 
-DESCRIPTOR = ProviderDescriptor("semantic_scholar", ("paper",), ("discovery", "lookup", "evidence"), default_page_size=1000)
+DESCRIPTOR = ProviderDescriptor("semantic_scholar", ("paper",), ("discovery", "lookup", "evidence"), default_page_size=1000, evidence_formats=("pdf",))
 
 
 class SemanticScholarAdapter:
@@ -88,13 +89,22 @@ class SemanticScholarAdapter:
 
     def enrich(self, work: dict[str, Any]) -> dict[str, Any]:
         """Find missing evidence by DOI or exact title, using shared bounded PDF extraction."""
-        title, doi = str(work.get("title") or "").strip(), str(work.get("doi") or "").strip()
+        title = str(work.get('title') or '').strip()
+        identifiers = paper_identifiers(work)
         record = None
-        if doi:
+        attempts = []
+        for key, prefix in (('doi', 'DOI:'), ('arxiv', 'ARXIV:')):
+            if not identifiers.get(key):
+                continue
             try:
-                record = self.lookup("DOI:" + doi)
-            except (requests.RequestException, ValueError):
-                pass
+                candidate = self.lookup(prefix + identifiers[key])
+                conflict = identifiers_conflict(identifiers, candidate.identifiers)
+                attempts.append({'method': 'identifier', 'identifier': prefix + identifiers[key], 'status': 'identity_conflict' if conflict else 'matched'})
+                if not conflict:
+                    record = candidate
+                    break
+            except (requests.RequestException, ValueError) as exc:
+                attempts.append({'method': 'identifier', 'identifier': prefix + identifiers[key], **lookup_failure(exc)})
         if record is None and title:
             try:
                 payload = self.client.get(f"{self.api_root}/paper/search",
@@ -102,15 +112,22 @@ class SemanticScholarAdapter:
                 matches = [raw for raw in payload.get("data", [])
                     if normalize_text(raw.get("title")) == normalize_text(title)]
                 if len(matches) == 1:
-                    record = self.normalize(matches[0])
-            except (requests.RequestException, ValueError):
-                pass
+                    candidate = self.normalize(matches[0])
+                    conflict = identifiers_conflict(identifiers, candidate.identifiers)
+                    attempts.append({'method': 'title', 'status': 'identity_conflict' if conflict else 'matched'})
+                    if not conflict:
+                        record = candidate
+                else:
+                    attempts.append({'method': 'title', 'status': 'no_match' if not matches else 'ambiguous'})
+            except (requests.RequestException, ValueError) as exc:
+                attempts.append({'method': 'title', **lookup_failure(exc)})
         if record is None:
-            return {}
+            return lookup_diagnostics(attempts, resolved=False)
         url = record.metadata.get("pdf_url", "")
         maximum = int(self.settings.get("max_full_text_chars", 30000))
-        result = {"abstract": record.evidence.get("abstract", ""), "abstract_source": "Semantic Scholar",
-            "full_text_url": url, "evidence_provider": "semantic_scholar", "evidence_native_id": record.native_id}
+        result = {"abstract": record.evidence.get("abstract", ""), "abstract_source": "Semantic Scholar" if record.evidence.get("abstract") else "",
+            "full_text_url": url, "evidence_provider": "semantic_scholar", "evidence_native_id": record.native_id,
+            "evidence_identifiers": record.identifiers, **lookup_diagnostics(attempts, resolved=True)}
         if url and maximum:
             result.update(download_pdf_text(url, maximum, float(self.settings.get("timeout_seconds", 30))))
         return {key: value for key, value in result.items() if value != ""}

@@ -2,15 +2,19 @@
 from __future__ import annotations
 
 import os
+import re
+
+import requests
 from pathlib import Path
 from typing import Any
 
 from radar.adapters.contracts import ProviderDescriptor, ProviderQuery, SearchPage, SourceRecord
-from radar.adapters.profiles import named_queries, publication_window, strong_identifiers, validated_page_size, validate_query_fields
+from radar.adapters.profiles import identifiers_conflict, named_queries, paper_identifiers, publication_window, strong_identifiers, validated_page_size, validate_query_fields
 from radar.openalex.collect import OpenAlexClient, normalize_work
+from radar.common.retrieval_diagnostics import lookup_diagnostics, lookup_failure
 from radar.common.paper_collection import collect_papers
 
-DESCRIPTOR = ProviderDescriptor("openalex", ("paper",), ("discovery", "lookup", "references"), ("dataset_catalogue",), 200)
+DESCRIPTOR = ProviderDescriptor("openalex", ("paper",), ("discovery", "lookup", "references", "evidence"), ("dataset_catalogue",), 200, evidence_formats=("tei_xml", "pdf"))
 
 
 class OpenAlexAdapter:
@@ -26,6 +30,7 @@ class OpenAlexAdapter:
         """Construct transport only when an operation actually requires it."""
         if self.client is None:
             self.client = OpenAlexClient(os.getenv("OPENALEX_API_KEY"), os.getenv("OPENALEX_MAILTO"),
+                timeout=float(self.settings.get("timeout_seconds", 30)),
                 request_pause_seconds=float(self.settings.get("request_pause_seconds", 1)))
         return self.client
 
@@ -73,6 +78,53 @@ class OpenAlexAdapter:
     def lookup(self, identifier: str) -> SourceRecord:
         """Resolve one OpenAlex work or supported external identifier."""
         return self.normalize(self._client().work(identifier))
+
+    def enrich(self, work: dict[str, Any]) -> dict[str, Any]:
+        """Resolve this paper's cached full text and all alternate PDF locations."""
+        identifiers = paper_identifiers(work)
+        candidates = []
+        native = str(work.get('openalex_id') or '')
+        if re.fullmatch(r'(?:https?://openalex.org/)?W[0-9]+', native, re.I):
+            candidates.append(native)
+        if identifiers.get('doi'):
+            candidates.append('doi:' + identifiers['doi'])
+        record = None
+        attempts = []
+        for identifier in candidates:
+            try:
+                candidate = self.lookup(identifier)
+                conflict = identifiers_conflict(identifiers, paper_identifiers(candidate.metadata))
+                attempts.append({'method': 'identifier', 'identifier': identifier, 'status': 'identity_conflict' if conflict else 'matched'})
+                if not conflict:
+                    record = candidate
+                    break
+            except (requests.RequestException, ValueError, RuntimeError) as exc:
+                attempts.append({'method': 'identifier', 'identifier': identifier, **lookup_failure(exc)})
+        title = str(work.get('title') or '').strip()
+        if record is None and title:
+            from radar.common.text import normalize_text
+
+            try:
+                client = self._client()
+                payload = client.get('/works', {'search': title, 'per-page': 10, 'select': client.select})
+                matches = [raw for raw in payload.get('results', [])
+                    if normalize_text(raw.get('title') or raw.get('display_name')) == normalize_text(title)]
+                if len(matches) == 1:
+                    candidate = self.normalize(matches[0])
+                    conflict = identifiers_conflict(identifiers, paper_identifiers(candidate.metadata))
+                    attempts.append({'method': 'title', 'status': 'identity_conflict' if conflict else 'matched'})
+                    if not conflict:
+                        record = candidate
+                else:
+                    attempts.append({'method': 'title', 'status': 'no_match' if not matches else 'ambiguous'})
+            except (requests.RequestException, ValueError, RuntimeError) as exc:
+                attempts.append({'method': 'title', **lookup_failure(exc)})
+        if record is None:
+            return lookup_diagnostics(attempts, resolved=False)
+        return {'abstract': record.evidence.get('abstract', ''), 'abstract_source': 'OpenAlex' if record.evidence.get('abstract') else '',
+            'pdf_urls': record.metadata.get('pdf_urls', []), 'content_urls': record.metadata.get('content_urls', {}),
+            'evidence_provider': 'openalex', 'evidence_native_id': record.native_id,
+            'evidence_identifiers': paper_identifiers(record.metadata), **lookup_diagnostics(attempts, resolved=True)}
 
     def references(self, identifier: str) -> list[str]:
         """Expose references independently of a study snowballing policy."""

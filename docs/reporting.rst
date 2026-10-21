@@ -8,6 +8,8 @@ artifact records. Collection and classifier execution still use the existing sou
 Adding another API crawler requires implementing its adapter; reporting on its CSV/JSON exports does
 not.
 
+See :doc:`database_model` for the SQLite tables, keys and relationships.
+
 .. _reporting-use-another-data-provider:
 
 Use another data provider

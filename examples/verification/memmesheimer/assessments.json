@@ -7,53 +7,63 @@
     "criteria": {
       "F1": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "F2": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "F3": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "F4": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "F5": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q1": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q2": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q3": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q4": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q5": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       }
     }
   },
@@ -65,53 +75,63 @@
     "criteria": {
       "F1": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "F2": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "F3": {
         "value": "no",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "F4": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "F5": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q1": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q2": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q3": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q4": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       },
       "Q5": {
         "value": "yes",
-        "quote": "It discusses its purpose, context, related work, procedure, conclusions, applications, novelty, future work and limitations.",
-        "source": "full_text"
+        "evidence_ids": [
+          "B4235d9bfa993-00001"
+        ]
       }
     }
   },

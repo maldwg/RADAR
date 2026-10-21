@@ -52,6 +52,14 @@ Reference labels enter evaluation only. They are excluded from retrieval and
 assessment prompts. Figure manifests record renderer and asset snapshots;
 architecture diagrams have integrity verification rather than numerical replay.
 
+Implementation models
+---------------------
+
+See :doc:`class_diagrams` for the UML class views and complete class inventory,
+and :doc:`database_model` for the reporting and pipeline-cache ER models.
+These describe implementation relationships; the figures above describe
+execution flow and component responsibilities.
+
 Regenerate figures
 ------------------
 

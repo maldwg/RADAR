@@ -15,7 +15,7 @@ labels or prompts; those remain study files.
    * - Contract
      - Responsibility
    * - ``ProviderDescriptor``
-     - Supported entity kinds and optional operations
+     - Supported entity kinds, optional operations and evidence formats
    * - ``ProviderQuery``
      - Named, explicit provider-native text and parameters
    * - ``SearchPage``
@@ -32,8 +32,17 @@ and entity kinds without network calls. GitHub and OpenAlex wrap their paced cli
 its optional catalogue strategy for date sharding and repository evidence. Both paper studies use
 the same common paper collector for direct retrieval, survey traversal, backward snowballing and
 ranking; their configurations select different values. OpenAlex requests and Semantic Scholar
-discovery and evidence lookup use the shared JSON retry/pacing transport. All scholarly PDF
-extraction uses the same bounded downloader in ``common/pdf.py``.
+discovery and evidence lookup use the shared JSON retry/pacing transport. All scholarly PDF and TEI XML
+extraction uses the same bounded download and parsing module in ``common/pdf.py``.
+
+``ProviderDescriptor.evidence_formats`` advertises ``tei_xml`` and/or ``pdf``
+without constructing a client. OpenAlex declares both; Semantic Scholar declares
+PDF. The common evidence service prioritizes structured-capable providers before
+PDF extraction, independently of discovery membership, while keeping PDF-only
+lookups lazy. New evidence providers declare their supported formats in the
+same descriptor. Registry validation rejects unknown, duplicate or unsupported
+format/capability combinations. All providers use the same document parsers and
+evidence block index; there is no provider-specific paragraph or quotation logic.
 
 Provider contracts and optional capabilities
 --------------------------------------------
@@ -59,7 +68,7 @@ Additional protocols describe operations supported by the same provider object:
      - OpenAlex and Semantic Scholar
    * - ``EvidenceAdapter``
      - Obtain additional evidence for an existing candidate
-     - Semantic Scholar abstract and PDF enrichment
+     - OpenAlex cached content and alternate locations; Semantic Scholar abstract and PDF links
    * - ``ReferenceAdapter``
      - Retrieve cited-work identifiers for configured snowballing
      - OpenAlex

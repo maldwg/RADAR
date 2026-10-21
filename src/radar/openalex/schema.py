@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+from html import unescape
 from typing import Any
 
 from radar.common.baselines import CLASSIFIER_COLUMNS, KEYWORD_AUDIT_COLUMNS
 from radar.common.nli import NLI_AUDIT_COLUMNS
 from radar.common.evidence import EVIDENCE_EXPANSION_COLUMNS
+from radar.common.paper_evidence import FULL_TEXT_AUDIT_FIELDS
 from radar.common.text import normalize_text
 PAPER_ROLES = (
     "original_release", "versioned_release", "generator_release", "survey",
@@ -24,7 +26,7 @@ LABELING = ("labeled", "partially_labeled", "unlabeled", "unknown")
 
 METADATA_COLUMNS = [
     "schema_version", "run_id", "openalex_id", "doi", "title", "abstract", "authors", "venue", "publisher",
-    "publication_year", "publication_date", "work_type", "primary_url", "pdf_url", "is_oa", "abstract_source", "full_text_url",
+    "publication_year", "publication_date", "work_type", "primary_url", "pdf_url", "is_oa", "abstract_source", "full_text_url", *FULL_TEXT_AUDIT_FIELDS,
     "cited_by_count", "citation_as_of", "referenced_works_count", "metadata_fetched_at", "discovery_relations", "matched_queries", "evidence_hash",
     "retrieval_rank_score", "retrieval_score", "retrieval_title_score", "retrieval_signals", "survey_discovery_score", "snowball_depth",
 ]
@@ -90,7 +92,7 @@ def ensure_resource_name(row: dict[str, str]) -> str:
     return display
 
 
-def normalize_response(raw: dict[str, Any], verified: list[dict[str, str]], config: dict[str, Any], artifact_id: str) -> dict[str, str]:
+def normalize_response(raw: dict[str, Any], verified: list[dict[str, Any]], config: dict[str, Any], artifact_id: str) -> dict[str, str]:
     """Normalize and adjudicate a raw OpenAlex classifier response."""
     role = enum_value(raw.get("paper_role"), PAPER_ROLES, "uncertain")
     tier = enum_value(raw.get("relevance_tier"), TIERS, "uncertain")
@@ -99,7 +101,7 @@ def normalize_response(raw: dict[str, Any], verified: list[dict[str, str]], conf
     artifact_display_name = str(raw.get("artifact_display_name", "")).strip()[:80]
     aliases = raw.get("artifact_aliases") if isinstance(raw.get("artifact_aliases"), list) else []
     identity_values = [artifact_name, artifact_display_name, *(str(value).strip() for value in aliases)]
-    identity_evidence = normalize_text(*(item.get("quote", "") for item in verified))
+    identity_evidence = normalize_text(*(unescape(item.get("quote", "")) for item in verified))
     compact_evidence = identity_evidence.replace(" ", "")
     identity_ok = any(
         len(normalize_text(value).replace(" ", "")) >= 5

@@ -19,6 +19,8 @@ candidate_threshold = 0.0
 borderline_threshold = -100.0
 
 [evidence]
+enrich_missing_full_text = true
+full_text_lookup_providers = ["openalex", "semantic_scholar"]
 fetch_full_text = true
 enrich_missing_abstracts = false
 enrich_uncertain_with_full_text = false

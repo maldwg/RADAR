@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -753,3 +754,74 @@ class OpenAlexPipelineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_classification_grounds_quotes_with_the_shared_checker(self) -> None:
+        """Keep source-grounded release evidence and abstain when a model changes its operator."""
+        settings = load_settings(ROOT / 'config/studies/ids_datasets/study.toml')
+        prompts = load_prompt_profile(settings, 'openalex')
+        text = 'a new labeled intrusion detection dataset named NAT Corpus is released when X >= 1.'
+        correct = 'A' + text[1:]
+        model = FakePaperModel()
+        raw = model.generate('', {})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates = root / 'candidates.csv'
+            row = {column: '' for column in CANDIDATE_COLUMNS}
+            row.update(openalex_id='W1', title='Network Attack Trace Corpus', prefilter_band='candidate',
+                prefilter_score='12', evidence_hash='fixture-evidence')
+            atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
+            with PipelineCache(root / 'cache.sqlite3') as cache:
+                source_text = text.replace('NAT Corpus', 'NAT&nbsp;Corpus')
+                cache.put_record('openalex.work', 'W1', {'work': {
+                    'openalex_id': 'W1', 'title': row['title'], 'abstract': source_text,
+                }}, 'now')
+                for quote, expected in [(correct, 'accept'), (correct.replace('>=', '<='), 'uncertain')]:
+                    with self.subTest(quote=quote), patch.object(model, 'generate', return_value={
+                            **raw, 'evidence': [{'source': 'Abstract', 'quote': quote}]}):
+                        result = classify(candidates, root / 'classified.csv', cache,
+                            {'require_verified_quote': True}, resume=False, generator=model,
+                            prompt_config=prompts, consecutive_runs=3, consensus_threshold=.66)[0]
+                        self.assertEqual(result['decision'], expected)
+                        self.assertEqual(json.loads(result['model_evidence_json'])[0]['quote'], quote)
+                        verified = json.loads(result['evidence_json'])
+                        if expected == 'accept':
+                            self.assertEqual(verified[0]['quote'], source_text)
+                            span = verified[0]['source_spans'][0]
+                            self.assertEqual(source_text[span['start']:span['end']], source_text)
+                        else:
+                            self.assertEqual(verified, [])
+                            self.assertEqual(result['evidence_quote_verified'], 'false')
+
+
+    def test_failed_full_text_fallback_does_not_restart_model_calls(self) -> None:
+        """Persist failed retrieval details without treating them as changed scientific evidence."""
+        settings = load_settings(ROOT / 'config/studies/ids_datasets/study.toml')
+        prompts = load_prompt_profile(settings, 'openalex')
+        raw = FakePaperModel().generate('', {})
+        raw['paper_role'] = 'uncertain'
+        model = Mock(model='fixture-model')
+        model.generate.return_value = raw
+        enricher = Mock()
+        enricher.enrich.return_value = {'full_text_url': 'https://example.org/blocked.pdf'}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates = root / 'candidates.csv'
+            row = {column: '' for column in CANDIDATE_COLUMNS}
+            row.update(openalex_id='W1', title='Dataset', prefilter_band='candidate',
+                prefilter_score='12', evidence_hash='fixture-evidence')
+            atomic_write_csv(candidates, [row], CANDIDATE_COLUMNS)
+            with PipelineCache(root / 'cache.sqlite3') as cache:
+                cache.put_record('openalex.work', 'W1', {'work': {
+                    'title': 'Dataset', 'abstract': 'We introduce a new labeled intrusion detection dataset named NAT Corpus.',
+                }}, 'now')
+                failure = {'full_text_status': 'download_failed', 'full_text_error': 'HTTPError', 'full_text_error_detail': 'HTTP 403'}
+                with patch('radar.common.paper_evidence.download_pdf_text', return_value=failure):
+                    result = classify(candidates, root / 'classified.csv', cache, {'require_verified_quote': True},
+                        generator=model, prompt_config=prompts, enricher=enricher,
+                        openalex_config={'enrich_uncertain_with_full_text': True, 'enrich_missing_full_text': True})[0]
+                self.assertEqual(model.generate.call_count, 1)
+                self.assertEqual(result['decision'], 'uncertain')
+                self.assertEqual(result['evidence_expansion_changed'], 'false')
+                self.assertIn('HTTP 403', result['full_text_attempts_json'])
+                self.assertEqual(cache.get_record('openalex.work', 'W1')['work']['full_text_error_detail'], 'HTTP 403')

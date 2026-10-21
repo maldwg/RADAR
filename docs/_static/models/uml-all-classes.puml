@@ -1,0 +1,518 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.adapters.contracts.ProviderDescriptor" as radar_adapters_contracts_ProviderDescriptor <<dataclass>> {
+  +name: str
+  +entity_kinds: tuple[str, ...]
+  +capabilities: tuple[str, ...]
+  +catalogue_workflows: tuple[str, ...]
+  +default_page_size: int
+  +evidence_formats: tuple[str, ...]
+}
+class "radar.adapters.contracts.ProviderQuery" as radar_adapters_contracts_ProviderQuery <<dataclass>> {
+  +name: str
+  +text: str
+  +parameters: dict[str, Any]
+}
+class "radar.adapters.contracts.SearchPage" as radar_adapters_contracts_SearchPage <<dataclass>> {
+  +records: list[dict[str, Any]]
+  +next_cursor: str | None
+  +raw: dict[str, Any]
+  +total: int | None
+  +complete: bool
+}
+class "radar.adapters.contracts.SourceRecord" as radar_adapters_contracts_SourceRecord <<dataclass>> {
+  +provider: str
+  +native_id: str
+  +entity_kind: str
+  +identifiers: dict[str, str]
+  +metadata: dict[str, Any]
+  +evidence: dict[str, Any]
+  +native: dict[str, Any]
+}
+class "radar.adapters.contracts.DiscoveryAdapter" as radar_adapters_contracts_DiscoveryAdapter <<protocol>> {
+  +descriptor: ProviderDescriptor
+  +queries()
+  +validate_query()
+  +search()
+  +normalize()
+}
+class "radar.adapters.contracts.LookupAdapter" as radar_adapters_contracts_LookupAdapter <<protocol>> {
+  +lookup()
+}
+class "radar.adapters.contracts.EvidenceAdapter" as radar_adapters_contracts_EvidenceAdapter <<protocol>> {
+  +enrich()
+}
+class "radar.adapters.contracts.ReferenceAdapter" as radar_adapters_contracts_ReferenceAdapter <<protocol>> {
+  +references()
+}
+class "radar.adapters.contracts.CatalogueAdapter" as radar_adapters_contracts_CatalogueAdapter <<protocol>> {
+  +collect_catalogue()
+}
+class "radar.adapters.github.GitHubAdapter" as radar_adapters_github_GitHubAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +collect_catalogue()
+}
+class "radar.adapters.http.JsonTransport" as radar_adapters_http_JsonTransport {
+  +__init__()
+  +retry_delay()
+  +get()
+}
+class "radar.adapters.local.LocalDiscoveryAdapter" as radar_adapters_local_LocalDiscoveryAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+}
+class "radar.adapters.openalex.OpenAlexAdapter" as radar_adapters_openalex_OpenAlexAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +lookup()
+  +enrich()
+  +references()
+  +lookup_many()
+  +collect_catalogue()
+}
+class "radar.adapters.registry.ProviderRegistration" as radar_adapters_registry_ProviderRegistration <<dataclass>> {
+  +descriptor: ProviderDescriptor
+  +factory: Callable[..., DiscoveryAdapter]
+}
+class "radar.adapters.semantic_scholar.SemanticScholarAdapter" as radar_adapters_semantic_scholar_SemanticScholarAdapter {
+  +__init__()
+  +queries()
+  +search()
+  +validate_query()
+  +normalize()
+  +lookup()
+  +enrich()
+}
+class "radar.common.baselines.KeywordBaselineConfig" as radar_common_baselines_KeywordBaselineConfig <<dataclass>> {
+  +accept_threshold: float
+  +uncertain_threshold: float
+}
+class "radar.common.baselines.KeywordField" as radar_common_baselines_KeywordField <<dataclass>> {
+  +name: str
+  +mode: str
+  +fallback: str
+  +minimum_score: float
+  +margin: float
+  +labels: dict[str, dict[str, Any]]
+}
+class "radar.common.baselines.KeywordTaxonomyProfile" as radar_common_baselines_KeywordTaxonomyProfile <<dataclass>> {
+  +source: str
+  +fields: tuple[KeywordField, ...]
+  +decision_field: str
+  +include_labels: tuple[str, ...]
+  +exclude_labels: tuple[str, ...]
+  +raw: dict[str, Any]
+  +path: Path
+}
+class "radar.common.cache.PipelineCache" as radar_common_cache_PipelineCache {
+  +__init__()
+  +close()
+  +put_record()
+  +get_record()
+  +records()
+  +put_decision()
+  +get_decision()
+  +put_coverage()
+  +coverage_rows()
+}
+class "radar.common.config.ConfigError" as radar_common_config_ConfigError {
+}
+class "radar.common.config.Settings" as radar_common_config_Settings <<dataclass>> {
+  +root: Path
+  +values: dict[str, Any]
+  +section()
+  +path()
+  +require_source()
+}
+class "radar.common.discovery.DiscoverySource" as radar_common_discovery_DiscoverySource <<dataclass>> {
+  +name: str
+  +profile_path: Path
+  +settings: dict[str, Any]
+  +adapter: DiscoveryAdapter | None
+  +cache_path: Path | None
+}
+class "radar.common.evaluation.RatingProfile" as radar_common_evaluation_RatingProfile <<dataclass>> {
+  +source: str
+  +evaluation_unit: str
+  +classification_fields: list[str]
+  +entities: dict[str, dict[str, Any]]
+  +path: Path
+  +metadata: dict[str, Any]
+  +contract: SourceContract | None
+  +input_fingerprints: dict[str, str] | None
+}
+class "radar.common.evaluation.EvaluationResult" as radar_common_evaluation_EvaluationResult <<dataclass>> {
+  +metrics: dict[str, Any]
+  +instances: list[dict[str, Any]]
+  +field_metrics: list[dict[str, Any]]
+  +confusion: list[dict[str, Any]]
+  +outputs: list[Path]
+}
+class "radar.common.evidence_blocks.EvidenceBlock" as radar_common_evidence_blocks_EvidenceBlock <<dataclass>> {
+  +id: str
+  +start: int
+  +end: int
+  +text: str
+  +kind: str
+  +page: int | None
+  +section: str
+}
+class "radar.common.evidence_blocks.EvidenceBlockIndex" as radar_common_evidence_blocks_EvidenceBlockIndex {
+  +__init__()
+  +from_record()
+  +prompt_blocks()
+  +judgment_error()
+  +manifest()
+}
+class "radar.common.evidence_quotes.SourceQuotation" as radar_common_evidence_quotes_SourceQuotation <<dataclass>> {
+  +text: str
+  +start: int
+  +end: int
+  +method: str
+}
+class "radar.common.evidence_quotes.SourceQuoteIndex" as radar_common_evidence_quotes_SourceQuoteIndex {
+  +__init__()
+  +match()
+  +match_fragments()
+}
+class "radar.common.llm_nli.NLIScoringError" as radar_common_llm_nli_NLIScoringError {
+}
+class "radar.common.llm_nli.LLMNLIConfig" as radar_common_llm_nli_LLMNLIConfig <<dataclass>> {
+  +models: tuple[str, ...]
+  +template: str
+  +top_logprobs: int
+  +context_length: int
+  +seed: int
+  +timeout_seconds: float
+  +retries: int
+  +entailment_threshold: float
+  +label_margin: float
+  +minimum_label_mass: float
+  +scoring_hash()
+}
+class "radar.common.llm_nli.OllamaNLIBackend" as radar_common_llm_nli_OllamaNLIBackend {
+  +__init__()
+  +chunk_sections()
+  +start_record()
+  +record_audit()
+  +score()
+  +preflight()
+  +runtime_config()
+}
+class "radar.common.logging.UtcFormatter" as radar_common_logging_UtcFormatter {
+}
+class "radar.common.nli.NLIRuntimeConfig" as radar_common_nli_NLIRuntimeConfig <<dataclass>> {
+  +model: str
+  +revision: str
+  +device: str
+  +batch_size: int
+  +max_length: int
+  +premise_tokens: int
+  +chunk_overlap: int
+  +max_chunks: int
+  +top_k: int
+  +entailment_threshold: float
+  +label_margin: float
+}
+class "radar.common.nli.NLIField" as radar_common_nli_NLIField <<dataclass>> {
+  +name: str
+  +mode: str
+  +fallback: str
+  +hypotheses: dict[str, str]
+}
+class "radar.common.nli.NLIProfile" as radar_common_nli_NLIProfile <<dataclass>> {
+  +source: str
+  +fields: tuple[NLIField, ...]
+  +raw: dict[str, Any]
+  +path: Path
+}
+class "radar.common.nli.EvidenceChunk" as radar_common_nli_EvidenceChunk <<dataclass>> {
+  +index: int
+  +source: str
+  +text: str
+}
+class "radar.common.nli.NLIScore" as radar_common_nli_NLIScore <<dataclass>> {
+  +entailment: float
+  +neutral: float
+  +contradiction: float
+}
+class "radar.common.nli.NLIBackend" as radar_common_nli_NLIBackend <<protocol>> {
+  +model_id: str
+  +revision: str
+  +chunk_sections()
+  +score()
+}
+class "radar.common.nli.TransformersNLIBackend" as radar_common_nli_TransformersNLIBackend {
+  +__init__()
+  +chunk_sections()
+  +score()
+}
+class "radar.common.nli_diagnostics.NLIThresholdGrid" as radar_common_nli_diagnostics_NLIThresholdGrid <<dataclass>> {
+  +enabled: bool
+  +entailment_thresholds: tuple[float, ...]
+  +label_margins: tuple[float, ...]
+}
+class "radar.common.ollama.EvidenceSection" as radar_common_ollama_EvidenceSection <<dataclass>> {
+  +source: str
+  +text: str
+}
+class "radar.common.ollama.OllamaClient" as radar_common_ollama_OllamaClient {
+  +__init__()
+  +generate()
+}
+class "radar.common.paper_collection.PaperSearchClient" as radar_common_paper_collection_PaperSearchClient {
+  +__init__()
+  +search()
+  +works_by_ids()
+}
+class "radar.common.paper_evidence.PaperEvidenceService" as radar_common_paper_evidence_PaperEvidenceService {
+  +__init__()
+  +prepare()
+  +enrich()
+}
+class "radar.common.pdf.ContentKeyRequired" as radar_common_pdf_ContentKeyRequired {
+}
+class "radar.common.provenance.BundleAudit" as radar_common_provenance_BundleAudit <<dataclass>> {
+  +root: Path
+  +definition: dict[str, Any]
+  +inputs: dict[str, dict[str, str]]
+  +tables: dict[str, dict[str, Any]]
+  +input()
+}
+class "radar.common.reconcile.UnionFind" as radar_common_reconcile_UnionFind {
+  +__init__()
+  +find()
+  +union()
+  +groups()
+}
+class "radar.common.regression.RegressionResult" as radar_common_regression_RegressionResult <<dataclass>> {
+  +metrics: dict[str, Any]
+  +instances: list[dict[str, Any]]
+}
+class "radar.common.reporting.ReportingDatabase" as radar_common_reporting_ReportingDatabase {
+  +__init__()
+  +snapshot()
+  +entity()
+  +relationship()
+  +ingest_records()
+  +ingest_evaluation()
+  +add_figures()
+}
+class "radar.common.run.RunManifest" as radar_common_run_RunManifest <<dataclass>> {
+  +root: Path
+  +runs_dir: Path
+  +source: str
+  +stage: str
+  +config: dict[str, Any]
+  +parameters: dict[str, Any]
+  +run_id: str
+  +started_at: str
+  +counts: dict[str, int]
+  +coverage: list[dict[str, Any]]
+  +status: str
+  +write()
+}
+class "radar.common.scoring.ScoreResult" as radar_common_scoring_ScoreResult <<dataclass>> {
+  +score: float
+  +band: str
+  +signals: tuple[str, ...]
+}
+class "radar.common.screening.ScreeningProfile" as radar_common_screening_ScreeningProfile <<dataclass>> {
+  +path: Path
+  +protocol_id: str
+  +strategy: str
+  +taxonomy_path: Path
+  +prompt_path: Path
+  +eligibility: dict[str, str]
+  +quality: dict[str, str]
+  +quality_minimum: int
+  +provenance: dict[str, Any]
+  +sha256: str
+  +prompt_rules()
+}
+class "radar.common.sources.SourceContract" as radar_common_sources_SourceContract <<dataclass>> {
+  +name: str
+  +entity_kind: str
+  +identity: str
+  +label: str
+  +selectors: dict[str, str]
+  +fields: tuple[str, ...]
+  +multilabel: tuple[str, ...]
+  +display_name: str
+  +capabilities: tuple[str, ...]
+  +field_labels: dict[str, str]
+  +mapping: dict[str, str]
+  +taxonomy_version: str
+  +decisions: dict[str, str]
+  +fingerprint()
+}
+class "radar.common.sources.LocalSourceAdapter" as radar_common_sources_LocalSourceAdapter {
+  +__init__()
+  +normalize()
+  +read()
+}
+class "radar.common.study_screening.StudyProtocol" as radar_common_study_screening_StudyProtocol <<dataclass>> {
+  +path: Path
+  +contract: SourceContract
+  +filters: dict[str, str]
+  +quality: dict[str, str]
+  +quality_minimum: int
+  +sha256: str
+  +source_profile_sha256: str
+}
+class "radar.common.study_screening.StudyScreeningAdapter" as radar_common_study_screening_StudyScreeningAdapter {
+  +__init__()
+  +normalize()
+}
+class "radar.funnel.FunnelStage" as radar_funnel_FunnelStage <<dataclass>> {
+  +key: str
+  +label: str
+  +count: int | None
+  +basis: str
+  +detail: str
+  +removed_label: str
+}
+class "radar.funnel.ClassifierVariant" as radar_funnel_ClassifierVariant <<dataclass>> {
+  +label: str
+  +identifier: str
+  +classifications: Path
+  +reconciled: Path
+  +catalogue: Path
+  +adjacent: Path | None
+}
+class "radar.github.collect.GitHubClient" as radar_github_collect_GitHubClient {
+  +__init__()
+  +request()
+  +get_json()
+  +search()
+  +raw_readme()
+  +docs()
+}
+class "radar.github.enrich.GitHubEvidenceClient" as radar_github_enrich_GitHubEvidenceClient {
+  +__init__()
+  +enrich()
+}
+class "radar.github.pipeline.Generator" as radar_github_pipeline_Generator <<protocol>> {
+  +model: str
+  +generate()
+}
+class "radar.github.pipeline.EvidenceEnricher" as radar_github_pipeline_EvidenceEnricher <<protocol>> {
+  +enrich()
+}
+class "radar.github.reconcile.Generator" as radar_github_reconcile_Generator <<protocol>> {
+  +model: str
+  +generate()
+}
+class "radar.openalex.collect.OpenAlexClient" as radar_openalex_collect_OpenAlexClient {
+  +__init__()
+  +get()
+  +search()
+  +work()
+  +works_by_ids()
+}
+class "radar.openalex.pipeline.Generator" as radar_openalex_pipeline_Generator <<protocol>> {
+  +model: str
+  +generate()
+}
+class "radar.openalex.reconcile.Generator" as radar_openalex_reconcile_Generator <<protocol>> {
+  +model: str
+  +generate()
+}
+class "builtins.ValueError" as builtins_ValueError <<external>>
+radar_common_config_ConfigError --|> builtins_ValueError
+class "builtins.RuntimeError" as builtins_RuntimeError <<external>>
+radar_common_llm_nli_NLIScoringError --|> builtins_RuntimeError
+class "logging.Formatter" as logging_Formatter <<external>>
+radar_common_logging_UtcFormatter --|> logging_Formatter
+radar_common_pdf_ContentKeyRequired --|> builtins_ValueError
+radar_adapters_contracts_DiscoveryAdapter --> radar_adapters_contracts_ProviderDescriptor : descriptor
+radar_adapters_contracts_DiscoveryAdapter ..> radar_adapters_contracts_ProviderQuery : queries returns, search parameter, validate_query parameter
+radar_adapters_contracts_DiscoveryAdapter ..> radar_adapters_contracts_SearchPage : search returns
+radar_adapters_contracts_DiscoveryAdapter ..> radar_adapters_contracts_SourceRecord : normalize returns
+radar_adapters_contracts_LookupAdapter ..> radar_adapters_contracts_SourceRecord : lookup returns
+radar_adapters_github_GitHubAdapter ..|> radar_adapters_contracts_CatalogueAdapter : structural candidate
+radar_adapters_github_GitHubAdapter ..|> radar_adapters_contracts_DiscoveryAdapter : structural candidate
+radar_adapters_github_GitHubAdapter --> radar_adapters_contracts_ProviderDescriptor : descriptor
+radar_adapters_github_GitHubAdapter ..> radar_adapters_contracts_ProviderQuery : queries returns, search parameter, validate_query parameter
+radar_adapters_github_GitHubAdapter ..> radar_adapters_contracts_SearchPage : constructs, search returns
+radar_adapters_github_GitHubAdapter ..> radar_adapters_contracts_SourceRecord : constructs, normalize returns
+radar_adapters_github_GitHubAdapter --> radar_github_collect_GitHubClient : client
+radar_adapters_local_LocalDiscoveryAdapter ..|> radar_adapters_contracts_DiscoveryAdapter : structural candidate
+radar_adapters_local_LocalDiscoveryAdapter --> radar_adapters_contracts_ProviderDescriptor : descriptor
+radar_adapters_local_LocalDiscoveryAdapter ..> radar_adapters_contracts_ProviderQuery : constructs, queries returns, search parameter, validate_query parameter
+radar_adapters_local_LocalDiscoveryAdapter ..> radar_adapters_contracts_SearchPage : constructs, search returns
+radar_adapters_local_LocalDiscoveryAdapter ..> radar_adapters_contracts_SourceRecord : constructs, normalize returns
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_CatalogueAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_DiscoveryAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_EvidenceAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_LookupAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter --> radar_adapters_contracts_ProviderDescriptor : descriptor
+radar_adapters_openalex_OpenAlexAdapter ..> radar_adapters_contracts_ProviderQuery : constructs, queries returns, search parameter, validate_query parameter
+radar_adapters_openalex_OpenAlexAdapter ..|> radar_adapters_contracts_ReferenceAdapter : structural candidate
+radar_adapters_openalex_OpenAlexAdapter ..> radar_adapters_contracts_SearchPage : constructs, search returns
+radar_adapters_openalex_OpenAlexAdapter ..> radar_adapters_contracts_SourceRecord : constructs, lookup returns, lookup_many returns, normalize returns
+radar_adapters_openalex_OpenAlexAdapter --> radar_openalex_collect_OpenAlexClient : client
+radar_adapters_registry_ProviderRegistration ..> radar_adapters_contracts_DiscoveryAdapter : factory
+radar_adapters_registry_ProviderRegistration --> radar_adapters_contracts_ProviderDescriptor : descriptor
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..|> radar_adapters_contracts_DiscoveryAdapter : structural candidate
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..|> radar_adapters_contracts_EvidenceAdapter : structural candidate
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..|> radar_adapters_contracts_LookupAdapter : structural candidate
+radar_adapters_semantic_scholar_SemanticScholarAdapter --> radar_adapters_contracts_ProviderDescriptor : descriptor
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..> radar_adapters_contracts_ProviderQuery : constructs, queries returns, search parameter, validate_query parameter
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..> radar_adapters_contracts_SearchPage : constructs, search returns
+radar_adapters_semantic_scholar_SemanticScholarAdapter ..> radar_adapters_contracts_SourceRecord : constructs, lookup returns, normalize returns
+radar_adapters_semantic_scholar_SemanticScholarAdapter --> radar_adapters_http_JsonTransport : client
+radar_common_baselines_KeywordTaxonomyProfile --> radar_common_baselines_KeywordField : fields
+radar_common_config_Settings ..> radar_common_config_ConfigError : constructs
+radar_common_discovery_DiscoverySource --> radar_adapters_contracts_DiscoveryAdapter : adapter
+radar_common_evaluation_RatingProfile --> radar_common_sources_SourceContract : contract
+radar_common_evidence_blocks_EvidenceBlockIndex --> radar_common_evidence_blocks_EvidenceBlock : blocks
+radar_common_evidence_quotes_SourceQuoteIndex ..> radar_common_evidence_quotes_SourceQuotation : _wrapped_occurrences returns, constructs, match returns, match_fragments returns
+radar_common_llm_nli_LLMNLIConfig ..> radar_common_nli_NLIRuntimeConfig : scoring_hash parameter
+radar_common_llm_nli_OllamaNLIBackend --> radar_common_cache_PipelineCache : cache
+radar_common_llm_nli_OllamaNLIBackend --> radar_common_llm_nli_LLMNLIConfig : config
+radar_common_llm_nli_OllamaNLIBackend ..> radar_common_llm_nli_NLIScoringError : constructs
+radar_common_llm_nli_OllamaNLIBackend ..> radar_common_nli_EvidenceChunk : chunk_sections returns
+radar_common_llm_nli_OllamaNLIBackend ..|> radar_common_nli_NLIBackend : structural candidate
+radar_common_llm_nli_OllamaNLIBackend --> radar_common_nli_NLIRuntimeConfig : reference
+radar_common_llm_nli_OllamaNLIBackend ..> radar_common_nli_NLIScore : constructs, score returns
+radar_common_llm_nli_OllamaNLIBackend ..> radar_common_ollama_EvidenceSection : chunk_sections parameter
+radar_common_nli_NLIBackend ..> radar_common_nli_EvidenceChunk : chunk_sections returns
+radar_common_nli_NLIBackend ..> radar_common_nli_NLIScore : score returns
+radar_common_nli_NLIBackend ..> radar_common_ollama_EvidenceSection : chunk_sections parameter
+radar_common_nli_NLIProfile --> radar_common_nli_NLIField : fields
+radar_common_nli_TransformersNLIBackend ..> radar_common_nli_EvidenceChunk : chunk_sections returns
+radar_common_nli_TransformersNLIBackend ..|> radar_common_nli_NLIBackend : structural candidate
+radar_common_nli_TransformersNLIBackend ..> radar_common_nli_NLIRuntimeConfig : __init__ parameter
+radar_common_nli_TransformersNLIBackend ..> radar_common_nli_NLIScore : constructs, score returns
+radar_common_nli_TransformersNLIBackend ..> radar_common_ollama_EvidenceSection : chunk_sections parameter
+radar_common_ollama_OllamaClient ..|> radar_github_pipeline_Generator : structural candidate
+radar_common_ollama_OllamaClient ..|> radar_github_reconcile_Generator : structural candidate
+radar_common_ollama_OllamaClient ..|> radar_openalex_pipeline_Generator : structural candidate
+radar_common_ollama_OllamaClient ..|> radar_openalex_reconcile_Generator : structural candidate
+radar_common_paper_collection_PaperSearchClient --> radar_adapters_contracts_DiscoveryAdapter : adapter
+radar_common_paper_collection_PaperSearchClient ..> radar_adapters_contracts_ProviderQuery : constructs
+radar_common_paper_collection_PaperSearchClient --> radar_adapters_contracts_SourceRecord : records
+radar_common_paper_evidence_PaperEvidenceService --> radar_adapters_contracts_EvidenceAdapter : enricher, enrichers
+radar_common_paper_evidence_PaperEvidenceService ..|> radar_adapters_contracts_EvidenceAdapter : structural candidate
+radar_common_reporting_ReportingDatabase ..> radar_common_sources_SourceContract : constructs, entity parameter, ingest_evaluation parameter, ingest_records parameter
+radar_common_sources_LocalSourceAdapter --> radar_common_sources_SourceContract : contract
+radar_common_study_screening_StudyProtocol --> radar_common_sources_SourceContract : contract
+radar_common_study_screening_StudyScreeningAdapter ..> radar_common_evidence_blocks_EvidenceBlockIndex : uses
+radar_common_study_screening_StudyScreeningAdapter --|> radar_common_sources_LocalSourceAdapter : extends
+radar_common_study_screening_StudyScreeningAdapter --> radar_common_study_screening_StudyProtocol : protocol
+radar_github_enrich_GitHubEvidenceClient --> radar_github_collect_GitHubClient : client
+radar_github_enrich_GitHubEvidenceClient ..|> radar_github_pipeline_EvidenceEnricher : structural candidate
+radar_openalex_collect_OpenAlexClient --> radar_adapters_http_JsonTransport : transport
+@enduml

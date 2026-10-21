@@ -13,6 +13,7 @@ class ProviderDescriptor:
     capabilities: tuple[str, ...] = ("discovery",)
     catalogue_workflows: tuple[str, ...] = ()
     default_page_size: int = 100
+    evidence_formats: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

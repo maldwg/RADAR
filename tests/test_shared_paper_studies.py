@@ -198,3 +198,24 @@ class SharedPaperStudyTests(unittest.TestCase):
                 'sources/openalex.toml', 'sources/semantic_scholar.toml').replace('search/openalex.toml', 'search/semantic_scholar.toml'))
             with self.assertRaisesRegex(ConfigError, 'does not support survey/reference traversal'):
                 load_settings(manifest)
+
+
+    def test_review_acquires_missing_text_before_one_model_assessment(self):
+        """A candidate with an abstract can recover full text using the shared fallback policy."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'input.json'
+            source.write_text(json.dumps([{'paper_id': 'one', 'doi': '10.1/paper', 'title': 'Conformal method', 'abstract': 'Available abstract.'}]))
+            enricher = Mock()
+            enricher.enrich.return_value = {'full_text_url': 'https://example.org/paper.pdf'}
+            service = PaperEvidenceService({'fetch_full_text': True, 'enrich_missing_full_text': True}, enricher)
+            model = Mock()
+            model.generate.return_value = answer()
+            with patch('radar.common.paper_evidence.download_pdf_text', return_value={'full_text': TEXT, 'full_text_complete': True, 'full_text_status': 'downloaded'}):
+                result = classify_study(CONFORMAL / 'screening.toml', source, root / 'classified.csv', {'model': 'fixture'},
+                    client=model, fetch_full_text=True, enrich_missing_full_text=True, evidence_service=service)[0]
+            self.assertEqual(result['decision'], 'accept')
+            self.assertEqual(model.generate.call_count, 1)
+            self.assertEqual(enricher.enrich.call_count, 1)
+            self.assertEqual(result['full_text_status'], 'downloaded')
+            self.assertIn('https://example.org/paper.pdf', result['full_text_attempts_json'])

@@ -1,0 +1,36 @@
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+class "radar.github.pipeline.Generator" as radar_github_pipeline_Generator <<protocol>> {
+  +model: str
+  +generate()
+}
+class "radar.github.reconcile.Generator" as radar_github_reconcile_Generator <<protocol>> {
+  +model: str
+  +generate()
+}
+class "radar.openalex.pipeline.Generator" as radar_openalex_pipeline_Generator <<protocol>> {
+  +model: str
+  +generate()
+}
+class "radar.openalex.reconcile.Generator" as radar_openalex_reconcile_Generator <<protocol>> {
+  +model: str
+  +generate()
+}
+class "radar.common.ollama.OllamaClient" as radar_common_ollama_OllamaClient {
+  +__init__()
+  +generate()
+}
+class "radar.github.enrich.GitHubEvidenceClient" as radar_github_enrich_GitHubEvidenceClient {
+  +__init__()
+  +enrich()
+}
+class "radar.github.pipeline.EvidenceEnricher" as radar_github_pipeline_EvidenceEnricher <<protocol>> {
+  +enrich()
+}
+radar_common_ollama_OllamaClient ..|> radar_github_pipeline_Generator : structural candidate
+radar_common_ollama_OllamaClient ..|> radar_github_reconcile_Generator : structural candidate
+radar_common_ollama_OllamaClient ..|> radar_openalex_pipeline_Generator : structural candidate
+radar_common_ollama_OllamaClient ..|> radar_openalex_reconcile_Generator : structural candidate
+radar_github_enrich_GitHubEvidenceClient ..|> radar_github_pipeline_EvidenceEnricher : structural candidate
+@enduml
