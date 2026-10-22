@@ -7,8 +7,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Protocol, Sequence
 
-from radar.common.baselines import _candidate_payload
-from radar.common.cache import PipelineCache
+from radar.common.baselines import baseline_inputs
+from radar.common.cache import COLLECTED_EVIDENCE_POLICY, PipelineCache, collected_record_hash
 from radar.common.config import ConfigError, Settings
 from radar.common.csvio import atomic_write_csv, read_csv, require_columns
 from radar.common.logging import logger
@@ -18,7 +18,7 @@ from radar.common.text import slug, stable_hash
 
 
 LOG = logger("nli")
-NLI_BASELINE_VERSION = "nli-baseline-2"
+NLI_BASELINE_VERSION = "nli-baseline-3"
 NLI_AUDIT_COLUMNS = [
     "nli_model", "nli_model_revision", "nli_scores_json", "nli_supporting_chunks_json",
     "nli_entailment_threshold", "nli_label_margin", "nli_top_k", "nli_max_chunks",
@@ -440,7 +440,7 @@ def rescore_nli_rows(
 def nli_profile_hash(profile: NLIProfile, config: NLIRuntimeConfig) -> str:
     """Fingerprint model revision, hypotheses, thresholds, and chunking semantics."""
     payload = {
-        "version": NLI_BASELINE_VERSION, "profile": profile.raw, "runtime": asdict(config),
+        "version": NLI_BASELINE_VERSION, "evidence_policy": COLLECTED_EVIDENCE_POLICY, "profile": profile.raw, "runtime": asdict(config),
     }
     return stable_hash(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
 
@@ -470,15 +470,10 @@ def classify_nli_baseline(
     method: str = "nli", limit: int | None = None,
 ) -> list[dict[str, str]]:
     """Run a resumable zero-shot NLI classification over the complete candidate audit."""
-    identity, record_namespace, columns, evidence_builder, normalizer = _source_contract(source)
-    rows = read_csv(candidates_path)
-    require_columns(rows, (identity, "evidence_hash"), candidates_path)
+    identity, _, columns, evidence_builder, normalizer = _source_contract(source)
+    inputs = baseline_inputs(source, candidates_path, cache, limit)
     if method not in {"nli", "llm_nli"}:
         raise ValueError(f"unsupported NLI method: {method}")
-    if limit is not None:
-        if limit < 1:
-            raise ValueError("NLI limit must be positive")
-        rows = rows[:limit]
     if method == "llm_nli":
         if backend is None:
             raise ValueError("llm_nli requires an explicit scoring backend")
@@ -500,28 +495,21 @@ def classify_nli_baseline(
         and row.get("classifier_profile_hash") == profile_hash
         and row.get("decision") != "error"
     }
-    reused = fallback_count = 0
+    reused = 0
     progress_every = max(1, int(progress_every))
     LOG.info(
-        "starting NLI baseline source=%s rows=%d model=%s revision=%s device=%s resume=%s",
-        source, len(rows), config.model, config.revision, config.device, resume,
+        "starting NLI baseline source=%s rows=%d model=%s revision=%s device=%s resume=%s evidence_source=collection_snapshot",
+        source, len(inputs), config.model, config.revision, config.device, resume,
     )
-    for index, candidate in enumerate(rows, 1):
-        key = str(candidate.get(identity, "")).strip()
-        if not key:
-            raise ValueError(f"NLI baseline candidate is missing {identity}: row {index}")
-        payload = cache.get_record(record_namespace, key)
-        evidence_source = "raw_cache" if payload is not None else "candidate_csv"
-        if payload is None:
-            payload = _candidate_payload(source, candidate)
-            fallback_count += 1
-            if fallback_count == 1:
-                LOG.warning("raw evidence missing; using candidate audit for NLI source=%s first_id=%s", source, key)
+    for index, (candidate, payload) in enumerate(inputs, 1):
+        key = str(candidate[identity]).strip()
+        evidence_source = "collection_snapshot"
         sections = evidence_builder(payload)
         evidence_hash = (
             stable_hash(json.dumps([(section.source, section.text) for section in sections], ensure_ascii=False))
             if method == "llm_nli" else stable_hash(format_evidence(sections, 30000))
         )
+        evidence_hash = stable_hash(collected_record_hash(payload), evidence_hash)
         cached = cache.get_decision(namespace, key, profile_hash, evidence_hash) if resume else None
         if cached is None:
             prior = prior_by_id.get(key)
@@ -538,6 +526,8 @@ def classify_nli_baseline(
             "classifier_method": method, "classifier_id": config.model,
             "classifier_profile_hash": profile_hash,
             "classifier_evidence_source": evidence_source,
+            "classifier_evidence_policy": COLLECTED_EVIDENCE_POLICY,
+            "classifier_evidence_snapshot_hash": collected_record_hash(payload),
             "nli_model": config.model, "nli_model_revision": config.revision,
             "nli_entailment_threshold": f"{config.entailment_threshold:g}",
             "nli_label_margin": f"{config.label_margin:g}", "nli_top_k": str(config.top_k),
@@ -573,10 +563,10 @@ def classify_nli_baseline(
         results.append(serialized)
         if index % progress_every == 0:
             atomic_write_csv(output, results, columns)
-            LOG.info("NLI baseline progress source=%s completed=%d/%d", source, index, len(rows))
+            LOG.info("NLI baseline progress source=%s completed=%d/%d", source, index, len(inputs))
     atomic_write_csv(output, results, columns)
     LOG.info(
-        "NLI baseline complete source=%s rows=%d cached=%d candidate_evidence_fallbacks=%d output=%s",
-        source, len(results), reused, fallback_count, output,
+        "NLI baseline complete source=%s rows=%d cached=%d evidence_source=collection_snapshot output=%s",
+        source, len(results), reused, output,
     )
     return results

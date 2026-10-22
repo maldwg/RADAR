@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from radar.common.logging import logger
-from radar.common.text import unicode_safe
+from radar.common.text import stable_hash, unicode_safe
 
 LOG = logger("cache")
+
+COLLECTED_EVIDENCE_POLICY = "collection-snapshot-v1"
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -40,6 +42,12 @@ def _json_payload(value: Any, context: str) -> str:
     return json.dumps(cleaned, ensure_ascii=False)
 
 
+def collected_record_hash(payload: dict[str, Any]) -> str:
+    """Identify original collection evidence independently of later enrichment."""
+    return stable_hash(COLLECTED_EVIDENCE_POLICY, json.dumps(unicode_safe(payload), ensure_ascii=False,
+        sort_keys=True, separators=(",", ":")))
+
+
 class PipelineCache:
     def __init__(self, path: Path, *, read_only: bool = False):
         """Open a current-format cache using Python's SQLite module."""
@@ -69,6 +77,35 @@ class PipelineCache:
         self.connection.execute("INSERT OR REPLACE INTO records VALUES (?, ?, ?, ?)",
             (namespace, key, _json_payload(payload, f"record {namespace}/{key}"), fetched_at))
         self.connection.commit()
+
+    def put_collected_record(self, namespace: str, key: str, payload: dict[str, Any], fetched_at: str) -> None:
+        """Atomically save an acquisition snapshot and the mutable working record.
+
+        Only collection calls this method. Prefiltering/classification enrichment
+        uses put_record, so it cannot replace the original baseline evidence.
+        An explicit new collection replaces both versions with its fresh input.
+        """
+        payload = unicode_safe(payload)
+        snapshot = {"policy": COLLECTED_EVIDENCE_POLICY, "payload": payload,
+            "sha256": collected_record_hash(payload)}
+        with self.connection:
+            self.connection.executemany("INSERT OR REPLACE INTO records VALUES (?, ?, ?, ?)", [
+                (namespace + ".collected", key, _json_payload(snapshot, f"collection {namespace}/{key}"), fetched_at),
+                (namespace, key, _json_payload(payload, f"record {namespace}/{key}"), fetched_at),
+            ])
+
+    def get_collected_record(self, namespace: str, key: str) -> dict[str, Any]:
+        """Require an intact collection snapshot instead of guessing from enriched data."""
+        snapshot = self.get_record(namespace + ".collected", key)
+        if snapshot is None:
+            raise ValueError(f"missing collected evidence snapshot for {namespace}/{key}; "
+                "rerun collection with --no-resume before running baselines; "
+                "enriched records and candidate CSVs cannot recover the original text")
+        payload = snapshot.get("payload")
+        if (snapshot.get("policy") != COLLECTED_EVIDENCE_POLICY or not isinstance(payload, dict)
+                or snapshot.get("sha256") != collected_record_hash(payload)):
+            raise ValueError(f"invalid collected evidence snapshot for {namespace}/{key}; rerun collection with --no-resume")
+        return payload
 
     def get_record(self, namespace: str, key: str) -> dict[str, Any] | None:
         """Operate on current-format cached records."""

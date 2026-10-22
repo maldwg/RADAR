@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from radar.common.cache import PipelineCache
+from radar.common.cache import COLLECTED_EVIDENCE_POLICY, PipelineCache, collected_record_hash
 from radar.common.config import ConfigError, Settings, load_system_type_profile
 from radar.common.csvio import atomic_write_csv, read_csv, require_columns
 from radar.common.logging import logger
@@ -17,12 +17,13 @@ from radar.common.text import normalize_text, stable_hash
 
 
 LOG = logger("baselines")
-BASELINE_VERSION = "keyword-baseline-3"
+BASELINE_VERSION = "keyword-baseline-4"
 KNOWN_BASELINE_METHODS = ("keyword", "nli", "llm_nli")
 IMPLEMENTED_BASELINE_METHODS = KNOWN_BASELINE_METHODS
 CLASSIFIER_COLUMNS = [
     "classifier_method", "classifier_id", "classifier_profile_hash",
     "classifier_supported_fields", "classifier_evidence_source",
+    "classifier_evidence_policy", "classifier_evidence_snapshot_hash",
 ]
 KEYWORD_AUDIT_COLUMNS = [
     "keyword_score", "keyword_band", "keyword_signals",
@@ -234,6 +235,7 @@ def keyword_profile_hash(
     """Fingerprint all semantics that can alter a keyword baseline decision."""
     payload = {
         "version": BASELINE_VERSION,
+        "evidence_policy": COLLECTED_EVIDENCE_POLICY,
         "source": source,
         "term_profile": term_profile,
         "accept_threshold": config.accept_threshold,
@@ -338,6 +340,29 @@ def _source_contract(source: str) -> tuple[str, str, list[str]]:
     raise ValueError(f"unsupported keyword baseline source: {source}")
 
 
+def baseline_inputs(source: str, candidates_path: Path, cache: PipelineCache,
+                    limit: int | None = None) -> list[tuple[dict[str, str], dict[str, Any]]]:
+    """Resolve every selected candidate to original evidence before any inference.
+
+    The CSV defines the cohort only. Its text and the mutable working cache may
+    already include RADAR enrichment, so neither is a baseline evidence fallback.
+    """
+    identity, namespace, _ = _source_contract(source)
+    candidates = read_csv(candidates_path)
+    require_columns(candidates, (identity, "evidence_hash"), candidates_path)
+    if limit is not None:
+        if limit < 1:
+            raise ValueError("baseline limit must be positive")
+        candidates = candidates[:limit]
+    inputs = []
+    for index, candidate in enumerate(candidates, 1):
+        key = str(candidate.get(identity, "")).strip()
+        if not key:
+            raise ValueError(f"baseline candidate is missing {identity}: row {index}")
+        inputs.append((candidate, cache.get_collected_record(namespace, key)))
+    return inputs
+
+
 def _evidence_text(source: str, payload: dict[str, Any]) -> str:
     """Format the same bounded source evidence used by prefiltering and LLMs."""
     if source == "github":
@@ -347,19 +372,6 @@ def _evidence_text(source: str, payload: dict[str, Any]) -> str:
     else:
         raise ValueError(f"unsupported keyword baseline source: {source}")
     return format_evidence(evidence_sections(payload), 30000)
-
-
-def _candidate_payload(source: str, row: dict[str, str]) -> dict[str, Any]:
-    """Reconstruct the evidence retained in a candidate audit when raw cache data is absent."""
-    if source == "github":
-        topics = [value.strip() for value in str(row.get("topics", "")).split(";") if value.strip()]
-        return {"repository": {
-            "full_name": row.get("full_name", ""), "description": row.get("description", ""),
-            "topics": topics,
-        }}
-    if source == "openalex":
-        return {"work": dict(row)}
-    raise ValueError(f"unsupported keyword baseline source: {source}")
 
 
 def classify_keyword_baseline(
@@ -376,37 +388,24 @@ def classify_keyword_baseline(
     adapter_config: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     """Classify every candidate row with an independent, cached keyword decision rule."""
-    identity, record_namespace, columns = _source_contract(source)
-    candidates = read_csv(candidates_path)
-    require_columns(candidates, (identity, "evidence_hash"), candidates_path)
+    identity, _, columns = _source_contract(source)
+    inputs = baseline_inputs(source, candidates_path, cache)
     if taxonomy_profile.source != source:
         raise ValueError(f"keyword taxonomy source must be {source!r}")
     profile_hash = keyword_profile_hash(source, term_profile, config, taxonomy_profile)
     decision_namespace = f"{source}.baseline.keyword"
     results: list[dict[str, str]] = []
     reused = 0
-    candidate_fallbacks = 0
     progress_every = max(1, int(progress_every))
     LOG.info(
-        "starting keyword baseline source=%s rows=%d accept_threshold=%g uncertain_threshold=%g resume=%s",
-        source, len(candidates), config.accept_threshold, config.uncertain_threshold, resume,
+        "starting keyword baseline source=%s rows=%d accept_threshold=%g uncertain_threshold=%g resume=%s evidence_source=collection_snapshot",
+        source, len(inputs), config.accept_threshold, config.uncertain_threshold, resume,
     )
-    for index, candidate in enumerate(candidates, 1):
-        key = str(candidate.get(identity, "")).strip()
-        if not key:
-            raise ValueError(f"keyword baseline candidate is missing {identity}: row {index}")
-        payload = cache.get_record(record_namespace, key)
-        evidence_source = "raw_cache" if payload is not None else "candidate_csv"
-        if payload is None:
-            payload = _candidate_payload(source, candidate)
-            candidate_fallbacks += 1
-            if candidate_fallbacks == 1:
-                LOG.warning(
-                    "raw evidence missing; using candidate audit evidence source=%s first_id=%s",
-                    source, key,
-                )
+    for index, (candidate, payload) in enumerate(inputs, 1):
+        key = str(candidate[identity]).strip()
+        evidence_source = "collection_snapshot"
         evidence = _evidence_text(source, payload)
-        evidence_hash = stable_hash(evidence)
+        evidence_hash = stable_hash(collected_record_hash(payload), evidence)
         cached = cache.get_decision(decision_namespace, key, profile_hash, evidence_hash) if resume else None
         if cached is not None:
             results.append({str(name): str(value) for name, value in cached.items()})
@@ -437,6 +436,8 @@ def classify_keyword_baseline(
             "classifier_profile_hash": profile_hash,
             "classifier_supported_fields": normalized["classifier_supported_fields"],
             "classifier_evidence_source": evidence_source,
+            "classifier_evidence_policy": COLLECTED_EVIDENCE_POLICY,
+            "classifier_evidence_snapshot_hash": collected_record_hash(payload),
             **normalized,
             "decision": decision,
             "primary_reason": (
@@ -461,14 +462,14 @@ def classify_keyword_baseline(
         results.append(serialized)
         if index % progress_every == 0:
             atomic_write_csv(output, results, columns)
-            LOG.info("keyword baseline progress source=%s completed=%d/%d", source, index, len(candidates))
+            LOG.info("keyword baseline progress source=%s completed=%d/%d", source, index, len(inputs))
     atomic_write_csv(output, results, columns)
     counts: dict[str, int] = {}
     for row in results:
         decision = row.get("decision", "unavailable")
         counts[decision] = counts.get(decision, 0) + 1
     LOG.info(
-        "keyword baseline complete source=%s rows=%d cached=%d candidate_evidence_fallbacks=%d decisions=%s output=%s",
-        source, len(results), reused, candidate_fallbacks, counts, output,
+        "keyword baseline complete source=%s rows=%d cached=%d evidence_source=collection_snapshot decisions=%s output=%s",
+        source, len(results), reused, counts, output,
     )
     return results

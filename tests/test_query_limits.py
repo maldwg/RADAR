@@ -112,7 +112,7 @@ class QueryLimitTests(unittest.TestCase):
         client = RepositoryClient()
         with tempfile.TemporaryDirectory() as directory, PipelineCache(Path(directory) / "cache.sqlite3") as cache:
             for item in client.items:
-                cache.put_record("github.repository", str(item["id"]), {"repository": item}, "now")
+                cache.put_collected_record("github.repository", str(item["id"]), {"repository": item}, "now")
             profile = {"search_queries": ["first", "second"]}
             collect_github({}, profile, cache, 10, client=client)
             self.assertEqual(sum(1 for _ in cache.records("github.search_candidate")), 30)
@@ -132,7 +132,7 @@ class QueryLimitTests(unittest.TestCase):
         client = RepositoryClient()
         with tempfile.TemporaryDirectory() as directory, PipelineCache(Path(directory) / "cache.sqlite3") as cache:
             for item in client.items:
-                cache.put_record("github.repository", str(item["id"]), {"repository": item}, "now")
+                cache.put_collected_record("github.repository", str(item["id"]), {"repository": item}, "now")
             counts = collect_github({"query_sample_size": 1}, {"search_queries": ["query"]}, cache, client=client)
             active = cache.get_record("github.collection", "latest")
             self.assertEqual(counts["discovered"], 150)

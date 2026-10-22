@@ -6,8 +6,8 @@ __pycache__/
 data/raw/*.sqlite3
 data/raw/**/*.sqlite3
 data/raw/**/*.sqlite3-*
-artifacts/plots/**
-artifacts/runs/
+**/artifacts/**
+artifacts/**
 **/*.log
 **/*.csv
 !config/evaluation/*.csv

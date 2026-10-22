@@ -72,6 +72,30 @@ unified comparison plots without reclassifying any saved LLM result:
    radar --study ids_repositories baseline --evaluate-only
    radar --study ids_datasets baseline --methods nli --evaluate-only
 
+Keyword, local NLI, and Ollama NLI read **collection-time evidence snapshots**,
+not the mutable working cache. Collection saves the original payload under
+``<record-namespace>.collected`` before later prefilter/classification enrichment.
+For GitHub this includes the README and documentation fetched during initial
+collection; uncertainty-driven expansion is excluded. For papers this contains
+the provider's original metadata and abstract, plus any text originally supplied
+by that source; later abstract/full-text lookups are excluded.
+
+A baseline can run after RADAR completes and still receive this original text.
+The candidate CSV selects the cohort; its text columns are not baseline evidence.
+Each classification records ``classifier_evidence_source = "collection_snapshot"``,
+``classifier_evidence_policy`` and ``classifier_evidence_snapshot_hash``. Evidence
+policy and snapshot hashes participate in prediction fingerprints, preventing
+reuse of results produced under the previous mutable-cache policy.
+
+All selected snapshots are validated before inference. Missing or altered originals
+stop the baseline rather than falling back to enriched records or CSV text.
+Older runs that never saved originals require a fresh collection with
+``collect --no-resume`` and a matching new candidate audit before benchmarking.
+Overwritten historical text cannot be recovered by disabling enrichment now.
+Recollecting changes the experiment; retain the earlier results separately and
+rerun the compared approaches on the new cohort. ``--evaluate-only`` evaluates
+saved predictions and does not repair historical evidence or rerun classifiers.
+
 The command processes every row in the candidate audit, including discovery-band ``reject`` rows.
 Keyword relevance thresholds are configured under ``[baselines.keyword.github]`` and
 ``[baselines.keyword.openalex]``. A result is accepted only when its broad evidence score reaches

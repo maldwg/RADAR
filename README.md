@@ -36,6 +36,10 @@ The two paper studies share collection, evidence acquisition, prefiltering, and 
 
 [Pipeline: SVG](pipeline_architecture.svg) / [PDF](pipeline_architecture.pdf) · [System: SVG](system_architecture.svg) / [PDF](system_architecture.pdf)
 
+[Complete UML: SVG](docs/_static/models/uml-all-classes.svg) · [Focused class diagrams](docs/class_diagrams.rst) · [Reporting ER: SVG](docs/_static/models/er-reporting.svg) · [Cache ER: SVG](docs/_static/models/er-cache.svg)
+
+Class diagrams and database models are generated directly from the Python and SQL sources. Regenerate with `python scripts/generate_design_models.py`; CI checks them with `--check`. See the [database guide](docs/database_model.rst) for key semantics and [class inventory](docs/class_inventory.rst) for every class.
+
 ## Quick start
 
 Use Python 3.11 or newer and run commands from the repository root. The checked-in catalogue baselines require the `nli` extra; the conformal review can use the core installation.
@@ -114,7 +118,7 @@ radar architecture
 
 Verification distinguishes numerical **recomputation** from **integrity-only** checks. Reference labels enter evaluation only. Catalogues are bounded by source indexing, query coverage, budgets, and available evidence. The eleven-paper conformal benchmark contains positives only and cannot estimate false-positive performance; the dataset benchmark's selected negative controls do not represent all excluded literature. Repeated model votes are not independent statistical confidence estimates.
 
-The [reproducibility guide](docs/reproducibility.rst), [evaluation specification](docs/evaluation.rst), and [conformal verification guide](docs/cross_field_verification.rst) explain the evidence needed to support research claims.
+The [reproducibility guide](docs/reproducibility.rst), [evaluation specification](docs/evaluation.rst), and [conformal verification guide](docs/cross_field_verification.rst) explain the evidence needed to support research claims. The maintained [research notes](docs/research_notes.rst) record encountered caveats and design decisions.
 
 ## Development and documentation
 

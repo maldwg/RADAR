@@ -85,6 +85,13 @@ def reference_config():
     return NLIRuntimeConfig("fixture/tokenizer", "tokenizer-revision", "cpu", 2, 128, 32, 4, 2, 1, .5, .1)
 
 
+def collected_fixture(cache, source):
+    """Save acquisition-time evidence independently of mutable classifier caches."""
+    namespace = "github.repository" if source == "github" else "openalex.work"
+    payload = {"repository": {"full_name": "fixture/repo", "description": "README evidence"}} if source == "github" else {"work": {"title": "paper", "abstract": "Original paper evidence"}}
+    cache.put_collected_record(namespace, "1", payload, "now")
+
+
 class LLMNLITests(unittest.TestCase):
     def setUp(self):
         """Use the production prompt with a deterministic fake model."""
@@ -193,6 +200,7 @@ class LLMNLITests(unittest.TestCase):
             root = Path(directory)
             for source, identity, field in [('github', 'github_repo_id', 'role'), ('openalex', 'openalex_id', 'paper_role')]:
                 with self.subTest(source=source), PipelineCache(root / f'{source}.sqlite3') as cache:
+                    collected_fixture(cache, source)
                     profile = NLIProfile(source, (NLIField(field, "exclusive", "uncertain", {"out_of_scope" if source == 'github' else "survey": "MATCH excluded", "native_detector" if source == 'github' else "original_release": "neutral"}),), {"fixture": source}, root / 'profile.toml')
                     backend = self.backend(cache)
                     profile = augmented_profile(profile, self.config, reference_config(), backend.metadata)
@@ -230,6 +238,7 @@ class LLMNLITests(unittest.TestCase):
             profile = augmented_profile(profile, self.config, reference_config(), backend.metadata)
             candidates = root / 'candidates.csv'
             atomic_write_csv(candidates, [{'github_repo_id': '1', 'evidence_hash': 'x'}], ['github_repo_id', 'evidence_hash'])
+            collected_fixture(cache, 'github')
             result = classify_nli_baseline('github', candidates, root / 'output.csv', cache, profile, backend.runtime_config(), backend=backend, method='llm_nli', adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
             self.assertEqual(result[0]['decision'], 'error')
             self.assertEqual(result[0]['nli_scores_json'], '{}')
@@ -272,6 +281,7 @@ class LLMNLITests(unittest.TestCase):
                     values['baselines']['llm_nli']['retries'] = 0
                     values['baselines']['nli']['sensitivity']['enabled'] = False
                     values['plots'].update(formats=['svg'], dpi=72)
+                    values['paths'][source + '_cache'] = str(root / source / 'cache.sqlite3')
                     settings = Settings(ROOT, values)
                     profile = NLIProfile(source, (NLIField(field, 'exclusive', 'uncertain', {
                         'out_of_scope' if source == 'github' else 'survey': 'MATCH excluded',
@@ -281,6 +291,8 @@ class LLMNLITests(unittest.TestCase):
                     atomic_write_csv(candidates, [{identity: '1', 'description': 'evidence', 'evidence_hash': 'one'}, {identity: '2', 'evidence_hash': 'two'}], [identity, 'description', 'evidence_hash'])
                     rating = root / f'{source}-ratings.toml'
                     rating.write_text(f'schema_version="1.0"\nsource="{source}"\nclassification_fields=["{field}"]\n[[entities]]\nid="1"\ndecision="exclude"\n')
+                    with PipelineCache(settings.path(source + '_cache')) as fixture_cache:
+                        collected_fixture(fixture_cache, source)
                     command = [source, 'baseline', '--methods', 'llm_nli', '--fields', field, '--limit', '1', '--input', str(candidates), '--ratings', str(rating)]
                     session = FakeSession()
                     def factory(model, config, reference, ollama, cache):

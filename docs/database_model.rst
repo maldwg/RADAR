@@ -87,6 +87,13 @@ Pipeline cache
 namespace and record key. ``decisions`` adds profile and evidence hashes to its
 composite key, distinguishing different classification inputs. ``coverage``
 records source/query/shard retrieval status, including an optional hit count.
+Collection writes both a mutable source record and an original snapshot in a
+``.collected`` namespace within ``records``. The snapshot payload includes its
+policy version and content hash. Baselines require the verified original;
+subsequent RADAR enrichment updates only the working namespace. A genuine new
+collection replaces both versions. No extra SQL table is needed for these
+separate namespaces.
+
 There are **no declared foreign keys** in this schema. Shared key names in
 ``records`` and ``decisions`` do not establish an enforced relationship.
 

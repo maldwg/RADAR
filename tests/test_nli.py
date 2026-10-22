@@ -98,7 +98,9 @@ class NLITests(unittest.TestCase):
                     "out_of_scope": "MATCH role", "native_detector": "other role",
                 }),
             ), {"fixture": True}, root / "profile.toml")
+            original = {"repository": {"full_name": "fixture/repo"}, "readme_text": "Original fixture evidence"}
             with PipelineCache(root / "cache.sqlite3") as cache:
+                cache.put_collected_record("github.repository", "g1", original, "now")
                 first = classify_nli_baseline(
                     "github", candidates, output, cache, profile, _config(),
                     backend=FakeNLIBackend(), progress_every=1,
@@ -116,6 +118,7 @@ class NLITests(unittest.TestCase):
                 "radar.common.nli.TransformersNLIBackend",
                 side_effect=AssertionError("a compatible output CSV must not initialize the model"),
             ):
+                empty_cache.put_collected_record("github.repository", "g1", original, "now")
                 reused_from_csv = classify_nli_baseline(
                     "github", candidates, output, empty_cache, profile, _config(),
                     progress_every=1,

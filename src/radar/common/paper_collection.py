@@ -343,7 +343,7 @@ def collect_papers(settings: dict[str, Any], profile: dict[str, Any], cache: Pip
             value = attributes_by_work[key].get(field)
             if value is not None:
                 payload[field] = value
-        cache.put_record(f"{provider}.work", key, payload, fetched_at)
+        cache.put_collected_record(f"{provider}.work", key, payload, fetched_at)
         return key
 
     LOG.info(

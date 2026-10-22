@@ -244,6 +244,8 @@ class OpenAlexPipelineTests(unittest.TestCase):
             with PipelineCache(root / "cache.sqlite3") as cache:
                 counts = collect(settings, profile, cache, limit=5, client=fake)  # type: ignore[arg-type]
                 referenced = cache.get_record("openalex.work", "https://openalex.org/W2")
+                original = cache.get_collected_record("openalex.work", "https://openalex.org/W2")
+                self.assertEqual(original, referenced)
                 active = cache.get_record("openalex.collection", "latest")
                 survey_rows = export_survey_sources(cache, root / "surveys.csv", "run")
             self.assertEqual(counts["discovered"], 4)

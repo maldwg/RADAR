@@ -151,7 +151,7 @@ class BaselineTests(unittest.TestCase):
                         "2": " research code network traffic intrusion detection",
                         "3": "",
                     }[identifier]
-                    cache.put_record(
+                    cache.put_collected_record(
                         "github.repository", identifier,
                         {"repository": {"full_name": f"fixture/repo-{identifier}"},
                          "readme_text": text + role_evidence},
@@ -215,7 +215,7 @@ class BaselineTests(unittest.TestCase):
             self.assertEqual(scores["role"]["detection_framework"], scores["role"]["detection_platform"])
             self.assertTrue(signals["role"]["detection_framework"])
 
-    def test_keyword_baseline_audits_candidate_evidence_fallback(self) -> None:
+    def test_keyword_baseline_rejects_missing_original_snapshot(self) -> None:
         """Continue transparently from an OpenAlex audit when its raw cache is unavailable."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -230,12 +230,11 @@ class BaselineTests(unittest.TestCase):
             profile = {"positive": {"release": {"weight": 7, "terms": ["release"]}}}
             taxonomy = load_keyword_taxonomy_profile(self._settings(root), "openalex")
             with PipelineCache(root / "empty.sqlite3") as cache:
-                results = classify_keyword_baseline(
-                    "openalex", candidates, output, cache, profile, KeywordBaselineConfig(7, 4),
-                    taxonomy,
-                 adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
-            self.assertEqual(results[0]["decision"], "accept")
-            self.assertEqual(results[0]["classifier_evidence_source"], "candidate_csv")
+                with self.assertRaisesRegex(ValueError, "missing collected evidence snapshot"):
+                    classify_keyword_baseline(
+                        "openalex", candidates, output, cache, profile, KeywordBaselineConfig(7, 4), taxonomy,
+                        adapter_config={'system_type_profile': SYSTEM_TYPE_PROFILE})
+            self.assertFalse(output.exists())
 
     def test_baseline_cli_runs_keyword_classification_and_evaluation(self) -> None:
         """Run the baseline command without loading Ollama configuration or invoking an LLM."""
@@ -250,7 +249,7 @@ class BaselineTests(unittest.TestCase):
             })
             atomic_write_csv(candidate_path, [row], CANDIDATE_COLUMNS)
             with PipelineCache(root / "github.sqlite3") as cache:
-                cache.put_record(
+                cache.put_collected_record(
                     "github.repository", "1",
                     {"repository": {"full_name": "fixture/repo-1"},
                      "readme_text": "alpha detector intrusion detection system"},

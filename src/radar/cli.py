@@ -7,10 +7,10 @@ from dataclasses import replace
 from pathlib import Path
 
 from radar.common.baselines import (
-    classify_keyword_baseline, configured_baseline_methods, load_keyword_baseline_config,
+    baseline_inputs, classify_keyword_baseline, configured_baseline_methods, load_keyword_baseline_config,
     load_keyword_taxonomy_profile,
 )
-from radar.common.cache import PipelineCache
+from radar.common.cache import COLLECTED_EVIDENCE_POLICY, PipelineCache
 from radar.common.ensemble import ensemble_classifications
 from radar.common.evaluation import EvaluationResult, evaluate_results, load_rating_profile
 from radar.common.config import DEFAULT_STUDY, ConfigError, Settings, load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
@@ -484,6 +484,9 @@ def _execute_llm_nli_variants(args: argparse.Namespace, settings: Settings, sour
                     row["nli_label_margin"] = str(runtime.label_margin)
                 atomic_write_csv(output, rows, list(rows[0]))
         else:
+            if not getattr(args, "check_only", False):
+                assert cache is not None
+                baseline_inputs(source, candidates, cache, limit)
             backend = OllamaNLIBackend(model, config, reference, settings.section("ollama"), cache if args.resume else None)
             profile = augmented_profile(base_profile, config, reference, backend.metadata, fields)
             preflight = backend.preflight()
@@ -533,6 +536,8 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
         "baseline_methods": methods, "candidates_path": str(candidates_path),
         "evaluate_only": evaluate_only,
     })
+    if not evaluate_only:
+        manifest.parameters["baseline_evidence_policy"] = COLLECTED_EVIDENCE_POLICY
     LOG.info(
         "starting baseline command source=%s methods=%s evaluate_only=%s run_id=%s",
         source, ",".join(methods), evaluate_only, manifest.run_id,
@@ -597,8 +602,8 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
             else:  # pragma: no cover - validated before the loop
                 raise ConfigError(f"baseline method is not implemented: {method}")
             manifest.counts[f"baseline_rows_{method}"] = len(rows)
-            manifest.counts[f"baseline_{method}_candidate_evidence"] = sum(
-                row.get("classifier_evidence_source") == "candidate_csv" for row in rows
+            manifest.counts[f"baseline_{method}_collection_snapshot"] = sum(
+                row.get("classifier_evidence_source") == "collection_snapshot" for row in rows
             )
             for decision in ("accept", "uncertain", "exclude", "error"):
                 manifest.counts[f"baseline_{method}_{decision}"] = sum(

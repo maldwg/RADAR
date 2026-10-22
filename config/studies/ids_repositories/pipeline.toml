@@ -11,14 +11,14 @@ candidate_threshold = 7.0
 borderline_threshold = -100.0
 
 [evidence]
-max_docs_files = 10
+max_docs_files = 5
 enrich_uncertain_evidence = true
 uncertain_max_docs_files = 25
 
 [classification]
 classification_limit = "all"
-consecutive_runs = 5
-consensus_threshold = 0.8
+consecutive_runs = 3
+consensus_threshold = 0.5
 classify_borderline = true
 
 [classification.ensemble]

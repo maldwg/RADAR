@@ -386,6 +386,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
     for index, (key, item) in enumerate(seen.items()):
         existing = cache.get_record("github.repository", key)
         if existing and resume:
+            cache.get_collected_record("github.repository", key)
             existing["matched_queries"] = sorted(set(existing.get("matched_queries", [])) | matched[key])
             cache.put_record("github.repository", key, existing, fetched_at)
             reused += 1
@@ -398,7 +399,7 @@ def collect(settings: dict[str, Any], profile: dict[str, Any], cache: PipelineCa
         except Exception as exc:
             LOG.warning("Error occurred while enriching repository %s: %s", item.get("full_name", key), str(exc))
             payload = {"matched_queries": sorted(matched[key])}
-        cache.put_record("github.repository", key, payload, fetched_at)
+        cache.put_collected_record("github.repository", key, payload, fetched_at)
         LOG.info("finished repository %d/%d: %s", index + 1, len(seen), item.get("full_name", key))
     LOG.info("GitHub collection complete discovered=%d reused=%d incomplete_shards=%d", len(seen), reused, len(incomplete_shards))
     return {"discovered": len(seen), "cache_reused": reused, "incomplete_shards": len(incomplete_shards)}

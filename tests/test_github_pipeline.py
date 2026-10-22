@@ -267,6 +267,8 @@ class GitHubPipelineTests(unittest.TestCase):
                     {"search_queries": ["first", "second"]}, cache, limit=2, client=client, resume=False,
                 )
                 active = cache.get_record("github.collection", "latest")
+                self.assertEqual(cache.get_collected_record("github.repository", "1")["readme_text"], "intrusion detection system")
+                self.assertEqual(cache.get_collected_record("github.repository", "2")["readme_text"], "intrusion detection system")
             self.assertEqual(counts["discovered"], 2)
             self.assertEqual(set(active["repository_ids"]), {"1", "2"})
             self.assertEqual(active["ordering"], "github_best_match")
@@ -346,7 +348,10 @@ class GitHubPipelineTests(unittest.TestCase):
                         "item": item, "matched_queries": ["query"],
                         "search_strategy": f"github_native_best_match_v5_stars_100_cap_6_queries_{stable_hash('query')}",
                     }, "now")
-                    cache.put_record("github.repository", repo_id, {"repository": item, "matched_queries": ["query"]}, "now")
+                    cache.put_collected_record("github.repository", repo_id, {"repository": item,
+                        "matched_queries": ["query"], "readme_text": "Original README"}, "now")
+                    cache.put_record("github.repository", repo_id, {"repository": item,
+                        "matched_queries": ["query"], "readme_text": "Expanded README"}, "later")
                 cache.put_record("github.collection", "latest", {
                     "search_strategy": f"github_native_best_match_v5_stars_100_cap_6_queries_{stable_hash('query')}",
                     "search_complete": True, "query_results_scanned": {"query": 2},
@@ -355,6 +360,8 @@ class GitHubPipelineTests(unittest.TestCase):
                     {"created_from": "2020-01-01", "per_page": 100, "progress_every": 10},
                     {"search_queries": ["query"]}, cache, limit=2, client=fake, resume=True,  # type: ignore[arg-type]
                 )
+                self.assertEqual(cache.get_collected_record("github.repository", "1")["readme_text"], "Original README")
+                self.assertEqual(cache.get_record("github.repository", "1")["readme_text"], "Expanded README")
             self.assertEqual(counts["discovered"], 2)
             self.assertEqual(fake.search_calls, 0)
 
