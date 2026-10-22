@@ -36,6 +36,9 @@ class OllamaClient:
         self.max_output_tokens = int(config.get("max_output_tokens", 900))
         self.context_length = int(config.get("context_length", 0))
         self.keep_alive = str(config.get("keep_alive", "")).strip()
+        self.last_response: dict[str, Any] | None = None
+        self.last_raw_response = ""
+        self.last_elapsed_seconds = 0.0
         if self.context_length < 0:
             raise ValueError("ollama.context_length must be zero or a positive integer")
         if not self.model:
@@ -43,6 +46,10 @@ class OllamaClient:
 
     def generate(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         """Request one schema-constrained JSON object with retry handling."""
+        self.last_response = None
+        self.last_raw_response = ""
+        self.last_elapsed_seconds = 0.0
+        started = time.monotonic()
         options = {
             "temperature": self.temperature,
             "seed": self.seed,
@@ -68,8 +75,12 @@ class OllamaClient:
             try:
                 LOG.debug("requesting structured response from model=%s attempt=%d/%d prompt_chars=%d", self.model, attempt + 1, self.retries + 1, len(prompt))
                 response = requests.post(f"{self.url}/api/generate", json=payload, headers=headers, timeout=self.timeout)
+                self.last_raw_response = response.text
                 response.raise_for_status()
                 body = response.json()
+                if not isinstance(body, dict):
+                    raise ValueError("Ollama response envelope must be a JSON object")
+                self.last_response = body
                 LOG.info(
                     "Ollama timing model=%s load=%.3fs prompt_eval=%.3fs eval=%.3fs "
                     "prompt_tokens=%s eval_tokens=%s done_reason=%s",
@@ -80,6 +91,7 @@ class OllamaClient:
                     body.get("done_reason", ""),
                 )
                 text = body.get("response") or (body.get("message") or {}).get("content")
+                self.last_raw_response = str(text or "")
                 parsed = json.loads(str(text))
                 if not isinstance(parsed, dict):
                     raise ValueError("Ollama response must be a JSON object")
@@ -89,6 +101,8 @@ class OllamaClient:
                 if attempt < self.retries:
                     LOG.warning("Ollama request failed (%s); retrying", exc)
                     time.sleep(2**attempt)
+            finally:
+                self.last_elapsed_seconds = time.monotonic() - started
         raise RuntimeError(f"Ollama request failed: {error}") from error
 
 

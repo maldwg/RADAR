@@ -46,6 +46,27 @@ def collect_study(profile_path: Path, output: Path, *, limit: int | str | None =
         limit=limit, entity_kind="paper")
 
 
+
+def preserve_study_input(input_path: Path, output: Path) -> None:
+    """Freeze an explicitly supplied run input before any evidence acquisition."""
+    data = input_path.read_bytes()
+    records = json.loads(data)
+    if not isinstance(records, list) or any(not isinstance(row, dict) for row in records):
+        raise ValueError("study input must be a JSON array of candidate records")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if input_path.resolve() != output.resolve():
+        output.write_bytes(data)
+    digest = file_hash(output)
+    audit = output.with_suffix(".collection.json")
+    if audit.is_file() and json.loads(audit.read_text(encoding="utf-8")).get("candidate_sha256") == digest:
+        return
+    providers = sorted({member["provider"] for row in records for member in row.get("source_memberships", [])
+        if isinstance(member, dict) and isinstance(member.get("provider"), str)})
+    _write_json(audit, {"schema_version": "1.0", "origin": "explicit_run_input", "providers": providers,
+        "candidate_sha256": digest, "input_path": str(input_path.resolve()), "retained": len(records),
+        "collected_at": utc_now()})
+
+
 def prefilter_study(input_path: Path, output: Path, profile: dict[str, Any], settings: dict[str, Any],
                     evidence_service: PaperEvidenceService, *, dry_run: bool = False,
                     freeze_uncertain_evidence: bool = False) -> list[dict[str, Any]]:

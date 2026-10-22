@@ -83,6 +83,7 @@ class ClassifierComparisonTests(unittest.TestCase):
             approaches = (
                 ("Keyword", "keyword", .50), ("NLI · fixture", "nli", .65),
                 ("NLI - Qwen", "llm_nli", .70),
+                ("Plain LLM · fixture", "plain_llm", .72),
                 ("LLM · fixture", "llm", .75), ("Ensemble", "ensemble", .80),
             )
             for index, (label, method, value) in enumerate(approaches):

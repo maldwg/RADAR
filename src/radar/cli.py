@@ -55,8 +55,8 @@ def _evaluation_variant(settings: Settings, source: str, variant: Path) -> Path:
         return root / "keyword" / Path(*parts[2:])
     if parts[:2] == ("baselines", "nli"):
         return root / "nli" / Path(*parts[2:])
-    if parts[:2] == ("baselines", "llm_nli"):
-        return root / "llm_nli" / Path(*parts[2:])
+    if parts[:2] in {("baselines", "llm_nli"), ("baselines", "plain_llm")}:
+        return root / parts[1] / Path(*parts[2:])
     return root / Path(*parts)
 
 
@@ -354,7 +354,10 @@ def _classifier_entries(settings: Settings, source: str) -> dict[str, tuple[Path
     for path in sorted((interim / "baselines/llm_nli").glob("*/classifications.csv")):
         name = path.parent.name
         entries[f"NLI - {name}"] = (path, evaluation / "llm_nli" / name)
-    order = {"Keyword": 0, "NLI": 1, "LLM": 2, "Ensemble": 3}
+    for path in sorted((interim / "baselines/plain_llm").glob("*/classifications.csv")):
+        name = path.parent.name
+        entries[f"Plain LLM · {name}"] = (path, evaluation / "plain_llm" / name)
+    order = {"Keyword": 0, "NLI": 1, "Plain LLM": 2, "LLM": 3, "Ensemble": 4}
     return dict(sorted(entries.items(), key=lambda item: (
         next((rank for prefix, rank in order.items() if item[0].startswith(prefix)), 9), item[0],
     )))
@@ -516,14 +519,131 @@ def _execute_llm_nli_variants(args: argparse.Namespace, settings: Settings, sour
                 manifest.counts[label + "_sensitivity_files"] = len(diagnostic_outputs)
 
 
+
+def _build_review_classifier_comparisons(settings: Settings, source: str) -> list[Path]:
+    """Compare evaluated RADAR, ensemble and plain-model review decisions."""
+    from radar.plotting.compare import build_classifiers
+    from radar.common.sources import load_source_contract
+
+    interim = settings.path("interim_dir") / source
+    plots = settings.path("plots_dir") / source
+    classifications, evaluations = {}, {}
+    for relative, prefix in (("models", "RADAR LLM"), ("baselines/plain_llm", "Plain LLM")):
+        for path in sorted((interim / relative).glob("*/classifications.csv")):
+            metrics = plots / relative / path.parent.name / "evaluation"
+            if (metrics / "metrics.json").is_file():
+                label = f"{prefix} · {path.parent.name}"
+                saved = json.loads((metrics / "metrics.json").read_text(encoding="utf-8"))
+                classifications[label], evaluations[label] = Path(saved["classifications_path"]), metrics
+    ensemble = interim / "ensemble/classifications.csv"
+    metrics = plots / "ensemble/evaluation"
+    if ensemble.is_file() and (metrics / "metrics.json").is_file():
+        saved = json.loads((metrics / "metrics.json").read_text(encoding="utf-8"))
+        classifications["Ensemble"], evaluations["Ensemble"] = Path(saved["classifications_path"]), metrics
+    if len(evaluations) < 2:
+        return []
+    contract = load_source_contract(settings.path("taxonomy"))
+    return build_classifiers(contract.name, classifications, evaluations,
+        settings.path("evaluation_dir") / source / "comparison", settings.section("plots"))
+
+
+def _execute_plain_llm_variants(args: argparse.Namespace, settings: Settings, source: str,
+                                cache: PipelineCache | None, manifest: RunManifest, *,
+                                original_path: Path | None = None) -> None:
+    """Run one independent single-pass benchmark for each configured plain model."""
+    from radar.common.plain_llm import (classify_plain_llm, installed_model_digests,
+        load_plain_llm_results, plain_llm_config, plain_llm_inputs, plain_llm_models)
+
+    review = settings.section("study").get("workflow") == "systematic_review"
+    models = plain_llm_models(settings)
+    if args.output and len(models) != 1:
+        raise ConfigError("plain LLM --output requires exactly one configured model")
+    candidates = Path(args.input) if args.input else _default_paths(settings, source)["candidates"]
+    if review and not args.input:
+        prefiltered = settings.path("interim_dir") / source / "prefiltered.json"
+        if prefiltered.is_file():
+            candidates = prefiltered
+    evaluate_only = bool(getattr(args, "evaluate_only", False))
+    inputs, digests = [], {}
+    if not evaluate_only:
+        inputs = plain_llm_inputs(settings, source, candidates, cache, original_path=original_path,
+            limit=getattr(args, "limit", None))
+        # Validate every task before contacting the model server.
+        from radar.common.plain_llm import plain_llm_task
+
+        for _, payload in inputs:
+            plain_llm_task(settings, source, payload)
+        if inputs:
+            digests = installed_model_digests(plain_llm_config(settings, models[0]), models)
+    for model in models:
+        label = "plain_llm_" + slug(model)
+        variant = Path("baselines/plain_llm") / slug(model)
+        if getattr(args, "limit", None) is not None:
+            variant /= Path("pilots") / str(args.limit)
+        paths = _variant_paths(settings, source, variant)
+        output = Path(args.output) if args.output else paths["classifications"]
+        if evaluate_only:
+            rows = load_plain_llm_results(settings, output, model)
+        else:
+            rows = classify_plain_llm(settings, source, candidates, output, model,
+                digests.get(model, "no-inference-empty-cohort"), inputs, resume=args.resume)
+        audit_path = output.with_suffix(".audit.json")
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        manifest.parameters[label] = {"profile": audit["profile"], "profile_hash": audit["profile_hash"],
+            "output": str(output), "audit": str(audit_path)}
+        generated = [] if evaluate_only else [row for row in rows if row.get("plain_llm_cache_reused") != "true"]
+        usage = [json.loads(row.get("plain_llm_response_metadata_json") or "{}") for row in generated]
+        manifest.counts[label + "_prompt_tokens"] = sum(int(item.get("prompt_eval_count") or 0) for item in usage)
+        manifest.counts[label + "_completion_tokens"] = sum(int(item.get("eval_count") or 0) for item in usage)
+        manifest.counts[label + "_elapsed_ms"] = round(sum(float(row.get("plain_llm_elapsed_seconds") or 0) for row in generated) * 1000)
+        manifest.counts[label + "_rows"] = len(rows)
+        manifest.counts[label + "_errors"] = sum(row.get("decision") == "error" for row in rows)
+        manifest.counts[label + "_requests"] = 0 if evaluate_only else sum(row.get("plain_llm_cache_reused") != "true" for row in rows)
+        if review:
+            from radar.plotting.generic import build_report
+
+            ratings = getattr(args, "ratings", None) or settings.section("evaluation").get("references")
+            files = build_report(settings.path("taxonomy"), output, paths["plots"], settings.section("plots"),
+                candidates_path=original_path, ratings_path=Path(ratings) if ratings and (_evaluation_enabled(settings) or getattr(args, "ratings", None)) else None,
+                confidence_level=_evaluation_confidence_level(settings))
+            manifest.counts[label + "_report_files"] = len(files)
+        elif _evaluation_enabled(settings) or getattr(args, "ratings", None):
+            for ratings, directory, reference in _evaluation_jobs(settings, source, args, paths["evaluation"]):
+                result = _evaluate(settings, source, output, candidates, directory, ratings)
+                _record_evaluation(manifest, result, "_".join(filter(None, (label, reference))))
+
+
+def _execute_review_baselines(args: argparse.Namespace, settings: Settings, source: str) -> dict[str, int]:
+    """Run supported review baselines against the frozen original union cohort."""
+    methods = configured_baseline_methods(settings, args.methods)
+    if methods != ["plain_llm"]:
+        raise ConfigError("systematic_review currently supports only the plain_llm baseline")
+    if getattr(args, "check_only", False) or getattr(args, "fields", None):
+        raise ConfigError("--check-only and --fields require --methods llm_nli")
+    manifest = _manifest(settings, source, "baseline")
+    original = settings.path("interim_dir") / source / "candidates.json"
+    try:
+        _execute_plain_llm_variants(args, settings, source, None, manifest, original_path=original)
+        manifest.counts["baseline_comparison_files"] = len(_build_review_classifier_comparisons(settings, source))
+    except Exception:
+        manifest.status = "failed"
+        manifest.write()
+        raise
+    manifest.status = "complete"
+    manifest.write()
+    return manifest.counts
+
+
 def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str) -> dict[str, int]:
     """Run configured source baselines and their rated evaluations."""
     paths = _default_paths(settings, source)
     methods = configured_baseline_methods(settings, getattr(args, "methods", None))
     evaluate_only = bool(getattr(args, "evaluate_only", False))
     check_only = bool(getattr(args, "check_only", False))
-    if (check_only or getattr(args, "fields", None) or getattr(args, "limit", None) is not None) and methods != ["llm_nli"]:
-        raise ConfigError("--check-only, --fields and baseline --limit require --methods llm_nli")
+    if (check_only or getattr(args, "fields", None)) and methods != ["llm_nli"]:
+        raise ConfigError("--check-only and --fields require --methods llm_nli")
+    if getattr(args, "limit", None) is not None and methods not in (["llm_nli"], ["plain_llm"]):
+        raise ConfigError("baseline --limit requires --methods llm_nli or plain_llm")
     if getattr(args, "limit", None) is not None and args.limit < 1:
         raise ConfigError("Baseline --limit must be positive")
     if check_only and evaluate_only:
@@ -545,6 +665,9 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
     cache_context = nullcontext(None) if evaluate_only or check_only else PipelineCache(paths["cache"])
     with cache_context as cache:
         for method in methods:
+            if method == "plain_llm":
+                _execute_plain_llm_variants(args, settings, source, cache, manifest)
+                continue
             if method == "llm_nli":
                 _execute_llm_nli_variants(args, settings, source, cache, manifest)
                 continue
@@ -917,13 +1040,19 @@ def _collect_catalogue(settings: Settings, source: str, config: dict[str, object
 
 def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, int]:
     """Run a configured evidence-backed review without named-study branches."""
-    from radar.common.study_pipeline import classify_study, prefilter_study
+    from radar.common.study_pipeline import classify_study, prefilter_study, preserve_study_input
     from radar.common.discovery import DiscoverySource, collect_sources
     from radar.common.paper_evidence import PaperEvidenceService
     from radar.common.study_screening import screen_study
     from radar.plotting.generic import build_report
 
     action = args.action
+    if action == "baseline":
+        selected = getattr(args, "source", None)
+        if selected:
+            settings.require_source(selected)
+        source = "cohort" if selected is None else f"cohort_{selected}"
+        return _execute_review_baselines(args, settings, source)
     if action not in {"collect", "prefilter", "classify", "screen", "plot", "evaluate", "run"}:
         raise ConfigError(f"systematic_review does not support stage {action!r}")
     models = _configured_models(settings)
@@ -950,6 +1079,10 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
     manifest.write()
     counts: dict[str, int] = {}
     try:
+        acquisition_input = args.input
+        if action == "run" and args.input and not args.dry_run:
+            preserve_study_input(args.input, candidates)
+            acquisition_input = candidates
         if action in {"collect", "run"} and not (action == "run" and args.input):
             if args.dry_run:
                 raise ConfigError("use classify --dry-run --input for an offline preview of a frozen cohort")
@@ -964,7 +1097,7 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
             target = args.output if action == "prefilter" and args.output else prefiltered
             # Ranking vocabulary belongs to the study; the selected provider supplies its query syntax.
             profile = load_term_profile(settings, sources[0])
-            rows = prefilter_study(args.input or candidates, target, profile, config,
+            rows = prefilter_study(acquisition_input or candidates, target, profile, config,
                 evidence_service, dry_run=args.dry_run,
                 freeze_uncertain_evidence=ensemble_enabled and pipeline["evidence"]["enrich_uncertain_with_full_text"])
             counts["prefiltered_papers"] = len(rows)
@@ -1003,7 +1136,7 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
                     args.output if action in {"plot", "evaluate"} and args.output else paths[model]["plots"],
                     settings.section("plots"),
                     candidates_path=(getattr(args, "candidates", None) or
-                        (args.input if action == "run" and args.input else candidates if candidates.is_file() else None)),
+                        (candidates if candidates.is_file() else None)),
                     ratings_path=Path(ratings) if ratings and (enabled or action == "evaluate") else None,
                     confidence_level=_evaluation_confidence_level(settings))
                 counts[f"report_files_{slug(model)}"] = len(files)
@@ -1023,10 +1156,16 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
             files = build_report(settings.path("taxonomy"), ensemble_paths["classifications"], ensemble_paths["plots"],
                 settings.section("plots"),
                 candidates_path=(getattr(args, "candidates", None) or
-                    (args.input if action == "run" and args.input else candidates if candidates.is_file() else None)),
+                    (candidates if candidates.is_file() else None)),
                 ratings_path=Path(ratings) if ratings and (enabled or action == "evaluate") else None,
                 confidence_level=_evaluation_confidence_level(settings))
             counts["report_files_ensemble"] = len(files)
+        if action == "run" and not args.dry_run and _baselines_enabled(settings):
+            baseline_args = argparse.Namespace(action="baseline", input=None, output=None, methods=None,
+                ratings=None, resume=args.resume, limit=None, evaluate_only=False, check_only=False, fields=None)
+            counts.update(_execute_review_baselines(baseline_args, settings, source))
+        elif action in {"evaluate", "plot"}:
+            counts["classifier_comparison_files"] = len(_build_review_classifier_comparisons(settings, source))
     except Exception:
         manifest.status = "failed"
         manifest.write()
@@ -1059,11 +1198,11 @@ def _add_stage_arguments(parser: argparse.ArgumentParser, action: str) -> None:
     if action == "evaluate":
         parser.add_argument("--candidates", type=Path)
     if action == "baseline":
-        parser.add_argument("--methods", help="comma-separated keyword,nli,llm_nli methods")
+        parser.add_argument("--methods", help="comma-separated keyword,nli,llm_nli,plain_llm methods")
         parser.add_argument("--evaluate-only", action="store_true", help="rescore saved outputs without inference")
         parser.add_argument("--check-only", action="store_true", help="check LLM NLI class-token scoring")
         parser.add_argument("--fields", help="comma-separated LLM NLI pilot fields")
-        parser.add_argument("--limit", type=int, help="maximum candidates for an isolated LLM NLI pilot")
+        parser.add_argument("--limit", type=int, help="maximum candidates for an isolated llm_nli or plain_llm pilot")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1177,6 +1316,12 @@ def main(argv: list[str] | None = None) -> int:
                     load_nli_profile(settings, source)
                     for _, profile_path in _configured_reference_sets(settings, source):
                         load_rating_profile(profile_path, source)
+            if _baselines_enabled(settings):
+                methods = configured_baseline_methods(settings)
+                if "plain_llm" in methods:
+                    from radar.common.plain_llm import plain_llm_models
+
+                    plain_llm_models(settings)
             _configured_models(settings)
             _ensemble_config(settings, _configured_models(settings))
             print(json.dumps(settings.section("study"), indent=2))

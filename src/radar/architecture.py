@@ -698,8 +698,8 @@ def _draw_pipeline_figure() -> Figure:
         edgecolor=EVALUATION_EDGE, linestyle="--", linewidth=.9, zorder=3))
     _card_label(ax, (15.06, 7.58, 3.23, .33), "Reference profiles · evaluation only", fontsize=8.0)
     _arrow(ax, (16.68, 7.43), (16.68, 7.33), color=EVALUATION_EDGE, linestyle="--")
-    _component(ax, 8.55, .70, 2.85, 1.07, "Catalogue baselines",
-        "Keyword + NLI + LLM NLI\nRepository + dataset studies", icon="key",
+    _component(ax, 8.55, .70, 2.85, 1.07, "Classification baselines",
+        "Keyword + NLI + LLM NLI\nPlain LLM: all studies, single pass\nOriginal collection evidence", icon="key",
         facecolor=EVALUATE, edgecolor=EVALUATION_EDGE)
     _elbow_arrow(ax, [(8.10, 2.63), (8.24, 2.63), (8.24, 1.24), (8.47, 1.24)],
         color=EVALUATION_EDGE, linewidth=.9)
@@ -794,6 +794,13 @@ def _draw_system_figure() -> Figure:
     _elbow_arrow(ax, [(15.73, 4.775), (15.86, 4.775), (15.86, 6.755), (15.97, 6.755)])
     _arrow(ax, (17.725, 5.78), (17.725, 5.04), color=EVALUATION_EDGE)
     _arrow(ax, (17.725, 2.65), (17.725, 3.11), color=EVALUATION_EDGE, linestyle="--")
+
+    _component(ax, 13.30, .48, 2.35, .88, "Plain LLM baseline",
+        "One request · original evidence", icon="classifier", facecolor=EVALUATE,
+        edgecolor=EVALUATION_EDGE)
+    _arrow(ax, (12.93, .92), (13.22, .92), color=EVALUATION_EDGE)
+    _elbow_arrow(ax, [(15.73, .92), (15.86, .92), (15.86, 4.075), (15.97, 4.075)],
+        color=EVALUATION_EDGE)
 
     _logo_box(ax, .25, .48, 1.60, .88, "sqlite.svg", "Per-study state",
         facecolor=REPORT, target_width=42, title_size=7.0)

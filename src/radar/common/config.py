@@ -166,7 +166,9 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
             query_result_limit(execution, optional_limit(execution.get("collection_limit"), "collection_limit"), factor)
     validate_consensus(execution.get("consecutive_runs", 1), execution.get("consensus_threshold", 0.8))
     if workflow == "systematic_review" and values.get("baselines", {}).get("enabled", False):
-        raise ConfigError("systematic_review does not support baseline execution")
+        methods = values["baselines"].get("methods", [])
+        if methods != ["plain_llm"]:
+            raise ConfigError("systematic_review currently supports only the plain_llm baseline")
     paths["pipeline"] = str(pipeline_path)
     screening_path, _ = read(manifest.get("screening"), "screening")
     screening = load_screening_profile(screening_path)

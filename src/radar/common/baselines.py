@@ -18,7 +18,7 @@ from radar.common.text import normalize_text, stable_hash
 
 LOG = logger("baselines")
 BASELINE_VERSION = "keyword-baseline-4"
-KNOWN_BASELINE_METHODS = ("keyword", "nli", "llm_nli")
+KNOWN_BASELINE_METHODS = ("keyword", "nli", "llm_nli", "plain_llm")
 IMPLEMENTED_BASELINE_METHODS = KNOWN_BASELINE_METHODS
 CLASSIFIER_COLUMNS = [
     "classifier_method", "classifier_id", "classifier_profile_hash",
@@ -88,6 +88,8 @@ def configured_baseline_methods(settings: Settings, requested: str | None = None
     unavailable = [value for value in methods if value not in IMPLEMENTED_BASELINE_METHODS]
     if unavailable:
         raise ConfigError("baseline methods are not implemented yet: " + ",".join(unavailable))
+    if settings.section("study").get("workflow") == "systematic_review" and any(method != "plain_llm" for method in methods):
+        raise ConfigError("systematic_review currently supports only the plain_llm baseline")
     return methods
 
 

@@ -109,6 +109,9 @@ def _variant_label(relative: Path, rows: list[dict[str, str]]) -> tuple[str, str
     if parts[:2] == ("baselines", "llm_nli"):
         identifier = "/".join(parts[2:])
         return f"LLM NLI — {identifier}", "llm-nli-" + slug(identifier)
+    if parts[:2] == ("baselines", "plain_llm"):
+        identifier = "/".join(parts[2:])
+        return f"Plain LLM — {identifier}", "plain-llm-" + slug(identifier)
     raise ValueError("funnel requires model, ensemble or named baseline directories")
 
 

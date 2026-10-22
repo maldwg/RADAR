@@ -170,7 +170,8 @@ class CommonTests(unittest.TestCase):
             "Repository families", "Publication families", "Repository catalogue",
             "Dataset catalogue", "Review classifications", "Repository role validation",
             "Dataset release validation", "Criterion assessment", "Release reconciliation disabled",
-            "Reference profiles · evaluation only", "Evaluation + reporting", "Catalogue baselines",
+            "Reference profiles · evaluation only", "Evaluation + reporting", "Classification baselines",
+            "Plain LLM: all studies, single pass",
             "Review: per-provider and union", "Select one study per run.",
             "(i)", "(ii)", "(iii)", "(iv)", "(v)",
         ):
@@ -183,7 +184,7 @@ class CommonTests(unittest.TestCase):
             "Review provider union", "common/discovery.py", "Shared paper evidence",
             "Scientific strategies", "Adjudication client", "common/ollama.py",
             "Ollama server", "Qwen", "Gemma", "Study results", "Reporting + verification",
-            "Reference profiles", "Evaluation only", "Run state + provenance", "Per-study state",
+            "Reference profiles", "Evaluation only", "Run state + provenance", "Per-study state", "Plain LLM baseline",
         ):
             self.assertIn(label, system)
         for obsolete in ("GitHub crawler", "OpenAlex crawler", "gpt-oss", "Catalogue baselines",
