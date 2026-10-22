@@ -76,7 +76,7 @@ def q(module: str, name: str) -> str:
 
 D = 'adapters.contracts'
 DISC, LOOK, EVID, REF, CAT = [q(D, n) for n in ['DiscoveryAdapter','LookupAdapter','EvidenceAdapter','ReferenceAdapter','CatalogueAdapter']]
-GH, OA, SS, LOCAL = [q('adapters.' + m, n) for m,n in [('github','GitHubAdapter'),('openalex','OpenAlexAdapter'),('semantic_scholar','SemanticScholarAdapter'),('local','LocalDiscoveryAdapter')]]
+GH, OA, SS = [q('adapters.' + m, n) for m,n in [('github','GitHubAdapter'),('openalex','OpenAlexAdapter'),('semantic_scholar','SemanticScholarAdapter')]]
 GHC, OAC, HTTP = q('github.collect','GitHubClient'),q('openalex.collect','OpenAlexClient'),q('adapters.http','JsonTransport')
 PES, BLOCKS, BLOCK = q('common.paper_evidence','PaperEvidenceService'),q('common.evidence_blocks','EvidenceBlockIndex'),q('common.evidence_blocks','EvidenceBlock')
 QUOTE, QUOTATION = q('common.evidence_quotes','SourceQuoteIndex'),q('common.evidence_quotes','SourceQuotation')
@@ -310,7 +310,7 @@ def relationships(root: Path, inventory: dict) -> tuple[list, dict]:
 
 VIEWS = [
     ('uml-discovery','Provider discovery and HTTP clients',
-     [[DISC], [GH,OA,SS,LOCAL], [GHC,OAC,HTTP]]),
+     [[DISC], [GH,OA,SS], [GHC,OAC,HTTP]]),
     ('uml-capabilities','Optional provider capabilities',
      [[LOOK,EVID,REF,CAT], [OA,SS,GH], [PES]]),
     ('uml-records','Discovery configuration and normalized records',

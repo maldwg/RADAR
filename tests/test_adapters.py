@@ -16,7 +16,6 @@ import requests
 from radar.adapters.contracts import ProviderDescriptor, ProviderQuery, SearchPage, SourceRecord
 from radar.adapters.github import GitHubAdapter
 from radar.adapters.http import JsonTransport
-from radar.adapters.local import LocalDiscoveryAdapter
 from radar.adapters.openalex import OpenAlexAdapter
 from radar.adapters.registry import PROVIDERS, create_adapter, register_provider
 from radar.adapters.semantic_scholar import SemanticScholarAdapter
@@ -140,26 +139,6 @@ class AdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'repeated study-search cursor'):
                 collect_sources([source], root / 'cohort.json', limit=None)
             self.assertFalse((root / 'cohort.json').exists())
-
-    def test_local_mapping_pagination_and_judgment_isolation(self):
-        """Local evidence is usable, but previous decisions are retained only in raw audit data."""
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            records = root / 'papers.csv'
-            records.write_text('id,name,doi,full_text_complete,decision\n1,One,https://doi.org/10.1234/ABC,true,accept\n2,Two,,false,exclude\n')
-            profile = root / 'local.toml'
-            profile.write_text('schema_version="1.0"\nprovider="local"\npath="papers.csv"\nidentity="id"\nentity_kind="paper"\nnamed_entity_seeding=false\n[mapping]\ntitle="name"\n')
-            rows = collect_sources([DiscoverySource('local', profile, {'per_page': 1})], root / 'cohort.json', limit=None)
-            self.assertEqual([row['title'] for row in rows], ['One', 'Two'])
-            self.assertEqual(rows[0]['paper_id'], 'doi:10.1234/abc')
-            self.assertNotIn('decision', rows[0])
-            self.assertEqual(rows[0]['source_records'][0]['native']['decision'], 'accept')
-            self.assertIs(rows[0]['full_text_complete'], True)
-            adapter = LocalDiscoveryAdapter({}, profile)
-            query = adapter.queries(tomllib.loads(profile.read_text()))[0]
-            records.write_text(records.read_text() + '3,Three,,false,accept\n')
-            with self.assertRaisesRegex(ValueError, 'changed during collection'):
-                adapter.search(query, None, 1)
 
     def test_semantic_scholar_uses_native_bulk_tokens_and_identifiers(self):
         """No OpenAlex query translation or relevance-search pagination leaks into bulk retrieval."""

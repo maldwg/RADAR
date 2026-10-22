@@ -164,7 +164,7 @@ class CommonTests(unittest.TestCase):
         for label in (
             "IDS repositories", "IDS datasets", "Conformal treatment effects",
             "Shared paper config schema", "Same operational keys; study-specific values",
-            "Semantic Scholar", "Local CSV / JSON", "Shared paper collector", "Shared paper evidence",
+            "Semantic Scholar", "Shared paper collector", "Shared paper evidence",
             "Repository search", "Direct paper search", "Diverse survey seeds",
             "Backward snowballing", "Deterministic prefilter", "Structured prompts", "Keyword + NLI + LLM NLI",
             "Repository families", "Publication families", "Repository catalogue",
@@ -177,7 +177,7 @@ class CommonTests(unittest.TestCase):
             self.assertIn(label, pipeline)
         for label in (
             "Provider registry", "adapters/registry.py", "GitHubAdapter", "OpenAlexAdapter",
-            "SemanticScholarAdapter", "LocalDiscoveryAdapter", "DiscoveryAdapter + SourceRecord",
+            "SemanticScholarAdapter", "DiscoveryAdapter + SourceRecord",
             "Optional lookup, evidence, references and catalogue protocols",
             "Shared paper collector", "common/paper_collection.py", "IDS datasets + conformal",
             "Review provider union", "common/discovery.py", "Shared paper evidence",
@@ -186,8 +186,10 @@ class CommonTests(unittest.TestCase):
             "Reference profiles", "Evaluation only", "Run state + provenance", "Per-study state",
         ):
             self.assertIn(label, system)
-        for obsolete in ("GitHub crawler", "OpenAlex crawler", "gpt-oss", "Catalogue baselines"):
+        for obsolete in ("GitHub crawler", "OpenAlex crawler", "gpt-oss", "Catalogue baselines",
+                         "Local CSV / JSON", "LocalDiscoveryAdapter"):
             self.assertNotIn(obsolete, system)
+        self.assertNotIn("Local CSV / JSON", pipeline)
         self.assertNotIn("(i)", system)
         self.assertEqual(system.split().count("Outputs"), 1)
 

@@ -632,8 +632,6 @@ def _draw_pipeline_figure() -> Figure:
         facecolor=OPENALEX, target_width=64, label="Both paper studies")
     _component(ax, .25, 3.17, 1.90, 1.05, "Semantic Scholar", "Review discovery",
         icon="web", facecolor=OPENALEX)
-    _component(ax, .25, 1.86, 1.90, 1.05, "Local CSV / JSON", "Review discovery",
-        icon="documents", facecolor=OPENALEX)
 
     _component(ax, 2.55, 5.98, 2.80, 1.34, "Repository search",
         "Date sharding, deduplication, README + docs", icon="repository", facecolor=GITHUB)
@@ -641,7 +639,7 @@ def _draw_pipeline_figure() -> Figure:
         "Direct paper search\nDiverse survey seeds (optional)\nBackward snowballing (optional)\nUnion, dedupe + configurable ranking",
         icon="merge", facecolor=OPENALEX)
     _arrow(ax, (2.23, 6.65), (2.47, 6.65))
-    for center in (5.03, 3.695, 2.385):
+    for center in (5.03, 3.695):
         _arrow(ax, (2.23, center), (2.47, center))
 
     _component(ax, 5.70, 5.98, 2.40, 1.34, "Repository prefilter",
@@ -741,12 +739,10 @@ def _draw_system_figure() -> Figure:
         facecolor=OPENALEX, target_width=65, label="Paper API")
     _component(ax, .25, 3.35, 2.10, 1.10, "Semantic Scholar",
         "Review discovery + shared evidence", icon="web", facecolor=OPENALEX)
-    _component(ax, .25, 1.85, 2.10, 1.10, "Local CSV / JSON",
-        "Frozen review paper input", icon="documents", facecolor=OPENALEX)
     _component(ax, 2.85, 1.85, 2.65, 5.60, "Provider registry",
-        "adapters/registry.py\nGitHubAdapter\nOpenAlexAdapter\nSemanticScholarAdapter\nLocalDiscoveryAdapter\nDiscoveryAdapter + SourceRecord\nOptional lookup, evidence, references and catalogue protocols",
+        "adapters/registry.py\nGitHubAdapter\nOpenAlexAdapter\nSemanticScholarAdapter\nDiscoveryAdapter + SourceRecord\nOptional lookup, evidence, references and catalogue protocols",
         icon="merge", facecolor=OPENALEX)
-    for center in (6.90, 5.40, 3.90, 2.40):
+    for center in (6.90, 5.40, 3.90):
         _arrow(ax, (2.43, center), (2.77, center))
 
     _component(ax, 6.10, 6.05, 3.15, 1.60, "Repository collection",

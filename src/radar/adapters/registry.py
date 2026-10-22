@@ -10,7 +10,6 @@ from radar.adapters.contracts import (
     ProviderDescriptor, ReferenceAdapter,
 )
 from radar.adapters.github import GitHubAdapter
-from radar.adapters.local import LocalDiscoveryAdapter
 from radar.adapters.openalex import OpenAlexAdapter
 from radar.adapters.semantic_scholar import SemanticScholarAdapter
 
@@ -59,5 +58,5 @@ def create_adapter(name: str, settings: dict[str, Any], profile_path: Path, *, c
     return adapter
 
 
-for _adapter in (GitHubAdapter, OpenAlexAdapter, SemanticScholarAdapter, LocalDiscoveryAdapter):
+for _adapter in (GitHubAdapter, OpenAlexAdapter, SemanticScholarAdapter):
     register_provider(_adapter.descriptor, _adapter)
