@@ -1,0 +1,5 @@
+schema_version = "1.0"
+
+[baselines]
+enabled = true
+methods = ["plain_llm"]

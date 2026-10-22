@@ -25,3 +25,8 @@ models = ["qwen3.8:27b"]
 seed = 42
 timeout_seconds = 300
 retries = 2
+
+[baselines.plain_llm]
+# Inherits ollama.models and generation settings unless overridden here.
+# models = ["gemma4:31b", "qwen3.8:27b"]
+# Retries, enrichment, voting and reconciliation are always disabled.
