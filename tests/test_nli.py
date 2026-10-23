@@ -51,6 +51,7 @@ def _config() -> NLIRuntimeConfig:
         model="fixture/nli", revision="revision-1", device="cpu", batch_size=4,
         max_length=128, premise_tokens=64, chunk_overlap=8, max_chunks=2,
         top_k=1, entailment_threshold=.5, label_margin=.1,
+        quality_entailment_threshold=.5, quality_label_margin=.1,
     )
 
 

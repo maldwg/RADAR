@@ -35,6 +35,8 @@ Start with :doc:`quickstart`, inspect the :doc:`architecture`, and use
    adapters
    classification_consensus
    evaluation
+   plain_llm
+   quality_assessment
    reporting
    cross_field_verification
 

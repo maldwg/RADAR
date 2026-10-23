@@ -59,12 +59,16 @@ def write_csv(path, rows, columns):
     if classified:
         for row in rows:
             row.setdefault('classifier_supported_fields', '*')
+            if row.get('decision'):
+                row.setdefault('relevance_decision', row['decision'])
             if 'openalex_id' in row and row.get('artifact_name'):
                 row['artifact_display_name'] = row.get('artifact_display_name') or row['artifact_name']
                 row['resource_name'] = row['artifact_display_name']
         for field in ('artifact_display_name', 'resource_name'):
             if any(field in row for row in rows) and field not in columns:
                 columns.append(field)
+        if 'relevance_decision' not in columns:
+            columns.append('relevance_decision')
         if 'classifier_supported_fields' not in columns:
             columns.append('classifier_supported_fields')
     return atomic_write_csv(path, rows, columns)

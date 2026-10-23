@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from radar.common.screening import load_screening_profile
+from radar.common.quality_config import load_quality_config
 from radar.common.paper_config import PAPER_PIPELINE_OPTIONS, validate_paper_pipeline
 
 
@@ -97,7 +98,7 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
     if manifest.get("schema_version") != "2.0":
         raise ConfigError("study manifest requires schema_version 2.0")
     allowed = {"schema_version", "id", "workflow", "project_root", "runtime", "models", "methods", "reporting",
-        "output_root", "sources", "evaluation", "pipeline", "screening", "keyword", "nli", "llm_nli_prompt"}
+        "output_root", "sources", "evaluation", "pipeline", "screening", "keyword", "nli", "llm_nli_prompt", "quality"}
     if set(manifest) - allowed:
         raise ConfigError(f"unknown study settings: {', '.join(sorted(set(manifest) - allowed))}")
     study_id = manifest.get("id")
@@ -133,6 +134,12 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
         "raw_dir": "raw", "interim_dir": "interim", "processed_dir": "processed",
         "plots_dir": "plots", "runs_dir": "runs", "evaluation_dir": "evaluation",
     }.items()}
+    quality_path, _ = read(manifest.get("quality"), "quality")
+    quality = load_quality_config(quality_path)
+    if quality['_sha256'] != fingerprints[str(quality_path)]:
+        raise ConfigError('quality configuration changed while resolving study')
+    paths['quality'] = str(quality_path)
+    values['quality_assessment'] = quality
     pipeline_path, pipeline_raw = read(manifest.get("pipeline"), "pipeline")
     if set(pipeline_raw) - {"schema_version", *PIPELINE_OPTIONS}:
         raise ConfigError("pipeline may contain only collection, evidence, classification and reconciliation tables")
@@ -185,7 +192,7 @@ def load_settings(path: Path | str = DEFAULT_STUDY) -> Settings:
         _compose(execution, canonical)
     prompt_path, _ = read(str(screening.prompt_path), "screening.prompt")
     paths["taxonomy"], paths["prompts"] = str(taxonomy_path), str(prompt_path)
-    values["screening"] = screening.prompt_rules()
+    values["screening"] = {**screening.prompt_rules(), "assessment": quality}
     for key in ("keyword", "nli", "llm_nli_prompt"):
         if key in manifest:
             profile_path, _ = read(manifest[key], key)
@@ -308,7 +315,7 @@ def load_prompt_profile(settings: Settings, source: str) -> dict[str, Any]:
     screening = load_screening_profile(settings.path(f"{source}_screening"))
     if screening.prompt_path != settings.path(f"{source}_prompts") or screening.taxonomy_path != settings.path(f"{source}_taxonomy"):
         raise ConfigError("catalogue prompt and taxonomy must match the scientific screening profile")
-    profile["screening"] = screening.prompt_rules()
+    profile["screening"] = {**screening.prompt_rules(), "assessment": settings.section("quality_assessment")}
     identifiers = set(re.findall(r"\$\{([^}]+)\}", profile["template"]))
     if "eligibility" not in identifiers:
         missing = {f"eligibility_{key}" for key in screening.eligibility} - identifiers

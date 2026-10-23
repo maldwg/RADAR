@@ -82,7 +82,7 @@ class FakeSession:
 
 def reference_config():
     """Return a small shared NLI evidence and decision policy."""
-    return NLIRuntimeConfig("fixture/tokenizer", "tokenizer-revision", "cpu", 2, 128, 32, 4, 2, 1, .5, .1)
+    return NLIRuntimeConfig("fixture/tokenizer", "tokenizer-revision", "cpu", 2, 128, 32, 4, 2, 1, .5, .1, .5, .1)
 
 
 def collected_fixture(cache, source):

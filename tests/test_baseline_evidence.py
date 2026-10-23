@@ -122,7 +122,7 @@ class BaselineEvidenceTests(unittest.TestCase):
                         cache.put_collected_record(namespace,'1',original,'collected-at')
                         cache.put_record(namespace,'1',enriched,'enriched-at')
                         backend = RecordingBackend()
-                        runtime = NLIRuntimeConfig(backend.model_id,backend.revision,'cpu',4,128,64,8,4,1,.5,.1)
+                        runtime = NLIRuntimeConfig(backend.model_id,backend.revision,'cpu',4,128,64,8,4,1,.5,.1,.5,.1)
                         role = 'role' if source=='github' else 'paper_role'
                         excluded = 'out_of_scope' if source=='github' else 'unrelated'
                         profile = NLIProfile(source,(NLIField(role,'exclusive','uncertain',{excluded:'An unrelated work'}),),{},root/'nli.toml')
@@ -142,7 +142,7 @@ class BaselineEvidenceTests(unittest.TestCase):
             with PipelineCache(root/'cache.sqlite3') as cache:
                 cache.put_record(namespace,'1',enriched,'enriched-at')
                 backend = RecordingBackend()
-                runtime = NLIRuntimeConfig(backend.model_id,backend.revision,'cpu',4,128,64,8,4,1,.5,.1)
+                runtime = NLIRuntimeConfig(backend.model_id,backend.revision,'cpu',4,128,64,8,4,1,.5,.1,.5,.1)
                 profile = NLIProfile('github',(NLIField('role','exclusive','uncertain',{'out_of_scope':'unrelated'}),),{},root/'profile')
                 with self.assertRaisesRegex(ValueError,'missing collected evidence snapshot.*--no-resume'):
                     classify_nli_baseline('github',candidates,root/'nli.csv',cache,profile,runtime,backend=backend)

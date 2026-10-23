@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from radar.common.quality import quality_consensus
+
 import json
 from collections import Counter
 from pathlib import Path
@@ -473,6 +475,8 @@ def ensemble_classifications(
             "evidence_expansion_improved", "evidence_expansion_resolved",
         ):
             combined[field] = str(any(_bool_text(row.get(field)) == "true" for _model, row in present)).lower()
+        combined["relevance_decision"] = combined["decision"]
+        quality_consensus(combined, {model: indexed[model].get(key, {}) for model in models}, threshold)
         output_rows.append(combined)
     atomic_write_csv(output, output_rows, columns)
     return output_rows

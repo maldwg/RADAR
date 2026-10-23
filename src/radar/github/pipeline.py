@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from radar.common.quality import assess_llm_quality, finish_quality, quality_consensus, quality_prompt, quality_schema
+
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -123,7 +125,7 @@ def prompt(
         "centralization": description_block(settings, "centralization", CENTRALIZATION),
         "system_types": "\n".join(type_lines),
     }
-    return render_prompt(settings, blocks, format_evidence(sections))
+    return quality_prompt(render_prompt(settings, blocks, format_evidence(sections)), settings.get("screening", {}))
 
 
 def classify(
@@ -151,6 +153,8 @@ def classify(
                            "enabled": bool(enrichment_config.get("enrich_uncertain_evidence", False)),
                            "max_docs_files": int(enrichment_config.get("uncertain_max_docs_files", 10)),
                        }}
+    quality_rules = (prompt_config or {}).get("screening", {})
+    decision_config["quality_policy"] = "content-quality-v1"
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)
     results: list[dict[str, str]] = []
     new_decisions = 0
@@ -193,17 +197,23 @@ def classify(
                 interrupted = False
                 for run_index in range(len(votes) + 1, consecutive_runs + 1):
                     vote = dict(result)
+                    vote.pop("relevance_decision", None)
                     try:
-                        raw = client.generate(prompt(active_sections, prompt_config, system_type_profile), response_schema(system_type_profile))  # type: ignore[union-attr]
+                        raw = client.generate(prompt(active_sections, prompt_config, system_type_profile), quality_schema(response_schema(system_type_profile), quality_rules))  # type: ignore[union-attr]
                         verified, _ = verify_evidence(raw.get("evidence"), active_sections)
                         vote.update(normalize_response(raw, verified, ollama_config, row.get("fork") == "true", system_type_profile))
+                        assess_llm_quality(vote, raw.get("quality"), active_sections, quality_rules, grounded=True)
                     except Exception as exc:
                         vote.update({"decision": "error", "role": "", "observation_scopes": "", "observation_objects": "", "capabilities": "", "detection_methods": "", "primary_system_type": "", "system_types": "", "system_type_names": "", "independent_fork": "", "direct_self_description": "", "runtime_observation": "", "reproducible_execution": "", "offline_dataset_only": "", "implements_detection_engine": "", "requires_external_detector": "", "integrates_multiple_detectors": "", "cohesive_framework_architecture": "", "research_basis": "", "upstream_full_name": "", "classification_validation_flags": "", "primary_reason": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+                    if "quality_status" not in vote or vote.get("decision") == "error":
+                        finish_quality(vote, quality_rules, {}, "radar_llm", error="classification_failed" if vote.get("decision") == "error" else "")
                     votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
                     if stop_on_uncertain and vote.get("decision") == "uncertain":
                         interrupted = True
                         break
                 decision = dict(consensus_classification("github", votes, consensus_threshold, system_type_profile, bool(ollama_config.get("require_verified_quote", True)))) if consecutive_runs > 1 else votes["run-1"]
+                decision["relevance_decision"] = decision["decision"]
+                quality_consensus(decision, votes, consensus_threshold)
                 return decision, votes, interrupted
 
             result, votes, interrupted = decide(sections, stop_on_uncertain=True)
@@ -238,6 +248,8 @@ def classify(
                 initial_votes, initial_result, final_votes, result,
                 required=expansion_required, attempted=expansion_attempted, changed=expansion_changed,
             ))
+        if dry_run:
+            finish_quality(result, quality_rules, {}, "dry_run", supported=[])
         cache.put_decision("github.classification", key, profile_hash, evidence_hash, result, result["classified_at"])
         results.append(result)
         new_decisions += 1

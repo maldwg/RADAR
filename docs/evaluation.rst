@@ -164,6 +164,11 @@ fields of the SHIELD dataset profile.
 Running evaluation
 ------------------
 
+Study CLI evaluations compare ``relevance_decision`` independently of content quality.
+Quality outcomes and quality-qualified exports live in separate bundles; see
+:doc:`quality_assessment`. Outcome rates are not quality accuracy without an independently
+annotated quality reference.
+
 Evaluate existing default classification files:
 
 .. code:: bash
@@ -171,9 +176,10 @@ Evaluate existing default classification files:
    radar --study ids_repositories evaluate
    radar --study ids_datasets evaluate
 
-The default baseline command creates keyword and/or local zero-shot DeBERTa NLI classification files
-and immediately evaluates them against the same profiles without calling an LLM. The optional
-``llm_nli`` method described below calls Ollama:
+The default catalogue baseline command creates keyword, DeBERTa NLI, plain LLM and configured
+Ollama NLI classification files and evaluates them against the same reference profiles.
+``--methods keyword,nli`` selects the two methods that do not call Ollama.
+The :doc:`plain LLM benchmark <plain_llm>` also supports systematic reviews:
 
 .. code:: bash
 

@@ -762,7 +762,7 @@ def _draw_system_figure() -> Figure:
     _component(ax, 9.75, 4.05, 3.10, 1.45, "Shared paper evidence",
         "paper_evidence.py + paper_collection.py\nLookup, bounded PDF + prefilter", icon="documents", facecolor=OPENALEX)
     _component(ax, 9.75, 2.10, 3.10, 1.25, "Scientific strategies",
-        "Repository roles · dataset releases\nReview eligibility + quality", icon="checklist", facecolor=CLASSIFY)
+        "Repository roles · dataset releases\nShared content-quality rules\nIndependent relevance / quality", icon="checklist", facecolor=CLASSIFY)
     _arrow(ax, (9.33, 6.85), (9.67, 6.85))
     _arrow(ax, (9.33, 4.775), (9.67, 4.775))
     _elbow_arrow(ax, [(9.33, 2.725), (9.48, 2.725), (9.48, 4.39), (9.67, 4.39)])
@@ -787,7 +787,7 @@ def _draw_system_figure() -> Figure:
     _component(ax, 16.05, 5.86, 3.35, 1.79, "Study results",
         "Consensus + configured reconciliation\nRepository / dataset catalogues\nReview classifications", icon="catalogue", facecolor=REPORT)
     _component(ax, 16.05, 3.19, 3.35, 1.77, "Reporting + verification",
-        "Tables, plots, reporting database\nFingerprints + figure manifests\nReview source + union recovery", icon="chart",
+        "Tables, plots, reporting database\nSeparate relevance + quality reports\nFingerprints + figure manifests\nReview source + union recovery", icon="chart",
         facecolor=EVALUATE, edgecolor=EVALUATION_EDGE)
     _component(ax, 16.05, 1.43, 3.35, 1.14, "Reference profiles",
         "Evaluation only", icon="people", edgecolor=EVALUATION_EDGE, linestyle="--")

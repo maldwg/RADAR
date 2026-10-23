@@ -165,7 +165,9 @@ class StudyConfigurationTests(unittest.TestCase):
                 self.assertEqual(len(profile.quality), 9)
                 self.assertEqual(profile.quality_minimum, 5)
             else:
-                self.assertFalse(profile.quality)
+                self.assertEqual(len(profile.quality), 5)
+                self.assertEqual(profile.quality_minimum, 3)
+                self.assertEqual(len(profile.quality_required), 2)
 
     def test_misplaced_operational_and_scientific_settings_fail_validation(self):
         """Catch the old mixed responsibilities before any API or model call."""

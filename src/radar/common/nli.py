@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Protocol, Sequence
 
+from radar.common.quality import assess_nli_quality, finish_quality, policy_rules
 from radar.common.baselines import baseline_inputs
 from radar.common.cache import COLLECTED_EVIDENCE_POLICY, PipelineCache, collected_record_hash
 from radar.common.config import ConfigError, Settings
@@ -18,11 +19,11 @@ from radar.common.text import slug, stable_hash
 
 
 LOG = logger("nli")
-NLI_BASELINE_VERSION = "nli-baseline-3"
+NLI_BASELINE_VERSION = "nli-baseline-4"
 NLI_AUDIT_COLUMNS = [
     "nli_model", "nli_model_revision", "nli_scores_json", "nli_supporting_chunks_json",
     "nli_entailment_threshold", "nli_label_margin", "nli_top_k", "nli_max_chunks",
-    "nli_inference_seconds",
+    "nli_inference_seconds", "nli_relevance_inference_seconds",
 ]
 
 
@@ -41,6 +42,8 @@ class NLIRuntimeConfig:
     top_k: int
     entailment_threshold: float
     label_margin: float
+    quality_entailment_threshold: float
+    quality_label_margin: float
 
 
 @dataclass(frozen=True)
@@ -111,6 +114,7 @@ def load_nli_runtime_config(settings: Settings) -> NLIRuntimeConfig:
         raise ConfigError("baselines.nli.model and baselines.nli.revision are required")
     if device not in {"auto", "cpu", "cuda"}:
         raise ConfigError("baselines.nli.device must be auto, cpu, or cuda")
+    quality_nli = settings.section("quality_assessment")["nli"]
     try:
         config = NLIRuntimeConfig(
             model=model,
@@ -124,6 +128,8 @@ def load_nli_runtime_config(settings: Settings) -> NLIRuntimeConfig:
             top_k=int(raw.get("top_k", 2)),
             entailment_threshold=float(raw.get("entailment_threshold", 0.5)),
             label_margin=float(raw.get("label_margin", 0.1)),
+            quality_entailment_threshold=float(raw.get("quality_entailment_threshold", quality_nli["entailment_threshold"])),
+            quality_label_margin=float(raw.get("quality_label_margin", quality_nli["label_margin"])),
         )
     except (TypeError, ValueError) as exc:
         raise ConfigError("baselines.nli numeric settings are invalid") from exc
@@ -137,6 +143,8 @@ def load_nli_runtime_config(settings: Settings) -> NLIRuntimeConfig:
         raise ConfigError("baselines.nli.top_k and max_chunks must be at least 1")
     if not 0 < config.entailment_threshold < 1 or not 0 <= config.label_margin < 1:
         raise ConfigError("baselines.nli thresholds must lie between zero and one")
+    if not 0 < config.quality_entailment_threshold < 1 or not 0 <= config.quality_label_margin < 1:
+        raise ConfigError("NLI quality thresholds must lie in their probability ranges")
     return config
 
 
@@ -171,6 +179,7 @@ def load_nli_profile(settings: Settings, source: str) -> NLIProfile:
         if mode != "boolean" and not fallback:
             raise ConfigError(f"NLI field {name!r} requires a fallback")
         fields.append(NLIField(str(name), mode, fallback, normalized))
+    raw["quality_rules"] = settings.section("screening")
     return NLIProfile(source, tuple(fields), raw, path)
 
 
@@ -433,6 +442,11 @@ def rescore_nli_rows(
                 "primary_reason": "Saved NLI scores could not be rescored.",
                 "error": str(exc)[:1000],
             })
+        if row.get("quality_rules_json"):
+            updated["relevance_decision"] = updated["decision"]
+            finish_quality(updated, policy_rules(json.loads(row["quality_rules_json"])),
+                json.loads(row.get("quality_assessments_json") or "{}"), row.get("quality_backend", "nli"),
+                error=row.get("quality_error", ""), evidence_hash=row.get("quality_evidence_hash", ""))
         rescored.append({str(name): str(value) for name, value in updated.items()})
     return rescored
 
@@ -551,6 +565,14 @@ def classify_nli_baseline(
                 "classifier_supported_fields": "decision", "nli_scores_json": "{}",
                 "nli_supporting_chunks_json": "{}",
             })
+        result["nli_relevance_inference_seconds"] = f"{time.monotonic() - started:.6f}"
+        quality_started = time.monotonic()
+        rules = profile.raw.get("quality_rules", {})
+        if result.get("decision") == "error":
+            finish_quality(result, rules, {}, method, error="classification_failed")
+        else:
+            assess_nli_quality(result, sections, rules, active_backend, config, method)
+        result["quality_inference_seconds"] = f"{time.monotonic() - quality_started:.6f}"
         result["nli_inference_seconds"] = f"{time.monotonic() - started:.6f}"
         if method == "llm_nli":
             result["classifier_supported_fields"] = ";".join(["decision", *[field.name for field in profile.fields]])

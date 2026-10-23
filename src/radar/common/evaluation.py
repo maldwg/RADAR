@@ -372,20 +372,38 @@ def _binary_metrics(tp: int, fp: int, tn: int, fn: int, total: int) -> dict[str,
 def evaluate_results(
     profile: RatingProfile, classifications_path: Path, output_dir: Path,
     candidates_path: Path | None = None, *, confidence_level: float = .95,
-    reporting_database: Path | None = None,
+    reporting_database: Path | None = None, decision_column: str = "decision",
 ) -> EvaluationResult:
     """Compare actual classifications with central ratings and write evaluation artifacts."""
     if not 0 < confidence_level < 1:
         raise ValueError("confidence_level must be greater than zero and smaller than one")
     contract = source_contract(profile.source, profile.contract)
     identity = contract.identity
+    source_path = classifications_path
+    source_digest = file_hash(source_path)
+    with source_path.open(encoding="utf-8", newline="") as handle:
+        columns = list(csv.DictReader(handle).fieldnames or [])
+    if "classifier_supported_fields" not in columns:
+        raise ValueError("classifications require the current classifier_supported_fields column")
+    if decision_column != "decision":
+        if decision_column not in columns:
+            raise ValueError(f"classifications require explicit {decision_column} predictions")
+        rows = read_csv(source_path)
+        for row in rows:
+            if not row.get(decision_column):
+                raise ValueError(f"classifications require explicit {decision_column} predictions")
+            row.setdefault("pipeline_decision", row.get("decision", ""))
+            row["decision"] = row[decision_column]
+        classifications_path = output_dir / "evaluated_predictions.csv"
+        if classifications_path.resolve() == source_path.resolve():
+            raise ValueError("evaluation view must be separate from its original predictions")
+        atomic_write_csv(classifications_path, rows, list(dict.fromkeys([*columns, "pipeline_decision", "decision"])))
     fingerprints = {"classifications": file_hash(classifications_path)}
+    if decision_column != "decision":
+        fingerprints["classification_source"] = source_digest
     if candidates_path and candidates_path.is_file():
         fingerprints["candidates"] = file_hash(candidates_path)
     actual = _index_rows(classifications_path, identity)
-    with classifications_path.open(encoding="utf-8", newline="") as handle:
-        if "classifier_supported_fields" not in (csv.DictReader(handle).fieldnames or []):
-            raise ValueError("classifications require the current classifier_supported_fields column")
     classifier_metadata, supported_fields = _classifier_contract(actual)
     candidate_rows = _index_rows(candidates_path, identity) if candidates_path and candidates_path.is_file() else {}
     candidates_supplied = bool(candidates_path and candidates_path.is_file())
@@ -603,7 +621,7 @@ def evaluate_results(
         for row in field_metrics
     }
     metrics: dict[str, Any] = {
-        "source": profile.source, "evaluation_unit": profile.evaluation_unit,
+        "source": profile.source, "evaluation_unit": profile.evaluation_unit, "decision_column": decision_column,
         "entity_kind": contract.entity_kind, "source_display_name": contract.display_name or contract.name,
         "source_contract": contract.__dict__, "contract_fingerprint": contract.fingerprint,
         "reference_fingerprint": content_hash([profile.evaluation_unit, profile.entities, profile.classification_fields, profile.metadata]),
@@ -624,6 +642,7 @@ def evaluate_results(
         ]
         if positive_only else [],
         "ratings_path": str(profile.path), "classifications_path": str(classifications_path),
+        "classification_source_path": str(source_path) if decision_column != "decision" else None,
         **classifier_metadata,
         "classifier_supported_fields": "*" if supported_fields is None else sorted(supported_fields),
         "classifier_evidence_source_counts": dict(sorted(Counter(
@@ -732,7 +751,7 @@ def evaluate_results(
     heading = (
         "# Classification evaluation\n\n"
         f"- Reference set: {profile.metadata.get('benchmark_name', profile.path.stem)}\n"
-        f"- Source: `{profile.source}`\n- Evaluation unit: `{profile.evaluation_unit}`\n- Rated entities: {rated}\n"
+        f"- Source: `{profile.source}`\n- Evaluation unit: `{profile.evaluation_unit}`\n- Decision view: `{decision_column}`\n- Rated entities: {rated}\n"
     )
     field_summary = (
         f"- Metadata field accuracy: {metrics['classification_field_accuracy']:.4f} "
@@ -784,6 +803,7 @@ def evaluate_results(
     readme_path.write_text(heading + body, encoding="utf-8")
     outputs = [
         metrics_path, instances_path, confusion_path, fields_path, field_labels_path, readme_path,
+        *([classifications_path] if decision_column != "decision" else []),
     ]
     from radar.common.reporting import ReportingDatabase
 

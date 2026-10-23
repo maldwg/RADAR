@@ -42,9 +42,9 @@ traversal are optional capabilities. ``JsonTransport`` shares HTTP mechanics;
 study criteria and taxonomy do not belong in the transport or discovery layer.
 See :doc:`adapters` and :doc:`api` for the current contracts.
 
-Systematic reviews can combine OpenAlex, Semantic Scholar, and local-file
-discovery. Their shared runner retains provider memberships and deduplicates
-records using strong identifiers. Repository and dataset catalogue workflows
+Systematic reviews can combine OpenAlex and Semantic Scholar discovery. Their
+shared runner retains provider memberships and deduplicates records using strong
+identifiers. Repository and dataset catalogue workflows
 currently retain specialized collection, baseline, and reconciliation
 integrations. A discovery adapter alone does not enable a catalogue workflow.
 

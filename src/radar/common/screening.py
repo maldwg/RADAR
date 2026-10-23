@@ -26,11 +26,12 @@ class ScreeningProfile:
     quality_minimum: int
     provenance: dict[str, Any]
     sha256: str
+    quality_required: tuple[str, ...] = ()
 
     def prompt_rules(self) -> dict[str, Any]:
         """Return scientific prompt inputs without operational or reference data."""
         return {"eligibility": self.eligibility, "quality": self.quality,
-            "decision": {"strategy": self.strategy, "quality_minimum": self.quality_minimum}}
+            "decision": {"strategy": self.strategy, "quality_minimum": self.quality_minimum, "quality_required": list(self.quality_required)}}
 
 
 def _criteria(value: Any, name: str, required: bool = False) -> dict[str, str]:
@@ -72,21 +73,22 @@ def load_screening_profile(path: Path) -> ScreeningProfile:
     if set(eligibility) & set(quality):
         raise ValueError("eligibility and quality criterion IDs must be disjoint")
     decision = raw.get("decision")
-    if not isinstance(decision, dict) or set(decision) - {"strategy", "quality_minimum"}:
+    if not isinstance(decision, dict) or set(decision) - {"strategy", "quality_minimum", "quality_required"}:
         raise ValueError("screening decision requires a strategy and optional quality_minimum")
     strategy = decision.get("strategy")
     if not isinstance(strategy, str) or strategy not in STRATEGIES:
         raise ValueError(f"unsupported screening strategy: {strategy!r}")
-    if strategy != "criterion_assessment" and quality:
-        raise ValueError("catalogue screening strategies do not assess quality criteria")
     minimum = decision.get("quality_minimum", 0)
     if isinstance(minimum, bool) or not isinstance(minimum, int) or (
         quality and not 1 <= minimum <= len(quality)
-    ) or (not quality and "quality_minimum" in decision):
-        raise ValueError("quality_minimum requires quality criteria and must be between 1 and their count")
+    ) or (not quality and minimum != 0):
+        raise ValueError("quality_minimum must be 0 without quality criteria, or between 1 and their count otherwise")
+    required = decision.get("quality_required", [])
+    if not isinstance(required, list) or any(not isinstance(key, str) or key not in quality for key in required) or len(set(required)) != len(required):
+        raise ValueError("quality_required must contain distinct configured quality criterion IDs")
     provenance = raw.get("provenance", {})
     if not isinstance(provenance, dict):
         raise ValueError("screening provenance must be a table")
     if file_hash(path) != digest:
         raise ValueError("screening profile changed while loading")
-    return ScreeningProfile(path, protocol_id, strategy, *references, eligibility, quality, minimum, provenance, digest)
+    return ScreeningProfile(path, protocol_id, strategy, *references, eligibility, quality, minimum, provenance, digest, tuple(required))

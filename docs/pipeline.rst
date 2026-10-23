@@ -58,8 +58,12 @@ report separates actual classifier abstention from the unresolved-artifact rate.
 Baselines
 ~~~~~~~~~
 
-Run the deterministic keyword and local zero-shot NLI baselines, evaluate both, and rebuild the
-unified comparison plots without reclassifying any saved LLM result:
+All approaches retain independent relevance and content-quality outcomes.
+See :doc:`quality_assessment` for the shared criteria, each backend's assessment
+method and separate reports. Keyword quality is explicitly unassessed.
+
+Run the configured keyword, NLI and plain LLM baselines, evaluate their outputs, and rebuild
+the unified comparison plots without reclassifying any saved RADAR result:
 
 .. code:: bash
 
@@ -72,7 +76,7 @@ unified comparison plots without reclassifying any saved LLM result:
    radar --study ids_repositories baseline --evaluate-only
    radar --study ids_datasets baseline --methods nli --evaluate-only
 
-Keyword, local NLI, and Ollama NLI read **collection-time evidence snapshots**,
+Keyword, local NLI, Ollama NLI and plain LLM read **collection-time evidence snapshots**,
 not the mutable working cache. Collection saves the original payload under
 ``<record-namespace>.collected`` before later prefilter/classification enrichment.
 For GitHub this includes the README and documentation fetched during initial
@@ -96,7 +100,9 @@ Recollecting changes the experiment; retain the earlier results separately and
 rerun the compared approaches on the new cohort. ``--evaluate-only`` evaluates
 saved predictions and does not repair historical evidence or rerun classifiers.
 
-The command processes every row in the candidate audit, including discovery-band ``reject`` rows.
+Keyword and NLI methods process every row in the candidate audit, including discovery-band
+``reject`` rows. Plain LLM follows RADAR's configured eligible shortlist and classification cap.
+See :doc:`plain_llm` for its single-request policy, configuration and research interpretation.
 Keyword relevance thresholds are configured under ``[baselines.keyword.github]`` and
 ``[baselines.keyword.openalex]``. A result is accepted only when its broad evidence score reaches
 ``accept_threshold`` and its configured role is eligible; the middle band abstains, explicit
@@ -287,9 +293,9 @@ and scientific criteria. Repository screening and catalogue reconciliation retai
 scientific rules. Reference profiles feed evaluation only.
 
 The system figure shows the shared adapter contracts and provider registry for GitHub, OpenAlex,
-Semantic Scholar, and local CSV/JSON input; collection and evidence modules; the Ollama client and
-configured model families; and study outputs, reporting, and provenance. Semantic Scholar and
-local-file discovery currently support review studies. Stored cohorts, assessments, and state remain
+and Semantic Scholar; collection and evidence modules; the Ollama client and configured model
+families; and study outputs, reporting, and provenance. Semantic Scholar discovery currently
+supports review studies. Stored cohorts, assessments, and state remain
 scoped to each study and model.
 
 All catalogue, evaluation, comparison, and funnel builders use ``plots.formats``. The default

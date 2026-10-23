@@ -30,7 +30,8 @@ Ownership
      shared/
        runtime.toml                    # logging and backend connection
        models.toml                     # model names, revisions and inference settings
-       sources/*.toml                  # GitHub, OpenAlex, Semantic Scholar and local transport
+       quality.toml                    # shared quality prompts, evidence limits and NLI defaults
+       sources/*.toml                  # GitHub, OpenAlex and Semantic Scholar
      studies/
        ids_repositories/
          study.toml                    # entry point and explicit file references
@@ -249,11 +250,15 @@ uncertainty. Review ensembles require completed model checkpoints with the same 
 protocol, prompt and full-text evidence. These repeated votes are not independent statistical
 confidence estimates.
 
+All workflows select shared quality-assessment configuration through ``study.toml``
+and define their own criteria and pass thresholds in ``screening.toml``; see
+:doc:`quality_assessment` for thresholds, backend support and separate evaluation views.
 The review retains its five-of-nine quality protocol. GitHub documentation controls and dataset
 release-family reconciliation remain specific to their entities. Review release-family
 reconciliation and keyword/NLI baselines are rejected because its scientific classifier does not
-implement those operations. Shared paper acquisition and prefilter settings are implemented for both
-studies.
+implement those operations. The single-pass ``plain_llm`` baseline is supported for all three
+workflows; see :doc:`plain_llm` for model settings and evidence policies. Shared paper acquisition
+and prefilter settings are implemented for both paper studies.
 
 .. _configuration-manifest:
 
@@ -264,7 +269,8 @@ The manifest schema is ``2.0``; the individual profile schemas remain ``1.0``. E
 directory reference resolves relative to the file declaring it, including the reference sets and
 ``output_root``. No project-root or working-directory heuristics are used.
 
-Every manifest declares ``pipeline = "pipeline.toml"`` and ``screening = "screening.toml"``. Source
+Every manifest declares ``pipeline = "pipeline.toml"``, ``screening = "screening.toml"``
+and an explicit ``quality = "../../shared/quality.toml"`` reference. Source
 entries contain only ``name``, ``profile`` and ``search``. Keyword/NLI profiles are declared at
 study level alongside ``methods``; scientific prompts and taxonomy are selected by
 ``screening.toml``. Separate workflow-specific ``collection`` or ``assessment`` manifest tables are
@@ -291,14 +297,13 @@ generic eligibility/quality screening engine.
      - OpenAlex
      - Dataset/generator release classifications and artifact catalogue
    * - ``systematic_review``
-     - OpenAlex, Semantic Scholar, local files
+     - OpenAlex, Semantic Scholar
      - Evidence-backed criterion judgments and configured extraction fields
 
 These are execution engines, not study-name branches. A new study can reuse an engine under an
 arbitrary identifier. Source/workflow combinations are checked before execution. Semantic Scholar
-supplies both paper discovery and optional scholarly evidence enrichment for reviews. Local files
-can supply exported review candidates. Catalogue workflows retain their specialized source
-restrictions. Unknown APIs cannot be enabled merely by adding their name to a manifest.
+supplies both paper discovery and optional scholarly evidence enrichment for reviews. Catalogue
+workflows retain their specialized source restrictions. Unknown APIs cannot be enabled merely by adding their name to a manifest.
 
 .. _configuration-adding-a-study:
 

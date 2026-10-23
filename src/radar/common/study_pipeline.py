@@ -10,6 +10,8 @@ from typing import Any
 
 import requests
 
+from radar.common.quality import QUALITY_COLUMNS
+from radar.common.quality_config import render_quality_prompt
 from radar.common.csvio import atomic_write_csv
 from radar.common.logging import logger
 from radar.common.limits import optional_limit
@@ -28,7 +30,7 @@ from radar.common.study_screening import (
 )
 
 LOG = logger("study")
-PROMPT_VERSION = "external-review-block-assessment-v1"
+PROMPT_VERSION = "external-review-independent-quality-v2"
 
 
 def collect_study(profile_path: Path, output: Path, *, limit: int | str | None = 100,
@@ -141,6 +143,8 @@ def _judgment_schema(values: list[str]) -> dict[str, Any]:
 def load_assessment_template(protocol: Any) -> tuple[str, Path, str]:
     """Load a study-owned prompt and require only blind assessment inputs."""
     path = load_screening_profile(protocol.path).prompt_path
+    if file_hash(protocol.quality_config_path) != protocol.quality_config['_sha256']:
+        raise ValueError('quality configuration changed before assessment')
     digest = file_hash(path)
     with path.open("rb") as handle:
         prompt = tomllib.load(handle)
@@ -155,11 +159,15 @@ def load_assessment_template(protocol: Any) -> tuple[str, Path, str]:
 def _assessment_prompt(protocol: Any, fields: dict[str, Any], row: dict[str, Any], template: str, index: EvidenceBlockIndex) -> tuple[str, dict[str, Any]]:
     """Build a blind assessment prompt and its response schema."""
     criteria = {key: _judgment_schema(["yes", "no", "unknown"]) for key in [*protocol.filters, *protocol.quality]}
+    limit = protocol.quality_config["evidence"]["max_block_passages"]
+    if limit:
+        for key in protocol.quality:
+            criteria[key]["properties"]["evidence_ids"]["maxItems"] = limit
     taxonomy = {key: _judgment_schema(spec["values"]) for key, spec in fields.items()}
     schema = {"type": "object", "additionalProperties": False, "required": ["criteria", "fields"], "properties": {
         "criteria": {"type": "object", "additionalProperties": False, "required": list(criteria), "properties": criteria},
         "fields": {"type": "object", "additionalProperties": False, "required": list(taxonomy), "properties": taxonomy}}}
-    prompt = Template(template).substitute(eligibility=json.dumps(protocol.filters), quality=json.dumps(protocol.quality),
+    prompt = Template(template).substitute(eligibility=json.dumps(protocol.filters), quality=render_quality_prompt(protocol.quality, protocol.quality_config, "blocks"),
         fields=json.dumps(fields), evidence=json.dumps({'title': row.get('title', ''), 'abstract': row.get('abstract', ''),
             'full_text_complete': row.get('full_text_complete', False),
             'evidence_fingerprint': index.fingerprint, 'evidence_blocks': index.prompt_blocks()}, ensure_ascii=False))
@@ -177,11 +185,14 @@ def _assessment_errors(answer: Any, protocol: Any, fields: dict[str, Any], index
     errors = {}
     for section, specifications_for_section in specifications.items():
         judgments = answer[section]
-        if not isinstance(judgments, dict) or set(judgments) != set(specifications_for_section):
+        if not isinstance(judgments, dict) or set(judgments) - set(specifications_for_section):
             errors[section] = "assess exactly the required keys"
             continue
         for key, values in specifications_for_section.items():
-            error = index.judgment_error(judgments[key], values)
+            error = "missing required criterion" if key not in judgments else index.judgment_error(judgments[key], values)
+            limit = protocol.quality_config["evidence"]["max_block_passages"]
+            if not error and section == "criteria" and key in protocol.quality and limit and len(judgments[key]["evidence_ids"]) > limit:
+                error = "quality evidence_ids exceeds configured max_block_passages"
             if error:
                 errors[f"{section}.{key}"] = error
     return errors
@@ -206,6 +217,15 @@ def _assess_once(record: dict[str, Any], protocol: Any, fields: dict[str, Any], 
         vote["attempts"].append(entry)
         answer = copy.deepcopy(response)
         errors = _assessment_errors(answer, protocol, fields, index)
+        quality_errors = {path: reason for path, reason in errors.items() if path.startswith("criteria.") and path.split(".")[1] in protocol.quality}
+        if quality_errors:
+            vote["quality_errors"] = {path: reason for path, reason in quality_errors.items()
+                if reason != "evidence_ids must select distinct blocks from supplied full_text"}
+            for path, reason in quality_errors.items():
+                if reason == "evidence_ids must select distinct blocks from supplied full_text":
+                    vote.setdefault("unsupported_evidence", []).append({"field": path, "judgment": copy.deepcopy(answer["criteria"].get(path.split(".")[1])), "reason": reason})
+                answer["criteria"][path.split(".")[1]] = {"value": "unknown", "evidence_ids": []}
+            errors = {path: reason for path, reason in errors.items() if path not in quality_errors}
         if errors:
             entry["validation_error"] = "; ".join(f"{key}: {reason}" for key, reason in errors.items())
             if any(reason != "evidence_ids must select distinct blocks from supplied full_text" for reason in errors.values()):
@@ -215,7 +235,7 @@ def _assess_once(record: dict[str, Any], protocol: Any, fields: dict[str, Any], 
                 group, key = path.split(".")
                 unresolved.append({"field": path, "judgment": copy.deepcopy(answer[group][key]), "reason": reason})
                 answer[group][key] = {"value": "unknown", "evidence_ids": []}
-            vote["unsupported_evidence"] = unresolved
+            vote.setdefault("unsupported_evidence", []).extend(unresolved)
             LOG.warning("unsupported study evidence paper_id=%s run=%s fields=%s; using unknown",
                 record[protocol.contract.identity], label, ",".join(errors))
         _validate_assessment(answer, protocol, fields, index)
@@ -253,7 +273,7 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
                    evidence_lookup_timeout_seconds: float = 30, enrich_missing_abstracts: bool = False,
                    enrich_missing_full_text: bool = False, full_text_lookup_providers: list[str] | None = None,
                    enrich_uncertain_with_full_text: bool = False, classify_borderline: bool = True,
-                   evidence_service: PaperEvidenceService | None = None) -> list[dict[str, Any]]:
+                   evidence_service: PaperEvidenceService | None = None, quality_path: Path | None = None) -> list[dict[str, Any]]:
     """Repeat validated assessments, vote, replay rules, and checkpoint each record."""
     from radar.common.study_consensus import combine_assessments, normalize_consensus, validate_consensus
 
@@ -265,7 +285,7 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
         raise ValueError("max_full_text_chars must be a positive integer")
     if isinstance(evidence_lookup_timeout_seconds, bool) or not isinstance(evidence_lookup_timeout_seconds, (int, float)) or not 0 < evidence_lookup_timeout_seconds < float('inf'):
         raise ValueError("evidence_lookup_timeout_seconds must be finite and positive")
-    protocol = load_study_protocol(protocol_path)
+    protocol = load_study_protocol(protocol_path, quality_path=quality_path)
     fields = load_assessment_fields(protocol)
     template, prompt_path, prompt_digest = load_assessment_template(protocol)
     input_digest = file_hash(input_path)
@@ -287,7 +307,7 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
     config = {**ollama_config, "max_output_tokens": max(4000, int(ollama_config.get("max_output_tokens", 4000)))}
     model = str(config.get("model", ""))
     fingerprint = content_hash({"protocol": protocol.sha256, "source_profile": protocol.source_profile_sha256,
-        "prompt": PROMPT_VERSION, "prompt_sha256": prompt_digest, "model": model,
+        "prompt": PROMPT_VERSION, "prompt_sha256": prompt_digest, "quality_config_sha256": protocol.quality_config["_sha256"], "model": model,
         "evidence_block_version": EVIDENCE_BLOCK_VERSION, "evidence_block_max_chars": MAX_BLOCK_CHARS,
         "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens')},
         "max_chars": max_chars, "evidence_policy": evidence_policy, "evidence_retrieval_policy": FULL_TEXT_RETRIEVAL_POLICY, "classify_borderline": classify_borderline, "dry_run": dry_run,
@@ -302,7 +322,8 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
     payload = {"schema_version": "1.0", "fingerprint": fingerprint, "completed": False,
         "input_sha256": input_digest, "protocol_sha256": protocol.sha256,
         "source_profile_sha256": protocol.source_profile_sha256,
-        "prompt_version": PROMPT_VERSION, "prompt_sha256": prompt_digest, "model": model,
+        "prompt_version": PROMPT_VERSION, "prompt_sha256": prompt_digest, "quality_config_sha256": protocol.quality_config["_sha256"],
+        "quality_config_path": str(protocol.quality_config_path), "quality_config": protocol.quality_config, "model": model,
         "evidence_retrieval_policy": FULL_TEXT_RETRIEVAL_POLICY,
         "evidence_block_version": EVIDENCE_BLOCK_VERSION, "evidence_block_max_chars": MAX_BLOCK_CHARS,
         "inference": {k: config.get(k) for k in ('temperature', 'seed', 'context_length', 'max_output_tokens', 'timeout_seconds', 'retries')},
@@ -335,7 +356,7 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
             record = combine_assessments(record, votes, protocol, fields, consensus_threshold)
             initial_votes = votes
             attempted, changed = False, False
-            if not dry_run and enrich_uncertain_with_full_text and normalize_consensus(record, protocol)["decision"] == "uncertain":
+            if not dry_run and enrich_uncertain_with_full_text and normalize_consensus(record, protocol)["relevance_decision"] == "uncertain":
                 attempted = True
                 discovered = evidence_service.enrich(record)
                 changed = merge_new_evidence(record, discovered)
@@ -374,11 +395,11 @@ def classify_study(protocol_path: Path, input_path: Path, output: Path, ollama_c
         _write_json(checkpoint, payload)
         LOG.info("study classification %d/%d status=%s decision=%s", position, len(selected), record["assessment_status"], normalized["decision"])
     if not rows:
-        atomic_write_csv(output, [], [protocol.contract.identity, "decision", "classifier_supported_fields", *fields])
+        atomic_write_csv(output, [], [protocol.contract.identity, "decision", "classifier_supported_fields", *fields, *QUALITY_COLUMNS])
         payload["output_sha256"] = file_hash(output)
-    if file_hash(input_path) != input_digest or file_hash(prompt_path) != prompt_digest:
-        raise ValueError("study candidate or assessment prompt changed during classification")
-    current_protocol = load_study_protocol(protocol_path)
+    if file_hash(input_path) != input_digest or file_hash(prompt_path) != prompt_digest or file_hash(protocol.quality_config_path) != protocol.quality_config["_sha256"]:
+        raise ValueError("study candidates, assessment prompt or shared quality configuration changed during classification")
+    current_protocol = load_study_protocol(protocol_path, quality_path=quality_path)
     if (current_protocol.sha256, current_protocol.source_profile_sha256) != (protocol.sha256, protocol.source_profile_sha256):
         raise ValueError("study protocol inputs changed during classification")
     payload["completed"] = True

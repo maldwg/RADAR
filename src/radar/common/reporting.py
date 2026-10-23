@@ -151,8 +151,9 @@ class ReportingDatabase:
             raise ValueError("evaluation import requires current reference, taxonomy and classification fingerprints")
         if metrics.get("candidates_path") and (not fingerprints.get("candidates") or not metrics.get("cohort_fingerprint")):
             raise ValueError("evaluation import requires candidate and cohort fingerprints")
+        classification_source = Path(metrics.get("classification_source_path") or "")
         provenance = "frozen_inputs"
-        for role, path in (("classifications", classifications), ("candidates", candidates)):
+        for role, path in (("classifications", classifications), ("candidates", candidates), ("classification_source", classification_source)):
             if fingerprints.get(role) and (not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != fingerprints[role]):
                 raise ValueError(f"cannot import {role}: input changed since evaluation")
         run_id = content_hash([contract.fingerprint, fingerprints, metrics.get("classifier_id"), instances])
@@ -169,6 +170,8 @@ class ReportingDatabase:
                 if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
                     raise ValueError(f'cannot import reference input: missing or changed {path}')
                 self.snapshot(path, 'reference_input')
+            if metrics.get("classification_source_path"):
+                self.snapshot(classification_source, "classification_source")
             records: dict[str, tuple[str, str]] = {}
             for role, path in (("candidates", candidates), ("classifications", classifications)):
                 if not path.is_file():

@@ -138,7 +138,10 @@ def build_models(source: str, model_inputs: dict[str, Path], out_dir: Path, conf
     decisions: list[pd.Series] = []
     labels: dict[str, str] = {}
     for model, path in model_inputs.items():
-        frame = load_frame(path, (identity, "decision"))
+        decision_column = str(config.get("decision_column", "decision"))
+        frame = load_frame(path, (identity, decision_column))
+        if decision_column != "decision":
+            frame["decision"] = frame[decision_column]
         if frame[identity].eq('').any() or frame[identity].duplicated().any():
             raise ValueError(f'missing or duplicate identity in model comparison: {path}')
         if label_column not in frame:
@@ -472,6 +475,10 @@ def build_classifiers(
         evaluation_units.add(str(metrics.get("evaluation_unit", "")))
     if len(loaded) < 2:
         raise ValueError("classifier comparison requires at least two readable metrics.json files")
+    decision_columns = {metrics.get("decision_column", "decision") for metrics in loaded.values()}
+    if len(decision_columns) != 1:
+        raise ValueError("classifier comparison mixes incompatible decision views")
+    config = {**config, "decision_column": next(iter(decision_columns))}
     if len(evaluation_units) != 1:
         raise ValueError("classifier metrics must use the same evaluation unit")
     for key in ("reference_fingerprint", "taxonomy_fingerprint", "cohort_fingerprint"):
@@ -484,6 +491,10 @@ def build_classifiers(
     for label, metrics in loaded.items():
         path = classification_inputs.get(label)
         expected = metrics.get('input_fingerprints', {}).get('classifications')
+        source_path = metrics.get('classification_source_path')
+        source_digest = metrics.get('input_fingerprints', {}).get('classification_source')
+        if source_path and (not source_digest or not Path(source_path).is_file() or file_hash(Path(source_path)) != source_digest):
+            raise ValueError(f'classifier source changed since evaluation: {label}')
         if not expected or path is None:
             raise ValueError(f'classifier comparison requires pinned classifications: {label}')
         if not path.is_file() or file_hash(path) != expected:
@@ -763,6 +774,9 @@ def build_classifiers(
             source, available_classifications, out_dir / "agreement", config,
             SourceContract(**metadata) if metadata else None,
         )
+    from radar.plotting.quality import build_quality_reports
+
+    outputs.extend(build_quality_reports(available_classifications, out_dir / "quality", config))
     readme = out_dir / "README.md"
     readme.parent.mkdir(parents=True, exist_ok=True)
     readme.write_text(

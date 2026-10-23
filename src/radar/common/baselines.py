@@ -17,14 +17,16 @@ from radar.common.text import normalize_text, stable_hash
 
 
 LOG = logger("baselines")
-BASELINE_VERSION = "keyword-baseline-4"
+BASELINE_VERSION = "keyword-baseline-5"
 KNOWN_BASELINE_METHODS = ("keyword", "nli", "llm_nli", "plain_llm")
 IMPLEMENTED_BASELINE_METHODS = KNOWN_BASELINE_METHODS
+from radar.common.quality import QUALITY_COLUMNS, finish_quality
+
 CLASSIFIER_COLUMNS = [
     "classifier_method", "classifier_id", "classifier_profile_hash",
     "classifier_supported_fields", "classifier_evidence_source",
     "classifier_evidence_policy", "classifier_evidence_snapshot_hash",
-]
+] + QUALITY_COLUMNS
 KEYWORD_AUDIT_COLUMNS = [
     "keyword_score", "keyword_band", "keyword_signals",
     "keyword_accept_threshold", "keyword_uncertain_threshold",
@@ -394,7 +396,8 @@ def classify_keyword_baseline(
     inputs = baseline_inputs(source, candidates_path, cache)
     if taxonomy_profile.source != source:
         raise ValueError(f"keyword taxonomy source must be {source!r}")
-    profile_hash = keyword_profile_hash(source, term_profile, config, taxonomy_profile)
+    quality_rules = (adapter_config or {}).get("quality_rules", {})
+    profile_hash = stable_hash(keyword_profile_hash(source, term_profile, config, taxonomy_profile), json.dumps(quality_rules, sort_keys=True))
     decision_namespace = f"{source}.baseline.keyword"
     results: list[dict[str, str]] = []
     reused = 0
@@ -459,6 +462,7 @@ def classify_keyword_baseline(
             "keyword_taxonomy_scores_json": json.dumps(taxonomy_scores, sort_keys=True),
             "keyword_taxonomy_signals_json": json.dumps(taxonomy_signals, ensure_ascii=False, sort_keys=True),
         })
+        finish_quality(result, quality_rules, {}, "keyword", supported=[])
         serialized = {str(name): str(value) for name, value in result.items()}
         cache.put_decision(decision_namespace, key, profile_hash, evidence_hash, serialized, classified_at)
         results.append(serialized)

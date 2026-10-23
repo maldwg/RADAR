@@ -8,5 +8,14 @@ E1 = "An includable repository must make a concrete, material intrusion-detectio
 E2 = "A native_detector requires runtime_observation, reproducible_execution, implements_detection_engine, no external detector requirement, no cohesive framework architecture, and must not be offline_dataset_only. A classifier_engine requires reproducible_execution and implemented detection logic. A detection_framework additionally requires cohesive_framework_architecture. A detection_platform requires reproducible_execution and multiple-detector integration. A traffic_analyzer requires reproducible_execution; offline PCAP or record analysis is permitted, and neither a detection engine nor live observation is required. An antivirus requires reproducible_execution, file_analysis, and a detection capability; live/runtime observation, a native engine, and intrusion alerts are not required, and external scanning engines are permitted. A research_project requires reproducible_execution and research_basis; a substantive executable notebook may qualify, but a merely illustrative notebook is a demo. Installation instructions for an external detector do not establish that this repository is a native detector."
 E3 = "Extract upstream_full_name only when evidence explicitly identifies an upstream GitHub owner/repository. A fork is independent only with direct evidence of materially distinct functionality, not merely commits, packaging, maintenance, or renaming. Missing or sparse documentation is not evidence of exclusion: choose uncertain whenever evidence cannot positively establish either an includable role or an out-of-scope role. Every material claim must be supported by exact short quotes from the correctly named evidence sections."
 
+[quality]
+Q1 = "The artifact documentation clearly describes its purpose and principal security function."
+Q2 = "The artifact documentation describes its input observations or data and the outputs it produces."
+Q3 = "The artifact documentation describes required dependencies, configuration or execution environment."
+Q4 = "The artifact documentation provides a concrete usage example or execution workflow."
+Q5 = "The artifact documentation describes evaluation, validation, limitations or operational constraints."
+
 [decision]
 strategy = "repository_role_validation"
+quality_minimum = 3
+quality_required = ["Q1", "Q4"]

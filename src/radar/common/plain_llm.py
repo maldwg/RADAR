@@ -10,6 +10,7 @@ from typing import Any
 
 import requests
 
+from radar.common.quality import QUALITY_COLUMNS, assess_llm_quality, finish_quality, quality_schema
 from radar.common.baselines import CLASSIFIER_COLUMNS, baseline_inputs
 from radar.common.cache import COLLECTED_EVIDENCE_POLICY, PipelineCache, collected_record_hash
 from radar.common.config import ConfigError, Settings, load_prompt_profile, load_system_type_profile
@@ -27,7 +28,7 @@ from radar.common.sources import content_hash
 from radar.common.text import slug
 
 LOG = logger("plain_llm")
-VERSION = "plain-llm-1"
+VERSION = "plain-llm-2"
 REVIEW_EVIDENCE_POLICY = "frozen-review-collection-v1"
 AUDIT_COLUMNS = ["plain_llm_model_digest", "plain_llm_prompt_hash", "plain_llm_schema_hash",
     "plain_llm_raw_response", "plain_llm_response_metadata_json", "plain_llm_elapsed_seconds",
@@ -175,7 +176,7 @@ def plain_llm_task(settings: Settings, source: str, payload: dict) -> tuple[str,
         from radar.common.study_pipeline import _assessment_prompt, load_assessment_fields, load_assessment_template
         from radar.common.study_screening import load_study_protocol
 
-        protocol = load_study_protocol(settings.path("screening"))
+        protocol = load_study_protocol(settings.path("screening"), quality_path=settings.path("quality"))
         fields = load_assessment_fields(protocol)
         template, _, _ = load_assessment_template(protocol)
         record = copy.deepcopy(payload)
@@ -189,9 +190,8 @@ def plain_llm_task(settings: Settings, source: str, payload: dict) -> tuple[str,
         if record.get("full_text_structure"):
             record["full_text_structure"] = clip_structure(record["full_text_structure"], max_chars)
         prompt, schema = _assessment_prompt(protocol, fields, record, template, EvidenceBlockIndex.from_record(record))
-        instruction = (f"Make the final review decision yourself: accept requires all eligibility rules to be yes "
-            f"and at least {protocol.quality_minimum} quality rules to be yes. Exclude if an eligibility rule is no "
-            "or the quality minimum cannot be reached even if all unknown quality rules were yes. Otherwise return uncertain.")
+        instruction = ("Make the relevance decision yourself: accept requires every eligibility rule to be yes; "
+            "exclude if any eligibility rule is no; otherwise return uncertain.")
         decisions = ["accept", "exclude", "uncertain"]
     elif source == "github":
         from radar.github.pipeline import evidence_sections, prompt as build_prompt
@@ -217,6 +217,8 @@ def plain_llm_task(settings: Settings, source: str, payload: dict) -> tuple[str,
         schema["properties"]["primary_reason"] = {"type": "string"}
         schema["required"].append("primary_reason")
     prompt += "\nFINAL DECISION\n" + instruction + " Return all previously requested fields plus decision and primary_reason, matching the complete response schema."
+    if workflow != "systematic_review":
+        schema = quality_schema(schema, settings.section("screening"))
     return prompt, schema
 
 
@@ -265,10 +267,10 @@ def plain_llm_profile(settings: Settings, model: str, digest: str) -> dict:
     return {"version": VERSION, "model": model, "model_digest": digest,
         "workflow": settings.section("study").get("workflow"),
         "generation": {key: config[key] for key in ("temperature", "seed", "context_length", "max_output_tokens", "timeout_seconds")},
-        "profiles": {name: file_hash(settings.path(name)) for name in ("screening", "taxonomy", "prompts")},
+        "profiles": {name: file_hash(settings.path(name)) for name in ("screening", "taxonomy", "prompts", "quality")},
         "evidence_max_chars": settings.section("pipeline").get("evidence", {}).get("max_full_text_chars", 120000),
         "evidence_policy": REVIEW_EVIDENCE_POLICY if settings.section("study").get("workflow") == "systematic_review" else COLLECTED_EVIDENCE_POLICY,
-        "requests_per_candidate": 1, "retries": 0, "enrichment": False, "reconciliation": False, "voting": False}
+        "quality_policy": "content-quality-v1", "requests_per_candidate": 1, "retries": 0, "enrichment": False, "reconciliation": False, "voting": False}
 
 
 def classify_plain_llm(settings: Settings, source: str, candidates_path: Path, output: Path,
@@ -282,7 +284,7 @@ def classify_plain_llm(settings: Settings, source: str, candidates_path: Path, o
         from radar.common.study_screening import load_study_protocol
 
         metadata_columns = [identity, "title", "doi", "publication_year", "source_memberships", "identifiers"]
-        fields = list(load_study_protocol(settings.path("screening")).contract.fields)
+        fields = list(load_study_protocol(settings.path("screening"), quality_path=settings.path("quality")).contract.fields)
         columns = metadata_columns + fields + ["criteria_json", "field_assessments_json", "decision", "primary_reason", "error", "classified_at", "model"]
     else:
         if source == "github":
@@ -291,7 +293,7 @@ def classify_plain_llm(settings: Settings, source: str, candidates_path: Path, o
             from radar.openalex.schema import CANDIDATE_COLUMNS, CLASSIFICATION_COLUMNS
         metadata_columns = CANDIDATE_COLUMNS
         columns = CLASSIFICATION_COLUMNS
-    columns = list(dict.fromkeys([*columns, *CLASSIFIER_COLUMNS, *AUDIT_COLUMNS, "profile_hash", "llm_model", "pipeline_version", "evidence_hash"]))
+    columns = list(dict.fromkeys([*columns, *CLASSIFIER_COLUMNS, *QUALITY_COLUMNS, *AUDIT_COLUMNS, "profile_hash", "llm_model", "pipeline_version", "evidence_hash"]))
     profile = plain_llm_profile(settings, model, digest)
     profile_hash = content_hash(profile)
     input_digest = file_hash(candidates_path)
@@ -337,19 +339,50 @@ def classify_plain_llm(settings: Settings, source: str, candidates_path: Path, o
                 expected_models = {model, model + ":latest"} if ":" not in model.rsplit("/", 1)[-1] else {model}
                 if metadata.get("model") not in expected_models:
                     raise ValueError("response model differs from the selected plain LLM")
-                validate_structure(answer, schema)
+                core_answer, core_schema = copy.deepcopy(answer), copy.deepcopy(schema)
+                if review:
+                    quality_keys = set(settings.section("screening").get("quality", {}))
+                    core_schema["properties"]["criteria"]["required"] = [key for key in core_schema["properties"]["criteria"]["required"] if key not in quality_keys]
+                    core_schema["properties"]["criteria"]["properties"] = {key: value for key, value in core_schema["properties"]["criteria"]["properties"].items() if key not in quality_keys}
+                    if isinstance(core_answer, dict) and isinstance(core_answer.get("criteria"), dict):
+                        core_answer["criteria"] = {key: value for key, value in core_answer["criteria"].items() if key not in quality_keys}
+                elif "quality" in core_schema["properties"]:
+                    core_schema["properties"].pop("quality")
+                    core_schema["required"].remove("quality")
+                    if isinstance(core_answer, dict):
+                        core_answer.pop("quality", None)
+                validate_structure(core_answer, core_schema)
                 if review:
                     row.update({name: _cell(judgment["value"]) for name, judgment in answer["fields"].items()})
                     row.update(criteria_json=_cell(answer["criteria"]), field_assessments_json=_cell(answer["fields"]),
                         decision=answer["decision"], primary_reason=answer["primary_reason"])
                 else:
-                    row.update({key: _cell(value) for key, value in answer.items() if key != "evidence"})
+                    row.update({key: _cell(value) for key, value in answer.items() if key not in {"evidence", "quality"}})
                     row.update(model_evidence_json=_cell(answer["evidence"]), evidence_json=_cell(answer["evidence"]), evidence_quote_verified="false")
                     if source == "openalex":
                         row["resource_name"] = answer["artifact_display_name"]
+                if review:
+                    judgments, quality_errors = {}, []
+                    for key in settings.section("screening").get("quality", {}):
+                        try:
+                            judgment = answer["criteria"].get(key)
+                            validate_structure(judgment, schema["properties"]["criteria"]["properties"][key])
+                            judgments[key] = {"value": judgment["value"], "evidence": [{"block_id": identifier} for identifier in judgment["evidence_ids"]], "evidence_verified": False}
+                        except (ValueError, TypeError):
+                            quality_errors.append(key)
+                    finish_quality(row, settings.section("screening"), judgments, "plain_llm",
+                        error="invalid_quality_response:" + ",".join(quality_errors) if quality_errors else "", evidence_hash=input_hash)
+                else:
+                    from radar.github.pipeline import evidence_sections as github_sections
+                    from radar.openalex.pipeline import evidence_sections as paper_sections
+
+                    assess_llm_quality(row, answer.get("quality"), (github_sections if source == "github" else paper_sections)(payload),
+                        settings.section("screening"), grounded=False, backend="plain_llm")
             except (ValueError, RuntimeError, requests.RequestException) as exc:
                 row.update(decision="error", error=str(exc), plain_llm_status="error", plain_llm_error_type=type(exc).__name__)
                 LOG.warning("plain LLM failed source=%s model=%s id=%s error=%s", source, model, candidate[identity], type(exc).__name__)
+            if "quality_status" not in row:
+                finish_quality(row, settings.section("screening"), {}, "plain_llm", error="classification_failed")
             metadata = {key: client.last_response[key] for key in METRICS if client.last_response and key in client.last_response}
             row.update(plain_llm_raw_response=client.last_raw_response, plain_llm_response_metadata_json=_cell(metadata),
                 plain_llm_elapsed_seconds=str(client.last_elapsed_seconds))

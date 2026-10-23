@@ -266,6 +266,9 @@ class ConformalAlignmentTests(unittest.TestCase):
             with (PROFILE / 'evaluation/references.toml').open('rb') as handle:
                 records[0]['title'] = tomllib.load(handle)['entities'][0]['title']
             source.write_text(json.dumps(records))
+            # This fixture checks RADAR model/ensemble reports; plain inference has its own integration tests.
+            baselines = manifest.parent / 'baselines/settings.toml'
+            baselines.write_text(baselines.read_text().replace('enabled = true', 'enabled = false'))
             with patch('radar.common.study_pipeline.OllamaClient', return_value=SequenceModel([answer()])), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(['--config', str(manifest), 'run', '--input', str(source)]), 0)
             settings = load_settings(manifest)

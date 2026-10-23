@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from radar.common.quality import assess_llm_quality, finish_quality, quality_consensus, quality_prompt, quality_schema
+
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -157,7 +159,7 @@ def prompt(sections: list[EvidenceSection], prompt_config: dict[str, Any] | None
         "environments": description_block(settings, "environments", ENVIRONMENTS),
         "labeling": description_block(settings, "labeling", LABELING),
     }
-    return render_prompt(settings, blocks, format_evidence(sections))
+    return quality_prompt(render_prompt(settings, blocks, format_evidence(sections)), settings.get("screening", {}))
 
 
 def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_config: dict[str, Any], limit: int | None = None, resume: bool = True, dry_run: bool = False, generator: Generator | None = None, prompt_config: dict[str, Any] | None = None, openalex_config: dict[str, Any] | None = None, enricher: EvidenceAdapter | None = None, consecutive_runs: int = 1, consensus_threshold: float = 0.5) -> list[dict[str, str]]:
@@ -187,6 +189,8 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
             "max_full_text_chars": int(enrichment_config.get("max_full_text_chars", 30000)),
         },
     }
+    quality_rules = (prompt_config or {}).get("screening", {})
+    decision_config["quality_policy"] = "content-quality-v1"
     profile_hash = decision_profile(model, PROMPT_VERSION, ollama_config, decision_config)
     results: list[dict[str, str]] = []
     new_decisions = 0
@@ -262,19 +266,25 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                 interrupted = False
                 for run_index in range(len(votes) + 1, consecutive_runs + 1):
                     vote = dict(result)
+                    vote.pop("relevance_decision", None)
                     try:
-                        raw = client.generate(prompt(active_sections, prompt_config), RESPONSE_SCHEMA)  # type: ignore[union-attr]
+                        raw = client.generate(prompt(active_sections, prompt_config), quality_schema(RESPONSE_SCHEMA, quality_rules))  # type: ignore[union-attr]
                         verified, _ = verify_evidence(raw.get("evidence"), active_sections)
                         artifact_name = str(raw.get("artifact_name", "")).strip()
                         artifact_id = f"{slug(artifact_name)}-{stable_hash(normalize_text(artifact_name), length=8)}" if artifact_name else ""
                         vote.update(normalize_response(raw, verified, ollama_config, artifact_id))
+                        assess_llm_quality(vote, raw.get("quality"), active_sections, quality_rules, grounded=True)
                     except Exception as exc:
                         vote.update({"decision": "error", "paper_role": "", "relevance_tier": "", "artifact_id": "", "artifact_name": "", "artifact_display_name": "", "resource_name": "", "artifact_aliases": "", "artifact_type": "", "domain": "", "data_form": "", "capture_environment": "", "labeling": "", "direct_release_evidence": "", "primary_reason": "", "classification_validation_flags": "classification_error", "model_evidence_json": "", "evidence_json": "", "evidence_quote_verified": "false", "error": str(exc)[:1000]})
+                    if "quality_status" not in vote or vote.get("decision") == "error":
+                        finish_quality(vote, quality_rules, {}, "radar_llm", error="classification_failed" if vote.get("decision") == "error" else "")
                     votes[f"run-{run_index}"] = {str(k): str(v) for k, v in vote.items()}
                     if stop_on_uncertain and vote.get("decision") == "uncertain":
                         interrupted = True
                         break
                 decision = dict(consensus_classification("openalex", votes, consensus_threshold, require_verified_quote=bool(ollama_config.get("require_verified_quote", True)))) if consecutive_runs > 1 else votes["run-1"]
+                decision["relevance_decision"] = decision["decision"]
+                quality_consensus(decision, votes, consensus_threshold)
                 return decision, votes, interrupted
 
             result, votes, interrupted = decide(sections, stop_on_uncertain=True)
@@ -319,6 +329,8 @@ def classify(candidates_path: Path, output: Path, cache: PipelineCache, ollama_c
                 initial_votes, initial_result, final_votes, result,
                 required=expansion_required, attempted=expansion_attempted, changed=expansion_changed,
             ))
+        if dry_run:
+            finish_quality(result, quality_rules, {}, "dry_run", supported=[])
         if result.get("decision") != "error":
             cache.put_decision("openalex.classification", key, profile_hash, evidence_hash, result, result["classified_at"])
         results.append(result)

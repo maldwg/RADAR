@@ -10,6 +10,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from radar.common.quality import QUALITY_COLUMNS
 from radar.common.csvio import atomic_write_csv
 from radar.common.provenance import audited_bundle, file_hash, register_input
 from radar.common.sources import LocalSourceAdapter, SourceContract, load_source_contract
@@ -30,7 +31,7 @@ def _provider_memberships(row: dict[str, Any]) -> set[str]:
 
 def _source_reports(rating: Any, rows: list[dict[str, Any]], candidates: list[dict[str, Any]] | None,
                     contract: SourceContract, evaluation: Path, config: dict[str, object],
-                    confidence_level: float, candidates_path: Path | None) -> list[Path]:
+                    confidence_level: float, candidates_path: Path | None, decision_column: str = "decision") -> list[Path]:
     """Score each provider's retained cohort against the same independent references."""
     from radar.common.evaluation import evaluate_results
     from radar.plotting.evaluation import build as plot_evaluation
@@ -51,14 +52,14 @@ def _source_reports(rating: Any, rows: list[dict[str, Any]], candidates: list[di
         root = evaluation / "sources" / provider
         classifications = root / "inputs" / "classifications.csv"
         _write_records(classifications, [row for row in rows if provider in _provider_memberships(row)],
-            contract, ('classifier_supported_fields',))
+            contract, ('classifier_supported_fields', decision_column, *QUALITY_COLUMNS))
         register_input(classifications)
         candidate_csv = None
         if candidates is not None:
             candidate_csv = root / "inputs" / "candidates.csv"
             _write_records(candidate_csv, [row for row in candidates if provider in _provider_memberships(row)], contract)
             register_input(candidate_csv)
-        result = evaluate_results(rating, classifications, root, candidate_csv, confidence_level=confidence_level)
+        result = evaluate_results(rating, classifications, root, candidate_csv, confidence_level=confidence_level, decision_column=decision_column)
         outputs.extend(result.outputs)
         outputs.extend(plot_evaluation(root, {**config, 'field_labels': contract.field_labels}))
     return outputs
@@ -96,12 +97,18 @@ def build_report(
     profile_path: Path, input_path: Path, out_dir: Path, config: dict[str, object], *,
     candidates_path: Path | None = None, ratings_path: Path | None = None,
     exports_path: Path | None = None, database_path: Path | None = None,
-    confidence_level: float = 0.95,
+    confidence_level: float = 0.95, decision_column: str = "decision",
 ) -> list[Path]:
     """Import a provider contract and reuse evaluation, databases and generic figures."""
     contract = load_source_contract(profile_path)
     adapter = LocalSourceAdapter(contract)
     rows = adapter.read(input_path)
+    if decision_column != "decision":
+        for row in rows:
+            if not row.get(decision_column):
+                raise ValueError(f"classification input requires explicit {decision_column}")
+            row["pipeline_decision"] = row["decision"]
+            row["decision"] = row[decision_column]
     candidates = adapter.read(candidates_path) if candidates_path else None
     exports = adapter.read(exports_path) if exports_path else None
     decisions_observed = all(row.get('decision') for row in rows) and bool(rows)
@@ -119,7 +126,7 @@ def build_report(
     if exported is not None and (included is None or not exported <= included):
         raise ValueError('export contains records absent from accepted classifications')
     classifications = out_dir / 'normalized' / 'classifications.csv'
-    _write_records(classifications, rows, contract, ('classifier_supported_fields',) if decisions_observed else ())
+    _write_records(classifications, rows, contract, ('classifier_supported_fields', decision_column, *QUALITY_COLUMNS))
     register_input(classifications)
     candidate_csv = None
     if candidates is not None:
@@ -195,11 +202,11 @@ def build_report(
         rating = load_rating_profile(ratings_path, contract.name, contract=contract)
         evaluation = out_dir / 'evaluation'
         result = evaluate_results(rating, classifications, evaluation, candidate_csv,
-            reporting_database=store, confidence_level=confidence_level)
+            reporting_database=store, confidence_level=confidence_level, decision_column=decision_column)
         outputs.extend(result.outputs)
         outputs.extend(plot_evaluation(evaluation, {**config, 'field_labels': contract.field_labels}))
         outputs.extend(_source_reports(rating, rows, candidates, contract, evaluation, config,
-            confidence_level, candidates_path))
+            confidence_level, candidates_path, decision_column))
         with ReportingDatabase(store) as database:
             with database.db:
                 database.snapshot(input_path, 'provider_input')
@@ -209,6 +216,9 @@ def build_report(
     else:
         with ReportingDatabase(store) as database:
             database.add_figures(out_dir)
+    from radar.plotting.quality import build_quality_reports
+
+    outputs.extend(build_quality_reports({"classifier": classifications}, out_dir / "quality", config))
     (out_dir / 'README.md').write_text(
         f'# Reporting bundle\n\nProvider: {contract.display_name or contract.name}\n\nEntity type: {contract.entity_kind}\n\n'
         'Normalized inputs are in `normalized/`. Numeric tables and contribution IDs are in `figures/data/`.\n'

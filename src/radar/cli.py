@@ -16,6 +16,7 @@ from radar.common.evaluation import EvaluationResult, evaluate_results, load_rat
 from radar.common.config import DEFAULT_STUDY, ConfigError, Settings, load_prompt_profile, load_settings, load_system_type_profile, load_term_profile
 from radar.common.csvio import read_csv
 from radar.common.limits import optional_limit, limit_label
+from radar.common.provenance import file_hash
 from radar.common.run import RunManifest
 from radar.common.text import slug
 from radar.common.logging import configure_logging, logger
@@ -307,11 +308,14 @@ def _evaluate(
     profile = load_rating_profile(profile_path, source)
     result = evaluate_results(
         profile, classifications, output_dir, candidates,
-        confidence_level=_evaluation_confidence_level(settings),
+        confidence_level=_evaluation_confidence_level(settings), decision_column="relevance_decision",
     )
     from radar.plotting.evaluation import build as build_evaluation_plots
 
     plot_outputs = build_evaluation_plots(output_dir, settings.section("plots"))
+    from radar.plotting.quality import build_quality_reports
+
+    plot_outputs.extend(build_quality_reports({"classifier": classifications}, output_dir / "quality", settings.section("plots")))
     from radar.common.reporting import ReportingDatabase
 
     with ReportingDatabase(output_dir / 'reporting.sqlite3') as database:
@@ -383,7 +387,11 @@ def _build_classifier_comparisons(settings: Settings, source: str) -> list[Path]
         for classifier_label, (classification, evaluation_root) in entries.items():
             reference_root = evaluation_root / reference_label if multiple else evaluation_root
             if classification.is_file() and (reference_root / "metrics.json").is_file():
-                classifications[classifier_label] = classification
+                metrics = json.loads((reference_root / "metrics.json").read_text(encoding="utf-8"))
+                source_digest = metrics.get("input_fingerprints", {}).get("classification_source")
+                if source_digest and file_hash(classification) != source_digest:
+                    raise ValueError(f"classifier results changed since evaluation: {classifier_label}")
+                classifications[classifier_label] = Path(metrics["classifications_path"])
                 evaluations[classifier_label] = reference_root
                 classifier_labels.append(classifier_label)
         if len(evaluations) < 2:
@@ -605,7 +613,7 @@ def _execute_plain_llm_variants(args: argparse.Namespace, settings: Settings, so
             ratings = getattr(args, "ratings", None) or settings.section("evaluation").get("references")
             files = build_report(settings.path("taxonomy"), output, paths["plots"], settings.section("plots"),
                 candidates_path=original_path, ratings_path=Path(ratings) if ratings and (_evaluation_enabled(settings) or getattr(args, "ratings", None)) else None,
-                confidence_level=_evaluation_confidence_level(settings))
+                confidence_level=_evaluation_confidence_level(settings), decision_column="relevance_decision")
             manifest.counts[label + "_report_files"] = len(files)
         elif _evaluation_enabled(settings) or getattr(args, "ratings", None):
             for ratings, directory, reference in _evaluation_jobs(settings, source, args, paths["evaluation"]):
@@ -705,7 +713,7 @@ def _execute_baselines(args: argparse.Namespace, settings: Settings, source: str
                     keyword_profile,
                     resume=args.resume,
                     progress_every=int(settings.section("logging").get("progress_every", 25)),
-                    adapter_config=keyword_adapter_config,
+                    adapter_config={**keyword_adapter_config, "quality_rules": settings.section("screening")},
                 )
             elif method == "nli":
                 assert cache is not None
@@ -1013,7 +1021,7 @@ def _configured_review_protocol(settings: Settings):
     from radar.common.study_pipeline import load_assessment_template, load_assessment_fields
     from radar.common.screening import load_screening_profile
 
-    protocol = load_study_protocol(settings.path("screening"))
+    protocol = load_study_protocol(settings.path("screening"), quality_path=settings.path("quality"))
     load_assessment_fields(protocol)
     _, prompt_path, _ = load_assessment_template(protocol)
     screening = load_screening_profile(protocol.path)
@@ -1105,7 +1113,7 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
         if action == "screen":
             if not args.input:
                 raise ConfigError("screen requires --input containing criterion assessments")
-            rows = screen_study(protocol, args.input, args.output or settings.path("interim_dir") / "screened.csv")
+            rows = screen_study(protocol, args.input, args.output or settings.path("interim_dir") / "screened.csv", quality_path=settings.path("quality"))
             counts["screened_records"] = len(rows)
         for model in models:
             classification = args.output if action == "classify" and args.output else paths[model]["classifications"]
@@ -1115,7 +1123,7 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
                 classification_settings = pipeline["classification"]
                 rows = classify_study(protocol, prefiltered, classification,
                     _model_ollama_config(settings, model), limit=classify_limit, resume=args.resume, dry_run=args.dry_run,
-                    fetch_full_text=bool(evidence.get("fetch_full_text", False)),
+                    quality_path=settings.path("quality"), fetch_full_text=bool(evidence.get("fetch_full_text", False)),
                     max_chars=evidence.get("max_full_text_chars", 120000),
                     evidence_lookup_timeout_seconds=evidence.get("evidence_lookup_timeout_seconds", 30),
                     enrich_missing_abstracts=evidence["enrich_missing_abstracts"],
@@ -1138,7 +1146,7 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
                     candidates_path=(getattr(args, "candidates", None) or
                         (candidates if candidates.is_file() else None)),
                     ratings_path=Path(ratings) if ratings and (enabled or action == "evaluate") else None,
-                    confidence_level=_evaluation_confidence_level(settings))
+                    confidence_level=_evaluation_confidence_level(settings), decision_column="relevance_decision")
                 counts[f"report_files_{slug(model)}"] = len(files)
         if ensemble_enabled and action in {"classify", "run"}:
             from radar.common.study_consensus import ensemble_study
@@ -1147,7 +1155,7 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
             model_inputs = {model: paths[model]["classifications"] for model in ensemble_members}
             if args.output and len(models) == 1 and action == "classify":
                 model_inputs[models[0]] = args.output
-            rows = ensemble_study(protocol, model_inputs, ensemble_paths["classifications"], ensemble_threshold)
+            rows = ensemble_study(protocol, model_inputs, ensemble_paths["classifications"], ensemble_threshold, quality_path=settings.path("quality"))
             counts["classified_ensemble"] = len(rows)
         if ensemble_enabled and action in {"plot", "evaluate", "run"}:
             ensemble_paths = _variant_paths(settings, source, Path("ensemble"))
@@ -1158,7 +1166,7 @@ def _execute_review(args: argparse.Namespace, settings: Settings) -> dict[str, i
                 candidates_path=(getattr(args, "candidates", None) or
                     (candidates if candidates.is_file() else None)),
                 ratings_path=Path(ratings) if ratings and (enabled or action == "evaluate") else None,
-                confidence_level=_evaluation_confidence_level(settings))
+                confidence_level=_evaluation_confidence_level(settings), decision_column="relevance_decision")
             counts["report_files_ensemble"] = len(files)
         if action == "run" and not args.dry_run and _baselines_enabled(settings):
             baseline_args = argparse.Namespace(action="baseline", input=None, output=None, methods=None,
@@ -1245,6 +1253,7 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("--database", type=Path)
     screening = subparsers.add_parser("study-screen", help="replay an external study's evidence-backed eligibility and quality rules")
     screening.add_argument("--protocol", required=True, type=Path)
+    screening.add_argument("--quality-config", type=Path, help="shared quality TOML; otherwise use the protocol study manifest")
     screening.add_argument("--input", required=True, type=Path, help="JSON records with criterion assessments and full text")
     screening.add_argument("--output", required=True, type=Path, help="classification CSV for report/evaluation")
     study_collect = subparsers.add_parser("study-collect", help="discover papers through a registered provider search profile")
@@ -1259,6 +1268,7 @@ def build_parser() -> argparse.ArgumentParser:
     study_collect.add_argument("--query-limit-factor", type=float, default=3.0)
     study_classify = subparsers.add_parser("study-classify", help="assess external-review candidates with Ollama")
     study_classify.add_argument("--protocol", required=True, type=Path)
+    study_classify.add_argument("--quality-config", type=Path, help="shared quality TOML; otherwise use the protocol study manifest")
     study_classify.add_argument("--input", required=True, type=Path, help="candidate JSON, optionally containing full text")
     study_classify.add_argument("--output", required=True, type=Path, help="classification CSV and assessment checkpoint")
     study_classify.add_argument("--model", help="select one model for this explicit classification call")
@@ -1351,7 +1361,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "study-screen":
             from radar.common.study_screening import screen_study
 
-            rows = screen_study(args.protocol, args.input, args.output)
+            rows = screen_study(args.protocol, args.input, args.output, quality_path=args.quality_config)
             counts = {"screened_records": len(rows)}
         elif args.command == "study-collect":
             from radar.common.study_pipeline import collect_study
@@ -1367,7 +1377,7 @@ def main(argv: list[str] | None = None) -> int:
 
             config = dict(settings.section("ollama"))
             config["model"] = args.model or _configured_models(settings)[0]
-            rows = classify_study(args.protocol, args.input, args.output, config,
+            rows = classify_study(args.protocol, args.input, args.output, config, quality_path=args.quality_config,
                 limit=args.limit, resume=args.resume, dry_run=args.dry_run,
                 fetch_full_text=args.fetch_full_text, enrich_missing_full_text=args.enrich_missing_full_text,
                 max_chars=args.max_full_text_chars,

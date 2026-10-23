@@ -50,11 +50,10 @@ Provider discovery
 The source analysis identifies every discovery provider as a structural
 candidate for ``DiscoveryAdapter``. OpenAlex and Semantic
 Scholar share ``JsonTransport``; GitHub retains its own rate-limit-aware client.
-``LocalDiscoveryAdapter`` pages a frozen CSV/JSON file and needs no HTTP client.
 
 .. figure:: _static/models/uml-discovery.svg
    :target: _static/models/uml-discovery.svg
-   :alt: DiscoveryAdapter realized by GitHub, OpenAlex, Semantic Scholar and local file providers, with HTTP client associations.
+   :alt: DiscoveryAdapter realized by GitHub, OpenAlex and Semantic Scholar providers, with HTTP client associations.
    :width: 100%
 
    Provider discovery and HTTP clients.

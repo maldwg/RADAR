@@ -1,0 +1,24 @@
+schema_version = "1.0"
+
+[evidence]
+max_quotation_passages = 4
+# Zero leaves the number of supporting source blocks unlimited.
+max_block_passages = 0
+
+[nli]
+entailment_threshold = 0.5
+label_margin = 0.1
+hypothesis_template = "${criterion}"
+premise_template = '''Evidence source: ${source}.
+${text}'''
+
+[prompts]
+instructions = '''Assess these content-quality requirements independently of relevance and taxonomy. Yes requires explicit support; no requires explicit evidence of failure. Missing, partial or truncated documentation means unknown, not no. Evidence may span multiple passages. Quality must not change your relevance classification.'''
+quotations = '''INDEPENDENT CONTENT QUALITY ASSESSMENT
+${instructions}
+Return a separate quality object keyed by criterion ID. Each entry has value (yes/no/unknown) and evidence (an array of source/quote objects copied from the supplied evidence). Return all class fields as well as quality.
+${criteria}'''
+blocks = '''INDEPENDENT CONTENT QUALITY ASSESSMENT
+${instructions}
+Return each quality criterion in criteria with value (yes/no/unknown) and evidence_ids selecting the supplied source blocks that jointly support it. Use exact source IDs and an empty evidence_ids array for unknown. Return all eligibility and extraction fields as well as quality judgments.
+${criteria}'''

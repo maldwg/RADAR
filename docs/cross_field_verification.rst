@@ -60,7 +60,7 @@ keeps selected source passages, and exports the same portable classification for
    * - ``src/radar/common/paper_evidence.py``
      - Shared scholarly evidence and PDF acquisition policy
    * - ``src/radar/adapters/``
-     - GitHub, OpenAlex, Semantic Scholar and local-file provider operations
+     - GitHub, OpenAlex and Semantic Scholar provider operations
    * - ``examples/verification/memmesheimer/assessments.json``
      - Synthetic input illustrating accept, exclude, and uncertain
 

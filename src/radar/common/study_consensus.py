@@ -1,6 +1,8 @@
 """Evidence-preserving votes for repeated and multi-model review assessments."""
 from __future__ import annotations
 
+from radar.common.quality import finish_quality, policy_rules
+
 from collections import Counter
 import copy
 import json
@@ -57,19 +59,27 @@ def combine_assessments(record: dict[str, Any], votes: list[dict[str, Any]], pro
                 "agreement": counts[winner] / denominator, "voters": denominator}
     adapter = StudyScreeningAdapter(protocol)
     decisions = Counter()
+    relevance_decisions = Counter()
     for vote in votes:
         if vote["status"] == "success":
             answer = vote["answer"]
             trial = {**record, "criteria": answer["criteria"],
                 **{key: answer["fields"][key]["value"] for key in fields}}
-            decisions[adapter.normalize([trial])[0]["decision"]] += 1
+            normalized = adapter.normalize([trial])[0]
+            decisions[normalized["decision"]] += 1
+            relevance_decisions[normalized["relevance_decision"]] += 1
         else:
             decisions["error" if vote["status"] == "error" else "uncertain"] += 1
+            relevance_decisions["error" if vote["status"] == "error" else "uncertain"] += 1
     disposition = _winner(Counter({key: decisions[key] for key in ("accept", "exclude", "uncertain")}),
         denominator, threshold, "uncertain")
     if decisions["error"] == denominator:
         disposition = "error"
-    result.update(**{key: judgment["value"] for key, judgment in selected_fields.items()},
+    relevance_disposition = _winner(Counter({key: relevance_decisions[key] for key in ("accept", "exclude", "uncertain")}),
+        denominator, threshold, "uncertain")
+    if relevance_decisions["error"] == denominator:
+        relevance_disposition = "error"
+    result.update(consensus_relevance_disposition=relevance_disposition, **{key: judgment["value"] for key, judgment in selected_fields.items()},
         field_assessments_json=json.dumps(selected_fields, sort_keys=True),
         consensus_threshold=threshold, consensus_disposition=disposition,
         consensus_decision_counts=json.dumps(dict(decisions), sort_keys=True),
@@ -87,21 +97,27 @@ def normalize_consensus(record: dict[str, Any], protocol: StudyProtocol) -> dict
     elif disposition != row["decision"]:
         row.update(decision="uncertain", decision_basis="consensus_disposition_conflict",
             consensus_validation_flags="decision_criteria_conflict")
+    relevance = record.get("consensus_relevance_disposition", row["relevance_decision"])
+    row["relevance_decision"] = relevance if relevance == "error" or relevance == row["relevance_decision"] else "uncertain"
+    votes = json.loads(record.get("assessment_votes_json", "[]"))
+    quality_error = bool(protocol.quality and votes and all(len(vote.get("quality_errors", {})) == len(protocol.quality) or vote.get("status") == "error" for vote in votes))
+    finish_quality(row, policy_rules(json.loads(row["quality_rules_json"])), json.loads(row["quality_assessments_json"]),
+        "radar_llm", error="all_quality_assessments_failed" if quality_error else "", evidence_hash=row["quality_evidence_hash"])
     return row
 
 
-def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: Path, threshold: float) -> list[dict[str, Any]]:
+def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: Path, threshold: float, *, quality_path: Path | None = None) -> list[dict[str, Any]]:
     """Combine completed model assessments from one frozen cohort and protocol."""
     from radar.common.study_pipeline import load_assessment_fields, _write_json, _validate_assessment, load_assessment_template
     from radar.common.study_screening import load_study_protocol
 
     validate_consensus(len(model_inputs), threshold)
-    protocol = load_study_protocol(protocol_path)
+    protocol = load_study_protocol(protocol_path, quality_path=quality_path)
     fields = load_assessment_fields(protocol)
     _, _, prompt_digest = load_assessment_template(protocol)
     checkpoints = {}
     context = None
-    keys = ("input_sha256", "protocol_sha256", "source_profile_sha256", "prompt_sha256",
+    keys = ("input_sha256", "protocol_sha256", "source_profile_sha256", "prompt_sha256", "quality_config_sha256",
         "evidence_block_version", "evidence_block_max_chars", "evidence_retrieval_policy", "max_full_text_chars", "fetch_full_text", "evidence_lookup_timeout_seconds",
         "dry_run", "consecutive_runs", "consensus_threshold",
         "enrich_missing_abstracts", "enrich_missing_full_text", "full_text_lookup_providers", "enrich_uncertain_with_full_text", "classify_borderline")
@@ -121,6 +137,8 @@ def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: P
         current["selected_ids"] = [row[protocol.contract.identity] for row in checkpoint["records"]]
         if context is not None and context != current:
             raise ValueError("review ensemble mixes incompatible cohorts or assessment settings")
+        if checkpoint["quality_config_sha256"] != protocol.quality_config["_sha256"]:
+            raise ValueError("review ensemble quality configuration does not match its assessments")
         if checkpoint["protocol_sha256"] != protocol.sha256 or checkpoint["source_profile_sha256"] != protocol.source_profile_sha256 or checkpoint["prompt_sha256"] != prompt_digest:
             raise ValueError("review ensemble protocol does not match its assessments")
         context = current
@@ -139,7 +157,9 @@ def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: P
             _validate_assessment(answer, protocol, fields, EvidenceBlockIndex.from_record(record))
             votes.append({"label": model, "status": "success" if member["assessment_status"] in {"success", "partial_error"}
                 and member.get("consensus_disposition") != "error" else member["assessment_status"],
-                "answer": answer})
+                "answer": answer,
+                "quality_errors": {f"criteria.{key}": "member_quality_assessment_failed" for key in protocol.quality}
+                    if normalize_consensus(member, protocol)["quality_status"] == "error" else {}})
         combined = combine_assessments(record, votes, protocol, fields, threshold)
         for column in ("assessment_evidence_warnings_json",):
             combined[column] = json.dumps([
@@ -147,6 +167,10 @@ def ensemble_study(protocol_path: Path, model_inputs: dict[str, Path], output: P
                 for entry in json.loads(checkpoint["records"][index].get(column, "[]"))], sort_keys=True)
         # A model's row-level abstention must also remain an abstention in the ensemble.
         model_decisions = Counter(checkpoint["records"][index]["consensus_disposition"] for checkpoint in checkpoints.values())
+        model_relevance = Counter(checkpoint["records"][index]["consensus_relevance_disposition"] for checkpoint in checkpoints.values())
+        combined["consensus_relevance_disposition"] = _winner(Counter({key: model_relevance[key] for key in ("accept", "exclude", "uncertain")}), len(checkpoints), threshold, "uncertain")
+        if model_relevance["error"] == len(checkpoints):
+            combined["consensus_relevance_disposition"] = "error"
         combined["consensus_disposition"] = _winner(Counter({key: model_decisions[key] for key in ("accept", "exclude", "uncertain")}),
             len(checkpoints), threshold, "uncertain")
         if model_decisions["error"] == len(checkpoints):

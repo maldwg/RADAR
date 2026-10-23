@@ -9,5 +9,14 @@ E2 = "Papers applying, comparing, cleaning, relabeling, balancing, transforming,
 E3 = "Use core only when the resource itself was created for intrusion, attack, malicious-behavior, or security-anomaly research. Use adjacent only for an original or versioned neutral traffic, log, telemetry, or trace release that is demonstrably reusable for IDS research but did not claim security intent. Generic non-security datasets are unrelated, not adjacent. A generator-only contribution cannot be adjacent under this protocol."
 E4 = "Every claimed release must include a verbatim quote supporting both the paper’s creation/release contribution and the extracted resource identity. The artifact_name, artifact_display_name, or one artifact_alias must occur in that quoted evidence. If the supplied evidence does not support a concrete resource identity, choose uncertain; never infer the identity from the year, authors, or a similar known dataset. Evidence that a dataset was used is not release evidence."
 
+[quality]
+Q1 = "The paper or resource documentation describes the data generation or collection procedure."
+Q2 = "The paper or resource documentation describes data contents, formats and the unit of observation."
+Q3 = "The paper or resource documentation explains labeling or ground-truth provenance, or explicitly states that the resource is unlabeled."
+Q4 = "The paper or resource documentation provides access or reproduction instructions."
+Q5 = "The paper or resource documentation describes limitations, biases or intended-use constraints."
+
 [decision]
 strategy = "dataset_release_validation"
+quality_minimum = 3
+quality_required = ["Q1", "Q2"]

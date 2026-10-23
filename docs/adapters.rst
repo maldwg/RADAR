@@ -85,11 +85,9 @@ not another discovery provider. It handles request pacing, timeouts, retries,
 headers, and JSON decoding. Adapters own endpoints, query syntax, pagination,
 and response normalization. GitHub retains its separate rate-aware client.
 
-``LocalDiscoveryAdapter`` imports candidate metadata and evidence for screening
-from a frozen file. ``LocalSourceAdapter`` in ``common/sources.py`` instead
-imports existing records and scientific results for reporting and evaluation.
-These are distinct entry points; candidate discovery does not reuse imported
-classification decisions as evidence.
+``LocalSourceAdapter`` in ``common/sources.py`` normalizes stored records and
+scientific results for reporting and evaluation. It is separate from provider
+discovery.
 
 .. _adapters-multiple-providers-in-one-review:
 
@@ -156,35 +154,6 @@ same references in ``evaluation/sources/<provider>/``. These measurements descri
 the retained cohort, including its collection cap. References do not enter discovery or assessment
 prompts. Provider membership is retained through CSV export and is not substituted by the study’s
 scientific reporting identity.
-
-.. _adapters-local-files:
-
-Local files
------------
-
-To discover papers from a frozen CSV/JSON export, add ``local`` to the study’s sources using
-``../../shared/sources/local.toml`` and a study-owned search profile:
-
-.. code:: toml
-
-   schema_version = "1.0"
-   provider = "local"
-   path = "papers.csv"
-   identity = "export_id"
-   entity_kind = "paper"
-   named_entity_seeding = false
-
-   [mapping]
-   title = "paper_title"
-   doi = "DOI"
-   full_text = "text"
-   full_text_complete = "complete"
-
-``path`` resolves relative to that search file. Pagination follows file order and records the
-content hash. A changed file aborts collection. Mappings accept metadata and evidence fields only.
-Scientific judgments present in the export are kept in the raw audit and are excluded from candidate
-assessment inputs. ``full_text_complete`` must be boolean or the CSV string ``true``/``false``;
-omitted completeness defaults to false.
 
 .. _adapters-adding-a-provider-or-strategy:
 
